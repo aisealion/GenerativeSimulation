@@ -1,10 +1,5 @@
 {
   "regrowth_kg_per_round": 100,
   "carrying_capacity_kg": 300,
-  "effort_caps_kg": {
-    "kai": 35,
-    "mara": 35
-  },
-  "moratorium_threshold_kg": 120,
   "history_window_rounds": 5
 }
