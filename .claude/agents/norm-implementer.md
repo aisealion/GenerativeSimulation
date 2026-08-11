@@ -153,22 +153,11 @@ fit. Never guess at what already exists.
   `prompts/persona_template.md`, `prompts/role_directives/*.md`, or
   `prompts/phases/*.md` are legitimate prompt-layer diffs.
 
-## Step 5 — Report, in this order
+## Step 5 — Commit
 
-1. Classification table from Step 1.
-2. CodeGraph queries run and what they returned (symbols found, callers
-   affected), if Step 2 was invoked.
-3. Parametric vs. structural routing per rule, with rationale for any
-   structural or new-phase addition.
-4. The diff, if any.
-5. Regression test result.
-6. If a new mechanism, phase, or role phrasing file was added: one
-   sentence on what future norm-shape would make it reusable rather than
-   a one-off.
-
-## Step 6 — Commit
-
-Once Step 4 validation passes, stage and commit your change:
+Once Step 4 validation passes, stage and commit your change **before**
+writing your report (Step 6). This is not optional and not a wrap-up
+nicety — your task is not finished until this has actually run:
 
 ```
 git add mechanisms phases prompts schedule.json state/config.json state/fluents.json
@@ -178,7 +167,24 @@ git commit -m "<one line naming the norm applied, e.g. 'Adopt Round 2 norm: cap 
 Stage only the specific files/dirs you touched — never `git add -A` or `git add .`,
 since that could sweep in `state/runtime.json` or other files you must not write
 to. If nothing changed (Step 3 concluded no code edit was needed), skip the
-commit and say so in your report.
+commit and say so explicitly in your report — that is the only valid reason
+for Step 6 to not show a commit hash.
+
+## Step 6 — Report, in this order
+
+1. Classification table from Step 1.
+2. CodeGraph queries run and what they returned (symbols found, callers
+   affected), if Step 2 was invoked.
+3. Parametric vs. structural routing per rule, with rationale for any
+   structural or new-phase addition.
+4. The diff, if any.
+5. Regression test result.
+6. **The commit hash from Step 5** (via `git rev-parse --short HEAD` if
+   the commit command itself didn't print one), or an explicit statement
+   of why no commit was made.
+7. If a new mechanism, phase, or role phrasing file was added: one
+   sentence on what future norm-shape would make it reusable rather than
+   a one-off.
 
 ## Hard constraints
 
