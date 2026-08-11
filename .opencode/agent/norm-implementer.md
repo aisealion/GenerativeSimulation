@@ -182,22 +182,15 @@ fit. Never guess at what already exists.
   `prompts/persona_template.md`, `prompts/role_directives/*.md`, or
   `prompts/phases/*.md` are legitimate prompt-layer diffs.
 
-## Step 5 — Commit
+## Step 5 — Do not commit
 
-Once Step 4 validation passes, stage and commit your change **before**
-writing your report (Step 6). This is not optional and not a wrap-up
-nicety — your task is not finished until this has actually run:
-
-```
-git add mechanisms phases prompts schedule.json state/config.json state/fluents.json
-git commit -m "<one line naming the norm applied, e.g. 'Adopt Round 2 norm: cap harvest at 100kg/trip'>"
-```
-
-Stage only the specific files/dirs you touched — never `git add -A` or `git add .`,
-since that could sweep in `state/runtime.json` or other files you must not write
-to. If nothing changed (Step 3 concluded no code edit was needed), skip the
-commit and say so explicitly in your report — that is the only valid reason
-for Step 6 to not show a commit hash.
+The orchestrator (`simulate.py`) commits your changes automatically right
+after this run completes, scoped to exactly the paths you're allowed to
+touch. Do not run `git add` or `git commit` yourself — across every real
+run so far, that step got skipped regardless of how this instruction was
+phrased or ordered, so it's handled outside your hands now. Just make sure
+your file edits are actually written to disk before you finish; that's
+the only thing that matters for the commit to pick them up correctly.
 
 ## Step 6 — Report, in this order
 
@@ -208,10 +201,7 @@ for Step 6 to not show a commit hash.
    structural or new-phase addition.
 4. The diff, if any.
 5. Regression test result.
-6. **The commit hash from Step 5** (via `git rev-parse --short HEAD` if
-   the commit command itself didn't print one), or an explicit statement
-   of why no commit was made.
-7. If a new mechanism, phase, or role phrasing file was added: one
+6. If a new mechanism, phase, or role phrasing file was added: one
    sentence on what future norm-shape would make it reusable rather than
    a one-off.
 
