@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import os
 import subprocess
 import sys
 import time
@@ -37,14 +38,14 @@ def run_norm_implementer(round_number):
         "norm.txt has been updated for this round. Read it and implement "
         "accordingly, following your standing instructions."
     )
+    cmd = ["opencode", "run", "--agent", "norm-implementer"]
+    model = os.environ.get("OPENCODE_MODEL")
+    if model:
+        cmd += ["--model", model]
+    cmd.append(message)
+
     start = time.monotonic()
-    result = subprocess.run(
-        ["opencode", "run", "--agent", "norm-implementer", message],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=900,
-    )
+    result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=900)
     duration_s = time.monotonic() - start
 
     log_call(
@@ -52,7 +53,7 @@ def run_norm_implementer(round_number):
         agent_id=None,
         round=round_number,
         phase=None,
-        model=None,
+        model=model,
         duration_s=round(duration_s, 3),
         returncode=result.returncode,
         prompt=message,
