@@ -14,6 +14,14 @@ from call_log import log_call
 ROOT = Path(__file__).resolve().parent
 COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 50
+NORM_IMPLEMENTER_TRACKED_PATHS = [
+    "mechanisms",
+    "phases",
+    "prompts",
+    "schedule.json",
+    "state/config.json",
+    "state/fluents.json",
+]
 
 HOLDS_AT_RE = re.compile(r"holdsAt\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)")
 
@@ -98,6 +106,30 @@ def run_norm_implementer(round_number):
         raise RuntimeError("norm-implementer run failed")
 
 
+def commit_norm_implementation(round_number, winning_proposal):
+    """The norm-implementer is unreliable about running its own git commit —
+    observed across real runs, it consistently skips it regardless of
+    instructions. Don't depend on model compliance for something this
+    mechanical: commit deterministically here instead, scoped to exactly the
+    paths the agent is allowed to touch (never state/runtime.json)."""
+    subprocess.run(["git", "add"] + NORM_IMPLEMENTER_TRACKED_PATHS, cwd=ROOT, check=True)
+    staged = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+    if not staged:
+        print(f"Round {round_number}: norm-implementer made no changes in the tracked paths — nothing to commit.")
+        return None
+
+    message = f"Round {round_number} norm: {winning_proposal['policy']}\n\n{winning_proposal['operationalization']}"
+    subprocess.run(["git", "commit", "-m", message], cwd=ROOT, check=True, capture_output=True, text=True)
+    commit_hash = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    print(f"Committed round {round_number} as {commit_hash}: {winning_proposal['policy'][:72]}")
+    return commit_hash
+
+
 def run_cycle(round_number):
     """Run every schedule.json phase gated on for this round, in file order.
     Returns False if the lake collapsed this round (stop the simulation)."""
@@ -133,6 +165,7 @@ def run_cycle(round_number):
         (ROOT / "norm.txt").write_text(norm_text)
         print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
         run_norm_implementer(round_number)
+        commit_norm_implementation(round_number, winning_proposal)
 
     return True
 

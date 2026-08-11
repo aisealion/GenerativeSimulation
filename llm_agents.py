@@ -76,6 +76,9 @@ def render_phase(phase_name, **fields):
     return template.format(**fields).strip()
 
 
+MAX_ATTEMPTS = 3
+
+
 def call_fisher_agent(agent_id, round_number, phase_name, **fields):
     prompt = render_persona(agent_id, round_number) + "\n\n" + render_phase(phase_name, **fields)
 
@@ -85,37 +88,46 @@ def call_fisher_agent(agent_id, round_number, phase_name, **fields):
         cmd += ["--model", model]
     cmd.append(prompt)
 
-    start = time.monotonic()
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=180, cwd=ROOT)
-    duration_s = time.monotonic() - start
+    last_error = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        start = time.monotonic()
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180, cwd=ROOT)
+        duration_s = time.monotonic() - start
 
-    parsed = None
-    error = None
-    if result.returncode != 0:
-        error = result.stderr.strip()
-    else:
-        try:
-            parsed = _parse_json_object(result.stdout)
-        except Exception as exc:
-            error = str(exc)
+        parsed = None
+        error = None
+        if result.returncode != 0:
+            error = result.stderr.strip()
+        else:
+            try:
+                parsed = _parse_json_object(result.stdout)
+            except Exception as exc:
+                error = str(exc)
 
-    log_call(
-        call="fisher",
-        agent_id=agent_id,
-        round=round_number,
-        phase=phase_name,
-        model=model,
-        duration_s=round(duration_s, 3),
-        returncode=result.returncode,
-        prompt=prompt,
-        raw_response=result.stdout,
-        parsed_response=parsed,
-        error=error,
+        log_call(
+            call="fisher",
+            agent_id=agent_id,
+            round=round_number,
+            phase=phase_name,
+            model=model,
+            attempt=attempt,
+            duration_s=round(duration_s, 3),
+            returncode=result.returncode,
+            prompt=prompt,
+            raw_response=result.stdout,
+            parsed_response=parsed,
+            error=error,
+        )
+
+        if not error:
+            return parsed
+
+        last_error = error
+        print(f"  [{agent_id}/{phase_name} attempt {attempt}/{MAX_ATTEMPTS} failed: {error} — retrying]")
+
+    raise RuntimeError(
+        f"opencode run failed for agent={agent_id} phase={phase_name} after {MAX_ATTEMPTS} attempts: {last_error}"
     )
-
-    if error:
-        raise RuntimeError(f"opencode run failed for agent={agent_id} phase={phase_name}: {error}")
-    return parsed
 
 
 def _parse_json_object(raw):
