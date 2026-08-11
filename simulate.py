@@ -156,12 +156,28 @@ def commit_norm_implementation(round_number, winning_proposal):
     return commit_hash
 
 
+def reload_project_modules():
+    """Python caches imported modules for the life of the process — without
+    this, a norm-implementer edit to mechanisms/*.py or phases/*.py on disk
+    never actually takes effect within a single continuous simulate.py run,
+    only the very first round's version of that code ever executes. Reload
+    mechanisms before phases so phases' `from mechanisms.x import y`
+    statements re-bind to the freshly reloaded functions, not stale ones
+    captured at the first import. Modules not yet imported (a brand new
+    phase file) don't need reloading — the plain import a few lines down
+    already gets them fresh."""
+    for prefix in ("mechanisms", "phases"):
+        for name in sorted(n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")):
+            importlib.reload(sys.modules[name])
+
+
 def run_cycle(round_number):
     """Run every schedule.json phase gated on for this round, in file order.
     Skips phases already recorded for this round (resuming after a crash
     mid-round) instead of re-running or skipping past them. Returns False
     if the lake collapsed this round (stop the simulation)."""
     print(f"\n=== Round {round_number} ===")
+    reload_project_modules()
     state = load_state(round_number)
     schedule = load_schedule()
     already_ran = {r["phase"] for r in state["runtime"]["rounds"] if r["round"] == round_number}
