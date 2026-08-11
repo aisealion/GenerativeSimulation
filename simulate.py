@@ -137,6 +137,32 @@ def run_cycle(round_number):
     return True
 
 
+def ensure_run_branch():
+    """Never let a run's state/code changes or norm-implementer commits land
+    on whatever branch we happened to start on (main included). If we're
+    already on a sim/ run branch, keep going on it; otherwise cut a new one."""
+    current = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+    if current.startswith("sim/"):
+        print(f"Continuing on existing run branch: {current}")
+        return current
+
+    branch = f"sim/run-{time.strftime('%Y%m%d-%H%M%S')}"
+    subprocess.run(["git", "checkout", "-b", branch], cwd=ROOT, check=True, capture_output=True, text=True)
+    print(f"Started new run on branch: {branch} (branched from {current})")
+
+    dirty = subprocess.run(
+        ["git", "status", "--short"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    if dirty:
+        print("Carried these uncommitted changes onto the new branch:")
+        print(dirty)
+
+    return branch
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -147,16 +173,25 @@ def main():
     )
     args = parser.parse_args()
 
+    branch = ensure_run_branch()
+
     runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
     round_number = runtime["round"] + 1
 
     while round_number <= args.max_rounds:
         if not run_cycle(round_number):
             print(f"\n=== Simulation ended: lake collapse at round {round_number} ===")
-            return
+            break
         round_number += 1
+    else:
+        print(f"\n=== Simulation ended: reached the {args.max_rounds}-round safety cap without collapse ===")
 
-    print(f"\n=== Simulation ended: reached the {args.max_rounds}-round safety cap without collapse ===")
+    print(
+        f"\nAll of this run's commits are on branch '{branch}', not main.\n"
+        f"  git log main..{branch} --oneline   # see what this run did\n"
+        f"  git checkout main                  # main is untouched\n"
+        f"  git merge --ff-only {branch}        # bring it into main once you're happy with it"
+    )
 
 
 if __name__ == "__main__":
