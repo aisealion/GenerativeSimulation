@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parent
 def render_persona(agent_id, round_number):
     agents = json.loads((ROOT / "state" / "agents.json").read_text())
     fluents = json.loads((ROOT / "state" / "fluents.json").read_text())
+    runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
+    config = json.loads((ROOT / "state" / "config.json").read_text())
     agent = agents[agent_id]
 
     record = role_holder("fisher", agent_id, fluents, round_number)
@@ -23,13 +25,50 @@ def render_persona(agent_id, round_number):
     role_directives = (ROOT / "prompts" / "role_directives" / "fisher.md").read_text().strip()
     persona_template = (ROOT / "prompts" / "persona_template.md").read_text()
     daily_status = f"This is round {round_number}."
+    history = render_history(
+        agent_id, round_number, runtime, agents, config.get("history_window_rounds", 5)
+    )
 
     return persona_template.format(
         agent_name=agent["name"],
         personality_traits=agent["personality_traits"],
         role_directives=role_directives,
         daily_status=daily_status,
+        history=history,
     ).strip()
+
+
+def render_history(agent_id, round_number, runtime, agents, window):
+    other_id = next(a for a in agents if a != agent_id)
+    other_name = agents[other_id]["name"]
+
+    past_rounds = sorted({r["round"] for r in runtime["rounds"] if r["round"] < round_number})
+    past_rounds = past_rounds[-window:]
+    if not past_rounds:
+        return "This is your first time out on the lake."
+
+    lines = []
+    for r in past_rounds:
+        for entry in (e for e in runtime["rounds"] if e["round"] == r):
+            if entry["phase"] == "harvest":
+                mine = entry["agents"][agent_id]["harvested_kg"]
+                theirs = entry["agents"][other_id]["harvested_kg"]
+                lines.append(
+                    f"Round {r}: you brought in {mine:.0f}kg, {other_name} brought in "
+                    f"{theirs:.0f}kg. The lake stood at {entry['stock_kg_after_regrowth']:.0f}kg afterward."
+                )
+            elif entry["phase"] == "propose":
+                mine = entry["proposals"][agent_id]["policy"]
+                theirs = entry["proposals"][other_id]["policy"]
+                lines.append(f'Round {r}: you proposed "{mine}" and {other_name} proposed "{theirs}".')
+            elif entry["phase"] == "vote":
+                who = "your" if entry["winning_proposer"] == agent_id else f"{other_name}'s"
+                lines.append(
+                    f"Round {r}: the two of you voted, and {who} proposal won "
+                    f"({entry['votes_for_a']}-{entry['votes_for_b']})."
+                )
+
+    return "Here's what's happened so far:\n" + "\n".join(f"- {line}" for line in lines)
 
 
 def render_phase(phase_name, **fields):
