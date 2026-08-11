@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import json
 import os
 import subprocess
@@ -12,6 +13,8 @@ import phases.vote as vote
 from call_log import log_call
 
 ROOT = Path(__file__).resolve().parent
+COLLAPSE_THRESHOLD_KG = 0
+DEFAULT_MAX_ROUNDS = 50
 
 
 def load_state(round_number):
@@ -68,16 +71,24 @@ def run_norm_implementer(round_number):
         raise RuntimeError("norm-implementer run failed")
 
 
-def main():
-    print("=== Round 1: harvest ===")
-    state = load_state(round_number=1)
-    record = harvest.run(state)
+def run_cycle(round_number):
+    """Harvest, then propose + vote + implement — every round renegotiates.
+    Returns False if the lake collapsed this round (stop the simulation)."""
+    print(f"\n=== Round {round_number}: harvest ===")
+    state = load_state(round_number)
+    harvest_record = harvest.run(state)
     save_runtime(state)
     save_fluents(state)
-    print(json.dumps(record, indent=2))
+    print(json.dumps(harvest_record, indent=2))
 
-    print("\n=== Round 2: propose + vote ===")
-    state = load_state(round_number=2)
+    if harvest_record["stock_kg_after_regrowth"] <= COLLAPSE_THRESHOLD_KG:
+        print(
+            f"\nLake has collapsed at round {round_number} "
+            f"(stock_kg_after_regrowth={harvest_record['stock_kg_after_regrowth']}). Stopping."
+        )
+        return False
+
+    print(f"\n=== Round {round_number}: propose + vote ===")
     propose_record = propose.run(state)
     save_runtime(state)
     print(json.dumps(propose_record, indent=2))
@@ -93,14 +104,30 @@ def main():
     (ROOT / "norm.txt").write_text(norm_text)
     print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
 
-    run_norm_implementer(round_number=2)
+    run_norm_implementer(round_number)
+    return True
 
-    print("\n=== Round 3: harvest (post-norm) ===")
-    state = load_state(round_number=3)
-    record = harvest.run(state)
-    save_runtime(state)
-    save_fluents(state)
-    print(json.dumps(record, indent=2))
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--max-rounds",
+        type=int,
+        default=DEFAULT_MAX_ROUNDS,
+        help="Safety backstop: stop after this many total rounds even if the lake hasn't collapsed.",
+    )
+    args = parser.parse_args()
+
+    runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
+    round_number = runtime["round"] + 1
+
+    while round_number <= args.max_rounds:
+        if not run_cycle(round_number):
+            print(f"\n=== Simulation ended: lake collapse at round {round_number} ===")
+            return
+        round_number += 1
+
+    print(f"\n=== Simulation ended: reached the {args.max_rounds}-round safety cap without collapse ===")
 
 
 if __name__ == "__main__":

@@ -6,9 +6,23 @@ regrows 100kg/round up to a 300kg carrying capacity
 `state/agents.json` — harvest, then propose and vote on a shared norm,
 which the `norm-implementer` agent then implements in code and commits.
 
-Run the full bootstrap cycle (harvest → propose/vote → implement → next
-harvest) with `python3 simulate.py`. Requires `opencode` configured with a
-working LiteLLM model (see `~/.config/opencode/opencode.jsonc`).
+Run with `python3 simulate.py`. Requires `opencode` configured with a
+working LiteLLM model (see `opencode.jsonc`). Every round renegotiates:
+harvest, then propose + vote + implement, then next round's harvest picks
+up whatever the norm-implementer just changed. Resumes from
+`state/runtime.json`'s current round, not from round 1 — safe to re-run
+after a norm-implementer change. Stops when the lake collapses
+(`stock_kg_after_regrowth <= 0`) or after `--max-rounds` (default 50,
+override with `python3 simulate.py --max-rounds N`).
+
+Regrowth is a flat `regrowth_kg_per_round` add, not proportional to
+current stock (this was the original spec) — so under the stock config
+alone, `stock_kg_after_regrowth` can hit exactly 0 but bounces back next
+round; it can't go negative or stay at 0. True permanent collapse only
+happens if some adopted norm's Operationalization leads the
+norm-implementer to make regrowth conditional on stock (a structural
+mechanism change) — until/unless that happens, expect most runs to end
+via the `--max-rounds` safety cap, not collapse.
 
 ## Non-obvious file ownership (not covered by the norm-implementer's own
 ## repo-shape notes, since these were added after that agent was defined)
