@@ -106,6 +106,32 @@ def run_norm_implementer(round_number):
         raise RuntimeError("norm-implementer run failed")
 
 
+def norm_already_committed(round_number):
+    result = subprocess.run(
+        ["git", "log", "--grep", f"^Round {round_number} norm:", "--oneline"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return bool(result.stdout.strip())
+
+
+def find_adopted_norm(runtime, round_number):
+    """Re-derive the winning proposal from history rather than requiring
+    state['adopted_norm'] to have just been set — needed when resuming a
+    round where vote already ran in a prior crashed attempt."""
+    vote_record = next(
+        (r for r in runtime["rounds"] if r["round"] == round_number and r["phase"] == "vote"), None
+    )
+    if vote_record is None:
+        return None
+    propose_record = next(
+        (r for r in runtime["rounds"] if r["round"] == round_number and r["phase"] == "propose"), None
+    )
+    return propose_record["proposals"][vote_record["winning_proposer"]]
+
+
 def commit_norm_implementation(round_number, winning_proposal):
     """The norm-implementer is unreliable about running its own git commit —
     observed across real runs, it consistently skips it regardless of
@@ -132,12 +158,18 @@ def commit_norm_implementation(round_number, winning_proposal):
 
 def run_cycle(round_number):
     """Run every schedule.json phase gated on for this round, in file order.
-    Returns False if the lake collapsed this round (stop the simulation)."""
+    Skips phases already recorded for this round (resuming after a crash
+    mid-round) instead of re-running or skipping past them. Returns False
+    if the lake collapsed this round (stop the simulation)."""
     print(f"\n=== Round {round_number} ===")
     state = load_state(round_number)
     schedule = load_schedule()
+    already_ran = {r["phase"] for r in state["runtime"]["rounds"] if r["round"] == round_number}
 
     for phase_name, gate in schedule.items():
+        if phase_name in already_ran:
+            print(f"--- {phase_name}: already recorded for round {round_number}, resuming past it ---")
+            continue
         if not evaluate_gate(gate, state["fluents"], round_number):
             print(f"--- {phase_name}: gated off this round ---")
             continue
@@ -156,18 +188,27 @@ def run_cycle(round_number):
             )
             return False
 
-    if "adopted_norm" in state:
-        winning_proposal = state["adopted_norm"]
-        norm_text = (
-            f"Policy: {winning_proposal['policy']}\n\n"
-            f"Operationalization: {winning_proposal['operationalization']}\n"
-        )
-        (ROOT / "norm.txt").write_text(norm_text)
-        print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
-        run_norm_implementer(round_number)
-        commit_norm_implementation(round_number, winning_proposal)
+    winning_proposal = state.get("adopted_norm") or find_adopted_norm(state["runtime"], round_number)
+    if winning_proposal:
+        if norm_already_committed(round_number):
+            print(f"\nRound {round_number}: norm-implementer already committed for this round, skipping.")
+        else:
+            norm_text = (
+                f"Policy: {winning_proposal['policy']}\n\n"
+                f"Operationalization: {winning_proposal['operationalization']}\n"
+            )
+            (ROOT / "norm.txt").write_text(norm_text)
+            print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
+            run_norm_implementer(round_number)
+            commit_norm_implementation(round_number, winning_proposal)
 
     return True
+
+
+def round_is_complete(runtime, fluents, schedule, round_number):
+    recorded = {r["phase"] for r in runtime["rounds"] if r["round"] == round_number}
+    expected = {name for name, gate in schedule.items() if evaluate_gate(gate, fluents, round_number)}
+    return expected.issubset(recorded)
 
 
 def ensure_run_branch():
@@ -209,7 +250,15 @@ def main():
     branch = ensure_run_branch()
 
     runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
-    round_number = runtime["round"] + 1
+    fluents = json.loads((ROOT / "state" / "fluents.json").read_text())
+    schedule = load_schedule()
+
+    last_round = runtime["round"]
+    if last_round > 0 and not round_is_complete(runtime, fluents, schedule, last_round):
+        round_number = last_round
+        print(f"Round {round_number} didn't finish last time — resuming it.")
+    else:
+        round_number = last_round + 1
 
     while round_number <= args.max_rounds:
         if not run_cycle(round_number):
