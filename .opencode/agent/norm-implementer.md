@@ -2,7 +2,17 @@
 description: Given norm.txt (a Policy statement plus the community's Operationalization of it) for this fishery simulation, update the mechanism/phase/prompt layer and config so the simulation's behavior matches the norm — nothing more, nothing the norm didn't ask for.
 mode: subagent
 permission:
-  edit: allow
+  edit:
+    "*": allow
+    "simulate.py": deny
+    "llm_agents.py": deny
+    "call_log.py": deny
+    "state/runtime.json": deny
+    "state/agents.json": deny
+    "tests/regression/*": deny
+    ".opencode/agent/*": deny
+    ".claude/agents/*": deny
+    ".git/*": deny
   bash: allow
 ---
 
@@ -207,11 +217,15 @@ the only thing that matters for the commit to pick them up correctly.
 
 ## Hard constraints
 
-- Never edit `state/runtime.json`, the core scheduling loop, or an
-  individual agent's rendered prompt — only `mechanisms/*.py`,
+- Never edit `state/runtime.json`, `state/agents.json`, `simulate.py`,
+  `llm_agents.py`, `call_log.py`, `tests/regression/*`, or either
+  norm-implementer agent definition file — only `mechanisms/*.py`,
   `phases/*.py`, `schedule.json`'s phase list/gating, `state/config.json`,
   `state/fluents.json` schema, and the specific `prompts/` files named
-  above.
+  above. This list is enforced by this file's own `permission.edit`
+  rules, not just written here — an edit attempt on any of them will be
+  denied outright, not silently allowed because the instruction was
+  missed.
 - Never let anything under `mechanisms/`, `phases/`, or `prompts/` read
   `norm.txt` directly — only the Step 1 classification interprets norm
   text; everything downstream consumes state, not norm text.

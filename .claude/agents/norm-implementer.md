@@ -203,11 +203,16 @@ the only thing that matters for the commit to pick them up correctly.
 
 ## Hard constraints
 
-- Never edit `state/runtime.json`, the core scheduling loop, or an
-  individual agent's rendered prompt — only `mechanisms/*.py`,
+- Never edit `state/runtime.json`, `state/agents.json`, `simulate.py`,
+  `llm_agents.py`, `call_log.py`, `tests/regression/*`, or either
+  norm-implementer agent definition file — only `mechanisms/*.py`,
   `phases/*.py`, `schedule.json`'s phase list/gating, `state/config.json`,
   `state/fluents.json` schema, and the specific `prompts/` files named
-  above.
+  above. The `.opencode/agent/norm-implementer.md` copy of this file
+  enforces this list technically via `permission.edit` rules — this
+  Claude Code copy doesn't support the same path-scoped mechanism, but
+  simulate.py only ever invokes the opencode agent, so that's the one
+  that matters at runtime.
 - Never let anything under `mechanisms/`, `phases/`, or `prompts/` read
   `norm.txt` directly — only the Step 1 classification interprets norm
   text; everything downstream consumes state, not norm text.

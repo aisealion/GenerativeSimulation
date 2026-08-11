@@ -77,6 +77,7 @@ def render_phase(phase_name, **fields):
 
 
 MAX_ATTEMPTS = 3
+CALL_DELAY_S = float(os.environ.get("LLM_CALL_DELAY_S", "2"))
 
 
 def call_fisher_agent(agent_id, round_number, phase_name, **fields):
@@ -120,10 +121,12 @@ def call_fisher_agent(agent_id, round_number, phase_name, **fields):
         )
 
         if not error:
+            time.sleep(CALL_DELAY_S)
             return parsed
 
         last_error = error
         print(f"  [{agent_id}/{phase_name} attempt {attempt}/{MAX_ATTEMPTS} failed: {error} — retrying]")
+        time.sleep(CALL_DELAY_S)
 
     raise RuntimeError(
         f"opencode run failed for agent={agent_id} phase={phase_name} after {MAX_ATTEMPTS} attempts: {last_error}"
