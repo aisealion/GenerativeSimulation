@@ -2,8 +2,10 @@ import json
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
 
+from call_log import log_call
 from mechanisms.roles import role_holder
 
 ROOT = Path(__file__).resolve().parent
@@ -44,12 +46,37 @@ def call_fisher_agent(agent_id, round_number, phase_name, **fields):
         cmd += ["--model", model]
     cmd.append(prompt)
 
+    start = time.monotonic()
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=180, cwd=ROOT)
+    duration_s = time.monotonic() - start
+
+    parsed = None
+    error = None
     if result.returncode != 0:
-        raise RuntimeError(
-            f"opencode run failed for agent={agent_id} phase={phase_name}: {result.stderr.strip()}"
-        )
-    return _parse_json_object(result.stdout)
+        error = result.stderr.strip()
+    else:
+        try:
+            parsed = _parse_json_object(result.stdout)
+        except Exception as exc:
+            error = str(exc)
+
+    log_call(
+        call="fisher",
+        agent_id=agent_id,
+        round=round_number,
+        phase=phase_name,
+        model=model,
+        duration_s=round(duration_s, 3),
+        returncode=result.returncode,
+        prompt=prompt,
+        raw_response=result.stdout,
+        parsed_response=parsed,
+        error=error,
+    )
+
+    if error:
+        raise RuntimeError(f"opencode run failed for agent={agent_id} phase={phase_name}: {error}")
+    return parsed
 
 
 def _parse_json_object(raw):

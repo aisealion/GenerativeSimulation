@@ -2,11 +2,13 @@
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import phases.harvest as harvest
 import phases.propose as propose
 import phases.vote as vote
+from call_log import log_call
 
 ROOT = Path(__file__).resolve().parent
 
@@ -29,22 +31,36 @@ def save_fluents(state):
     (ROOT / "state" / "fluents.json").write_text(json.dumps(state["fluents"], indent=2) + "\n")
 
 
-def run_norm_implementer():
+def run_norm_implementer(round_number):
     print("\n--- invoking norm-implementer ---")
+    message = (
+        "norm.txt has been updated for this round. Read it and implement "
+        "accordingly, following your standing instructions."
+    )
+    start = time.monotonic()
     result = subprocess.run(
-        [
-            "opencode",
-            "run",
-            "--agent",
-            "norm-implementer",
-            "norm.txt has been updated for this round. Read it and implement "
-            "accordingly, following your standing instructions.",
-        ],
+        ["opencode", "run", "--agent", "norm-implementer", message],
         cwd=ROOT,
         capture_output=True,
         text=True,
         timeout=900,
     )
+    duration_s = time.monotonic() - start
+
+    log_call(
+        call="norm_implementer",
+        agent_id=None,
+        round=round_number,
+        phase=None,
+        model=None,
+        duration_s=round(duration_s, 3),
+        returncode=result.returncode,
+        prompt=message,
+        raw_response=result.stdout,
+        parsed_response=None,
+        error=None if result.returncode == 0 else result.stderr.strip(),
+    )
+
     print(result.stdout)
     if result.returncode != 0:
         print(result.stderr, file=sys.stderr)
@@ -76,7 +92,7 @@ def main():
     (ROOT / "norm.txt").write_text(norm_text)
     print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
 
-    run_norm_implementer()
+    run_norm_implementer(round_number=2)
 
     print("\n=== Round 3: harvest (post-norm) ===")
     state = load_state(round_number=3)
