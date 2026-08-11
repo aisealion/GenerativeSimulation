@@ -1,5 +1,35 @@
 # GenerativeSimulation
 
+A two-fisher common-pool-resource simulation. The lake starts at 300kg,
+regrows 100kg/round up to a 300kg carrying capacity
+(`state/config.json`). Kai (selfish) and Mara (altruistic) — roster in
+`state/agents.json` — harvest, then propose and vote on a shared norm,
+which the `norm-implementer` agent then implements in code and commits.
+
+Run the full bootstrap cycle (harvest → propose/vote → implement → next
+harvest) with `python3 simulate.py`. Requires `opencode` configured with a
+working LiteLLM model (see `~/.config/opencode/opencode.jsonc`).
+
+## Non-obvious file ownership (not covered by the norm-implementer's own
+## repo-shape notes, since these were added after that agent was defined)
+
+- `state/agents.json` — static roster (name, personality_traits) for the
+  two fishers. Simulation setup data, not policy — the norm-implementer
+  must never write here, only `phases/*.py` reads it.
+- `llm_agents.py` — renders `prompts/persona_template.md` +
+  `prompts/role_directives/*.md` + `prompts/phases/*.md` into a prompt and
+  calls the `fisher` opencode agent (`.opencode/agent/fisher.md`) via
+  subprocess. Imported by `phases/harvest.py`, `propose.py`, `vote.py`.
+- `simulate.py` — the round orchestrator. Owns writing `state/runtime.json`
+  and `state/fluents.json` between phases, and invokes the
+  `norm-implementer` opencode agent once a norm is voted in.
+- `.opencode/agent/fisher.md` — one generic character agent for both
+  fishers; personality comes from the per-round rendered prompt
+  (`state/agents.json`), not from separate agent files per persona.
+- `.opencode/agent/norm-implementer.md` / `.claude/agents/norm-implementer.md`
+  — two copies of the same agent definition, kept in sync by hand. The
+  opencode copy is the one `simulate.py` actually invokes.
+
 ## Prompt layer rules
 
 The `prompts/` tree is the only place agent-facing text lives. It stays

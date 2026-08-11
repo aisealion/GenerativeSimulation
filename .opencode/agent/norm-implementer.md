@@ -170,6 +170,20 @@ fit. Never guess at what already exists.
    sentence on what future norm-shape would make it reusable rather than
    a one-off.
 
+## Step 6 — Commit
+
+Once Step 4 validation passes, stage and commit your change:
+
+```
+git add mechanisms phases prompts schedule.json state/config.json state/fluents.json
+git commit -m "<one line naming the norm applied, e.g. 'Adopt Round 2 norm: cap harvest at 100kg/trip'>"
+```
+
+Stage only the specific files/dirs you touched — never `git add -A` or `git add .`,
+since that could sweep in `state/runtime.json` or other files you must not write
+to. If nothing changed (Step 3 concluded no code edit was needed), skip the
+commit and say so in your report.
+
 ## Hard constraints
 
 - Never edit `state/runtime.json`, the core scheduling loop, or an

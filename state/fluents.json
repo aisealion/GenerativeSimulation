@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "fluent": "fisher",
+    "args": ["kai"],
+    "holder": "kai",
+    "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "fisher",
+    "args": ["mara"],
+    "holder": "mara",
+    "initiated_round": 0,
+    "terminated_round": null
+  }
+]
