@@ -1,14 +1,18 @@
 [
   {
     "fluent": "fisher",
-    "args": ["kai"],
+    "args": [
+      "kai"
+    ],
     "holder": "kai",
     "initiated_round": 0,
     "terminated_round": null
   },
   {
     "fluent": "fisher",
-    "args": ["mara"],
+    "args": [
+      "mara"
+    ],
     "holder": "mara",
     "initiated_round": 0,
     "terminated_round": null

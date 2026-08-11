@@ -1,5 +1,15 @@
 {
   "regrowth_kg_per_round": 100,
   "carrying_capacity_kg": 300,
-  "history_window_rounds": 5
+  "history_window_rounds": 5,
+  "fishing_threshold_kg": 100,
+  "limit_medium_threshold_kg": 100,
+  "limit_medium_kg": 40,
+  "limit_high_threshold_kg": 120,
+  "limit_high_kg": 50,
+  "limit_very_high_threshold_kg": 140,
+  "limit_very_high_kg": 60,
+  "limit_critical_threshold_kg": 160,
+  "limit_critical_kg": 70,
+  "penalty_kg": 15
 }
