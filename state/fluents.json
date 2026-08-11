@@ -1,16 +1,45 @@
 [
   {
     "fluent": "fisher",
-    "args": ["kai"],
+    "args": [
+      "kai"
+    ],
     "holder": "kai",
     "initiated_round": 0,
     "terminated_round": null
   },
   {
     "fluent": "fisher",
-    "args": ["mara"],
+    "args": [
+      "mara"
+    ],
     "holder": "mara",
     "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "can_fish",
+    "args": [
+      "kai"
+    ],
+    "holder": "kai",
+    "initiated_round": 3,
+    "terminated_round": 4
+  },
+  {
+    "fluent": "can_fish",
+    "args": [
+      "mara"
+    ],
+    "holder": "mara",
+    "initiated_round": 4,
+    "terminated_round": 5
+  },
+  {
+    "fluent": "moratorium_active",
+    "args": [],
+    "holder": "system",
+    "initiated_round": 5,
     "terminated_round": null
   }
 ]

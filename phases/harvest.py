@@ -16,7 +16,7 @@ def run(state):
     stock_before = available_stock(runtime)
     requests = {}
     for agent_id in agents:
-        cap = effort_cap(agent_id, config, fluents, runtime)
+        cap = effort_cap(agent_id, config, fluents, runtime, round_number)
         cap_line = (
             f" You currently have an agreed limit of {cap:.0f}kg for this trip."
             if cap is not None
