@@ -34,9 +34,14 @@ via the `--max-rounds` safety cap, not collapse.
   `prompts/role_directives/*.md` + `prompts/phases/*.md` into a prompt and
   calls the `fisher` opencode agent (`.opencode/agent/fisher.md`) via
   subprocess. Imported by `phases/harvest.py`, `propose.py`, `vote.py`.
-- `simulate.py` — the round orchestrator. Owns writing `state/runtime.json`
-  and `state/fluents.json` between phases, and invokes the
-  `norm-implementer` opencode agent once a norm is voted in.
+- `simulate.py` — the round orchestrator. Schedule-driven, not hardcoded:
+  each round it reads `schedule.json`, runs whatever phase is gated on (in
+  file order), and imports `phases.<name>.run(state)` dynamically — adding
+  a phase to `phases/` and registering it in `schedule.json` is enough to
+  wire it in, no `simulate.py` edit needed. Owns writing
+  `state/runtime.json` and `state/fluents.json` between phases, and
+  invokes the `norm-implementer` opencode agent whenever any phase sets
+  `state["adopted_norm"]` (currently only `vote` does).
 - `.opencode/agent/fisher.md` — one generic character agent for both
   fishers; personality comes from the per-round rendered prompt
   (`state/agents.json`), not from separate agent files per persona.

@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 import argparse
+import importlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-import phases.harvest as harvest
-import phases.propose as propose
-import phases.vote as vote
 from call_log import log_call
 
 ROOT = Path(__file__).resolve().parent
 COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 50
+
+HOLDS_AT_RE = re.compile(r"holdsAt\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)")
 
 
 def load_state(round_number):
@@ -25,6 +26,32 @@ def load_state(round_number):
         "agents": json.loads((ROOT / "state" / "agents.json").read_text()),
         "round_number": round_number,
     }
+
+
+def load_schedule():
+    return json.loads((ROOT / "schedule.json").read_text())
+
+
+def evaluate_gate(condition, fluents, round_number):
+    """Supported syntax: "true", "false", or "holdsAt(<fluent_name>)" — true
+    if any record for that fluent (any holder/args) is currently active."""
+    condition = condition.strip()
+    if condition == "true":
+        return True
+    if condition == "false":
+        return False
+
+    match = HOLDS_AT_RE.fullmatch(condition)
+    if not match:
+        raise ValueError(f"unsupported schedule.json gate condition: {condition!r}")
+
+    fluent_name = match.group(1)
+    return any(
+        f["fluent"] == fluent_name
+        and f["initiated_round"] <= round_number
+        and (f["terminated_round"] is None or f["terminated_round"] > round_number)
+        for f in fluents
+    )
 
 
 def save_runtime(state):
@@ -72,39 +99,41 @@ def run_norm_implementer(round_number):
 
 
 def run_cycle(round_number):
-    """Harvest, then propose + vote + implement — every round renegotiates.
+    """Run every schedule.json phase gated on for this round, in file order.
     Returns False if the lake collapsed this round (stop the simulation)."""
-    print(f"\n=== Round {round_number}: harvest ===")
+    print(f"\n=== Round {round_number} ===")
     state = load_state(round_number)
-    harvest_record = harvest.run(state)
-    save_runtime(state)
-    save_fluents(state)
-    print(json.dumps(harvest_record, indent=2))
+    schedule = load_schedule()
 
-    if harvest_record["stock_kg_after_regrowth"] <= COLLAPSE_THRESHOLD_KG:
-        print(
-            f"\nLake has collapsed at round {round_number} "
-            f"(stock_kg_after_regrowth={harvest_record['stock_kg_after_regrowth']}). Stopping."
+    for phase_name, gate in schedule.items():
+        if not evaluate_gate(gate, state["fluents"], round_number):
+            print(f"--- {phase_name}: gated off this round ---")
+            continue
+
+        print(f"\n--- Round {round_number}: {phase_name} ---")
+        phase_module = importlib.import_module(f"phases.{phase_name}")
+        record = phase_module.run(state)
+        save_runtime(state)
+        save_fluents(state)
+        print(json.dumps(record, indent=2))
+
+        if state["runtime"]["stock_kg"] <= COLLAPSE_THRESHOLD_KG:
+            print(
+                f"\nLake has collapsed at round {round_number} "
+                f"(stock_kg={state['runtime']['stock_kg']}). Stopping."
+            )
+            return False
+
+    if "adopted_norm" in state:
+        winning_proposal = state["adopted_norm"]
+        norm_text = (
+            f"Policy: {winning_proposal['policy']}\n\n"
+            f"Operationalization: {winning_proposal['operationalization']}\n"
         )
-        return False
+        (ROOT / "norm.txt").write_text(norm_text)
+        print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
+        run_norm_implementer(round_number)
 
-    print(f"\n=== Round {round_number}: propose + vote ===")
-    propose_record = propose.run(state)
-    save_runtime(state)
-    print(json.dumps(propose_record, indent=2))
-
-    vote_record, winning_proposal = vote.run(state)
-    save_runtime(state)
-    print(json.dumps(vote_record, indent=2))
-
-    norm_text = (
-        f"Policy: {winning_proposal['policy']}\n\n"
-        f"Operationalization: {winning_proposal['operationalization']}\n"
-    )
-    (ROOT / "norm.txt").write_text(norm_text)
-    print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
-
-    run_norm_implementer(round_number)
     return True
 
 

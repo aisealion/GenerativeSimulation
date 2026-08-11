@@ -126,6 +126,31 @@ fit. Never guess at what already exists.
   similar agent-facing interaction can reuse it instead of triggering
   another new_phase classification.
 
+  `simulate.py` is schedule-driven, not hardcoded — it imports and calls
+  every phase listed in `schedule.json` whose gate is currently true, in
+  the file's key order, every round. This is a real contract, not just
+  documentation:
+  - Your phase module must expose `run(state) -> dict`. `state` has
+    `config`, `fluents`, `runtime`, `agents`, `round_number` — mutate
+    `runtime`/`fluents` in place as needed; the returned dict is appended
+    to `runtime["rounds"]` for history/logging.
+  - `schedule.json` gate syntax is limited to exactly `"true"`, `"false"`,
+    or `"holdsAt(<fluent_name>)"` (true if any record for that fluent,
+    any holder/args, is currently active this round) — nothing else
+    parses. If a norm needs a richer condition than that, treat it as
+    something the phase's own logic decides (like `effort_cap` already
+    does for the moratorium), not something `schedule.json` can express.
+  - Key order in `schedule.json` is execution order within a round.
+    Insert your new phase at the correct position, not just appended at
+    the end — e.g. a phase that reads this round's harvest output must
+    come after `harvest` in the file.
+  - If your phase is the one that decides a norm (an alternative to
+    `vote` — consensus, an elder's ruling, whatever the norm specifies),
+    it must set `state["adopted_norm"] = {"policy": ..., "operationalization": ...}`
+    before returning. `simulate.py` checks for that key after all of a
+    round's phases finish, regardless of which phase set it, and only
+    then writes `norm.txt` and invokes this agent again next round.
+
 - **Mechanism change with no template fit at all**: structural. Only now
   may you edit `mechanisms/`. State in plain language the general function
   shape needed — not this norm's specific numbers — before writing it.

@@ -50,4 +50,5 @@ def run(state):
 
     runtime["round"] = round_number
     runtime["rounds"].append(round_record)
-    return round_record, winning_proposal
+    state["adopted_norm"] = winning_proposal
+    return round_record
