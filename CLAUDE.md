@@ -8,9 +8,13 @@ which the `norm-implementer` agent then implements in code and commits.
 
 Run with `python3 simulate.py`. Requires `opencode` configured with a
 working model (see `opencode.jsonc` — `litellm/*` for the Otago proxy,
-`ollama/gpt-oss:120b` for a local Ollama instance, e.g. on an HPC GPU
-node via `run_simulation.slurm`, `sbatch run_simulation.slurm`). Every
-round renegotiates:
+`ollama/gpt-oss:120b` for local Ollama). On Aoraki (Otago's HPC), submit
+`run_simulation.slurm` instead of running directly — it starts Ollama via
+Aoraki's Apptainer container (`ollama-env.sh`, one-time setup documented
+in the script's header), which picks a random per-instance port, so it
+writes a job-specific `.opencode/opencode.json` (gitignored) pointing the
+`ollama` provider at that actual port rather than editing the committed
+config. Every round renegotiates:
 harvest, then propose + vote + implement, then next round's harvest picks
 up whatever the norm-implementer just changed. Resumes from
 `state/runtime.json`'s current round, not from round 1 — safe to re-run

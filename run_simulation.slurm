@@ -1,67 +1,98 @@
 #!/bin/bash
 #
-# Runs the fishery simulation against a local Ollama instance (gpt-oss:120b)
-# on one GPU node. Submit from the repo root: sbatch run_simulation.slurm
+# Runs the fishery simulation against gpt-oss:120b via Ollama, on Aoraki
+# (University of Otago HPC). Submit from the repo root: sbatch run_simulation.slurm
 #
-# ============================ ADJUST FOR YOUR CLUSTER ============================
-# Every #SBATCH line below is a guess at common syntax, not your cluster's actual
-# config — check `sinfo`, `sacctmgr show associations user=$USER`, or your HPC
-# docs/support desk for the real partition name, GPU resource string, and whether
-# an --account/--qos is required before submitting.
+# One-time setup, before the first submission (not part of this script,
+# since it needs an empty directory and only needs doing once):
+#   mkdir -p ~/bin && cd ~/bin
+#   apptainer run /opt/apptainer_img/ollama_shellenv.sif --copy-execute-files
+#   # then make sure ~/bin is on PATH — add to ~/.bashrc if it isn't:
+#   echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+#
 #SBATCH --job-name=fishery-sim
-#SBATCH --partition=gpu                # ADJUST: your cluster's GPU partition name
-#SBATCH --gres=gpu:1                   # ADJUST: e.g. gpu:a100:1 / gpu:h100:1 — needs an
-                                        #   80GB-class card (see memory note below);
-                                        #   run `sinfo -o "%P %G %m"` to see what's on offer
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=128G
-#SBATCH --time=24:00:00                # ADJUST: LLM latency x number of rounds is unpredictable —
-                                        #   pad generously, a killed job loses no data (see README)
+#SBATCH --partition=aoraki_gpu_H100    # guarantees 80GB VRAM, which gpt-oss:120b needs.
+                                        #   Alternative: aoraki_gpu_A100_80GB.
+                                        #   Do NOT use aoraki_gpu_L40 (48GB) or
+                                        #   aoraki_gpu_A100_40GB (40GB) — too small.
+                                        #   Do NOT use the generic aoraki_gpu pool either —
+                                        #   it could land you on an L40/40GB node.
+#SBATCH --gpus-per-node=1              # --gres=gpu:1 also works but is being deprecated on Aoraki
+#SBATCH --cpus-per-task=4              # Aoraki asks for >=2 cores per GPU requested
+#SBATCH --mem=32G                      # CPU RAM, not GPU VRAM (that's fixed by the partition
+                                        #   choice above) — run a short test round first and
+                                        #   check `seff <jobid>` to right-size this for real
+#SBATCH --time=08:00:00                # tune from an observed per-round duration x --max-rounds;
+                                        #   shorter requests queue faster on Aoraki (backfill)
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
-# #SBATCH --account=your_project_code  # UNCOMMENT + ADJUST if your cluster requires one
-# ===================================================================================
+# No --account line: Aoraki gives every user a default account per-partition,
+# you only need one if you belong to more than one lab group.
 
 set -euo pipefail
 cd "$SLURM_SUBMIT_DIR"   # must be the GenerativeSimulation repo root
-mkdir -p logs
 
-# ---- Modules (ADJUST if python3 isn't already on PATH on your cluster) ----
-# module load python/3.11
+# ---- Point Ollama at your already-downloaded model weights ----
+export OLLAMA_MODELS=/projects/sciences/computing/cranefield_lab/magha601/models
 
-# ---- Ollama: model weights need ~65GB disk — point at scratch, not home quota ----
-# ADJUST: replace with your cluster's actual scratch path convention.
-export OLLAMA_MODELS="${OLLAMA_MODELS:-$HOME/ollama-models}"
-mkdir -p "$OLLAMA_MODELS"
-
-if ! command -v ollama >/dev/null 2>&1; then
-  echo "ollama not on PATH — installing a user-local copy (no sudo) to \$HOME/.local"
-  curl -fsSL https://ollama.com/install.sh | OLLAMA_INSTALL_DIR="$HOME/.local" sh
-  export PATH="$HOME/.local/bin:$PATH"
+# ---- Start Ollama via Aoraki's Apptainer container ----
+if ! command -v ollama-env.sh >/dev/null 2>&1; then
+  echo "ollama-env.sh not found on PATH — see the one-time setup step in this" >&2
+  echo "script's header comment before submitting." >&2
+  exit 1
 fi
 
-echo "Starting ollama server..."
-ollama serve > "logs/ollama-${SLURM_JOB_ID}.log" 2>&1 &
-OLLAMA_PID=$!
-trap 'kill $OLLAMA_PID 2>/dev/null || true' EXIT
+# NOTE: I haven't been able to test this on Aoraki myself — Otago's docs say
+# ollama-env.sh sets OLLAMA_HOST for you but don't show the exact invocation.
+# `source` is needed if it's meant to export OLLAMA_HOST into this script's
+# shell (most likely, given what it's for). If this doesn't work, run
+# `cat "$(command -v ollama-env.sh)"` once to see what it actually does and
+# adjust the line below to match.
+source ollama-env.sh
 
-echo "Waiting for ollama to come up..."
-for i in $(seq 1 30); do
-  curl -sf http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break
-  sleep 2
-done
+if [ -z "${OLLAMA_HOST:-}" ]; then
+  echo "OLLAMA_HOST wasn't set after sourcing ollama-env.sh — see the NOTE above." >&2
+  exit 1
+fi
+echo "Ollama running at OLLAMA_HOST=${OLLAMA_HOST}"
 
-echo "Pulling gpt-oss:120b (no-op if already cached in \$OLLAMA_MODELS — see the
-'pre-pull on a login node' note below if this compute node has no internet access)..."
-ollama pull gpt-oss:120b
+echo "Verifying gpt-oss:120b is available (should be instant, already downloaded)..."
+ollama list | grep -q "gpt-oss:120b" || ollama pull gpt-oss:120b
 
-# ---- opencode: same no-sudo install pattern ----
+# ---- Point opencode's "ollama" provider at THIS job's actual port ----
+# opencode.jsonc (committed, shared) has the ollama provider's shape, but a
+# fixed default baseURL of 127.0.0.1:11434 — Aoraki's container isolates each
+# instance on a different port instead. Override just that, per job, without
+# touching the tracked config: .opencode/opencode.json is gitignored and
+# opencode merges it in automatically as an extra project-local config layer.
+mkdir -p .opencode
+cat > .opencode/opencode.json << EOF
+{
+  "\$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Local Ollama (Aoraki)",
+      "options": {
+        "baseURL": "http://${OLLAMA_HOST}/v1",
+        "apiKey": "ollama"
+      },
+      "models": {
+        "gpt-oss:120b": { "name": "GPT-OSS 120B (Aoraki Ollama)" }
+      }
+    }
+  }
+}
+EOF
+
+# ---- opencode itself: plain no-sudo install if this node doesn't have it ----
 if ! command -v opencode >/dev/null 2>&1; then
   echo "opencode not on PATH — installing to \$HOME/.opencode"
   curl -fsSL https://opencode.ai/install | bash
   export PATH="$HOME/.opencode/bin:$PATH"
 fi
 
-# ---- Run the simulation against the local Ollama model ----
+# ---- Run the simulation ----
+mkdir -p logs
 export OPENCODE_MODEL="ollama/gpt-oss:120b"
 python3 simulate.py --max-rounds "${MAX_ROUNDS:-20}"
