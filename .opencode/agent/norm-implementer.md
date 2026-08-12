@@ -14,6 +14,7 @@ permission:
     ".claude/agents/*": deny
     ".git/*": deny
   bash: allow
+steps: 60
 ---
 
 # Role: Norm Implementer Agent
