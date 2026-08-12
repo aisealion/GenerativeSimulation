@@ -92,6 +92,31 @@ if ! command -v opencode >/dev/null 2>&1; then
   curl -fsSL https://opencode.ai/install | bash
 fi
 
+# codegraph: same problem as opencode above (installed but not on PATH here)
+# would apply, plus it was never installed here at all yet — the earlier
+# `npm install -g` route used to set this up doesn't apply on a node that
+# likely has no Node.js. This installer is Node-free (a self-contained
+# bundle) and puts a symlink in ~/.local/bin by default.
+export PATH="$HOME/.local/bin:$PATH"
+if ! command -v codegraph >/dev/null 2>&1; then
+  echo "codegraph not found (checked \$HOME/.local/bin) — installing there"
+  curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
+fi
+
+# .codegraph/ is a local, per-checkout index — never committed to git (see
+# .gitignore) — so it doesn't exist yet on a fresh clone of this repo, which
+# is exactly the situation on a cluster you haven't run this on before.
+# Without it, opencode.jsonc's codegraph MCP server finds no index and
+# exposes no tools at all, and the norm-implementer silently falls back to
+# plain Read/Grep instead of codegraph_explore — no error, just quietly
+# worse exploration. Build it once, then keep it current on every later run.
+echo "Making sure this checkout has a CodeGraph index..."
+if [ -d .codegraph ]; then
+  codegraph sync
+else
+  codegraph init
+fi
+
 mkdir -p logs
 export OPENCODE_MODEL="ollama/${OLLAMA_CTX_MODEL_ID}"
 python3 simulate.py --max-rounds "${MAX_ROUNDS:-20}"

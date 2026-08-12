@@ -4,3 +4,4 @@ logs/
 slurm-*.out
 slurm-*.err
 .opencode/opencode.json
+.codegraph/
