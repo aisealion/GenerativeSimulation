@@ -7,8 +7,7 @@
 # since it needs an empty directory and only needs doing once):
 #   mkdir -p ~/bin && cd ~/bin
 #   apptainer run /opt/apptainer_img/ollama_shellenv.sif --copy-execute-files
-#   # then make sure ~/bin is on PATH — add to ~/.bashrc if it isn't:
-#   echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+#   echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 #
 #SBATCH --job-name=fishery-sim
 #SBATCH --partition=aoraki_gpu_H100    # guarantees 80GB VRAM, which gpt-oss:120b needs.
@@ -31,68 +30,30 @@
 
 set -euo pipefail
 cd "$SLURM_SUBMIT_DIR"   # must be the GenerativeSimulation repo root
+export SLURM_SUBMIT_DIR  # so hpc_ollama_entrypoint.sh sees it too, inside the container
 
-# ---- Point Ollama at your already-downloaded model weights ----
+# Fail loudly if this node isn't actually giving us GPU access, rather than
+# letting ollama-env.sh silently fall back to CPU-only (it does exactly that
+# if nvidia-smi isn't found — see the script's own source) and burning the
+# whole time allocation running gpt-oss:120b unusably slowly on CPU.
+if ! nvidia-smi >/dev/null 2>&1; then
+  echo "nvidia-smi not found/working on this node — GPU wasn't actually allocated" >&2
+  echo "or the driver isn't visible. Check your --partition/--gpus-per-node above." >&2
+  exit 1
+fi
+
 export OLLAMA_MODELS=/projects/sciences/computing/cranefield_lab/magha601/models
+export MAX_ROUNDS="${MAX_ROUNDS:-20}"
 
-# ---- Start Ollama via Aoraki's Apptainer container ----
 if ! command -v ollama-env.sh >/dev/null 2>&1; then
   echo "ollama-env.sh not found on PATH — see the one-time setup step in this" >&2
   echo "script's header comment before submitting." >&2
   exit 1
 fi
 
-# NOTE: I haven't been able to test this on Aoraki myself — Otago's docs say
-# ollama-env.sh sets OLLAMA_HOST for you but don't show the exact invocation.
-# `source` is needed if it's meant to export OLLAMA_HOST into this script's
-# shell (most likely, given what it's for). If this doesn't work, run
-# `cat "$(command -v ollama-env.sh)"` once to see what it actually does and
-# adjust the line below to match.
-source ollama-env.sh
-
-if [ -z "${OLLAMA_HOST:-}" ]; then
-  echo "OLLAMA_HOST wasn't set after sourcing ollama-env.sh — see the NOTE above." >&2
-  exit 1
-fi
-echo "Ollama running at OLLAMA_HOST=${OLLAMA_HOST}"
-
-echo "Verifying gpt-oss:120b is available (should be instant, already downloaded)..."
-ollama list | grep -q "gpt-oss:120b" || ollama pull gpt-oss:120b
-
-# ---- Point opencode's "ollama" provider at THIS job's actual port ----
-# opencode.jsonc (committed, shared) has the ollama provider's shape, but a
-# fixed default baseURL of 127.0.0.1:11434 — Aoraki's container isolates each
-# instance on a different port instead. Override just that, per job, without
-# touching the tracked config: .opencode/opencode.json is gitignored and
-# opencode merges it in automatically as an extra project-local config layer.
-mkdir -p .opencode
-cat > .opencode/opencode.json << EOF
-{
-  "\$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Local Ollama (Aoraki)",
-      "options": {
-        "baseURL": "http://${OLLAMA_HOST}/v1",
-        "apiKey": "ollama"
-      },
-      "models": {
-        "gpt-oss:120b": { "name": "GPT-OSS 120B (Aoraki Ollama)" }
-      }
-    }
-  }
-}
-EOF
-
-# ---- opencode itself: plain no-sudo install if this node doesn't have it ----
-if ! command -v opencode >/dev/null 2>&1; then
-  echo "opencode not on PATH — installing to \$HOME/.opencode"
-  curl -fsSL https://opencode.ai/install | bash
-  export PATH="$HOME/.opencode/bin:$PATH"
-fi
-
-# ---- Run the simulation ----
-mkdir -p logs
-export OPENCODE_MODEL="ollama/gpt-oss:120b"
-python3 simulate.py --max-rounds "${MAX_ROUNDS:-20}"
+# ollama-env.sh just execs `apptainer run --nv --bind /mnt --bind /projects
+# <image> "$@"` — it doesn't export OLLAMA_HOST back to this shell, that only
+# exists inside the container the apptainer run starts. So everything that
+# needs OLLAMA_HOST (pointing opencode at it, then running the simulation)
+# has to happen AS the command we hand to ollama-env.sh, not after it.
+ollama-env.sh bash "$SLURM_SUBMIT_DIR/hpc_ollama_entrypoint.sh"

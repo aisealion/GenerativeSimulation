@@ -9,12 +9,15 @@ which the `norm-implementer` agent then implements in code and commits.
 Run with `python3 simulate.py`. Requires `opencode` configured with a
 working model (see `opencode.jsonc` — `litellm/*` for the Otago proxy,
 `ollama/gpt-oss:120b` for local Ollama). On Aoraki (Otago's HPC), submit
-`run_simulation.slurm` instead of running directly — it starts Ollama via
-Aoraki's Apptainer container (`ollama-env.sh`, one-time setup documented
-in the script's header), which picks a random per-instance port, so it
-writes a job-specific `.opencode/opencode.json` (gitignored) pointing the
-`ollama` provider at that actual port rather than editing the committed
-config. Every round renegotiates:
+`run_simulation.slurm` instead of running directly. `ollama-env.sh`
+(Aoraki's Apptainer wrapper) doesn't export anything back to the shell
+that calls it — it just execs `apptainer run ... "$@"` — so `OLLAMA_HOST`
+(a random per-instance port) only exists inside that container
+invocation. `run_simulation.slurm` hands it `hpc_ollama_entrypoint.sh` to
+run as that command: it writes a job-specific `.opencode/opencode.json`
+(gitignored) pointing the `ollama` provider at the actual `$OLLAMA_HOST`,
+then runs `simulate.py` from inside that same container context — none of
+this can happen in the outer SLURM script itself. Every round renegotiates:
 harvest, then propose + vote + implement, then next round's harvest picks
 up whatever the norm-implementer just changed. Resumes from
 `state/runtime.json`'s current round, not from round 1 — safe to re-run
