@@ -7,7 +7,10 @@ regrows 100kg/round up to a 300kg carrying capacity
 which the `norm-implementer` agent then implements in code and commits.
 
 Run with `python3 simulate.py`. Requires `opencode` configured with a
-working LiteLLM model (see `opencode.jsonc`). Every round renegotiates:
+working model (see `opencode.jsonc` — `litellm/*` for the Otago proxy,
+`ollama/gpt-oss:120b` for a local Ollama instance, e.g. on an HPC GPU
+node via `run_simulation.slurm`, `sbatch run_simulation.slurm`). Every
+round renegotiates:
 harvest, then propose + vote + implement, then next round's harvest picks
 up whatever the norm-implementer just changed. Resumes from
 `state/runtime.json`'s current round, not from round 1 — safe to re-run

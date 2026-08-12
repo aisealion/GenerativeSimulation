@@ -33,6 +33,21 @@
         }
         // text-embedding-3-small omitted: embedding model, not usable for chat/agents
       }
+    },
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Local Ollama",
+      "options": {
+        // Ollama's OpenAI-compatible endpoint doesn't check the key, but the
+        // client library requires some non-empty string here.
+        "baseURL": "http://127.0.0.1:11434/v1",
+        "apiKey": "ollama"
+      },
+      "models": {
+        "gpt-oss:120b": {
+          "name": "GPT-OSS 120B (local Ollama)"
+        }
+      }
     }
   },
   "mcp": {
