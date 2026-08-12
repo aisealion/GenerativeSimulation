@@ -103,6 +103,16 @@ if ! command -v codegraph >/dev/null 2>&1; then
   curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
 fi
 
+# --no-color, telemetry off: codegraph's default output uses cursor-control
+# ANSI codes meant for a live TTY (spinners etc.) — dumped into a SLURM log
+# file instead of a real terminal, that just accumulates as garbled control
+# sequences, not a hang by itself, but makes the log unreadable and makes an
+# actual hang harder to see. Telemetry is an outbound network call on
+# init/sync (see https://github.com/colbymchenry/codegraph/blob/main/TELEMETRY.md);
+# disabling it removes one plausible hang source on a node with restricted
+# internet.
+export CODEGRAPH_TELEMETRY=0
+
 # .codegraph/ is a local, per-checkout index — never committed to git (see
 # .gitignore) — so it doesn't exist yet on a fresh clone of this repo, which
 # is exactly the situation on a cluster you haven't run this on before.
@@ -110,11 +120,31 @@ fi
 # exposes no tools at all, and the norm-implementer silently falls back to
 # plain Read/Grep instead of codegraph_explore — no error, just quietly
 # worse exploration. Build it once, then keep it current on every later run.
+#
+# unlock first: codegraph has its own documented failure mode of "a stale
+# lock file blocking indexing" (codegraph unlock exists specifically for
+# this) — a real risk here given how many times this job has been killed
+# and resubmitted while debugging the earlier failures above. Safe to run
+# even if nothing is actually locked.
+codegraph --no-color unlock . 2>&1 || true
+
 echo "Making sure this checkout has a CodeGraph index..."
 if [ -d .codegraph ]; then
-  codegraph sync
+  CODEGRAPH_CMD="sync"
 else
-  codegraph init
+  CODEGRAPH_CMD="init"
+fi
+# Wrapped in a hard timeout: if it's still stuck for some other reason, fail
+# loudly and say so, rather than silently eating the rest of the job's wall
+# time. codegraph init/sync on this repo's ~15 files took under a second
+# when this was verified locally, so 120s is already a generous margin, not
+# a tight one.
+if ! timeout 120 codegraph --no-color "$CODEGRAPH_CMD" .; then
+  echo "codegraph $CODEGRAPH_CMD didn't finish within 120s — either genuinely" >&2
+  echo "hung (check for network calls it can't complete, or run 'codegraph" >&2
+  echo "unlock .' by hand and retry) or failed outright. Continuing without a" >&2
+  echo "CodeGraph index: the norm-implementer will fall back to plain" >&2
+  echo "Read/Grep, which still works, just with worse exploration." >&2
 fi
 
 mkdir -p logs
