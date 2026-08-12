@@ -46,6 +46,21 @@ if ! ollama list | grep -q "gpt-oss:120b"; then
 fi
 echo "Found gpt-oss:120b."
 
+# Ollama caps every model's context window at 4096 tokens by default,
+# regardless of what the model itself supports (gpt-oss:120b advertises
+# 128K) — confirmed elsewhere to fail *silently* when exceeded: a response
+# with only reasoning tokens and no actual answer, not a clear error. That's
+# very likely what the earlier "no JSON object found in agent response: ''"
+# retries were actually hitting, not a random transient hiccup — this
+# repo's prompts grow every round (history window, codegraph_explore
+# output). Create an extended-context variant rather than relying on the
+# 4096 default. Override OLLAMA_NUM_CTX if 32768 isn't enough.
+OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-32768}"
+OLLAMA_CTX_MODEL_ID="gpt-oss-120b-${OLLAMA_NUM_CTX}ctx"
+echo "Creating extended-context variant ${OLLAMA_CTX_MODEL_ID} (num_ctx=${OLLAMA_NUM_CTX})..."
+printf 'FROM gpt-oss:120b\nPARAMETER num_ctx %s\n' "$OLLAMA_NUM_CTX" > /tmp/fishery.Modelfile
+ollama create "$OLLAMA_CTX_MODEL_ID" -f /tmp/fishery.Modelfile
+
 # Point opencode's "ollama" provider at THIS job's actual (randomly-assigned)
 # port instead of the committed opencode.jsonc's fixed 127.0.0.1:11434
 # default. .opencode/opencode.json is gitignored — opencode merges it in
@@ -64,7 +79,8 @@ cat > .opencode/opencode.json << EOF
         "apiKey": "ollama"
       },
       "models": {
-        "gpt-oss:120b": { "name": "GPT-OSS 120B (Aoraki Ollama)" }
+        "gpt-oss:120b": { "name": "GPT-OSS 120B (Aoraki Ollama)" },
+        "${OLLAMA_CTX_MODEL_ID}": { "name": "GPT-OSS 120B, ${OLLAMA_NUM_CTX}-token context (Aoraki Ollama)" }
       }
     }
   }
@@ -77,5 +93,5 @@ if ! command -v opencode >/dev/null 2>&1; then
 fi
 
 mkdir -p logs
-export OPENCODE_MODEL="ollama/gpt-oss:120b"
+export OPENCODE_MODEL="ollama/${OLLAMA_CTX_MODEL_ID}"
 python3 simulate.py --max-rounds "${MAX_ROUNDS:-20}"
