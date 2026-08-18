@@ -167,9 +167,31 @@ fi
 # The fisher agent no longer goes through opencode — llm_agents.py calls
 # litellm directly. Same on-demand install pattern as opencode/codegraph
 # above, since this container image predates that change.
-if ! python3 -c "import litellm" >/dev/null 2>&1; then
-  echo "litellm not found in this container's Python — installing"
-  pip install --quiet litellm python-dotenv
+#
+# Always (re)install the exact pinned versions rather than skipping when
+# litellm is merely importable: litellm's response types use pydantic
+# forward references that only get resolved on the first real call
+# (ModelResponse() inside completion()), not at `import litellm` — so an
+# "already importable, skip" check misses a stale/mismatched pydantic
+# entirely, including this container's own older baked-in system copy at
+# /usr/local/lib/python3.10/dist-packages. That's exactly what happened on
+# 2026-08-19: an unpinned `pip install litellm` picked up the newest
+# litellm from PyPI, which resolved fine at import time but crashed on the
+# first harvest call with "Message is not fully defined ... call
+# Message.model_rebuild()". litellm==1.97.0 + pydantic==2.13.4 (matching
+# pyproject.toml) is the pair actually verified working end-to-end.
+pip install --quiet --upgrade litellm==1.97.0 pydantic==2.13.4 python-dotenv
+
+# Reproduce the exact failure point from that incident (ModelResponse()
+# construction) right here, so a version mismatch fails loudly before
+# round 1 rather than three silent retries into it.
+if ! python3 -c "from litellm.types.utils import ModelResponse; ModelResponse()" >/dev/null 2>&1; then
+  echo "litellm==1.97.0/pydantic==2.13.4 still can't construct a ModelResponse" >&2
+  echo "in this container's Python — something else on this node's Python path" >&2
+  echo "is shadowing one of them. Run 'pip show litellm pydantic' and" >&2
+  echo "'python3 -c \"import litellm, pydantic; print(litellm.__file__, pydantic.__file__)\"'" >&2
+  echo "by hand to see what's actually being imported." >&2
+  exit 1
 fi
 
 mkdir -p logs
