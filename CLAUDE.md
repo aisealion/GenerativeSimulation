@@ -6,9 +6,15 @@ regrows 100kg/round up to a 300kg carrying capacity
 `state/agents.json` — harvest, then propose and vote on a shared norm,
 which the `norm-implementer` agent then implements in code and commits.
 
-Run with `python3 simulate.py`. Requires `opencode` configured with a
-working model (see `opencode.jsonc` — `litellm/*` for the Otago proxy,
-`ollama/gpt-oss:120b` for local Ollama). On Aoraki (Otago's HPC), submit
+Run with `python3 simulate.py`. Two separate model call paths, each with
+its own config: the `norm-implementer` still runs as an `opencode` agent
+(needs `opencode` configured with a working model — see `opencode.jsonc`,
+`litellm/*` for the Otago proxy, `ollama/gpt-oss:120b` for local Ollama);
+the fisher agent calls the model directly via `litellm` from
+`llm_agents.py` (needs `FISHER_MODEL` set, same `provider/name` convention,
+e.g. `litellm/Kimi-K2.5` or `ollama/gpt-oss:120b` — defaults to
+`litellm/Kimi-K2.5` if unset — plus `LITELLM_API_KEY` for the `litellm/*`
+path). On Aoraki (Otago's HPC), submit
 `run_simulation.slurm` instead of running directly. It runs
 `apptainer run --nv .../ollama_shellenv.sif "<one command string>"`
 directly (matching Otago's own `ollama-batch-example.slurm`), rather than
@@ -46,22 +52,41 @@ via the `--max-rounds` safety cap, not collapse.
   must never write here, only `phases/*.py` reads it.
 - `llm_agents.py` — renders `prompts/persona_template.md` +
   `prompts/role_directives/*.md` + `prompts/phases/*.md` into a prompt and
-  calls the `fisher` opencode agent (`.opencode/agent/fisher.md`) via
-  subprocess. Imported by `phases/harvest.py`, `propose.py`, `vote.py`.
+  calls the fisher model directly via `litellm.completion()` (not through
+  opencode) — the system prompt is read from `.opencode/agent/fisher.md`'s
+  body, which is no longer invoked as an opencode agent but is kept as the
+  single source of that text. Imported by `phases/harvest.py`, `propose.py`,
+  `vote.py`.
 - `simulate.py` — the round orchestrator. Schedule-driven, not hardcoded:
   each round it reads `schedule.json`, runs whatever phase is gated on (in
-  file order), and imports `phases.<name>.run(state)` dynamically — adding
-  a phase to `phases/` and registering it in `schedule.json` is enough to
-  wire it in, no `simulate.py` edit needed. Owns writing
-  `state/runtime.json` and `state/fluents.json` between phases, and
-  invokes the `norm-implementer` opencode agent whenever any phase sets
-  `state["adopted_norm"]` (currently only `vote` does).
-- `.opencode/agent/fisher.md` — one generic character agent for both
-  fishers; personality comes from the per-round rendered prompt
-  (`state/agents.json`), not from separate agent files per persona.
+  file order), and dynamically imports `phases.<name>` and calls its
+  module-level `PHASE.run(state)` — adding a phase to `phases/` and
+  registering it in `schedule.json` is enough to wire it in, no
+  `simulate.py` edit needed. Owns writing `state/runtime.json` and
+  `state/fluents.json` between phases, and invokes the `norm-implementer`
+  opencode agent whenever any phase sets `state["adopted_norm"]`
+  (currently only `vote` does).
+- `phases/base.py` — the `Phase` base class every phase module subclasses
+  (`run`, `prompt_fields`, `memory_writes`). Human-owned scaffolding, not
+  something a norm round edits.
+- `.opencode/agent/fisher.md` — one generic system prompt for both
+  fishers (its frontmatter is vestigial; only the body text is read now,
+  by `llm_agents.py`, not opencode); personality comes from the per-round
+  rendered prompt (`state/agents.json`), not from separate files per
+  persona.
 - `.opencode/agent/norm-implementer.md` / `.claude/agents/norm-implementer.md`
   — two copies of the same agent definition, kept in sync by hand. The
   opencode copy is the one `simulate.py` actually invokes.
+- `memory/` — the Graphiti/Neo4j temporal memory layer (`client.py` the
+  shared connection, `write.py` episode writes + `IMPORTANCE_BY_EVENT_TYPE`,
+  `query.py` retrieval + `PHASE_QUERY_TEMPLATES`). Local-only infra for now
+  (never deployed on Aoraki) — `simulate.py`'s `write_memory_episodes()` and
+  `llm_agents.py`'s `render_relevant_memories()` both no-op gracefully
+  whenever `NEO4J_URI` isn't set or the DB isn't reachable, so its absence
+  never blocks a round. Human-owned scaffolding, like `llm_agents.py` —
+  the norm-implementer only ever touches it indirectly, by adding a
+  `memory_writes()` override to a phase it's already editing for another
+  reason.
 
 ## Prompt layer rules
 
@@ -81,6 +106,11 @@ rendered prompt text.
   phrases. This is the fourth-wall boundary: internal names and numeric
   mechanics never appear in rendered text directly, only their mapped
   phrasing.
+- `prompts/memory_phrasing.py` — same fourth-wall boundary, for the one
+  case a static JSON map can't handle: turning a memory record's
+  `event_type` into an in-world frame sentence around already-phrased
+  text. Every `event_type` in `memory/write.py`'s `IMPORTANCE_BY_EVENT_TYPE`
+  needs a case here, or it raises rather than leaking unphrased.
 
 ### Routing a rule change
 

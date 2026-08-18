@@ -1,17 +1,35 @@
 import json
 import os
 import re
-import subprocess
 import time
 from pathlib import Path
+
+import litellm
 
 from call_log import log_call
 from mechanisms.roles import role_holder
 
 ROOT = Path(__file__).resolve().parent
+LITELLM_PROXY_BASE_URL = "https://llm.uod.otago.ac.nz/v1"
+DEFAULT_FISHER_MODEL = "litellm/Kimi-K2.5"
 
 
-def render_persona(agent_id, round_number):
+def _load_fisher_system_prompt():
+    """The fisher character's system prompt used to live entirely inside
+    the opencode agent definition (.opencode/agent/fisher.md); now that
+    calls go direct, that file is kept as the single source for this text
+    (not duplicated here) and its body (everything after the frontmatter)
+    is read in as the system message."""
+    text = (ROOT / ".opencode" / "agent" / "fisher.md").read_text()
+    _, _, body = text.partition("---\n")
+    _, _, body = body.partition("---")
+    return body.strip()
+
+
+FISHER_SYSTEM_PROMPT = _load_fisher_system_prompt()
+
+
+def render_persona(agent_id, round_number, phase_name):
     agents = json.loads((ROOT / "state" / "agents.json").read_text())
     fluents = json.loads((ROOT / "state" / "fluents.json").read_text())
     runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
@@ -28,6 +46,7 @@ def render_persona(agent_id, round_number):
     history = render_history(
         agent_id, round_number, runtime, agents, config.get("history_window_rounds", 5)
     )
+    relevant_memories = render_relevant_memories(agent_id, phase_name, round_number)
 
     return persona_template.format(
         agent_name=agent["name"],
@@ -35,7 +54,29 @@ def render_persona(agent_id, round_number):
         role_directives=role_directives,
         daily_status=daily_status,
         history=history,
+        relevant_memories=relevant_memories,
     ).strip()
+
+
+def render_relevant_memories(agent_id, phase_name, round_number):
+    """Pre-fetched here, before the completion call — never exposed as a
+    tool the fisher agent could call itself. The memory layer is optional,
+    local-only infra for now (see write_memory_episodes() in simulate.py),
+    so this degrades to the same placeholder text on any failure, not just
+    when nothing relevant is found."""
+    if not os.environ.get("NEO4J_URI"):
+        return "(nothing notable comes to mind)"
+    try:
+        from memory.query import retrieve_memories
+        from prompts.memory_phrasing import phrase_memory
+
+        records = retrieve_memories(agent_id, phase_name, round_number)
+        if not records:
+            return "(nothing notable comes to mind)"
+        return " ".join(phrase_memory(record) for record in records)
+    except Exception as exc:
+        print(f"  [memory retrieval skipped: {exc}]")
+        return "(nothing notable comes to mind)"
 
 
 def render_history(agent_id, round_number, runtime, agents, window):
@@ -80,42 +121,64 @@ MAX_ATTEMPTS = 3
 CALL_DELAY_S = float(os.environ.get("LLM_CALL_DELAY_S", "2"))
 
 
-def call_fisher_agent(agent_id, round_number, phase_name, **fields):
-    prompt = render_persona(agent_id, round_number) + "\n\n" + render_phase(phase_name, **fields)
+def _resolve_completion_kwargs(model_spec):
+    """FISHER_MODEL keeps the same 'provider/name' convention opencode.jsonc
+    used (e.g. 'litellm/Kimi-K2.5', 'ollama/gpt-oss:120b') so existing env
+    var values carry over — just routed to litellm's own provider syntax
+    instead of opencode's."""
+    provider, _, name = model_spec.partition("/")
+    if provider == "litellm":
+        return {
+            "model": f"openai/{name}",
+            "api_base": LITELLM_PROXY_BASE_URL,
+            "api_key": os.environ["LITELLM_API_KEY"],
+        }
+    if provider == "ollama":
+        ollama_host = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
+        api_base = ollama_host if ollama_host.startswith("http") else f"http://{ollama_host}"
+        return {"model": f"ollama/{name}", "api_base": api_base}
+    raise ValueError(
+        f"unrecognized FISHER_MODEL provider {provider!r} in {model_spec!r} — expected 'litellm/...' or 'ollama/...'"
+    )
 
-    cmd = ["opencode", "run", "--agent", "fisher"]
-    model = os.environ.get("OPENCODE_MODEL")
-    if model:
-        cmd += ["--model", model]
-    cmd.append(prompt)
+
+def call_fisher_agent(agent_id, round_number, phase_name, **fields):
+    prompt = render_persona(agent_id, round_number, phase_name) + "\n\n" + render_phase(phase_name, **fields)
+    model_spec = os.environ.get("FISHER_MODEL", DEFAULT_FISHER_MODEL)
+    completion_kwargs = _resolve_completion_kwargs(model_spec)
 
     last_error = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         start = time.monotonic()
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180, cwd=ROOT)
-        duration_s = time.monotonic() - start
-
+        raw_text = ""
         parsed = None
         error = None
-        if result.returncode != 0:
-            error = result.stderr.strip()
-        else:
-            try:
-                parsed = _parse_json_object(result.stdout)
-            except Exception as exc:
-                error = str(exc)
+        try:
+            response = litellm.completion(
+                messages=[
+                    {"role": "system", "content": FISHER_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                timeout=180,
+                **completion_kwargs,
+            )
+            raw_text = response.choices[0].message.content or ""
+            parsed = _parse_json_object(raw_text)
+        except Exception as exc:
+            error = str(exc)
+        duration_s = time.monotonic() - start
 
         log_call(
             call="fisher",
             agent_id=agent_id,
             round=round_number,
             phase=phase_name,
-            model=model,
+            model=model_spec,
             attempt=attempt,
             duration_s=round(duration_s, 3),
-            returncode=result.returncode,
+            returncode=0 if error is None else 1,
             prompt=prompt,
-            raw_response=result.stdout,
+            raw_response=raw_text,
             parsed_response=parsed,
             error=error,
         )
@@ -129,7 +192,7 @@ def call_fisher_agent(agent_id, round_number, phase_name, **fields):
         time.sleep(CALL_DELAY_S)
 
     raise RuntimeError(
-        f"opencode run failed for agent={agent_id} phase={phase_name} after {MAX_ATTEMPTS} attempts: {last_error}"
+        f"fisher agent call failed for agent={agent_id} phase={phase_name} after {MAX_ATTEMPTS} attempts: {last_error}"
     )
 
 

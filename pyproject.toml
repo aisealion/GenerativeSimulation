@@ -1,0 +1,9 @@
+[project]
+name = "generative-simulation"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "litellm",
+    "python-dotenv",
+    "graphiti-core",
+]

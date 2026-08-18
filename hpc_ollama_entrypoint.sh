@@ -147,6 +147,18 @@ if ! timeout 120 codegraph --no-color "$CODEGRAPH_CMD" .; then
   echo "Read/Grep, which still works, just with worse exploration." >&2
 fi
 
+# The fisher agent no longer goes through opencode — llm_agents.py calls
+# litellm directly. Same on-demand install pattern as opencode/codegraph
+# above, since this container image predates that change.
+if ! python3 -c "import litellm" >/dev/null 2>&1; then
+  echo "litellm not found in this container's Python — installing"
+  pip install --quiet litellm python-dotenv
+fi
+
 mkdir -p logs
+# OPENCODE_MODEL still drives the norm-implementer (still an opencode agent).
+# FISHER_MODEL drives the fisher's direct litellm calls. Same underlying
+# model, two separate call paths reading two separate env vars.
 export OPENCODE_MODEL="ollama/${OLLAMA_CTX_MODEL_ID}"
+export FISHER_MODEL="ollama/${OLLAMA_CTX_MODEL_ID}"
 python3 simulate.py --max-rounds "${MAX_ROUNDS:-20}"

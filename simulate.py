@@ -70,6 +70,23 @@ def save_fluents(state):
     (ROOT / "state" / "fluents.json").write_text(json.dumps(state["fluents"], indent=2) + "\n")
 
 
+def write_memory_episodes(phase, state, record, round_number):
+    """The memory layer (Graphiti/Neo4j) is optional, local-only infra for
+    now — it's never deployed on Aoraki, and a dev machine may not have it
+    running either. Never let its absence, or any failure in it, block a
+    round: skip fast if NEO4J_URI isn't even set, and never let an error
+    here propagate past a warning."""
+    if not os.environ.get("NEO4J_URI"):
+        return
+    try:
+        from memory.write import write_episode
+
+        for spec in phase.memory_writes(state, record):
+            write_episode(round_num=round_number, **spec)
+    except Exception as exc:
+        print(f"  [memory write skipped: {exc}]")
+
+
 def run_norm_implementer(round_number):
     print("\n--- invoking norm-implementer ---")
     message = (
@@ -192,10 +209,11 @@ def run_cycle(round_number):
 
         print(f"\n--- Round {round_number}: {phase_name} ---")
         phase_module = importlib.import_module(f"phases.{phase_name}")
-        record = phase_module.run(state)
+        record = phase_module.PHASE.run(state)
         save_runtime(state)
         save_fluents(state)
         print(json.dumps(record, indent=2))
+        write_memory_episodes(phase_module.PHASE, state, record, round_number)
 
         if state["runtime"]["stock_kg"] <= COLLAPSE_THRESHOLD_KG:
             print(

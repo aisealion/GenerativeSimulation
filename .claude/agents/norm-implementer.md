@@ -19,9 +19,13 @@ more, and nothing the norm didn't ask for.
   agent IDs, role names, or numeric thresholds hardcoded in function bodies.
 
 - `phases/` — one file per simulation phase (`harvest.py`, `propose.py`,
-  `discuss.py`, `vote.py`, ...). Each defines what agents do in that phase
-  and what state it reads/writes. `schedule.json` lists which phases run
-  each round, gated by fluent conditions where relevant
+  `discuss.py`, `vote.py`, ...). Each defines a subclass of `Phase`
+  (`phases/base.py` — never edit that file) implementing `run(state)`,
+  `prompt_fields(state, agent_id)` (only if the phase calls the fisher
+  agent), and optionally `memory_writes(state, round_record)`, plus a
+  module-level `PHASE = YourPhaseSubclass()` instance — that instance is
+  what `simulate.py` actually calls. `schedule.json` lists which phases
+  run each round, gated by fluent conditions where relevant
   (e.g. `"monitoring": "holdsAt(monitor_obligation)"`).
 
 - `state/config.json` — **implementer-owned.** Caps, thresholds, intervals,
@@ -130,10 +134,23 @@ fit. Never guess at what already exists.
   every phase listed in `schedule.json` whose gate is currently true, in
   the file's key order, every round. This is a real contract, not just
   documentation:
-  - Your phase module must expose `run(state) -> dict`. `state` has
+  - Your phase module must define a `Phase` subclass (import `Phase` from
+    `phases.base`) and a module-level `PHASE = YourPhaseSubclass()`
+    instance — `simulate.py` calls `PHASE.run(state) -> dict`. `state` has
     `config`, `fluents`, `runtime`, `agents`, `round_number` — mutate
     `runtime`/`fluents` in place as needed; the returned dict is appended
-    to `runtime["rounds"]` for history/logging.
+    to `runtime["rounds"]` for history/logging. If the phase calls the
+    fisher agent, also implement `prompt_fields(state, agent_id) -> dict`
+    with the fields `prompts/phases/{phase_name}.md` needs — `run()` calls
+    it per agent rather than inlining the field values.
+  - If a mechanism you're implementing produces a real, memorable event
+    (a violation, a sanction, a role change, a threshold being crossed —
+    not a routine action), override `memory_writes(state, round_record) ->
+    list[dict]` on that phase to return one dict per event, each with
+    `event_type`, `text`, `agent_id`, `group_id` keys (`group_id` is the
+    acting agent's ID for a private event, or `"community"` for anything
+    public). Only do this for a genuinely new event type your change
+    introduces — don't add routine per-round writes.
   - `schedule.json` gate syntax is limited to exactly `"true"`, `"false"`,
     or `"holdsAt(<fluent_name>)"` (true if any record for that fluent,
     any holder/args, is currently active this round) — nothing else
@@ -204,9 +221,10 @@ the only thing that matters for the commit to pick them up correctly.
 ## Hard constraints
 
 - Never edit `state/runtime.json`, `state/agents.json`, `simulate.py`,
-  `llm_agents.py`, `call_log.py`, `tests/regression/*`, or either
-  norm-implementer agent definition file — only `mechanisms/*.py`,
-  `phases/*.py`, `schedule.json`'s phase list/gating, `state/config.json`,
+  `llm_agents.py`, `call_log.py`, `phases/base.py`, `tests/regression/*`,
+  or either norm-implementer agent definition file — only
+  `mechanisms/*.py`, `phases/*.py` (other than `base.py`),
+  `schedule.json`'s phase list/gating, `state/config.json`,
   `state/fluents.json` schema, and the specific `prompts/` files named
   above. The `.opencode/agent/norm-implementer.md` copy of this file
   enforces this list technically via `permission.edit` rules — this
