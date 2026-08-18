@@ -165,34 +165,62 @@ if ! timeout 120 codegraph --no-color "$CODEGRAPH_CMD" .; then
 fi
 
 # The fisher agent no longer goes through opencode — llm_agents.py calls
-# litellm directly. Same on-demand install pattern as opencode/codegraph
-# above, since this container image predates that change.
-#
-# Always (re)install the exact pinned versions rather than skipping when
-# litellm is merely importable: litellm's response types use pydantic
-# forward references that only get resolved on the first real call
-# (ModelResponse() inside completion()), not at `import litellm` — so an
-# "already importable, skip" check misses a stale/mismatched pydantic
-# entirely, including this container's own older baked-in system copy at
-# /usr/local/lib/python3.10/dist-packages. That's exactly what happened on
-# 2026-08-19: an unpinned `pip install litellm` picked up the newest
-# litellm from PyPI, which resolved fine at import time but crashed on the
-# first harvest call with "Message is not fully defined ... call
-# Message.model_rebuild()". litellm==1.97.0 + pydantic==2.13.4 (matching
-# pyproject.toml) is the pair actually verified working end-to-end.
-pip install --quiet --upgrade litellm==1.97.0 pydantic==2.13.4 python-dotenv
-
-# Reproduce the exact failure point from that incident (ModelResponse()
-# construction) right here, so a version mismatch fails loudly before
-# round 1 rather than three silent retries into it.
-if ! python3 -c "from litellm.types.utils import ModelResponse; ModelResponse()" >/dev/null 2>&1; then
-  echo "litellm==1.97.0/pydantic==2.13.4 still can't construct a ModelResponse" >&2
-  echo "in this container's Python — something else on this node's Python path" >&2
-  echo "is shadowing one of them. Run 'pip show litellm pydantic' and" >&2
-  echo "'python3 -c \"import litellm, pydantic; print(litellm.__file__, pydantic.__file__)\"'" >&2
-  echo "by hand to see what's actually being imported." >&2
+# litellm directly. litellm's response types use pydantic forward
+# references that only get resolved on the first real call (ModelResponse()
+# inside completion()), not at `import litellm` — so version-pinning alone
+# (litellm==1.97.0 + pydantic==2.13.4, tried on 2026-08-19) wasn't enough:
+# `pip install --upgrade` reported success, but the container's own older
+# baked-in pydantic at /usr/local/lib/python3.10/dist-packages was still
+# shadowing whatever got installed on top, and the exact same
+# "Message is not fully defined ... call Message.model_rebuild()" failure
+# came back. A --user-style install can't reliably out-rank a container
+# image's system site-packages. An isolated venv can — it takes total
+# precedence over both user and system site-packages by default, no
+# shadowing possible — so build one here rather than fighting the
+# container's Python path further, and run simulate.py through it.
+FISHERY_VENV="$SLURM_SUBMIT_DIR/.venv-fishery"
+if [ ! -d "$FISHERY_VENV" ]; then
+  echo "Creating isolated venv at ${FISHERY_VENV} for litellm/pydantic..."
+  python3 -m venv "$FISHERY_VENV"
+fi
+# Some minimal container images strip ensurepip, which leaves a venv
+# created without pip inside it — silently, `python3 -m venv` still exits
+# 0 in that case. Check explicitly rather than letting the next line fail
+# with a confusing "No such file or directory" on $FISHERY_VENV/bin/pip.
+if [ ! -x "$FISHERY_VENV/bin/pip" ]; then
+  echo "python3 -m venv created ${FISHERY_VENV} but it has no pip inside —" >&2
+  echo "this container's Python likely lacks ensurepip. Bootstrap it by hand:" >&2
+  echo "  curl -sS https://bootstrap.pypa.io/get-pip.py | ${FISHERY_VENV}/bin/python3" >&2
+  echo "then resubmit." >&2
   exit 1
 fi
+"$FISHERY_VENV/bin/pip" install --quiet --upgrade pip litellm==1.97.0 pydantic==2.13.4 python-dotenv
+
+# Reproduce the exact failure point from the 2026-08-19 incident
+# (ModelResponse() construction) right here, so a version mismatch fails
+# loudly before round 1 rather than three silent retries into it. Not
+# suppressing output this time — if this still fails, the traceback and
+# diagnostics below are what's needed to actually root-cause it further.
+if ! "$FISHERY_VENV/bin/python3" -c "from litellm.types.utils import ModelResponse; ModelResponse()"; then
+  echo "Still broken even inside an isolated venv — this isn't a system-vs-user" >&2
+  echo "site-packages shadowing issue after all. Diagnostics:" >&2
+  "$FISHERY_VENV/bin/python3" -c "
+import sys
+import litellm, pydantic
+print('litellm:', litellm.__file__)
+print('pydantic:', pydantic.__file__, pydantic.VERSION)
+try:
+    import pydantic_core
+    print('pydantic_core:', pydantic_core.__file__, pydantic_core.VERSION)
+except Exception as exc:
+    print('pydantic_core import failed:', exc)
+print('sys.path:')
+for p in sys.path:
+    print(' ', p)
+" >&2
+  exit 1
+fi
+echo "litellm/pydantic verified working inside ${FISHERY_VENV}."
 
 mkdir -p logs
 # OPENCODE_MODEL still drives the norm-implementer (still an opencode agent,
@@ -210,4 +238,11 @@ mkdir -p logs
 # correctness issue, but factor it into --time and MAX_ROUNDS sizing.
 export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
-python3 simulate.py --max-rounds "${MAX_ROUNDS:-20}"
+# Run through the venv's interpreter, not the container's bare python3 —
+# that's the whole point of building it above. simulate.py itself and
+# everything it imports besides llm_agents.py (call_log, mechanisms/*,
+# phases/*) is stdlib-only, so this venv (litellm/pydantic/python-dotenv
+# only, no --system-site-packages) has everything the run needs; the
+# opencode subprocess call for the norm-implementer is an external binary,
+# unaffected by which Python interpreter launched it.
+"$FISHERY_VENV/bin/python3" simulate.py --max-rounds "${MAX_ROUNDS:-20}"

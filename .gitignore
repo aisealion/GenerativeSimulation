@@ -6,3 +6,4 @@ slurm-*.err
 .opencode/opencode.json
 .codegraph/
 .env
+.venv-fishery/
