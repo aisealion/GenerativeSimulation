@@ -1,0 +1,22 @@
+{
+  "altruistic": [
+    "Fish only what you need to feed your family",
+    "Preserve the lake for future generations",
+    "Follow the community guidelines strictly",
+    "Fish moderately to maintain the ecosystem",
+    "Prioritize long-term sustainability over short-term gain",
+    "Consider the needs of the entire community before fishing",
+    "Leave enough fish for others and future generations",
+    "Share the lake's resources fairly with all villagers"
+  ],
+  "selfish": [
+    "Maximize your catch while the fish are abundant",
+    "Take as much as you can before others do",
+    "Your family's needs come first, fish as much as possible",
+    "The lake is there to be used, take your maximum share",
+    "Fish aggressively to ensure your own survival",
+    "Get the most value from your fishing effort",
+    "Compete to harvest more than others",
+    "Focus on your immediate gains from the lake"
+  ]
+}

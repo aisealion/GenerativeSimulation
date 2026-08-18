@@ -80,9 +80,6 @@ def render_relevant_memories(agent_id, phase_name, round_number):
 
 
 def render_history(agent_id, round_number, runtime, agents, window):
-    other_id = next(a for a in agents if a != agent_id)
-    other_name = agents[other_id]["name"]
-
     past_rounds = sorted({r["round"] for r in runtime["rounds"] if r["round"] < round_number})
     past_rounds = past_rounds[-window:]
     if not past_rounds:
@@ -93,20 +90,34 @@ def render_history(agent_id, round_number, runtime, agents, window):
         for entry in (e for e in runtime["rounds"] if e["round"] == r):
             if entry["phase"] == "harvest":
                 mine = entry["agents"][agent_id]["harvested_kg"]
-                theirs = entry["agents"][other_id]["harvested_kg"]
+                total_others = sum(
+                    a["harvested_kg"] for oid, a in entry["agents"].items() if oid != agent_id
+                )
                 lines.append(
-                    f"Round {r}: you brought in {mine:.0f}kg, {other_name} brought in "
-                    f"{theirs:.0f}kg. The lake stood at {entry['stock_kg_after_regrowth']:.0f}kg afterward."
+                    f"Round {r}: you brought in {mine:.0f}kg; the rest of the community brought "
+                    f"in {total_others:.0f}kg between them. The lake stood at "
+                    f"{entry['stock_kg_after_regrowth']:.0f}kg afterward."
                 )
             elif entry["phase"] == "propose":
                 mine = entry["proposals"][agent_id]["policy"]
-                theirs = entry["proposals"][other_id]["policy"]
-                lines.append(f'Round {r}: you proposed "{mine}" and {other_name} proposed "{theirs}".')
-            elif entry["phase"] == "vote":
-                who = "your" if entry["winning_proposer"] == agent_id else f"{other_name}'s"
+                num_others = len(entry["proposals"]) - 1
                 lines.append(
-                    f"Round {r}: the two of you voted, and {who} proposal won "
-                    f"({entry['votes_for_a']}-{entry['votes_for_b']})."
+                    f'Round {r}: you proposed "{mine}", alongside {num_others} other proposal(s) '
+                    f"from the rest of the community."
+                )
+            elif entry["phase"] == "vote":
+                winner_id = entry["winning_proposer"]
+                who = "your" if winner_id == agent_id else f"{agents[winner_id]['name']}'s"
+                tally = entry["tally"]
+                winner_index = entry["winner_index"]
+                # tally's keys are ints in a freshly-computed round_record but
+                # become JSON-object string keys once written to and reread
+                # from state/runtime.json — accept either.
+                winner_votes = tally.get(winner_index, tally.get(str(winner_index)))
+                total_votes = sum(tally.values())
+                lines.append(
+                    f"Round {r}: the community voted, and {who} proposal won "
+                    f"({winner_votes}/{total_votes})."
                 )
 
     return "Here's what's happened so far:\n" + "\n".join(f"- {line}" for line in lines)

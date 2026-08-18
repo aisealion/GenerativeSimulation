@@ -12,12 +12,17 @@ class ProposePhase(Phase):
         runtime = state["runtime"]
         agents = state["agents"]
         agent_ids = list(agents.keys())
-        other_id = next(a for a in agent_ids if a != agent_id)
         last_harvest = next(r for r in reversed(runtime["rounds"]) if r["phase"] == "harvest")
+
+        others_summary = "\n".join(
+            f"- {agents[other_id]['name']} brought in {last_harvest['agents'][other_id]['harvested_kg']:.0f}kg."
+            for other_id in agent_ids
+            if other_id != agent_id
+        )
+
         return {
             "your_catch_kg": last_harvest["agents"][agent_id]["harvested_kg"],
-            "other_agent_name": agents[other_id]["name"],
-            "other_catch_kg": last_harvest["agents"][other_id]["harvested_kg"],
+            "others_summary": others_summary,
             "stock_kg": runtime["stock_kg"],
         }
 

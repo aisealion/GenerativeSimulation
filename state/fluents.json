@@ -1,15 +1,91 @@
 [
   {
     "fluent": "fisher",
-    "args": ["kai"],
-    "holder": "kai",
+    "args": [
+      "agent_0"
+    ],
+    "holder": "agent_0",
     "initiated_round": 0,
     "terminated_round": null
   },
   {
     "fluent": "fisher",
-    "args": ["mara"],
-    "holder": "mara",
+    "args": [
+      "agent_1"
+    ],
+    "holder": "agent_1",
+    "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "fisher",
+    "args": [
+      "agent_2"
+    ],
+    "holder": "agent_2",
+    "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "fisher",
+    "args": [
+      "agent_3"
+    ],
+    "holder": "agent_3",
+    "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "fisher",
+    "args": [
+      "agent_4"
+    ],
+    "holder": "agent_4",
+    "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "fisher",
+    "args": [
+      "agent_5"
+    ],
+    "holder": "agent_5",
+    "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "fisher",
+    "args": [
+      "agent_6"
+    ],
+    "holder": "agent_6",
+    "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "fisher",
+    "args": [
+      "agent_7"
+    ],
+    "holder": "agent_7",
+    "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "fisher",
+    "args": [
+      "agent_8"
+    ],
+    "holder": "agent_8",
+    "initiated_round": 0,
+    "terminated_round": null
+  },
+  {
+    "fluent": "fisher",
+    "args": [
+      "agent_9"
+    ],
+    "holder": "agent_9",
     "initiated_round": 0,
     "terminated_round": null
   }

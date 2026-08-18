@@ -1,7 +1,7 @@
-# Reads: state/config.json (effort caps), state/fluents.json (role holders).
+# Reads: state/config.json (effort caps, catchability, capacity), state/fluents.json (role holders).
 # Writes: state/runtime.json (today's catch).
 
-from mechanisms.effort import effort_cap
+from mechanisms.effort import catch_from_effort, effort_cap
 from mechanisms.stock_check import available_stock, apply_regrowth
 from llm_agents import call_fisher_agent
 from phases.base import Phase
@@ -22,7 +22,7 @@ class HarvestPhase(Phase):
         )
         return {
             "stock_kg": available_stock(runtime),
-            "regrowth_kg": config.get("regrowth_kg_per_round", 0),
+            "carrying_capacity_kg": config.get("carrying_capacity_kg", 0),
             "cap_line": cap_line,
         }
 
@@ -34,25 +34,28 @@ class HarvestPhase(Phase):
         round_number = state["round_number"]
 
         stock_before = available_stock(runtime)
-        requests = {}
+        results = {}
         for agent_id in agents:
             cap = effort_cap(agent_id, config, fluents, runtime)
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
-            requested = max(0.0, float(response["harvest_kg"]))
+            effort = min(1.0, max(0.0, float(response["effort"])))
+            harvested = catch_from_effort(effort, stock_before, config)
             if cap is not None:
-                requested = min(requested, cap)
-            requests[agent_id] = {"requested_kg": requested, "reasoning": response.get("reasoning", "")}
+                harvested = min(harvested, cap)
+            results[agent_id] = {
+                "effort": effort,
+                "harvested_kg": harvested,
+                "reasoning": response.get("reasoning", ""),
+            }
 
-        total_requested = sum(r["requested_kg"] for r in requests.values())
-        if total_requested <= stock_before:
-            actual = {agent_id: r["requested_kg"] for agent_id, r in requests.items()}
-        else:
-            ratio = stock_before / total_requested
-            actual = {agent_id: r["requested_kg"] * ratio for agent_id, r in requests.items()}
-
-        stock_after_harvest = stock_before - sum(actual.values())
+        # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
+        # which subtracts each agent's independently-computed catch (all against the
+        # same pre-harvest stock) directly, letting the stock go negative if
+        # oversubscribed. The existing collapse check below (stock <= 0) is this
+        # project's equivalent of their stop-the-simulation condition.
+        stock_after_harvest = stock_before - sum(r["harvested_kg"] for r in results.values())
         stock_after_regrowth = apply_regrowth(stock_after_harvest, config)
 
         round_record = {
@@ -61,9 +64,9 @@ class HarvestPhase(Phase):
             "stock_kg_before": stock_before,
             "agents": {
                 agent_id: {
-                    "requested_kg": requests[agent_id]["requested_kg"],
-                    "harvested_kg": actual[agent_id],
-                    "reasoning": requests[agent_id]["reasoning"],
+                    "effort": results[agent_id]["effort"],
+                    "harvested_kg": results[agent_id]["harvested_kg"],
+                    "reasoning": results[agent_id]["reasoning"],
                 }
                 for agent_id in agents
             },

@@ -1,1 +1,1 @@
-You make your living pulling fish from this lake, alongside the one other person who fishes it. What you bring in each trip is yours to keep. From time to time, the two of you may agree on shared rules for how the lake gets fished — once agreed, you're expected to hold to them.
+You make your living pulling fish from this lake, alongside the rest of the community that fishes it. What you bring in each trip is yours to keep. From time to time, the community may agree on shared rules for how the lake gets fished — once agreed, you're expected to hold to them.

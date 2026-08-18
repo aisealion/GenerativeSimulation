@@ -1,7 +1,10 @@
 #!/bin/bash
 #
-# Runs the fishery simulation against gpt-oss:120b via Ollama, on Aoraki
-# (University of Otago HPC). Submit from the repo root: sbatch run_simulation.slurm
+# Runs the fishery simulation on Aoraki (University of Otago HPC) via
+# Ollama, split across two models: the fisher agent runs on gpt-oss:20b,
+# the norm-implementer (opencode) agent runs on gpt-oss:120b — see
+# hpc_ollama_entrypoint.sh for how OPENCODE_MODEL/FISHER_MODEL get set to
+# route each. Submit from the repo root: sbatch run_simulation.slurm
 #
 # Structure follows Otago's own ollama-batch-example.slurm: the container
 # takes ONE command string as its argument and runs it via its internal
@@ -10,7 +13,9 @@
 # in hpc_ollama_entrypoint.sh, run as that one string.
 #
 #SBATCH --job-name=fishery-sim
-#SBATCH --partition=aoraki_gpu_H100    # guarantees 80GB VRAM, which gpt-oss:120b needs.
+#SBATCH --partition=aoraki_gpu_H100    # guarantees 80GB VRAM — gpt-oss:120b alone needs most
+                                        #   of that, and it shares the GPU with gpt-oss:20b
+                                        #   (Ollama swaps between them; see hpc_ollama_entrypoint.sh).
                                         #   Alternative: aoraki_gpu_A100_80GB.
                                         #   Do NOT use aoraki_gpu_L40 (48GB) or
                                         #   aoraki_gpu_A100_40GB (40GB) — too small.
