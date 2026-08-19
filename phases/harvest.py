@@ -33,6 +33,10 @@ class HarvestPhase(Phase):
 
         stock_before = available_stock(runtime)
 
+        # Ensure communal pot and penalties structures exist
+        runtime.setdefault("communal_pot_kg", 0.0)
+        runtime.setdefault("penalties", {})
+
         # Mandatory rest day every 7 rounds (Sunday)
         if round_number % 7 == 0:
             # No fishing today; all agents harvest zero
@@ -75,6 +79,16 @@ class HarvestPhase(Phase):
                 "reasoning": response.get("reasoning", ""),
             }
 
+        # Process excess catch over 15kg per norm: excess goes to communal pot
+        for agent_id, data in results.items():
+            harvested = data["harvested_kg"]
+            if harvested > 15:
+                excess = harvested - 15
+                # Add excess to communal pot
+                runtime["communal_pot_kg"] = runtime.get("communal_pot_kg", 0.0) + excess
+                # Reduce agent's recorded harvest to the allowed 15kg
+                data["harvested_kg"] = 15.0
+        
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the
         # same pre-harvest stock) directly, letting the stock go negative if
@@ -99,6 +113,19 @@ class HarvestPhase(Phase):
             "stock_kg_after_regrowth": stock_after_regrowth,
         }
 
+        # Distribute communal pot monthly (every 30 rounds) if any
+        if round_number % 30 == 0 and runtime.get("communal_pot_kg", 0) > 0:
+            num_agents = len(agents)
+            share = runtime["communal_pot_kg"] / num_agents if num_agents else 0
+            # Record distribution event
+            runtime.setdefault("pot_distributions", []).append({
+                "round": round_number,
+                "total_kg": runtime["communal_pot_kg"],
+                "share_per_agent_kg": share,
+            })
+            # Reset pot after distribution
+            runtime["communal_pot_kg"] = 0.0
+        
         runtime["round"] = round_number
         runtime["stock_kg"] = stock_after_regrowth
         runtime["rounds"].append(round_record)
