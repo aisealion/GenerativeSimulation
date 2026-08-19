@@ -50,6 +50,14 @@ class HarvestPhase(Phase):
                 "reasoning": response.get("reasoning", ""),
             }
 
+        # Enforce total daily catch limit of 200 kg per policy.
+        total_harvest = sum(r["harvested_kg"] for r in results.values())
+        if total_harvest > 200:
+            # Scale down each fisher's catch proportionally so total equals 200 kg.
+            scale = 200.0 / total_harvest
+            for aid in results:
+                results[aid]["harvested_kg"] *= scale
+        
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the
         # same pre-harvest stock) directly, letting the stock go negative if
