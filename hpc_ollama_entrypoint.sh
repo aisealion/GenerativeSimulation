@@ -204,18 +204,11 @@ fi
 # suppressing output this time — if this still fails, the traceback and
 # diagnostics below are what's needed to actually root-cause it further.
 if ! "$FISHERY_VENV/bin/python3" -c "from litellm.types.utils import ModelResponse; ModelResponse()"; then
-  echo "Still broken even with pydantic-core pinned too. Diagnostics:" >&2
-  "$FISHERY_VENV/bin/python3" -c "
-import sys
-import litellm, pydantic, pydantic_core
-print('litellm:', litellm.__file__)
-print('pydantic:', pydantic.__file__, pydantic.VERSION)
-print('pydantic_core:', pydantic_core.__file__, pydantic_core.__version__)
-print('sys.path:')
-for p in sys.path:
-    print(' ', p)
-" >&2
-  "$FISHERY_VENV/bin/pip" show litellm pydantic pydantic-core >&2 || true
+  echo "Still broken even with litellm/pydantic/pydantic-core all pinned and" >&2
+  echo "identical to a known-working install elsewhere — so it's a transitive" >&2
+  echo "dependency (typing_extensions/openai/httpx/etc., none pinned) resolving" >&2
+  echo "differently here. Full dependency tree for a direct diff:" >&2
+  "$FISHERY_VENV/bin/pip" freeze >&2
   exit 1
 fi
 echo "litellm/pydantic/pydantic-core verified working inside ${FISHERY_VENV}."
