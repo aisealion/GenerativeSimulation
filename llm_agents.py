@@ -9,6 +9,37 @@ import litellm
 from call_log import log_call
 from mechanisms.roles import role_holder
 
+
+def _patch_litellm_message_rebuild():
+    """litellm==1.97.0's Message type has a pydantic forward reference
+    (ChatCompletionReasoningSummaryTextBlock, via ChatCompletionReasoningItem)
+    that never gets resolved on Python 3.10 — reproduced independent of any
+    package version (litellm/pydantic/pydantic-core and every one of
+    pydantic's own direct dependencies pinned identical to a known-working
+    Python 3.11 install; still fails identically on 3.10). A genuine litellm
+    bug: on 3.11 whatever import path runs happens to leave the type
+    resolvable by the time Message's schema is built; on 3.10 it doesn't,
+    and every completion() call fails with "Message is not fully defined
+    ... call Message.model_rebuild()" before a request is even sent.
+    Bringing the two referenced types into scope and forcing a rebuild once
+    here fixes it for the rest of the process — confirmed via a real
+    completion() call on a from-scratch Python 3.10.20 venv with this
+    project's exact pinned dependency set. Harmless no-op on Python
+    versions where the bug doesn't occur."""
+    try:
+        from litellm.types.llms.openai import (
+            ChatCompletionReasoningItem,  # noqa: F401
+            ChatCompletionReasoningSummaryTextBlock,  # noqa: F401
+        )
+        from litellm.types.utils import Message
+
+        Message.model_rebuild(force=True)
+    except Exception as exc:
+        print(f"  [litellm Message.model_rebuild() workaround skipped: {exc}]")
+
+
+_patch_litellm_message_rebuild()
+
 ROOT = Path(__file__).resolve().parent
 LITELLM_PROXY_BASE_URL = "https://llm.uod.otago.ac.nz/v1"
 DEFAULT_FISHER_MODEL = "litellm/Kimi-K2.5"
