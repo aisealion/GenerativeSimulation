@@ -35,7 +35,7 @@ class HarvestPhase(Phase):
 
         # Ensure communal pot and penalties structures exist
         runtime.setdefault("communal_pot_kg", 0.0)
-        runtime.setdefault("penalties", {})
+        runtime.setdefault("excess_pending", {})
 
         # Mandatory rest day every 7 rounds (Sunday)
         if round_number % 7 == 0:
@@ -63,8 +63,7 @@ class HarvestPhase(Phase):
             runtime["rounds"].append(round_record)
             return round_record
 
-        # Compute 10% cap from current stock (norm)
-        cap = 0.10 * stock_before
+        # Enforce per‑fisher limit of 12 kg (norm) and apply any pending penalties
         results = {}
         for agent_id in agents:
             response = call_fisher_agent(
@@ -72,22 +71,24 @@ class HarvestPhase(Phase):
             )
             effort = min(1.0, max(0.0, float(response["effort"])) )
             harvested = catch_from_effort(effort, stock_before, config)
-            harvested = min(harvested, cap)
+            # Apply per‑trip maximum
+            if harvested > 12:
+                excess = harvested - 12
+                runtime["communal_pot_kg"] = runtime.get("communal_pot_kg", 0.0) + excess
+                runtime["excess_pending"][agent_id] = excess
+                harvested = 12.0
+            # Apply any penalty from previous non‑deposit
+            penalty = runtime["penalties"].pop(agent_id, 0)
+            if penalty:
+                runtime["communal_pot_kg"] = runtime.get("communal_pot_kg", 0.0) + penalty
+                harvested = max(0.0, harvested - penalty)
             results[agent_id] = {
                 "effort": effort,
                 "harvested_kg": harvested,
                 "reasoning": response.get("reasoning", ""),
             }
 
-        # Process excess catch over 15kg per norm: excess goes to communal pot
-        for agent_id, data in results.items():
-            harvested = data["harvested_kg"]
-            if harvested > 15:
-                excess = harvested - 15
-                # Add excess to communal pot
-                runtime["communal_pot_kg"] = runtime.get("communal_pot_kg", 0.0) + excess
-                # Reduce agent's recorded harvest to the allowed 15kg
-                data["harvested_kg"] = 15.0
+
         
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the
