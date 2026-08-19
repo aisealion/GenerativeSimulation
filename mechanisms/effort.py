@@ -2,15 +2,42 @@ def effort_cap(agent_id, config, fluents, runtime):
     """Return this agent's maximum allowed harvest (kg) for the current round.
     Implements the updated norm (norm.txt):
 
-    * Per‑trip limit is **70 %** of the current lake stock.
-    * Rolling 7‑day cumulative catch per fisher may not exceed **300 %** of the
-      lake's **initial stock** (taken from ``config["carrying_capacity_kg"]``).
-    * The lake must retain at least **5 %** of its current stock as a reserve –
-      enforced later when applying all agents' catches.
-    * Config can still override per‑agent or default caps via
-      ``effort_caps_kg`` and ``default_effort_cap_kg`` when they are lower than
-      the norm‑based limits.
+    * Per‑trip limit is **2 %** of the current lake stock.
+    * Weekly limit is **1.5 kg** per fisher. Excess beyond the weekly allowance
+      is added to the restocking reserve and results in a temporary ban for the
+      next week.
+    * Config can still override per‑agent or default caps via ``effort_caps_kg``
+      and ``default_effort_cap_kg`` when they are lower than the norm‑based limits.
     """
+    # Check for active ban
+    round_number = runtime.get("round", 0)
+    bans = runtime.setdefault("banned_until", {})
+    if agent_id in bans and round_number < bans[agent_id]:
+        return 0.0
+
+    # Current lake stock and per‑trip limit (2% of current stock)
+    stock = runtime.get("stock_kg", 0)
+    per_trip_limit = 0.02 * stock
+
+    # Weekly tracking
+    week_index = (round_number - 1) // 7
+    weekly = runtime.setdefault("weekly_catch", {})
+    agent_week = weekly.setdefault(agent_id, {})
+    week_key = f"week_{week_index}"
+    already_caught = agent_week.get(week_key, 0.0)
+    weekly_remaining = max(0.0, 1.5 - already_caught)
+
+    # Allowed amount is the minimum of per‑trip and remaining weekly allowance
+    allowed = min(per_trip_limit, weekly_remaining)
+
+    # Config‑based overrides retain priority when they are more restrictive
+    caps = config.get("effort_caps_kg", {})
+    if agent_id in caps:
+        allowed = min(caps[agent_id], allowed)
+    elif "default_effort_cap_kg" in config:
+        allowed = min(config["default_effort_cap_kg"], allowed)
+
+    return allowed
     # Current lake stock
     stock = runtime.get("stock_kg", 0)
     # Initial stock (used for the 7‑day cumulative limit)

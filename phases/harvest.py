@@ -36,19 +36,24 @@ class HarvestPhase(Phase):
         stock_before = available_stock(runtime)
         results = {}
         for agent_id in agents:
+            # Determine the per‑trip and weekly allowed amount
             cap = effort_cap(agent_id, config, fluents, runtime)
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
-            effort = min(1.0, max(0.0, float(response["effort"])))
-            harvested = catch_from_effort(effort, stock_before, config)
-            if cap is not None:
-                harvested = min(harvested, cap)
-            results[agent_id] = {
-                "effort": effort,
-                "harvested_kg": harvested,
-                "reasoning": response.get("reasoning", ""),
-            }
+            effort = min(1.0, max(0.0, float(response["effort"])) )
+            raw_harvest = catch_from_effort(effort, stock_before, config)
+            # Apply the cap (which incorporates weekly remaining allowance)
+            harvested = raw_harvest if cap is None else min(raw_harvest, cap)
+            excess = max(0.0, raw_harvest - harvested)
+            # Record weekly excess for reserve and potential ban
+        # Weekly ban handling: if there was excess, add to reserve and ban next week
+        if excess > 0.0:
+            # Add excess to monthly reserve later (handled in reserve calculation)
+            # Set ban for next week (7 rounds ahead)
+            bans = runtime.setdefault("banned_until", {})
+            bans[agent_id] = round_number + 7
+
 
         # Enforce community 5% reserve after all agents have harvested
         # Maximum total harvest allowed so that at least 5% of the pre‑harvest stock remains
@@ -71,7 +76,7 @@ class HarvestPhase(Phase):
             if len(hist) > 7:
                 hist.pop(0)
 
-        # Monthly reserve: 15% of total monthly harvest is set aside.
+        # Monthly reserve: 20% of total monthly harvest is set aside.
         month_index = (round_number - 1) // 30
         month_data = runtime.setdefault("monthly_harvest", {})
         month_key = f"month_{month_index}"
@@ -81,7 +86,8 @@ class HarvestPhase(Phase):
             month_record["agents"][aid] = month_record["agents"].get(aid, 0.0) + rec["harvested_kg"]
         month_total = sum(month_record["agents"].values())
         month_record["total_harvested_kg"] = month_total
-        month_record["reserve_kg"] = 0.15 * month_total
+        month_record["reserve_kg"] = 0.20 * month_total
+
 
 
         
