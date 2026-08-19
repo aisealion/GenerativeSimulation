@@ -63,7 +63,7 @@ class HarvestPhase(Phase):
             runtime["rounds"].append(round_record)
             return round_record
 
-        # Enforce per‑fisher limit of 12 kg (norm) and apply any pending penalties
+        # Enforce per‑fisher limit of 15 kg (norm) and apply any pending penalties
         results = {}
         for agent_id in agents:
             response = call_fisher_agent(
@@ -72,11 +72,11 @@ class HarvestPhase(Phase):
             effort = min(1.0, max(0.0, float(response["effort"])) )
             harvested = catch_from_effort(effort, stock_before, config)
             # Apply per‑trip maximum
-            if harvested > 12:
-                excess = harvested - 12
+            if harvested > 15:
+                excess = harvested - 15
                 runtime["communal_pot_kg"] = runtime.get("communal_pot_kg", 0.0) + excess
                 runtime["excess_pending"][agent_id] = excess
-                harvested = 12.0
+                harvested = 15.0
             # Apply any penalty from previous non‑deposit
             penalty = runtime["penalties"].pop(agent_id, 0)
             if penalty:
@@ -114,8 +114,8 @@ class HarvestPhase(Phase):
             "stock_kg_after_regrowth": stock_after_regrowth,
         }
 
-        # Distribute communal pot monthly (every 30 rounds) if any
-        if round_number % 30 == 0 and runtime.get("communal_pot_kg", 0) > 0:
+        # Distribute communal pot when lake stock falls below 70 kg
+        if stock_after_regrowth < 70 and runtime.get("communal_pot_kg", 0) > 0:
             num_agents = len(agents)
             share = runtime["communal_pot_kg"] / num_agents if num_agents else 0
             # Record distribution event
