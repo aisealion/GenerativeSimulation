@@ -202,15 +202,25 @@ fi
   anyio==4.14.0 jiter==0.15.0 python-dotenv
 
 # Reproduce the exact failure point from the 2026-08-19 incident
-# (ModelResponse() construction) right here, so a version mismatch fails
-# loudly before round 1 rather than three silent retries into it. Not
-# suppressing output this time — if this still fails, the traceback and
-# diagnostics below are what's needed to actually root-cause it further.
-if ! "$FISHERY_VENV/bin/python3" -c "from litellm.types.utils import ModelResponse; ModelResponse()"; then
-  echo "Still broken even with litellm/pydantic/pydantic-core all pinned and" >&2
-  echo "identical to a known-working install elsewhere — so it's a transitive" >&2
-  echo "dependency (typing_extensions/openai/httpx/etc., none pinned) resolving" >&2
-  echo "differently here. Full dependency tree for a direct diff:" >&2
+# (ModelResponse() construction) right here, so a real break fails loudly
+# before round 1 rather than three silent retries into it. Crucially, this
+# must go through llm_agents.py (like simulate.py actually does), NOT a
+# bare `import litellm` — llm_agents.py applies a workaround at import time
+# for a genuine litellm bug on Python 3.10 (Message's pydantic schema has a
+# forward ref that never resolves there; see _patch_litellm_message_rebuild()
+# in llm_agents.py). A bare `from litellm.types.utils import ModelResponse`
+# check bypasses that workaround entirely and fails even when the real
+# simulate.py run would succeed — cost real time chasing exactly that
+# false alarm on 2026-08-19/20 before catching it.
+if ! "$FISHERY_VENV/bin/python3" -c "
+import sys
+sys.path.insert(0, '$SLURM_SUBMIT_DIR')
+import llm_agents
+from litellm.types.utils import ModelResponse
+ModelResponse()
+"; then
+  echo "Still broken even going through llm_agents.py's own workaround." >&2
+  echo "Full dependency tree for a direct diff:" >&2
   "$FISHERY_VENV/bin/pip" freeze >&2
   exit 1
 fi
