@@ -50,18 +50,26 @@ class HarvestPhase(Phase):
                 "reasoning": response.get("reasoning", ""),
             }
 
-        # Enforce community weekly per‑fisher limit (2 kg) and monthly reserve (15%).
-        # Weekly tracking is handled inside effort_cap which already returns the remaining
-        # allowance for this trip. Here we only need to record the harvested amount for
-        # weekly and monthly accounting.
-        # Weekly accounting
-        week_index = (round_number - 1) // 7
-        week_key = f"week_{week_index}"
-        week_data = runtime.setdefault("weekly_harvest", {})
-        week_record = week_data.setdefault(week_key, {"agents": {}, "total_harvested_kg": 0.0})
+        # Enforce community 5% reserve after all agents have harvested
+        # Maximum total harvest allowed so that at least 5% of the pre‑harvest stock remains
+        max_total_harvest = 0.95 * stock_before
+        total_harvest = sum(r["harvested_kg"] for r in results.values())
+        if total_harvest > max_total_harvest:
+            # Reduce excess from the agent with the largest harvest (simple heuristic)
+            excess = total_harvest - max_total_harvest
+            # Find agent with max harvest
+            max_aid = max(results, key=lambda a: results[a]["harvested_kg"])
+            results[max_aid]["harvested_kg"] = max(0.0, results[max_aid]["harvested_kg"] - excess)
+
+        # Weekly accounting (now renamed to rolling 7‑day tracking)
+        # Update rolling history for each agent
+        rolling = runtime.setdefault("rolling_7d", {})
         for aid, rec in results.items():
-            week_record["agents"][aid] = week_record["agents"].get(aid, 0.0) + rec["harvested_kg"]
-        week_record["total_harvested_kg"] = sum(week_record["agents"].values())
+            hist = rolling.setdefault(aid, [])
+            hist.append(rec["harvested_kg"])
+            # Keep only the most recent 7 entries
+            if len(hist) > 7:
+                hist.pop(0)
 
         # Monthly reserve: 15% of total monthly harvest is set aside.
         month_index = (round_number - 1) // 30
@@ -74,6 +82,7 @@ class HarvestPhase(Phase):
         month_total = sum(month_record["agents"].values())
         month_record["total_harvested_kg"] = month_total
         month_record["reserve_kg"] = 0.15 * month_total
+
 
         
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),

@@ -2,38 +2,44 @@ def effort_cap(agent_id, config, fluents, runtime):
     """Return this agent's maximum allowed harvest (kg) for the current round.
     Implements the updated norm (norm.txt):
 
-    * Per‑trip limit is 4 % of the current lake biomass.
-    * Weekly cumulative catch per fisher may not exceed 2 kg. This function
-      returns the remaining allowance for the current trip (zero if the weekly
-      quota is already exhausted).
-    * Config overrides ``effort_caps_kg`` (per‑agent) and ``default_effort_cap_kg``
-      (global) retain precedence when stock permits.
+    * Per‑trip limit is **70 %** of the current lake stock.
+    * Rolling 7‑day cumulative catch per fisher may not exceed **300 %** of the
+      lake's **initial stock** (taken from ``config["carrying_capacity_kg"]``).
+    * The lake must retain at least **5 %** of its current stock as a reserve –
+      enforced later when applying all agents' catches.
+    * Config can still override per‑agent or default caps via
+      ``effort_caps_kg`` and ``default_effort_cap_kg`` when they are lower than
+      the norm‑based limits.
     """
     # Current lake stock
     stock = runtime.get("stock_kg", 0)
-    # Weekly tracking: determine week index (7 rounds per week)
+    # Initial stock (used for the 7‑day cumulative limit)
+    initial_stock = config.get("carrying_capacity_kg", stock)
+
+    # Per‑trip limit (70% of current stock)
+    per_trip_limit = 0.70 * stock
+
+    # 7‑day rolling cumulative tracking
     round_number = runtime.get("round", 0)
-    week_index = (round_number - 1) // 7
-    week_key = f"week_{week_index}"
-    week_data = runtime.setdefault("weekly_harvest", {})
-    week_record = week_data.setdefault(week_key, {"agents": {}, "total_harvested_kg": 0.0})
-    prior_total = week_record["agents"].get(agent_id, 0.0)
-    weekly_remaining = max(0.0, 2.0 - prior_total)
+    # Ensure we have a list of recent harvests per agent
+    recent = runtime.setdefault("rolling_7d", {})
+    agent_history = recent.setdefault(agent_id, [])
+    # Sum of last 6 rounds (excluding current round, which hasn't happened yet)
+    prior_cumulative = sum(agent_history[-6:]) if len(agent_history) >= 6 else sum(agent_history)
+    cumulative_limit = 3.0 * initial_stock  # 300% of initial stock
+    remaining_cumulative = max(0.0, cumulative_limit - prior_cumulative)
 
-    # If no allowance remains, cap is zero
-    if weekly_remaining <= 0.0:
-        return 0.0
+    # The allowed amount this trip is the minimum of per‑trip and remaining cumulative
+    allowed = min(per_trip_limit, remaining_cumulative)
 
-    # Config‑based overrides retain priority when stock is sufficient
+    # Config‑based overrides retain priority when they are more restrictive
     caps = config.get("effort_caps_kg", {})
-    max_norm = min(0.04 * stock, weekly_remaining)
     if agent_id in caps:
-        return min(caps[agent_id], max_norm)
-    if "default_effort_cap_kg" in config:
-        return min(config["default_effort_cap_kg"], max_norm)
+        allowed = min(caps[agent_id], allowed)
+    elif "default_effort_cap_kg" in config:
+        allowed = min(config["default_effort_cap_kg"], allowed)
 
-    # Apply the norm‑based per‑trip limit of 4 % of biomass, limited by weekly allowance
-    return max_norm
+    return allowed
 
 
 
