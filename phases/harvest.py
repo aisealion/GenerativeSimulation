@@ -14,11 +14,19 @@ class HarvestPhase(Phase):
         config = state["config"]
         fluents = state["fluents"]
         runtime = state["runtime"]
-        cap = effort_cap(agent_id, config, fluents, runtime)
-        # Prompt now includes weekly quota info
-        stock_before = available_stock(runtime)
-        quota_kg = max(stock_before * 0.10, 5.0)
-        cap_line = f" Your weekly quota is {quota_kg:.0f}kg (max 2 trips per week)."
+        # Determine the current month index and ensure monthly quota is initialized
+        month_index = state["round_number"] // 30
+        if runtime.get("monthly_month") != month_index:
+            # Reset monthly tracking at the start of a new month
+            stock_start = available_stock(runtime)
+            runtime["monthly_month"] = month_index
+            runtime["monthly_stock_start"] = stock_start
+            runtime["monthly_quota_total"] = min(stock_start * 0.12, 90.0)
+            runtime["monthly_used"] = 0.0
+            runtime["monthly_fisher"] = {}
+        # Per-fisher monthly quota (5% of stock start, capped at 8 kg)
+        per_fisher_quota = min(runtime["monthly_stock_start"] * 0.05, 8.0)
+        cap_line = f" Your monthly quota is {per_fisher_quota:.0f}kg per trip (max 8 kg)."
         return {
             "stock_kg": available_stock(runtime),
             "carrying_capacity_kg": config.get("carrying_capacity_kg", 0),
@@ -37,41 +45,46 @@ class HarvestPhase(Phase):
             runtime["weekly_trips"] = {}
         stock_before = available_stock(runtime)
         results = {}
-        # Determine the quota for this round based on current stock (10% or 5 kg minimum)
-        quota_kg = max(stock_before * 0.10, 5.0)
-        current_week = round_number // 7  # integer division defines a week of 7 rounds
+        # Determine per-fisher monthly quota (5% of start‑of‑month stock, capped at 8 kg)
+        per_fisher_quota = min(runtime["monthly_stock_start"] * 0.05, 8.0)
+        current_month = state["round_number"] // 30
         for agent_id in agents:
-            # Retrieve or initialize this fisher's weekly record
-            week_record = runtime["weekly_trips"].get(agent_id, {"week": current_week, "count": 0})
-            # Reset count if we have moved to a new week
-            if week_record["week"] != current_week:
-                week_record = {"week": current_week, "count": 0}
-            # Enforce max two trips per week
-            if week_record["count"] >= 2:
+            # Retrieve or initialize this fisher's monthly usage record
+            fisher_record = runtime["monthly_fisher"].get(agent_id, {"used": 0.0})
+            # If this fisher has already used their monthly quota, cap to 0
+            if fisher_record["used"] >= per_fisher_quota:
                 cap = 0.0
             else:
-                cap = quota_kg
+                cap = per_fisher_quota - fisher_record["used"]
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
             effort = min(1.0, max(0.0, float(response["effort"])) )
             harvested = catch_from_effort(effort, stock_before, config)
-            # Apply per‑trip cap (max 25 kg) and daily community limit (225 kg)
-            # First enforce the per‑trip limit
-            harvested = min(harvested, 25.0, cap)
-            # Then enforce the remaining daily community allowance
-            remaining_daily = max(0.0, 225.0 - sum(r["harvested_kg"] for r in results.values()))
-            harvested = min(harvested, remaining_daily)
+            # Apply per‑trip cap (max 8 kg) and per‑fisher monthly remaining quota
+            harvested = min(harvested, 8.0, cap)
+            # Enforce community monthly cap (12% of start‑of‑month stock, capped at 90 kg)
+            remaining_monthly = max(0.0, runtime["monthly_quota_total"] - runtime["monthly_used"])
+            harvested = min(harvested, remaining_monthly)
             results[agent_id] = {
                 "effort": effort,
                 "harvested_kg": harvested,
                 "reasoning": response.get("reasoning", ""),
             }
-            # Update weekly trip count (only count trips where effort > 0)
+            # Update monthly usage records (only count trips where effort > 0)
             if effort > 0:
-                week_record["count"] += 1
-            runtime["weekly_trips"][agent_id] = week_record
-
+                fisher_record["used"] += harvested
+                runtime["monthly_used"] += harvested
+                runtime["monthly_fisher"][agent_id] = fisher_record
+            # No weekly trip count needed under new policy
+        
+        # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
+        # which subtracts each agent's independently-computed catch (all against the
+        # same pre-harvest stock) directly, letting the stock go negative if
+        # oversubscribed. The existing collapse check below (stock <= 0) is this
+        # project's equivalent of their stop-the-simulation condition.
+        stock_after_harvest = stock_before - sum(r["harvested_kg"] for r in results.values())
+        stock_after_regrowth = apply_regrowth(stock_after_harvest, config)
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the
         # same pre-harvest stock) directly, letting the stock go negative if
