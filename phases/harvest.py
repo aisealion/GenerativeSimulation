@@ -50,37 +50,31 @@ class HarvestPhase(Phase):
                 "reasoning": response.get("reasoning", ""),
             }
 
-        # Enforce community monthly total catch limit (norm: 12 % of current biomass, capped at 90 kg).
-        # Determine the current month index (30 rounds per month approximation).
+        # Enforce community weekly per‑fisher limit (2 kg) and monthly reserve (15%).
+        # Weekly tracking is handled inside effort_cap which already returns the remaining
+        # allowance for this trip. Here we only need to record the harvested amount for
+        # weekly and monthly accounting.
+        # Weekly accounting
+        week_index = (round_number - 1) // 7
+        week_key = f"week_{week_index}"
+        week_data = runtime.setdefault("weekly_harvest", {})
+        week_record = week_data.setdefault(week_key, {"agents": {}, "total_harvested_kg": 0.0})
+        for aid, rec in results.items():
+            week_record["agents"][aid] = week_record["agents"].get(aid, 0.0) + rec["harvested_kg"]
+        week_record["total_harvested_kg"] = sum(week_record["agents"].values())
+
+        # Monthly reserve: 15% of total monthly harvest is set aside.
         month_index = (round_number - 1) // 30
-        # Retrieve prior month cumulative harvest, if any.
         month_data = runtime.setdefault("monthly_harvest", {})
         month_key = f"month_{month_index}"
-        prior = month_data.get(month_key, {"agents": {}, "total_harvested_kg": 0.0})
-        prior_total = prior.get("total_harvested_kg", 0.0)
-        # Compute monthly cap based on stock before this round.
-        monthly_cap = min(0.12 * stock_before, 90.0)
-        # Remaining allowance for this month.
-        remaining = monthly_cap - prior_total
-        if remaining <= 0:
-            # No allowance left: set all catches this round to zero.
-            for aid in results:
-                results[aid]["harvested_kg"] = 0.0
-        else:
-            round_total = sum(r["harvested_kg"] for r in results.values())
-            if round_total > remaining:
-                # Scale down this round's harvest proportionally to fit remaining quota.
-                scale = remaining / round_total
-                for aid in results:
-                    results[aid]["harvested_kg"] *= scale
-        # Update month cumulative data.
-        month_record = {
-            aid: prior["agents"].get(aid, 0.0) + results[aid]["harvested_kg"] for aid in agents
-        }
-        month_data[month_key] = {
-            "agents": month_record,
-            "total_harvested_kg": prior_total + sum(r["harvested_kg"] for r in results.values()),
-        }
+        month_record = month_data.setdefault(month_key, {"agents": {}, "total_harvested_kg": 0.0, "reserve_kg": 0.0})
+        # Update agents' cumulative harvest for the month (excluding reserve)
+        for aid, rec in results.items():
+            month_record["agents"][aid] = month_record["agents"].get(aid, 0.0) + rec["harvested_kg"]
+        month_total = sum(month_record["agents"].values())
+        month_record["total_harvested_kg"] = month_total
+        month_record["reserve_kg"] = 0.15 * month_total
+
         
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the

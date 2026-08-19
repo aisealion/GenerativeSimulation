@@ -2,28 +2,38 @@ def effort_cap(agent_id, config, fluents, runtime):
     """Return this agent's maximum allowed harvest (kg) for the current round.
     Implements the updated norm (norm.txt):
 
-    * Per‑trip limit is the lesser of 5 % of the current lake biomass and 8 kg.
-    * If the lake's stock is below 30 kg, fishing is prohibited (cap = 0).
+    * Per‑trip limit is 4 % of the current lake biomass.
+    * Weekly cumulative catch per fisher may not exceed 2 kg. This function
+      returns the remaining allowance for the current trip (zero if the weekly
+      quota is already exhausted).
     * Config overrides ``effort_caps_kg`` (per‑agent) and ``default_effort_cap_kg``
       (global) retain precedence when stock permits.
     """
-    # Check stock threshold first; if below 30 kg, no fishing allowed.
+    # Current lake stock
     stock = runtime.get("stock_kg", 0)
-    if stock < 30:
-        return 0
+    # Weekly tracking: determine week index (7 rounds per week)
+    round_number = runtime.get("round", 0)
+    week_index = (round_number - 1) // 7
+    week_key = f"week_{week_index}"
+    week_data = runtime.setdefault("weekly_harvest", {})
+    week_record = week_data.setdefault(week_key, {"agents": {}, "total_harvested_kg": 0.0})
+    prior_total = week_record["agents"].get(agent_id, 0.0)
+    weekly_remaining = max(0.0, 2.0 - prior_total)
+
+    # If no allowance remains, cap is zero
+    if weekly_remaining <= 0.0:
+        return 0.0
 
     # Config‑based overrides retain priority when stock is sufficient
     caps = config.get("effort_caps_kg", {})
+    max_norm = min(0.04 * stock, weekly_remaining)
     if agent_id in caps:
-        # Ensure the configured cap does not exceed the norm's per‑trip limit
-        max_norm = min(0.05 * stock, 8.0)
         return min(caps[agent_id], max_norm)
     if "default_effort_cap_kg" in config:
-        max_norm = min(0.05 * stock, 8.0)
         return min(config["default_effort_cap_kg"], max_norm)
 
-    # Apply the norm‑based per‑trip limit of 5 % of biomass, capped at 8 kg
-    return min(0.05 * stock, 8.0)
+    # Apply the norm‑based per‑trip limit of 4 % of biomass, limited by weekly allowance
+    return max_norm
 
 
 
