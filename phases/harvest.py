@@ -33,9 +33,10 @@ class HarvestPhase(Phase):
 
         stock_before = available_stock(runtime)
 
-        # Ensure communal pot and penalties structures exist
+        # Ensure communal pot, excess pending, and penalties structures exist
         runtime.setdefault("communal_pot_kg", 0.0)
         runtime.setdefault("excess_pending", {})
+        runtime.setdefault("penalties", {})
 
         # Mandatory rest day every 7 rounds (Sunday)
         if round_number % 7 == 0:
@@ -65,6 +66,7 @@ class HarvestPhase(Phase):
 
         # Enforce per‑fisher limit of 15 kg (norm) and apply any pending penalties
         results = {}
+        total_harvested = 0.0
         for agent_id in agents:
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
@@ -87,15 +89,38 @@ class HarvestPhase(Phase):
                 "harvested_kg": harvested,
                 "reasoning": response.get("reasoning", ""),
             }
+            total_harvested += harvested
+
 
 
         
+        # Apply daily total cap (70% of stock, leaving at least 20 kg)
+        daily_cap = min(0.70 * stock_before, max(stock_before - 20, 0))
+        if total_harvested > daily_cap:
+            excess_total = total_harvested - daily_cap
+            # proportionally reduce each fisher's harvest and record penalty
+            for agent_id, rec in results.items():
+                original = rec["harvested_kg"]
+                if original <= 0:
+                    continue
+                # proportion of this fisher's contribution to total
+                proportion = original / total_harvested
+                reduction = proportion * excess_total
+                new_harvest = max(0.0, original - reduction)
+                penalty_amount = original - new_harvest
+                rec["harvested_kg"] = new_harvest
+                # add penalty to communal pot and track per‑agent penalty for future rounds
+                runtime["communal_pot_kg"] = runtime.get("communal_pot_kg", 0.0) + penalty_amount
+                runtime.setdefault("penalties", {}).setdefault(agent_id, 0)
+                runtime["penalties"][agent_id] = runtime["penalties"].get(agent_id, 0) + penalty_amount
+            total_harvested = daily_cap
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the
         # same pre-harvest stock) directly, letting the stock go negative if
         # oversubscribed. The existing collapse check below (stock <= 0) is this
         # project's equivalent of their stop-the-simulation condition.
         stock_after_harvest = stock_before - sum(r["harvested_kg"] for r in results.values())
+
         stock_after_regrowth = apply_regrowth(stock_after_harvest, config)
 
         round_record = {
