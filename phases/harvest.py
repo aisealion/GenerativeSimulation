@@ -56,8 +56,12 @@ class HarvestPhase(Phase):
             )
             effort = min(1.0, max(0.0, float(response["effort"])) )
             harvested = catch_from_effort(effort, stock_before, config)
-            # Apply the cap (either quota or zero if trip limit exceeded)
-            harvested = min(harvested, cap)
+            # Apply per‑trip cap (max 25 kg) and daily community limit (225 kg)
+            # First enforce the per‑trip limit
+            harvested = min(harvested, 25.0, cap)
+            # Then enforce the remaining daily community allowance
+            remaining_daily = max(0.0, 225.0 - sum(r["harvested_kg"] for r in results.values()))
+            harvested = min(harvested, remaining_daily)
             results[agent_id] = {
                 "effort": effort,
                 "harvested_kg": harvested,
