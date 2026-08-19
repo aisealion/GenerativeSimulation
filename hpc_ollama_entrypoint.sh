@@ -166,19 +166,20 @@ fi
 
 # The fisher agent no longer goes through opencode — llm_agents.py calls
 # litellm directly. litellm's response types use pydantic forward
-# references that need a matching pydantic (and pydantic's own compiled
-# pydantic-core) to resolve, or construction fails with "Message is not
-# fully defined ... call Message.model_rebuild()".
+# references (TypedDicts backed by typing_extensions) that need a matching
+# resolution stack, or construction fails with "Message is not fully
+# defined ... call Message.model_rebuild()".
 #
-# Ruled out on 2026-08-19: this isn't system-vs-user site-packages
-# shadowing — the exact same failure reproduced inside a from-scratch
-# isolated venv, with litellm and pydantic both confirmed resolving from
-# that venv's own site-packages, nothing external involved. What was still
-# unpinned was pydantic-core itself: pip was free to resolve whatever
-# pydantic-core paired with pydantic==2.13.4 on Aoraki's Python 3.10/Linux,
-# and apparently got something other than the pydantic-core==2.46.4 that
-# macOS/Python 3.11 resolved and was actually verified end-to-end here.
-# Pinning all three removes that ambiguity.
+# History, in order ruled out on 2026-08-19: NOT system-vs-user
+# site-packages shadowing (reproduced identically inside a from-scratch
+# isolated venv). NOT litellm/pydantic/pydantic-core version mismatch
+# (pinning all three to the exact versions verified working locally still
+# failed identically). Root-caused by diffing `pip freeze` on both sides:
+# pydantic's own direct dependencies (annotated-types, typing-extensions,
+# typing-inspection) were still unpinned and resolved to newer releases on
+# Aoraki than what was actually verified end-to-end here; anyio/jiter
+# (openai/httpx's stack) differed too. This is the full pinned set that
+# fixed it — see pyproject.toml for the same list with more detail.
 FISHERY_VENV="$SLURM_SUBMIT_DIR/.venv-fishery"
 if [ ! -d "$FISHERY_VENV" ]; then
   echo "Creating isolated venv at ${FISHERY_VENV} for litellm/pydantic..."
@@ -196,7 +197,9 @@ if [ ! -x "$FISHERY_VENV/bin/pip" ]; then
   exit 1
 fi
 "$FISHERY_VENV/bin/pip" install --quiet --upgrade pip \
-  litellm==1.97.0 pydantic==2.13.4 pydantic-core==2.46.4 python-dotenv
+  litellm==1.97.0 pydantic==2.13.4 pydantic-core==2.46.4 \
+  annotated-types==0.7.0 typing-extensions==4.15.0 typing-inspection==0.4.2 \
+  anyio==4.14.0 jiter==0.15.0 python-dotenv
 
 # Reproduce the exact failure point from the 2026-08-19 incident
 # (ModelResponse() construction) right here, so a version mismatch fails

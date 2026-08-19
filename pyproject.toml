@@ -3,19 +3,28 @@ name = "generative-simulation"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
-    # litellm/pydantic/pydantic-core pinned together deliberately: litellm's
-    # response types use pydantic forward references that need a matching
-    # pydantic (and pydantic's own compiled pydantic-core) to resolve,
-    # raising "Message is not fully defined ... call Message.model_rebuild()"
-    # otherwise. Confirmed this isn't just an environment/shadowing issue —
-    # even a from-scratch isolated venv on Aoraki HPC hit it on 2026-08-19
-    # with just litellm==1.97.0/pydantic==2.13.4 pinned (pydantic-core left
-    # unpinned, so pip was free to resolve a different one there than what
-    # macOS resolved locally: 2.46.4, the version actually verified
-    # end-to-end here). Pinning pydantic-core too removes that ambiguity.
+    # This whole block is pinned together deliberately, not just litellm/
+    # pydantic/pydantic-core: litellm's response types use pydantic forward
+    # references (TypedDicts backed by typing_extensions' Required/
+    # NotRequired) that need matching versions of pydantic's own type-
+    # resolution stack to resolve, or construction raises "Message is not
+    # fully defined ... call Message.model_rebuild()". Confirmed on Aoraki
+    # HPC (2026-08-19) this is NOT an environment/shadowing issue — a
+    # from-scratch isolated venv with litellm/pydantic/pydantic-core pinned
+    # identical to this known-working set *still* hit it, because
+    # pydantic's own direct dependencies (annotated-types, typing-
+    # extensions, typing-inspection) were still unpinned and resolved to
+    # newer releases there than here. anyio/jiter (openai/httpx's stack)
+    # differed too, pinned for full determinism. Diffed via `pip freeze`
+    # on both sides to find exactly these.
     "litellm==1.97.0",
     "pydantic==2.13.4",
     "pydantic-core==2.46.4",
+    "annotated-types==0.7.0",
+    "typing-extensions==4.15.0",
+    "typing-inspection==0.4.2",
+    "anyio==4.14.0",
+    "jiter==0.15.0",
     "python-dotenv",
     "graphiti-core",
 ]
