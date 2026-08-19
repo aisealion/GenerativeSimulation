@@ -149,6 +149,54 @@ def find_adopted_norm(runtime, round_number):
     return propose_record["proposals"][vote_record["winning_proposer"]]
 
 
+def norm_implementation_compile_errors():
+    """Syntax-check every .py file the norm-implementer could have touched,
+    before anything gets committed. Without this, a broken edit gets
+    committed deterministically by commit_norm_implementation() below, and
+    then permanently blocks every future round too — reload_project_modules()
+    re-imports these files from disk at the start of every single round, so
+    a syntax error here doesn't just fail this round, it fails the rest of
+    the run and needs manual git surgery to recover from (this happened for
+    real: a broken phases/harvest.py got committed and crashed every
+    subsequent round with an IndentationError)."""
+    errors = []
+    for directory in ("mechanisms", "phases"):
+        for py_file in sorted((ROOT / directory).rglob("*.py")):
+            result = subprocess.run(
+                [sys.executable, "-m", "py_compile", str(py_file)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                errors.append(f"{py_file.relative_to(ROOT)}:\n{result.stderr.strip()}")
+    return errors
+
+
+def discard_norm_implementation(round_number, errors):
+    """Roll back everything the norm-implementer touched this round — a
+    partially-broken change (a working mechanisms/effort.py alongside a
+    broken phases/harvest.py, say) is exactly as unsafe to leave on disk as
+    a fully broken one, since reload_project_modules() re-imports all of it
+    regardless. Safe to do unconditionally here: commit_norm_implementation()
+    hasn't run yet, so nothing from this round has been committed —
+    `git checkout --` reverts modified tracked files back to HEAD, `git
+    clean -fd` removes any newly-created untracked files/dirs (a new phase
+    file for a new_phase norm, say) that checkout alone wouldn't touch."""
+    print(f"\nRound {round_number}: norm-implementer's changes don't compile — discarding", file=sys.stderr)
+    print("them and continuing with the previous round's mechanics unchanged:", file=sys.stderr)
+    for error in errors:
+        print(f"  {error}", file=sys.stderr)
+    subprocess.run(
+        ["git", "checkout", "--"] + NORM_IMPLEMENTER_TRACKED_PATHS,
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "clean", "-fd", "--"] + NORM_IMPLEMENTER_TRACKED_PATHS,
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    )
+
+
 def commit_norm_implementation(round_number, winning_proposal):
     """The norm-implementer is unreliable about running its own git commit —
     observed across real runs, it consistently skips it regardless of
@@ -234,7 +282,11 @@ def run_cycle(round_number):
             (ROOT / "norm.txt").write_text(norm_text)
             print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
             run_norm_implementer(round_number)
-            commit_norm_implementation(round_number, winning_proposal)
+            compile_errors = norm_implementation_compile_errors()
+            if compile_errors:
+                discard_norm_implementation(round_number, compile_errors)
+            else:
+                commit_norm_implementation(round_number, winning_proposal)
 
     return True
 

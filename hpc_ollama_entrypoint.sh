@@ -120,15 +120,27 @@ if ! command -v codegraph >/dev/null 2>&1; then
   curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
 fi
 
-# --no-color, telemetry off: codegraph's default output uses cursor-control
-# ANSI codes meant for a live TTY (spinners etc.) — dumped into a SLURM log
-# file instead of a real terminal, that just accumulates as garbled control
-# sequences, not a hang by itself, but makes the log unreadable and makes an
-# actual hang harder to see. Telemetry is an outbound network call on
-# init/sync (see https://github.com/colbymchenry/codegraph/blob/main/TELEMETRY.md);
-# disabling it removes one plausible hang source on a node with restricted
-# internet.
+# --no-color: codegraph's default output uses cursor-control ANSI codes
+# meant for a live TTY (spinners etc.) — dumped into a SLURM log file
+# instead of a real terminal, that just accumulates as garbled control
+# sequences, not a hang by itself, but makes the log unreadable and makes
+# an actual hang harder to see. Telemetry off for the same "don't ship
+# anything unnecessary off this cluster" reasoning as everywhere else here.
+#
+# CodeGraph's own docs (checked directly, since Aoraki has kept hanging
+# even after ruling out every earlier guess) say init/sync are *purely
+# local* — no API calls, no credentials, nothing beyond this optional
+# telemetry ping. So "restricted internet" was never actually the right
+# explanation. Two more likely candidates given that: (1) `.codegraph/`'s
+# index is a SQLite database, and SQLite's file-locking is a well-known,
+# frequent source of indefinite hangs specifically on NFS-mounted
+# filesystems — which Aoraki's home/project dirs almost certainly are;
+# (2) sync is described as running via "the file watcher", implying a
+# background daemon that may not behave inside an apptainer container.
+# CODEGRAPH_NO_DAEMON forces the synchronous, non-watcher path, which
+# rules out (2) even if it doesn't fix (1) — cheap to set either way.
 export CODEGRAPH_TELEMETRY=0
+export CODEGRAPH_NO_DAEMON=1
 
 # .codegraph/ is a local, per-checkout index — never committed to git (see
 # .gitignore) — so it doesn't exist yet on a fresh clone of this repo, which
@@ -157,10 +169,12 @@ fi
 # when this was verified locally, so 120s is already a generous margin, not
 # a tight one.
 if ! timeout 120 codegraph --no-color "$CODEGRAPH_CMD" .; then
-  echo "codegraph $CODEGRAPH_CMD didn't finish within 120s — either genuinely" >&2
-  echo "hung (check for network calls it can't complete, or run 'codegraph" >&2
-  echo "unlock .' by hand and retry) or failed outright. Continuing without a" >&2
-  echo "CodeGraph index: the norm-implementer will fall back to plain" >&2
+  echo "codegraph $CODEGRAPH_CMD didn't finish within 120s. Not a network issue —" >&2
+  echo "init/sync are purely local per codegraph's own docs. Most likely: SQLite" >&2
+  echo "locking hanging on an NFS-mounted \$SLURM_SUBMIT_DIR (check 'df -T' or" >&2
+  echo "'mount | grep' on that path), or a daemon/file-watcher issue inside the" >&2
+  echo "apptainer container (CODEGRAPH_NO_DAEMON is already set above). Continuing" >&2
+  echo "without a CodeGraph index: the norm-implementer will fall back to plain" >&2
   echo "Read/Grep, which still works, just with worse exploration." >&2
 
   # A timeout means whatever .codegraph/ this attempt left behind never

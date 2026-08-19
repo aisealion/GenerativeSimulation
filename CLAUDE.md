@@ -81,17 +81,34 @@ previously required a norm-implementer structural change to trigger.
 **CodeGraph on Aoraki**: every observed run so far has hit "CodeGraph not
 initialized" followed by `codegraph sync` timing out at 120s inside
 `hpc_ollama_entrypoint.sh` — non-fatal (the norm-implementer falls back to
-plain Read/Grep), but it's never actually built a working index. Leading
-suspect: Aoraki's GPU **compute nodes** (where the SLURM job runs) likely
-have no outbound internet access, unlike the **login node** — if
-CodeGraph's indexing needs any network call beyond telemetry (already
-disabled), that would hang until the timeout, every time, regardless of
-retries. `hpc_ollama_entrypoint.sh` now cleans up a timed-out attempt's
+plain Read/Grep), but it's never actually built a working index.
+
+An earlier guess here was "the compute node has no internet" — **wrong**,
+ruled out by checking CodeGraph's own docs directly: `init`/`sync` are
+purely local static analysis (embedded Rust kernel, local SQLite DB at
+`.codegraph/codegraph.db`), no API calls or credentials beyond an already-
+disabled telemetry ping. A 120s hang on this repo's ~15 files (which
+indexes in under a second locally) with no network involved points
+somewhere else. Two real candidates: (1) SQLite's file-locking is a
+well-documented source of indefinite hangs on **NFS-mounted**
+filesystems, which Aoraki's home/project dirs almost certainly are —
+check with `df -T $SLURM_SUBMIT_DIR` or `mount | grep`; (2) `sync` is
+described as driven by "the file watcher", implying a background daemon
+that may not behave correctly inside an apptainer container —
+`hpc_ollama_entrypoint.sh` now sets `CODEGRAPH_NO_DAEMON=1` to rule this
+one out. Neither is confirmed yet.
+
+`hpc_ollama_entrypoint.sh` also cleans up a timed-out attempt's
 `.codegraph/` so the *next* run at least retries with a genuine `init`
 instead of getting stuck choosing `sync` against a directory that was
-never actually finished — but that alone won't fix a real network block.
-To actually resolve it, build the index once from the **login node**
-(not from inside a submitted job), where internet most likely does work:
+never actually finished — but that alone doesn't fix whichever of the
+above is the real cause. If `CODEGRAPH_NO_DAEMON` doesn't resolve it and
+(1) is confirmed, try pointing `.codegraph/` at local (non-NFS) scratch
+storage instead, e.g. `codegraph init --db-path /tmp/codegraph-$SLURM_JOB_ID.db .`
+if the CLI supports an override (check `codegraph init --help` on Aoraki
+— unconfirmed whether this flag exists). To build it once from the
+**login node** instead of inside a job (isolates whether the apptainer
+container itself is part of the problem):
 ```
 cd /home/magha601/code/GenerativeSimulation
 codegraph unlock .
@@ -124,7 +141,16 @@ checkout.
   `simulate.py` edit needed. Owns writing `state/runtime.json` and
   `state/fluents.json` between phases, and invokes the `norm-implementer`
   opencode agent whenever any phase sets `state["adopted_norm"]`
-  (currently only `vote` does).
+  (currently only `vote` does). Before committing the norm-implementer's
+  changes, `py_compile`s every `.py` file under `mechanisms/`/`phases/` —
+  a broken commit there doesn't just fail that round, `reload_project_modules()`
+  re-imports from disk every round after too, so it permanently blocks the
+  rest of the run until someone manually reverts it (this happened for
+  real). On a compile failure, `discard_norm_implementation()` reverts the
+  norm-implementer's changes (`git checkout --` + `git clean -fd`, scoped
+  to `NORM_IMPLEMENTER_TRACKED_PATHS`) instead of committing them — the
+  round continues under the previous mechanics, and the same or a similar
+  norm gets another chance to be implemented next time one is adopted.
 - `phases/base.py` — the `Phase` base class every phase module subclasses
   (`run`, `prompt_fields`, `memory_writes`). Human-owned scaffolding, not
   something a norm round edits.
