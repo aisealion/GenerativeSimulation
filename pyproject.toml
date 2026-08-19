@@ -3,15 +3,19 @@ name = "generative-simulation"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
-    # litellm/pydantic pinned together deliberately: litellm's response types
-    # use pydantic forward references that need a matching pydantic to
-    # resolve (an unpinned litellm picking up a container's older pre-baked
-    # pydantic raises "Message is not fully defined ... call
-    # Message.model_rebuild()" before any request is even sent). This exact
-    # pair is verified working end-to-end (Aoraki HPC hit this failure
-    # 2026-08-19 with an unpinned install).
+    # litellm/pydantic/pydantic-core pinned together deliberately: litellm's
+    # response types use pydantic forward references that need a matching
+    # pydantic (and pydantic's own compiled pydantic-core) to resolve,
+    # raising "Message is not fully defined ... call Message.model_rebuild()"
+    # otherwise. Confirmed this isn't just an environment/shadowing issue —
+    # even a from-scratch isolated venv on Aoraki HPC hit it on 2026-08-19
+    # with just litellm==1.97.0/pydantic==2.13.4 pinned (pydantic-core left
+    # unpinned, so pip was free to resolve a different one there than what
+    # macOS resolved locally: 2.46.4, the version actually verified
+    # end-to-end here). Pinning pydantic-core too removes that ambiguity.
     "litellm==1.97.0",
     "pydantic==2.13.4",
+    "pydantic-core==2.46.4",
     "python-dotenv",
     "graphiti-core",
 ]

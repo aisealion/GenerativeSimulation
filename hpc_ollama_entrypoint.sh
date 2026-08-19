@@ -166,18 +166,19 @@ fi
 
 # The fisher agent no longer goes through opencode — llm_agents.py calls
 # litellm directly. litellm's response types use pydantic forward
-# references that only get resolved on the first real call (ModelResponse()
-# inside completion()), not at `import litellm` — so version-pinning alone
-# (litellm==1.97.0 + pydantic==2.13.4, tried on 2026-08-19) wasn't enough:
-# `pip install --upgrade` reported success, but the container's own older
-# baked-in pydantic at /usr/local/lib/python3.10/dist-packages was still
-# shadowing whatever got installed on top, and the exact same
-# "Message is not fully defined ... call Message.model_rebuild()" failure
-# came back. A --user-style install can't reliably out-rank a container
-# image's system site-packages. An isolated venv can — it takes total
-# precedence over both user and system site-packages by default, no
-# shadowing possible — so build one here rather than fighting the
-# container's Python path further, and run simulate.py through it.
+# references that need a matching pydantic (and pydantic's own compiled
+# pydantic-core) to resolve, or construction fails with "Message is not
+# fully defined ... call Message.model_rebuild()".
+#
+# Ruled out on 2026-08-19: this isn't system-vs-user site-packages
+# shadowing — the exact same failure reproduced inside a from-scratch
+# isolated venv, with litellm and pydantic both confirmed resolving from
+# that venv's own site-packages, nothing external involved. What was still
+# unpinned was pydantic-core itself: pip was free to resolve whatever
+# pydantic-core paired with pydantic==2.13.4 on Aoraki's Python 3.10/Linux,
+# and apparently got something other than the pydantic-core==2.46.4 that
+# macOS/Python 3.11 resolved and was actually verified end-to-end here.
+# Pinning all three removes that ambiguity.
 FISHERY_VENV="$SLURM_SUBMIT_DIR/.venv-fishery"
 if [ ! -d "$FISHERY_VENV" ]; then
   echo "Creating isolated venv at ${FISHERY_VENV} for litellm/pydantic..."
@@ -194,7 +195,8 @@ if [ ! -x "$FISHERY_VENV/bin/pip" ]; then
   echo "then resubmit." >&2
   exit 1
 fi
-"$FISHERY_VENV/bin/pip" install --quiet --upgrade pip litellm==1.97.0 pydantic==2.13.4 python-dotenv
+"$FISHERY_VENV/bin/pip" install --quiet --upgrade pip \
+  litellm==1.97.0 pydantic==2.13.4 pydantic-core==2.46.4 python-dotenv
 
 # Reproduce the exact failure point from the 2026-08-19 incident
 # (ModelResponse() construction) right here, so a version mismatch fails
@@ -202,25 +204,21 @@ fi
 # suppressing output this time — if this still fails, the traceback and
 # diagnostics below are what's needed to actually root-cause it further.
 if ! "$FISHERY_VENV/bin/python3" -c "from litellm.types.utils import ModelResponse; ModelResponse()"; then
-  echo "Still broken even inside an isolated venv — this isn't a system-vs-user" >&2
-  echo "site-packages shadowing issue after all. Diagnostics:" >&2
+  echo "Still broken even with pydantic-core pinned too. Diagnostics:" >&2
   "$FISHERY_VENV/bin/python3" -c "
 import sys
-import litellm, pydantic
+import litellm, pydantic, pydantic_core
 print('litellm:', litellm.__file__)
 print('pydantic:', pydantic.__file__, pydantic.VERSION)
-try:
-    import pydantic_core
-    print('pydantic_core:', pydantic_core.__file__, pydantic_core.VERSION)
-except Exception as exc:
-    print('pydantic_core import failed:', exc)
+print('pydantic_core:', pydantic_core.__file__, pydantic_core.__version__)
 print('sys.path:')
 for p in sys.path:
     print(' ', p)
 " >&2
+  "$FISHERY_VENV/bin/pip" show litellm pydantic pydantic-core >&2 || true
   exit 1
 fi
-echo "litellm/pydantic verified working inside ${FISHERY_VENV}."
+echo "litellm/pydantic/pydantic-core verified working inside ${FISHERY_VENV}."
 
 mkdir -p logs
 # OPENCODE_MODEL still drives the norm-implementer (still an opencode agent,
