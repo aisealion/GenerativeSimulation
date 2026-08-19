@@ -162,6 +162,26 @@ if ! timeout 120 codegraph --no-color "$CODEGRAPH_CMD" .; then
   echo "unlock .' by hand and retry) or failed outright. Continuing without a" >&2
   echo "CodeGraph index: the norm-implementer will fall back to plain" >&2
   echo "Read/Grep, which still works, just with worse exploration." >&2
+
+  # A timeout means whatever .codegraph/ this attempt left behind never
+  # finished, so it can't be trusted — but without cleaning it up, every
+  # later run's `[ -d .codegraph ]` check above sees it, assumes it's a
+  # valid index, and picks "sync" instead of "init" forever. codegraph
+  # itself then reports "not initialized" and hangs the same way again:
+  # a permanent stuck loop (this is exactly what's been observed across
+  # every Aoraki run so far, always choosing sync, never a fresh init).
+  # Remove it so the next run gets a genuine clean init attempt instead
+  # of repeating this same failure indefinitely. This doesn't fix
+  # whatever's actually causing the hang (most likely: the compute node
+  # running this job has no outbound network access, unlike the login
+  # node — codegraph needs more than telemetry, which is already off) —
+  # only that has to be diagnosed by hand on Aoraki, see CLAUDE.md.
+  if [ -d .codegraph ]; then
+    echo "Removing the incomplete .codegraph/ from this failed ${CODEGRAPH_CMD}" >&2
+    echo "so the next run retries with a clean init instead of getting stuck" >&2
+    echo "on 'sync' against a directory that was never actually finished." >&2
+    rm -rf .codegraph
+  fi
 fi
 
 # The fisher agent no longer goes through opencode — llm_agents.py calls

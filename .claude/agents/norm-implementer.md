@@ -143,14 +143,6 @@ fit. Never guess at what already exists.
     fisher agent, also implement `prompt_fields(state, agent_id) -> dict`
     with the fields `prompts/phases/{phase_name}.md` needs — `run()` calls
     it per agent rather than inlining the field values.
-  - If a mechanism you're implementing produces a real, memorable event
-    (a violation, a sanction, a role change, a threshold being crossed —
-    not a routine action), override `memory_writes(state, round_record) ->
-    list[dict]` on that phase to return one dict per event, each with
-    `event_type`, `text`, `agent_id`, `group_id` keys (`group_id` is the
-    acting agent's ID for a private event, or `"community"` for anything
-    public). Only do this for a genuinely new event type your change
-    introduces — don't add routine per-round writes.
   - `schedule.json` gate syntax is limited to exactly `"true"`, `"false"`,
     or `"holdsAt(<fluent_name>)"` (true if any record for that fluent,
     any holder/args, is currently active this round) — nothing else
@@ -178,6 +170,40 @@ fit. Never guess at what already exists.
 - **Nothing fits, mechanism or phase or prompt**: stop and report why,
   rather than approximating.
 
+- **Every rule, regardless of which template above it routed through** —
+  two follow-up questions apply on top of whatever state/mechanism/phase
+  edit you just made. Don't skip these because the rule "was just
+  parametric"; a purely config-driven change can still need both.
+
+  1. *Does this produce a memorable event?* If the rule creates or
+     changes a violation, sanction, obligation, role change, or
+     threshold-crossing — not a routine per-round action — the phase
+     that enacts it needs a `memory_writes(state, round_record) ->
+     list[dict]` override (add one if the phase doesn't have one yet, or
+     extend an existing one), emitting `{event_type, text, agent_id,
+     group_id}` per event. Decide `group_id` explicitly, per event, not
+     by default or by copying a nearby example: a specific agent's own
+     ID if the event is about *that agent alone* and nobody else has a
+     legitimate reason to recall it later (their own violation, their
+     own private penalty) — `"community"` only if the event is something
+     the whole group witnessed or that binds everyone (a vote outcome, a
+     newly adopted rule, a public sanction). Getting this wrong either
+     leaks one agent's private history into everyone else's retrieved
+     memories, or hides a genuinely public event from agents who should
+     be able to recall it.
+
+  2. *Did this change a number an agent is already being told?* If the
+     rule changes a cap, threshold, schedule, or any other value that a
+     phase's `prompt_fields()` already renders into agent-facing text
+     (e.g. `harvest.py`'s `cap_line`), update that generation logic to
+     the new value as part of this same change — not just
+     `state/config.json`. A `prompt_fields()` string describing a rule
+     your own edit just superseded is a silent bug: fourth-wall clean,
+     but factually wrong, and agents will reason about a number that no
+     longer applies. Grep every `prompt_fields()` in the phase(s) you
+     touched for any hardcoded or derived value related to the rule you
+     just changed.
+
 ## Step 4 — Validate before reporting done
 
 - Run `tests/regression/`. Fix the mechanism/phase, not the test.
@@ -194,6 +220,12 @@ fit. Never guess at what already exists.
 - Confirm no diff touches a rendered/output prompt directly — only
   `prompts/persona_template.md`, `prompts/role_directives/*.md`, or
   `prompts/phases/*.md` are legitimate prompt-layer diffs.
+- Confirm every `memory_writes()` you added or extended has an explicit,
+  justified `group_id` per event (a specific agent's ID vs `"community"`)
+  — not copied from a nearby example without checking whether *this*
+  event is actually private or public.
+- Confirm no `prompt_fields()` in a phase you touched still describes a
+  cap/threshold/rule your own change just superseded.
 
 ## Step 5 — Do not commit
 
