@@ -15,11 +15,10 @@ class HarvestPhase(Phase):
         fluents = state["fluents"]
         runtime = state["runtime"]
         cap = effort_cap(agent_id, config, fluents, runtime)
-        cap_line = (
-            f" You currently have an agreed limit of {cap:.0f}kg for this trip."
-            if cap is not None
-            else ""
-        )
+        # Prompt now includes weekly quota info
+        stock_before = available_stock(runtime)
+        quota_kg = max(stock_before * 0.10, 5.0)
+        cap_line = f" Your weekly quota is {quota_kg:.0f}kg (max 2 trips per week)."
         return {
             "stock_kg": available_stock(runtime),
             "carrying_capacity_kg": config.get("carrying_capacity_kg", 0),
@@ -33,22 +32,41 @@ class HarvestPhase(Phase):
         agents = state["agents"]
         round_number = state["round_number"]
 
+        # Initialize weekly trip tracking if absent
+        if "weekly_trips" not in runtime:
+            runtime["weekly_trips"] = {}
         stock_before = available_stock(runtime)
         results = {}
+        # Determine the quota for this round based on current stock (10% or 5 kg minimum)
+        quota_kg = max(stock_before * 0.10, 5.0)
+        current_week = round_number // 7  # integer division defines a week of 7 rounds
         for agent_id in agents:
-            cap = effort_cap(agent_id, config, fluents, runtime)
+            # Retrieve or initialize this fisher's weekly record
+            week_record = runtime["weekly_trips"].get(agent_id, {"week": current_week, "count": 0})
+            # Reset count if we have moved to a new week
+            if week_record["week"] != current_week:
+                week_record = {"week": current_week, "count": 0}
+            # Enforce max two trips per week
+            if week_record["count"] >= 2:
+                cap = 0.0
+            else:
+                cap = quota_kg
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
-            effort = min(1.0, max(0.0, float(response["effort"])))
+            effort = min(1.0, max(0.0, float(response["effort"])) )
             harvested = catch_from_effort(effort, stock_before, config)
-            if cap is not None:
-                harvested = min(harvested, cap)
+            # Apply the cap (either quota or zero if trip limit exceeded)
+            harvested = min(harvested, cap)
             results[agent_id] = {
                 "effort": effort,
                 "harvested_kg": harvested,
                 "reasoning": response.get("reasoning", ""),
             }
+            # Update weekly trip count (only count trips where effort > 0)
+            if effort > 0:
+                week_record["count"] += 1
+            runtime["weekly_trips"][agent_id] = week_record
 
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the
