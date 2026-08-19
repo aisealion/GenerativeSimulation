@@ -1,8 +1,8 @@
 def effort_cap(agent_id, config, fluents, runtime):
     """Return this agent's maximum allowed harvest (kg) for the current round.
-    Implements the current norm:
+    Implements the updated norm (norm.txt):
 
-    * Per‑trip limit is 20 kg (or a lower config‑specified cap).
+    * Per‑trip limit is the lesser of 5 % of the current lake biomass and 8 kg.
     * If the lake's stock is below 30 kg, fishing is prohibited (cap = 0).
     * Config overrides ``effort_caps_kg`` (per‑agent) and ``default_effort_cap_kg``
       (global) retain precedence when stock permits.
@@ -16,12 +16,14 @@ def effort_cap(agent_id, config, fluents, runtime):
     caps = config.get("effort_caps_kg", {})
     if agent_id in caps:
         # Ensure the configured cap does not exceed the norm's per‑trip limit
-        return min(caps[agent_id], 20.0)
+        max_norm = min(0.05 * stock, 8.0)
+        return min(caps[agent_id], max_norm)
     if "default_effort_cap_kg" in config:
-        return min(config["default_effort_cap_kg"], 20.0)
+        max_norm = min(0.05 * stock, 8.0)
+        return min(config["default_effort_cap_kg"], max_norm)
 
-    # Apply the norm‑based per‑trip limit of 20 kg
-    return 20.0
+    # Apply the norm‑based per‑trip limit of 5 % of biomass, capped at 8 kg
+    return min(0.05 * stock, 8.0)
 
 
 

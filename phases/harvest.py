@@ -50,13 +50,37 @@ class HarvestPhase(Phase):
                 "reasoning": response.get("reasoning", ""),
             }
 
-        # Enforce total daily catch limit of 200 kg per policy.
-        total_harvest = sum(r["harvested_kg"] for r in results.values())
-        if total_harvest > 200:
-            # Scale down each fisher's catch proportionally so total equals 200 kg.
-            scale = 200.0 / total_harvest
+        # Enforce community monthly total catch limit (norm: 12 % of current biomass, capped at 90 kg).
+        # Determine the current month index (30 rounds per month approximation).
+        month_index = (round_number - 1) // 30
+        # Retrieve prior month cumulative harvest, if any.
+        month_data = runtime.setdefault("monthly_harvest", {})
+        month_key = f"month_{month_index}"
+        prior = month_data.get(month_key, {"agents": {}, "total_harvested_kg": 0.0})
+        prior_total = prior.get("total_harvested_kg", 0.0)
+        # Compute monthly cap based on stock before this round.
+        monthly_cap = min(0.12 * stock_before, 90.0)
+        # Remaining allowance for this month.
+        remaining = monthly_cap - prior_total
+        if remaining <= 0:
+            # No allowance left: set all catches this round to zero.
             for aid in results:
-                results[aid]["harvested_kg"] *= scale
+                results[aid]["harvested_kg"] = 0.0
+        else:
+            round_total = sum(r["harvested_kg"] for r in results.values())
+            if round_total > remaining:
+                # Scale down this round's harvest proportionally to fit remaining quota.
+                scale = remaining / round_total
+                for aid in results:
+                    results[aid]["harvested_kg"] *= scale
+        # Update month cumulative data.
+        month_record = {
+            aid: prior["agents"].get(aid, 0.0) + results[aid]["harvested_kg"] for aid in agents
+        }
+        month_data[month_key] = {
+            "agents": month_record,
+            "total_harvested_kg": prior_total + sum(r["harvested_kg"] for r in results.values()),
+        }
         
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the
