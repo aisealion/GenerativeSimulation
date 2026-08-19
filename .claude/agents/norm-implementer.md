@@ -206,6 +206,14 @@ fit. Never guess at what already exists.
 
 ## Step 4 — Validate before reporting done
 
+- Run `python3 -m py_compile` on every `.py` file you touched (or just
+  `python3 -m py_compile mechanisms/*.py phases/*.py` to cover everything
+  you're allowed to write to) and fix any syntax error before finishing.
+  A change that doesn't even parse is worse than no change: it doesn't
+  just fail this round, it fails every round after it too, since the
+  simulation reloads these files from disk at the start of each one. Do
+  this first, before the other checks below — no point validating logic
+  in a file that can't even be imported.
 - Run `tests/regression/`. Fix the mechanism/phase, not the test.
 - Confirm you never wrote to `state/runtime.json`.
 - Confirm any new/changed role assignment terminates the previous holder's

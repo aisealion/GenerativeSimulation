@@ -12,6 +12,98 @@ cd "$SLURM_SUBMIT_DIR"
 # apply here; harmless if the directory doesn't exist yet.
 export PATH="$HOME/.opencode/bin:$PATH"
 
+# codegraph runs first, before anything Ollama-related below — deliberately
+# moved here (was previously after the model pulls/creates). Every
+# standalone reproduction of codegraph init/sync has succeeded (login node,
+# an actual GPU compute node via srun, interactive and non-interactive
+# apptainer invocations, exact env vars matched) — the one thing none of
+# those reproductions had was the Ollama server + two ~dozens-of-GB model
+# pulls/creates running concurrently, which this script's original
+# ordering did. Root cause still unconfirmed either way, but there's no
+# real dependency forcing codegraph to run after that section, so moving
+# it first removes that variable for free regardless of whether it was
+# ever the actual cause.
+#
+# codegraph: same problem opencode above had (installed but not on PATH
+# here) would apply, plus it was never installed here at all yet — the
+# earlier `npm install -g` route used to set this up doesn't apply on a
+# node that likely has no Node.js. This installer is Node-free (a
+# self-contained bundle) and puts a symlink in ~/.local/bin by default.
+export PATH="$HOME/.local/bin:$PATH"
+if ! command -v codegraph >/dev/null 2>&1; then
+  echo "codegraph not found (checked \$HOME/.local/bin) — installing there"
+  curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
+fi
+
+# --no-color: codegraph's default output uses cursor-control ANSI codes
+# meant for a live TTY (spinners etc.) — dumped into a SLURM log file
+# instead of a real terminal, that just accumulates as garbled control
+# sequences, not a hang by itself, but makes the log unreadable and makes
+# an actual hang harder to see. Telemetry off for the same "don't ship
+# anything unnecessary off this cluster" reasoning as everywhere else here.
+#
+# CodeGraph's own docs say init/sync are purely local — no API calls, no
+# credentials, nothing beyond this optional telemetry ping — and every
+# hypothesis tried here (restricted network, NFS+SQLite locking, a daemon/
+# file-watcher, non-interactive/no-TTY invocation) has been individually
+# ruled out by direct reproduction. CODEGRAPH_NO_DAEMON kept set regardless
+# — cheap, and rules out the daemon path even though it didn't turn out to
+# be the cause on its own.
+export CODEGRAPH_TELEMETRY=0
+export CODEGRAPH_NO_DAEMON=1
+
+# .codegraph/ is a local, per-checkout index — never committed to git (see
+# .gitignore) — so it doesn't exist yet on a fresh clone of this repo, which
+# is exactly the situation on a cluster you haven't run this on before.
+# Without it, opencode.jsonc's codegraph MCP server finds no index and
+# exposes no tools at all, and the norm-implementer silently falls back to
+# plain Read/Grep instead of codegraph_explore — no error, just quietly
+# worse exploration. Build it once, then keep it current on every later run.
+#
+# unlock first: codegraph has its own documented failure mode of "a stale
+# lock file blocking indexing" (codegraph unlock exists specifically for
+# this) — a real risk here given how many times this job has been killed
+# and resubmitted while debugging the earlier failures above. Safe to run
+# even if nothing is actually locked.
+codegraph --no-color unlock . 2>&1 || true
+
+echo "Making sure this checkout has a CodeGraph index..."
+if [ -d .codegraph ]; then
+  CODEGRAPH_CMD="sync"
+else
+  CODEGRAPH_CMD="init"
+fi
+# Wrapped in a hard timeout: if it's still stuck for some other reason, fail
+# loudly and say so, rather than silently eating the rest of the job's wall
+# time. codegraph init/sync on this repo's ~19 files took low single-digit
+# seconds in every direct reproduction so far (worst case observed: 36s,
+# under real load on an active GPU compute node), so 120s is a generous
+# margin, not a tight one.
+if ! timeout 120 codegraph --no-color "$CODEGRAPH_CMD" .; then
+  echo "codegraph $CODEGRAPH_CMD didn't finish within 120s, even running first," >&2
+  echo "before any Ollama/model work. Every standalone reproduction of this" >&2
+  echo "exact command has succeeded (see the comment above) — if this still" >&2
+  echo "fails, the cause is something not yet isolated. Continuing without a" >&2
+  echo "CodeGraph index: the norm-implementer will fall back to plain" >&2
+  echo "Read/Grep, which still works, just with worse exploration." >&2
+
+  # A timeout means whatever .codegraph/ this attempt left behind never
+  # finished, so it can't be trusted — but without cleaning it up, every
+  # later run's `[ -d .codegraph ]` check above sees it, assumes it's a
+  # valid index, and picks "sync" instead of "init" forever. codegraph
+  # itself then reports "not initialized" and hangs the same way again:
+  # a permanent stuck loop (this is exactly what's been observed across
+  # every Aoraki run so far, always choosing sync, never a fresh init).
+  # Remove it so the next run gets a genuine clean init attempt instead
+  # of repeating this same failure indefinitely.
+  if [ -d .codegraph ]; then
+    echo "Removing the incomplete .codegraph/ from this failed ${CODEGRAPH_CMD}" >&2
+    echo "so the next run retries with a clean init instead of getting stuck" >&2
+    echo "on 'sync' against a directory that was never actually finished." >&2
+    rm -rf .codegraph
+  fi
+fi
+
 echo "Inside the Ollama container environment, OLLAMA_HOST=${OLLAMA_HOST:-<not set>}"
 if [ -z "${OLLAMA_HOST:-}" ]; then
   echo "OLLAMA_HOST wasn't set inside the container — ollama-env.sh's behavior" >&2
@@ -107,95 +199,6 @@ EOF
 if ! command -v opencode >/dev/null 2>&1; then
   echo "opencode not found (checked \$HOME/.opencode/bin) — installing there"
   curl -fsSL https://opencode.ai/install | bash
-fi
-
-# codegraph: same problem as opencode above (installed but not on PATH here)
-# would apply, plus it was never installed here at all yet — the earlier
-# `npm install -g` route used to set this up doesn't apply on a node that
-# likely has no Node.js. This installer is Node-free (a self-contained
-# bundle) and puts a symlink in ~/.local/bin by default.
-export PATH="$HOME/.local/bin:$PATH"
-if ! command -v codegraph >/dev/null 2>&1; then
-  echo "codegraph not found (checked \$HOME/.local/bin) — installing there"
-  curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
-fi
-
-# --no-color: codegraph's default output uses cursor-control ANSI codes
-# meant for a live TTY (spinners etc.) — dumped into a SLURM log file
-# instead of a real terminal, that just accumulates as garbled control
-# sequences, not a hang by itself, but makes the log unreadable and makes
-# an actual hang harder to see. Telemetry off for the same "don't ship
-# anything unnecessary off this cluster" reasoning as everywhere else here.
-#
-# CodeGraph's own docs (checked directly, since Aoraki has kept hanging
-# even after ruling out every earlier guess) say init/sync are *purely
-# local* — no API calls, no credentials, nothing beyond this optional
-# telemetry ping. So "restricted internet" was never actually the right
-# explanation. Two more likely candidates given that: (1) `.codegraph/`'s
-# index is a SQLite database, and SQLite's file-locking is a well-known,
-# frequent source of indefinite hangs specifically on NFS-mounted
-# filesystems — which Aoraki's home/project dirs almost certainly are;
-# (2) sync is described as running via "the file watcher", implying a
-# background daemon that may not behave inside an apptainer container.
-# CODEGRAPH_NO_DAEMON forces the synchronous, non-watcher path, which
-# rules out (2) even if it doesn't fix (1) — cheap to set either way.
-export CODEGRAPH_TELEMETRY=0
-export CODEGRAPH_NO_DAEMON=1
-
-# .codegraph/ is a local, per-checkout index — never committed to git (see
-# .gitignore) — so it doesn't exist yet on a fresh clone of this repo, which
-# is exactly the situation on a cluster you haven't run this on before.
-# Without it, opencode.jsonc's codegraph MCP server finds no index and
-# exposes no tools at all, and the norm-implementer silently falls back to
-# plain Read/Grep instead of codegraph_explore — no error, just quietly
-# worse exploration. Build it once, then keep it current on every later run.
-#
-# unlock first: codegraph has its own documented failure mode of "a stale
-# lock file blocking indexing" (codegraph unlock exists specifically for
-# this) — a real risk here given how many times this job has been killed
-# and resubmitted while debugging the earlier failures above. Safe to run
-# even if nothing is actually locked.
-codegraph --no-color unlock . 2>&1 || true
-
-echo "Making sure this checkout has a CodeGraph index..."
-if [ -d .codegraph ]; then
-  CODEGRAPH_CMD="sync"
-else
-  CODEGRAPH_CMD="init"
-fi
-# Wrapped in a hard timeout: if it's still stuck for some other reason, fail
-# loudly and say so, rather than silently eating the rest of the job's wall
-# time. codegraph init/sync on this repo's ~15 files took under a second
-# when this was verified locally, so 120s is already a generous margin, not
-# a tight one.
-if ! timeout 120 codegraph --no-color "$CODEGRAPH_CMD" .; then
-  echo "codegraph $CODEGRAPH_CMD didn't finish within 120s. Not a network issue —" >&2
-  echo "init/sync are purely local per codegraph's own docs. Most likely: SQLite" >&2
-  echo "locking hanging on an NFS-mounted \$SLURM_SUBMIT_DIR (check 'df -T' or" >&2
-  echo "'mount | grep' on that path), or a daemon/file-watcher issue inside the" >&2
-  echo "apptainer container (CODEGRAPH_NO_DAEMON is already set above). Continuing" >&2
-  echo "without a CodeGraph index: the norm-implementer will fall back to plain" >&2
-  echo "Read/Grep, which still works, just with worse exploration." >&2
-
-  # A timeout means whatever .codegraph/ this attempt left behind never
-  # finished, so it can't be trusted — but without cleaning it up, every
-  # later run's `[ -d .codegraph ]` check above sees it, assumes it's a
-  # valid index, and picks "sync" instead of "init" forever. codegraph
-  # itself then reports "not initialized" and hangs the same way again:
-  # a permanent stuck loop (this is exactly what's been observed across
-  # every Aoraki run so far, always choosing sync, never a fresh init).
-  # Remove it so the next run gets a genuine clean init attempt instead
-  # of repeating this same failure indefinitely. This doesn't fix
-  # whatever's actually causing the hang (most likely: the compute node
-  # running this job has no outbound network access, unlike the login
-  # node — codegraph needs more than telemetry, which is already off) —
-  # only that has to be diagnosed by hand on Aoraki, see CLAUDE.md.
-  if [ -d .codegraph ]; then
-    echo "Removing the incomplete .codegraph/ from this failed ${CODEGRAPH_CMD}" >&2
-    echo "so the next run retries with a clean init instead of getting stuck" >&2
-    echo "on 'sync' against a directory that was never actually finished." >&2
-    rm -rf .codegraph
-  fi
 fi
 
 # The fisher agent no longer goes through opencode — llm_agents.py calls

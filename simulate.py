@@ -187,6 +187,25 @@ def discard_norm_implementation(round_number, errors):
     print("them and continuing with the previous round's mechanics unchanged:", file=sys.stderr)
     for error in errors:
         print(f"  {error}", file=sys.stderr)
+
+    # Durable, not just stderr: stderr only lives in slurm-*.err, which is
+    # gitignored and never gets pushed — the exact reason for a discard was
+    # unrecoverable after the fact the first time this happened for real.
+    # logs/model_calls.jsonl is tracked, so this survives.
+    log_call(
+        call="norm_implementer_discarded",
+        agent_id=None,
+        round=round_number,
+        phase=None,
+        model=None,
+        duration_s=None,
+        returncode=None,
+        prompt=None,
+        raw_response=None,
+        parsed_response=None,
+        error="\n\n".join(errors),
+    )
+
     subprocess.run(
         ["git", "checkout", "--"] + NORM_IMPLEMENTER_TRACKED_PATHS,
         cwd=ROOT, check=True, capture_output=True, text=True,
