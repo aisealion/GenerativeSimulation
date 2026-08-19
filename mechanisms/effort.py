@@ -1,23 +1,27 @@
 def effort_cap(agent_id, config, fluents, runtime):
-    """Returns this agent's max allowed harvest in kg for the current round, or ``None``
-    if no cap applies. Implements the updated norm:
+    """Return this agent's maximum allowed harvest (kg) for the current round.
+    Implements the current norm:
 
-    * Per‑trip limit is the lesser of 7 % of the lake's current biomass and a weekly
-      cap of 8 kg. Config overrides ``effort_caps_kg`` (per‑agent) and
-      ``default_effort_cap_kg`` (global) still take precedence.
+    * Per‑trip limit is 20 kg (or a lower config‑specified cap).
+    * If the lake's stock is below 30 kg, fishing is prohibited (cap = 0).
+    * Config overrides ``effort_caps_kg`` (per‑agent) and ``default_effort_cap_kg``
+      (global) retain precedence when stock permits.
     """
-    # Config‑based overrides retain priority
+    # Check stock threshold first; if below 30 kg, no fishing allowed.
+    stock = runtime.get("stock_kg", 0)
+    if stock < 30:
+        return 0
+
+    # Config‑based overrides retain priority when stock is sufficient
     caps = config.get("effort_caps_kg", {})
     if agent_id in caps:
-        return caps[agent_id]
+        # Ensure the configured cap does not exceed the norm's per‑trip limit
+        return min(caps[agent_id], 20.0)
     if "default_effort_cap_kg" in config:
-        return config["default_effort_cap_kg"]
+        return min(config["default_effort_cap_kg"], 20.0)
 
-    # Apply the norm‑based calculation
-    stock = runtime.get("stock_kg", 0)
-    percent_cap = 0.07 * stock  # 7 % of current biomass
-    weekly_cap = 8.0  # kg per week (treated as per‑trip cap for simplicity)
-    return min(percent_cap, weekly_cap)
+    # Apply the norm‑based per‑trip limit of 20 kg
+    return 20.0
 
 
 
