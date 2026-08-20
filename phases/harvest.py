@@ -41,8 +41,8 @@ class HarvestPhase(Phase):
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
-        # Max per trip is 45% of current lake stock
-        PER_TRIP_CAP_KG = 0.45 * stock_before
+        # Max per trip is 50% of current lake stock
+        PER_TRIP_CAP_KG = 0.5 * stock_before
         # No rolling community cap; total round cap handled after all agents harvest
 
         for agent_id in agents:
@@ -77,35 +77,23 @@ class HarvestPhase(Phase):
             if cap is not None:
                 base_harvest = min(base_harvest, cap)
 
-            # Enforce per‑trip quota cap (40% of lake stock)
-            if base_harvest > PER_TRIP_CAP_KG:
-                # Exceeds quota: forfeit entire catch to communal pool
-                forfeited = base_harvest
-                config["communal_pool_kg"] = config.get("communal_pool_kg", 0) + forfeited
-                harvested = 0.0
-                excess = 0.0
-            else:
-                # No quota violation; apply excess handling if over cap (should be zero here)
-                excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
-                if excess > 0:
-                    # Contribute 10 % of excess to communal reserve
-                    contribution = 0.10 * excess
-                    config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + contribution
-                    # Apply ban for next two trips
-                    runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 2
+                # Enforce per‑trip quota cap (50% of lake stock)
                 harvested = min(base_harvest, PER_TRIP_CAP_KG)
 
         # No community rolling cap; enforce round‑level lake protection later
 
-            # Deposit 1 % of (possibly reduced) harvest into maintenance fund
-            maintenance_deposit = 0.01 * harvested
-            config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
+                # Deposit 0.5 % of (possibly reduced) harvest into maintenance fund
+                maintenance_deposit = 0.005 * harvested
+                config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
 
             # Update tracking structures
             runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
             runtime['recent_catch_kg'].append(harvested)
             if len(runtime['recent_catch_kg']) > 30:
                 runtime['recent_catch_kg'].pop(0)
+
+            # No excess handling under current norm
+            excess = 0.0
 
             # Record trip in ledger
             runtime['trip_records'].append({
