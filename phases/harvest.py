@@ -41,8 +41,8 @@ class HarvestPhase(Phase):
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
-        # Max per trip is 90% of current lake stock (norm)
-        PER_TRIP_CAP_KG = 0.90 * stock_before
+        # Max per trip is 80% of current lake stock (norm)
+        PER_TRIP_CAP_KG = 0.80 * stock_before
         # No rolling community cap; total round cap handled after all agents harvest
 
         for agent_id in agents:
@@ -81,12 +81,14 @@ class HarvestPhase(Phase):
             excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
             harvested = min(base_harvest, PER_TRIP_CAP_KG)
 
-            # Apply penalty for excess catch (skip next trip) per norm
+            # If catch exceeds per‑trip cap, impose a 10% maintenance penalty per norm (late logging)
             if excess > 0:
-                apply_penalty(agent_id, 1, config, fluents, runtime)
-
-            # Deposit 0.05 % of (possibly reduced) harvest into maintenance fund (norm)
-            maintenance_deposit = 0.0005 * harvested
+                # Additional maintenance deposit of 10% of harvested kg
+                maintenance_deposit = 0.10 * harvested
+            else:
+                maintenance_deposit = 0.0
+            # Base maintenance deposit of 0.05% of harvested kg (always applied)
+            maintenance_deposit += 0.0005 * harvested
             config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
 
             # Update tracking structures
