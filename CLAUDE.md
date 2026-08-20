@@ -134,6 +134,27 @@ real cost to never using the incremental path.
   to `NORM_IMPLEMENTER_TRACKED_PATHS`) instead of committing them — the
   round continues under the previous mechanics, and the same or a similar
   norm gets another chance to be implemented next time one is adopted.
+  **`simulate.py` itself is now in `NORM_IMPLEMENTER_TRACKED_PATHS`** (was
+  denied to the norm-implementer entirely until 2026-08-20) — the compile
+  check above covers it too now, for exactly that reason. This followed a
+  real incident worth recording: the norm-implementer edited `simulate.py`
+  directly despite `permission.edit: "simulate.py": deny` being set at the
+  time — the deny did not actually hold (the edit landed on disk; it just
+  never got auto-committed, since `simulate.py` wasn't in the tracked-paths
+  list back then, so it sat as an uncommitted change until committed by
+  hand). What it "fixed" that way was a bug that belonged in
+  `phases/harvest.py` (a missing `runtime.setdefault("violations", {})`)
+  — solved in the wrong layer purely because it had the opportunity, not
+  because it needed orchestrator-level access. `.opencode/agent/norm-implementer.md`'s
+  "Editing simulate.py" section instructs it to treat this as a last
+  resort, not a shortcut — but that's a prompt-level instruction, not a
+  technical guarantee, and the compile-check only catches syntax errors,
+  not a semantically broken edit (one that guts the safety-net functions
+  themselves, say). The underlying `permission.edit` reliability gap this
+  surfaced hasn't been separately investigated — the other `deny` entries
+  (`state/runtime.json`, `state/agents.json`, `tests/regression/*`, etc.)
+  haven't been re-verified since, and shouldn't be assumed solid without
+  checking.
 - `phases/base.py` — the `Phase` base class every phase module subclasses
   (`run`, `prompt_fields`, `memory_writes`). Human-owned scaffolding, not
   something a norm round edits.

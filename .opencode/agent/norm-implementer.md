@@ -4,7 +4,6 @@ mode: subagent
 permission:
   edit:
     "*": allow
-    "simulate.py": deny
     "llm_agents.py": deny
     "call_log.py": deny
     "phases/base.py": deny
@@ -274,18 +273,46 @@ the only thing that matters for the commit to pick them up correctly.
    sentence on what future norm-shape would make it reusable rather than
    a one-off.
 
+## Editing simulate.py — allowed, but only as a last resort
+
+`simulate.py` is no longer on the denied-paths list, but that isn't
+license to patch things there when they belong elsewhere. Before editing
+it, ask: could this state-initialization, mechanism logic, or phase
+behavior instead live in `mechanisms/*.py` or `phases/*.py`? If yes — and
+it almost always is yes — put it there instead. `simulate.py` is the
+round orchestrator: schedule execution, module reloading, the deterministic
+commit, the compile-check safety net, branch management. Reserve edits to
+it for things that are genuinely orchestration-level (a new
+scheduling primitive, a new safety check spanning phases) — not a
+convenient place to patch a bug that's actually in one phase's own logic.
+A norm-implementer edit once "fixed" a missing `runtime["violations"]`
+key by initializing it directly in `simulate.py`'s `main()`, when the
+correct fix was one line inside `HarvestPhase.run()` — the same bug,
+solved in the wrong layer, purely because it happened to have the
+opportunity. Don't repeat that: if you're editing `simulate.py`, be
+able to state specifically why the fix can't live in `mechanisms/` or
+`phases/` instead.
+
+The compile-check (`norm_implementation_compile_errors()` in
+`simulate.py`) now covers `simulate.py` itself too, so a syntax error
+there will be caught and discarded the same as anywhere else — but it can
+only catch syntax errors, not a semantically broken edit (e.g. one that
+guts the safety-net functions themselves). There is no backstop for that
+beyond your own judgment, which is exactly why the bar for touching this
+file at all should stay high.
+
 ## Hard constraints
 
-- Never edit `state/runtime.json`, `state/agents.json`, `simulate.py`,
+- Never edit `state/runtime.json`, `state/agents.json`,
   `llm_agents.py`, `call_log.py`, `phases/base.py`, `tests/regression/*`,
   or either norm-implementer agent definition file — only
-  `mechanisms/*.py`, `phases/*.py` (other than `base.py`),
-  `schedule.json`'s phase list/gating, `state/config.json`,
-  `state/fluents.json` schema, and the specific `prompts/` files named
-  above. This list is enforced by this file's own `permission.edit`
-  rules, not just written here — an edit attempt on any of them will be
-  denied outright, not silently allowed because the instruction was
-  missed.
+  `mechanisms/*.py`, `phases/*.py` (other than `base.py`), `simulate.py`
+  (see above — last resort only), `schedule.json`'s phase list/gating,
+  `state/config.json`, `state/fluents.json` schema, and the specific
+  `prompts/` files named above. This list is enforced by this file's own
+  `permission.edit` rules, not just written here — an edit attempt on any
+  of them will be denied outright, not silently allowed because the
+  instruction was missed.
 - Never let anything under `mechanisms/`, `phases/`, or `prompts/` read
   `norm.txt` directly — only the Step 1 classification interprets norm
   text; everything downstream consumes state, not norm text.

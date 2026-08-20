@@ -21,6 +21,16 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     "schedule.json",
     "state/config.json",
     "state/fluents.json",
+    # simulate.py itself is now editable by the norm-implementer (was
+    # previously denied — see CLAUDE.md for why that changed and the
+    # residual risk). It has to be listed here for two reasons: so
+    # commit_norm_implementation()'s `git add` actually picks up edits to
+    # it (before this, an edit landed on disk but never got committed by
+    # the deterministic path — it had to be committed by hand instead),
+    # and so norm_implementation_compile_errors() below includes it in the
+    # pre-commit syntax check, since it derives its file list from this
+    # same list.
+    "simulate.py",
 ]
 
 HOLDS_AT_RE = re.compile(r"holdsAt\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)")
@@ -164,18 +174,30 @@ def norm_implementation_compile_errors():
     a syntax error here doesn't just fail this round, it fails the rest of
     the run and needs manual git surgery to recover from (this happened for
     real: a broken phases/harvest.py got committed and crashed every
-    subsequent round with an IndentationError)."""
+    subsequent round with an IndentationError). Derives its file list from
+    NORM_IMPLEMENTER_TRACKED_PATHS rather than a hardcoded directory list,
+    so this stays in sync automatically as that list changes — this is
+    specifically what closes the gap that let a broken simulate.py edit
+    through uncaught before it was added there (a syntax check alone still
+    can't catch a *semantically* broken edit, e.g. one that guts this very
+    function — that residual risk doesn't go away just because this exists)."""
     errors = []
-    for directory in ("mechanisms", "phases"):
-        for py_file in sorted((ROOT / directory).rglob("*.py")):
-            result = subprocess.run(
-                [sys.executable, "-m", "py_compile", str(py_file)],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode != 0:
-                errors.append(f"{py_file.relative_to(ROOT)}:\n{result.stderr.strip()}")
+    py_files = set()
+    for tracked in NORM_IMPLEMENTER_TRACKED_PATHS:
+        path = ROOT / tracked
+        if path.is_dir():
+            py_files.update(path.rglob("*.py"))
+        elif path.suffix == ".py" and path.is_file():
+            py_files.add(path)
+    for py_file in sorted(py_files):
+        result = subprocess.run(
+            [sys.executable, "-m", "py_compile", str(py_file)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            errors.append(f"{py_file.relative_to(ROOT)}:\n{result.stderr.strip()}")
     return errors
 
 
