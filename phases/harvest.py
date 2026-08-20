@@ -77,7 +77,7 @@ class HarvestPhase(Phase):
             if cap is not None:
                 base_harvest = min(base_harvest, cap)
 
-            # Enforce per‑trip quota cap (90% of lake stock) per norm
+            # Enforce per‑trip quota cap (100% of lake stock) per norm
             excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
             harvested = min(base_harvest, PER_TRIP_CAP_KG)
 
