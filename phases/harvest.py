@@ -41,8 +41,8 @@ class HarvestPhase(Phase):
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
-        # Max per trip is 45% of current lake stock
-        PER_TRIP_CAP_KG = 0.45 * stock_before
+        # Max per trip is 40% of current lake stock
+        PER_TRIP_CAP_KG = 0.40 * stock_before
         # No rolling community cap; total round cap handled after all agents harvest
 
         for agent_id in agents:
@@ -77,20 +77,28 @@ class HarvestPhase(Phase):
             if cap is not None:
                 base_harvest = min(base_harvest, cap)
 
-        # Enforce per‑trip policy cap (45% of lake stock)
-            excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
-            if excess > 0:
-                # Contribute 10 % of excess to communal reserve
-                contribution = 0.10 * excess
-                config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + contribution
-                # Apply ban for next two trips
-                runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 2
-            harvested = min(base_harvest, PER_TRIP_CAP_KG)
+            # Enforce per‑trip quota cap (40% of lake stock)
+            if base_harvest > PER_TRIP_CAP_KG:
+                # Exceeds quota: forfeit entire catch to communal pool
+                forfeited = base_harvest
+                config["communal_pool_kg"] = config.get("communal_pool_kg", 0) + forfeited
+                harvested = 0.0
+                excess = 0.0
+            else:
+                # No quota violation; apply excess handling if over cap (should be zero here)
+                excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
+                if excess > 0:
+                    # Contribute 10 % of excess to communal reserve
+                    contribution = 0.10 * excess
+                    config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + contribution
+                    # Apply ban for next two trips
+                    runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 2
+                harvested = min(base_harvest, PER_TRIP_CAP_KG)
 
         # No community rolling cap; enforce round‑level lake protection later
 
-            # Deposit 1 % of (possibly reduced) harvest into maintenance fund
-            maintenance_deposit = 0.01 * harvested
+            # Deposit 2 % of (possibly reduced) harvest into maintenance fund
+            maintenance_deposit = 0.02 * harvested
             config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
 
             # Update tracking structures
@@ -118,7 +126,7 @@ class HarvestPhase(Phase):
         # After all agents have harvested, enforce round‑level lake protection per norm
         total_harvested_round = sum(r["harvested_kg"] for r in results.values())
         stock_after_harvest = stock_before - total_harvested_round
-        if total_harvested_round > 0.70 * stock_before:
+        if total_harvested_round > 0.80 * stock_before:
             # Replenish lake to pre‑harvest stock before regrowth
             stock_after_harvest = stock_before
         # Apply regrowth after harvest (or after replenishment)
