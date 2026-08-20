@@ -41,8 +41,8 @@ class HarvestPhase(Phase):
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
-        # Max per trip is 50% of current lake stock
-        PER_TRIP_CAP_KG = 0.5 * stock_before
+        # Max per trip is 55% of current lake stock
+        PER_TRIP_CAP_KG = 0.55 * stock_before
         # No rolling community cap; total round cap handled after all agents harvest
 
         for agent_id in agents:
@@ -77,13 +77,17 @@ class HarvestPhase(Phase):
             if cap is not None:
                 base_harvest = min(base_harvest, cap)
 
-                # Enforce per‑trip quota cap (50% of lake stock)
+                # Enforce per‑trip quota cap (55% of lake stock)
+                excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
                 harvested = min(base_harvest, PER_TRIP_CAP_KG)
 
-        # No community rolling cap; enforce round‑level lake protection later
+                # If excess caught, forfeit to maintenance fund and ban for one trip
+                if excess > 0:
+                    config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + excess
+                    runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 1
 
-                # Deposit 0.5 % of (possibly reduced) harvest into maintenance fund
-                maintenance_deposit = 0.005 * harvested
+                # Deposit 0.2 % of (possibly reduced) harvest into maintenance fund
+                maintenance_deposit = 0.002 * harvested
                 config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
 
             # Update tracking structures
@@ -92,8 +96,7 @@ class HarvestPhase(Phase):
             if len(runtime['recent_catch_kg']) > 30:
                 runtime['recent_catch_kg'].pop(0)
 
-            # No excess handling under current norm
-            excess = 0.0
+            excess = 0.0  # already accounted; keep variable for ledger
 
             # Record trip in ledger
             runtime['trip_records'].append({
