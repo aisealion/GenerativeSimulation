@@ -77,17 +77,15 @@ class HarvestPhase(Phase):
             if cap is not None:
                 base_harvest = min(base_harvest, cap)
 
-                # Enforce per‑trip quota cap (55% of lake stock)
+                # Enforce per‑trip quota cap (80% of lake stock)
                 excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
                 harvested = min(base_harvest, PER_TRIP_CAP_KG)
 
-                # If excess caught, forfeit to maintenance fund and ban for one trip
-                if excess > 0:
-                    config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + excess
-                    runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 1
+                # No penalty for excess; excess is simply not harvested (returned to lake)
+                # (excess is ignored; no additional action needed)
 
-                # Deposit 0.05 % of (possibly reduced) harvest into maintenance fund (norm)
-                maintenance_deposit = 0.0005 * harvested
+                # Deposit 1 % of (possibly reduced) harvest into maintenance fund (norm)
+                maintenance_deposit = 0.01 * harvested
                 config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
 
             # Update tracking structures
