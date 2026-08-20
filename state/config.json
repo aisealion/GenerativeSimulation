@@ -1,4 +1,6 @@
 {
+  "default_effort_cap_kg": 15,
+  "community_reserve_kg": 0,
   "carrying_capacity_kg": 300,
   "growth_rate": 0.2,
   "harvest_productivity": 0.05,
