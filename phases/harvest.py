@@ -41,8 +41,8 @@ class HarvestPhase(Phase):
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
-        # Max per trip is 40% of current lake stock
-        PER_TRIP_CAP_KG = 0.40 * stock_before
+        # Max per trip is 30% of current lake stock
+        PER_TRIP_CAP_KG = 0.30 * stock_before
         # No rolling community cap; total round cap handled after all agents harvest
 
         for agent_id in agents:
