@@ -77,17 +77,17 @@ class HarvestPhase(Phase):
             if cap is not None:
                 base_harvest = min(base_harvest, cap)
 
-                # Enforce per‑trip quota cap (80% of lake stock)
-                excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
-                harvested = min(base_harvest, PER_TRIP_CAP_KG)
+            # Enforce per‑trip quota cap (90% of lake stock) per norm
+            excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
+            harvested = min(base_harvest, PER_TRIP_CAP_KG)
 
-                # Apply penalty for excess catch (skip next trip)
-                if excess > 0:
-                    apply_penalty(agent_id, 1, config, fluents, runtime)
+            # Apply penalty for excess catch (skip next trip) per norm
+            if excess > 0:
+                apply_penalty(agent_id, 1, config, fluents, runtime)
 
-                # Deposit 0.05 % of (possibly reduced) harvest into maintenance fund (norm)
-                maintenance_deposit = 0.0005 * harvested
-                config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
+            # Deposit 0.05 % of (possibly reduced) harvest into maintenance fund (norm)
+            maintenance_deposit = 0.0005 * harvested
+            config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
 
             # Update tracking structures
             runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
