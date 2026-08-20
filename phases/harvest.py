@@ -117,6 +117,7 @@ class HarvestPhase(Phase):
 
         # After all agents have harvested, enforce round‑level lake protection per norm
         total_harvested_round = sum(r["harvested_kg"] for r in results.values())
+        stock_after_harvest = stock_before - total_harvested_round
         if total_harvested_round > 0.70 * stock_before:
             # Replenish lake to pre‑harvest stock before regrowth
             stock_after_harvest = stock_before
