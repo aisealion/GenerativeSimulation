@@ -37,7 +37,7 @@ class HarvestPhase(Phase):
         results = {}
         # Ensure tracking structures exist
         runtime.setdefault('agent_trip_counts', {})
-        runtime.setdefault('banned_agents', {})  # agent_id -> remaining banned trips
+        runtime.setdefault('agent_trip_counts', {})
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
