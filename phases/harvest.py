@@ -42,8 +42,21 @@ class HarvestPhase(Phase):
             )
             effort = min(1.0, max(0.0, float(response["effort"])))
             harvested = catch_from_effort(effort, stock_before, config)
+            # Apply norm cap (default 15 kg) if present
             if cap is not None:
                 harvested = min(harvested, cap)
+                # Record any excess as a violation
+                excess = max(0, catch_from_effort(effort, stock_before, config) - cap)
+                if excess > 0:
+                    runtime["violations"][agent_id] = runtime["violations"].get(agent_id, 0) + 1
+                    print(f"Agent {agent_id} exceeded cap by {excess:.1f} kg – recorded violation.")
+            # Apply penalty from prior violations (5 kg per violation)
+            prior_violations = runtime["violations"].get(agent_id, 0)
+            if prior_violations:
+                penalty = 5 * prior_violations
+                harvested = max(0, harvested - penalty)
+                print(f"Applying penalty of {penalty} kg to agent {agent_id} due to {prior_violations} prior violation(s).")
+                runtime["violations"][agent_id] = 0
             results[agent_id] = {
                 "effort": effort,
                 "harvested_kg": harvested,
