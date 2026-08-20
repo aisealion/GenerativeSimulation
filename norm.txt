@@ -1,0 +1,3 @@
+Policy: Each fisher may take no more than 2% of the lake’s current biomass per trip, capped at 1.5 kg per week, with 20% of the monthly total catch reserved for restocking.
+
+Operationalization: Each fishing week each fisher logs the amount taken in a shared ledger. The community reviews the ledger at the end of each month; if a fisher’s cumulative catch exceeds the 2% cap or the 1.5 kg weekly limit, the excess is added to the restocking reserve and the fisher loses the right to fish for the next week. The 20% reserve is pooled and used each month to seed the lake via community hatchery or stock releases. All violations are recorded, and repeated non‑compliance results in a temporary fishing ban.
