@@ -41,8 +41,8 @@ class HarvestPhase(Phase):
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
-        # Max per trip is 70% of current lake stock
-        PER_TRIP_CAP_KG = 0.70 * stock_before
+        # Max per trip is 80% of current lake stock (norm)
+        PER_TRIP_CAP_KG = 0.80 * stock_before
         # No rolling community cap; total round cap handled after all agents harvest
 
         for agent_id in agents:
@@ -86,8 +86,8 @@ class HarvestPhase(Phase):
                     config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + excess
                     runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 1
 
-                # Deposit 0.2 % of (possibly reduced) harvest into maintenance fund
-                maintenance_deposit = 0.001 * harvested
+                # Deposit 0.05 % of (possibly reduced) harvest into maintenance fund (norm)
+                maintenance_deposit = 0.0005 * harvested
                 config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
 
             # Update tracking structures
@@ -114,10 +114,10 @@ class HarvestPhase(Phase):
             }
 
 
-        # After all agents have harvested, enforce round‑level lake protection per norm
+        # Round‑level cap: if >95% of lake caught, replenish to pre‑harvest stock (norm)
         total_harvested_round = sum(r["harvested_kg"] for r in results.values())
         stock_after_harvest = stock_before - total_harvested_round
-        if total_harvested_round > 0.85 * stock_before:
+        if total_harvested_round > 0.95 * stock_before:
             # Replenish lake to pre‑harvest stock before regrowth (norm requires replenishment if >70% caught)
             stock_after_harvest = stock_before
         # Apply regrowth after harvest (or after replenishment)
