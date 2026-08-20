@@ -34,43 +34,87 @@ class HarvestPhase(Phase):
         round_number = state["round_number"]
 
         stock_before = available_stock(runtime)
-        norm_cap = 0.30 * stock_before
         results = {}
-        policy_violations = []  # Track any cap violations for this round
-        # Ensure trip count tracking exists
+        # Ensure tracking structures exist
         runtime.setdefault('agent_trip_counts', {})
-        # Compute norm-imposed cap: 30% of current lake weight, but only for agents with ≥3 prior trips
-        # We'll compute per-agent later based on their trip count
+        runtime.setdefault('banned_agents', {})  # agent_id -> remaining banned trips
+        runtime.setdefault('trip_records', [])  # ledger of trips
+        runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
+        # Policy parameters
+        PER_TRIP_CAP_KG = 5
+        COMMUNITY_MAX_30D_KG = 60
+        # Compute remaining community capacity for this round (rolling 30 rounds)
+        recent_total = sum(runtime.get('recent_catch_kg', []))
+        community_remaining = max(0, COMMUNITY_MAX_30D_KG - recent_total)
         for agent_id in agents:
+            # Check ban status
+            bans_remaining = runtime['banned_agents'].get(agent_id, 0)
+            if bans_remaining > 0:
+                # Agent is banned this trip
+                runtime['banned_agents'][agent_id] = bans_remaining - 1
+                harvested = 0.0
+                excess = 0.0
+                # Record banned trip
+                runtime['trip_records'].append({
+                    "agent_id": agent_id,
+                    "round": round_number,
+                    "harvested_kg": harvested,
+                    "excess_kg": excess,
+                    "banned": True,
+                })
+                # No deposit or penalty for banned agents
+                results[agent_id] = {"effort": 0.0, "harvested_kg": harvested, "reasoning": "Banned for policy violation"}
+                continue
+
             cap = effort_cap(agent_id, config, fluents, runtime)
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
             effort = min(1.0, max(0.0, float(response["effort"])) )
-            harvested = catch_from_effort(effort, stock_before, config)
-            # Check eligibility: need ≥3 completed trips before this round
-            trips = runtime['agent_trip_counts'].get(agent_id, 0)
-            if trips < 3:
-                # Not eligible: force harvest to 0 and no deposit
-                harvested = 0.0
-                # No deposit or penalty for ineligible agents
-            else:
-                # Apply any effort cap from config
-                if cap is not None:
-                    harvested = min(harvested, cap)
-                # Apply policy cap (30% of lake weight) only if eligible
-                if harvested > norm_cap:
-                    excess = harvested - norm_cap
-                    policy_violations.append({
-                        "agent_id": agent_id,
-                        "excess_kg": excess,
-                    })
-                    harvested = norm_cap
-                    penalty = 0.10 * excess
-                    config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + penalty
-                # Deposit 5% of the (possibly reduced) harvest into community reserve
-                deposit = 0.05 * harvested
-                config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + deposit
+            # Base harvest from effort before any caps
+            base_harvest = catch_from_effort(effort, stock_before, config)
+
+            # Apply effort cap if present
+            if cap is not None:
+                base_harvest = min(base_harvest, cap)
+
+            # Enforce per‑trip policy cap (5 kg)
+            excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
+            if excess > 0:
+                # Contribute 10 % of excess to communal reserve
+                contribution = 0.10 * excess
+                config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + contribution
+                # Apply ban for next two trips
+                runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 2
+            harvested = min(base_harvest, PER_TRIP_CAP_KG)
+
+            # Enforce community 30‑day rolling cap
+            if community_remaining > 0:
+                allowed = min(harvested, community_remaining)
+                if allowed < harvested:
+                    # Withhold excess until next month (simply reduce harvest)
+                    harvested = allowed
+                # Update remaining for subsequent agents
+                community_remaining -= harvested
+
+            # Deposit 5 % of (possibly reduced) harvest into community reserve
+            deposit = 0.05 * harvested
+            config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + deposit
+
+            # Update tracking structures
+            runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
+            runtime['recent_catch_kg'].append(harvested)
+            if len(runtime['recent_catch_kg']) > 30:
+                runtime['recent_catch_kg'].pop(0)
+
+            # Record trip in ledger
+            runtime['trip_records'].append({
+                "agent_id": agent_id,
+                "round": round_number,
+                "harvested_kg": harvested,
+                "excess_kg": excess,
+                "banned": False,
+            })
 
             results[agent_id] = {
                 "effort": effort,
@@ -86,12 +130,7 @@ class HarvestPhase(Phase):
         # project's equivalent of their stop-the-simulation condition.
         stock_after_harvest = stock_before - sum(r["harvested_kg"] for r in results.values())
         # Log any policy violations for downstream phases or analysis
-        if policy_violations:
-            # Store violations in runtime for visibility
-            runtime.setdefault("policy_violations", []).append({
-                "round": round_number,
-                "violations": policy_violations,
-            })
+        # No longer tracking policy_violations variable – removed legacy handling
         # Apply regrowth after harvest
         stock_after_regrowth = apply_regrowth(stock_after_harvest, config)
 
