@@ -1,0 +1,3 @@
+Policy: Each fisher may take no more than 15 kg per trip; any excess must be returned to the lake.
+
+Operationalization: At the start of each trip, a fisher sets a 15 kg bag and records the weight. If the haul exceeds 15 kg, the extra is dumped back in the lake immediately. A designated lake keeper logs each haul and checks compliance. Non‑compliance results in a temporary fishing ban or deduction of a share from the fisher’s next haul. The community meets monthly to review the lake’s weight and adjust the 15 kg limit if needed.

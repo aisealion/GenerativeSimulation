@@ -361,6 +361,9 @@ def main():
     branch = ensure_run_branch()
 
     runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
+    # Ensure violations tracking exists
+    if "violations" not in runtime:
+        runtime["violations"] = {}
     fluents = json.loads((ROOT / "state" / "fluents.json").read_text())
     schedule = load_schedule()
 
