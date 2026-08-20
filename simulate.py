@@ -13,7 +13,7 @@ from call_log import log_call
 
 ROOT = Path(__file__).resolve().parent
 COLLAPSE_THRESHOLD_KG = 0
-DEFAULT_MAX_ROUNDS = 50
+DEFAULT_MAX_ROUNDS = 100
 NORM_IMPLEMENTER_TRACKED_PATHS = [
     "mechanisms",
     "phases",

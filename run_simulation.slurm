@@ -28,8 +28,10 @@
 #SBATCH --mem=32G                      # CPU RAM, not GPU VRAM (fixed by the partition above) —
                                         #   run a short test round first and check `seff
                                         #   <jobid>` to right-size this for real
-#SBATCH --time=08:00:00                # tune from an observed per-round duration x --max-rounds;
-                                        #   shorter requests queue faster on Aoraki (backfill)
+#SBATCH --time=16:00:00                # tune from an observed per-round duration x --max-rounds;
+                                        #   shorter requests queue faster on Aoraki (backfill) —
+                                        #   if this exceeds the partition's own MaxTime, sbatch
+                                        #   rejects the submission outright, so check that if so
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
 # No --account line: Aoraki gives every user a default account per-partition,
@@ -50,7 +52,7 @@ if ! nvidia-smi >/dev/null 2>&1; then
 fi
 
 export OLLAMA_MODELS=/projects/sciences/computing/cranefield_lab/magha601/models
-export MAX_ROUNDS="${MAX_ROUNDS:-20}"
+export MAX_ROUNDS="${MAX_ROUNDS:-100}"
 
 # Direct apptainer invocation, matching the (uncommented, i.e. recommended)
 # form in Otago's own ollama-batch-example.slurm — this is what ollama-env.sh

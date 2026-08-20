@@ -58,50 +58,49 @@ export CODEGRAPH_NO_DAEMON=1
 # Without it, opencode.jsonc's codegraph MCP server finds no index and
 # exposes no tools at all, and the norm-implementer silently falls back to
 # plain Read/Grep instead of codegraph_explore — no error, just quietly
-# worse exploration. Build it once, then keep it current on every later run.
+# worse exploration.
+#
+# Always a full clean init, never `codegraph sync` — this is the actual
+# root cause finally caught red-handed on a real run: with .codegraph/
+# already present (from an earlier manual build), the old `[ -d .codegraph ]`
+# check picked `sync`, and *that* is what hung at 120s — "even running
+# first, before any Ollama/model work" per its own error message, which
+# ruled out every other theory being tried at the time. Every standalone
+# reproduction that succeeded (login node, an actual GPU compute node,
+# interactive and non-interactive) was `init` after an explicit `rm -rf
+# .codegraph` — `sync` itself was never actually tested standalone, because
+# every manual test deliberately started from a clean slate. codegraph's own
+# docs describe `sync` as normally triggered *by the file watcher*, not run
+# directly — it may simply not be designed to be invoked as a one-shot CLI
+# command the way this script was using it. This repo is 19 files and a
+# full `init` takes low single digits of seconds even under real load, so
+# there's no real cost to always doing a full rebuild instead of trying to
+# use the (apparently broken, in this context) incremental path.
 #
 # unlock first: codegraph has its own documented failure mode of "a stale
 # lock file blocking indexing" (codegraph unlock exists specifically for
 # this) — a real risk here given how many times this job has been killed
-# and resubmitted while debugging the earlier failures above. Safe to run
-# even if nothing is actually locked.
+# and resubmitted while debugging this. Safe to run even if nothing is
+# actually locked.
 codegraph --no-color unlock . 2>&1 || true
+rm -rf .codegraph
 
-echo "Making sure this checkout has a CodeGraph index..."
-if [ -d .codegraph ]; then
-  CODEGRAPH_CMD="sync"
-else
-  CODEGRAPH_CMD="init"
-fi
+echo "Building a fresh CodeGraph index..."
 # Wrapped in a hard timeout: if it's still stuck for some other reason, fail
 # loudly and say so, rather than silently eating the rest of the job's wall
-# time. codegraph init/sync on this repo's ~19 files took low single-digit
+# time. codegraph init on this repo's ~19 files took low single-digit
 # seconds in every direct reproduction so far (worst case observed: 36s,
 # under real load on an active GPU compute node), so 120s is a generous
 # margin, not a tight one.
-if ! timeout 120 codegraph --no-color "$CODEGRAPH_CMD" .; then
-  echo "codegraph $CODEGRAPH_CMD didn't finish within 120s, even running first," >&2
-  echo "before any Ollama/model work. Every standalone reproduction of this" >&2
-  echo "exact command has succeeded (see the comment above) — if this still" >&2
-  echo "fails, the cause is something not yet isolated. Continuing without a" >&2
-  echo "CodeGraph index: the norm-implementer will fall back to plain" >&2
-  echo "Read/Grep, which still works, just with worse exploration." >&2
-
-  # A timeout means whatever .codegraph/ this attempt left behind never
-  # finished, so it can't be trusted — but without cleaning it up, every
-  # later run's `[ -d .codegraph ]` check above sees it, assumes it's a
-  # valid index, and picks "sync" instead of "init" forever. codegraph
-  # itself then reports "not initialized" and hangs the same way again:
-  # a permanent stuck loop (this is exactly what's been observed across
-  # every Aoraki run so far, always choosing sync, never a fresh init).
-  # Remove it so the next run gets a genuine clean init attempt instead
-  # of repeating this same failure indefinitely.
-  if [ -d .codegraph ]; then
-    echo "Removing the incomplete .codegraph/ from this failed ${CODEGRAPH_CMD}" >&2
-    echo "so the next run retries with a clean init instead of getting stuck" >&2
-    echo "on 'sync' against a directory that was never actually finished." >&2
-    rm -rf .codegraph
-  fi
+if ! timeout 120 codegraph --no-color init .; then
+  echo "codegraph init didn't finish within 120s, even running first, before" >&2
+  echo "any Ollama/model work, and even as a full init rather than sync (the" >&2
+  echo "specific thing that was hanging before — see the comment above). If" >&2
+  echo "this is still failing, the cause is something not yet isolated by any" >&2
+  echo "reproduction tried so far. Continuing without a CodeGraph index: the" >&2
+  echo "norm-implementer will fall back to plain Read/Grep, which still works," >&2
+  echo "just with worse exploration." >&2
+  rm -rf .codegraph
 fi
 
 echo "Inside the Ollama container environment, OLLAMA_HOST=${OLLAMA_HOST:-<not set>}"
@@ -286,4 +285,4 @@ export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
 # only, no --system-site-packages) has everything the run needs; the
 # opencode subprocess call for the norm-implementer is an external binary,
 # unaffected by which Python interpreter launched it.
-"$FISHERY_VENV/bin/python3" simulate.py --max-rounds "${MAX_ROUNDS:-20}"
+"$FISHERY_VENV/bin/python3" simulate.py --max-rounds "${MAX_ROUNDS:-100}"

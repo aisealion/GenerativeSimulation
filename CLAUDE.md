@@ -70,7 +70,7 @@ harvest, then propose + vote + implement, then next round's harvest picks
 up whatever the norm-implementer just changed. Resumes from
 `state/runtime.json`'s current round, not from round 1 — safe to re-run
 after a norm-implementer change. Stops when the lake collapses
-(`stock_kg_after_regrowth <= 0`) or after `--max-rounds` (default 50,
+(`stock_kg_after_regrowth <= 0`) or after `--max-rounds` (default 100,
 override with `python3 simulate.py --max-rounds N`).
 
 Since regrowth is now logistic (see above) rather than a flat add, and
@@ -78,46 +78,29 @@ harvest is no longer rationed to the available stock, permanent collapse
 is a real, reachable outcome of ordinary play now — not something that
 previously required a norm-implementer structural change to trigger.
 
-**CodeGraph on Aoraki**: every observed run so far has hit "CodeGraph not
-initialized" followed by `codegraph sync` timing out at 120s inside
-`hpc_ollama_entrypoint.sh` — non-fatal (the norm-implementer falls back to
-plain Read/Grep), but it's never actually built a working index.
+**CodeGraph on Aoraki — root-caused**: `codegraph sync` was the actual
+problem, not `init`. Several earlier theories (restricted network, NFS+
+SQLite locking, a daemon/file-watcher issue, non-interactive/no-TTY
+invocation, the apptainer container itself) were each individually ruled
+out by direct reproduction — `codegraph init .` reliably succeeded in
+every standalone test (login node, an actual GPU compute node via `srun`,
+interactive and non-interactive `apptainer run`, exact env vars matched),
+in low single-digit seconds even under real load. What every one of those
+tests had in common, without realizing it: each started from `rm -rf
+.codegraph`, so none of them ever actually exercised `sync` — only
+`init`. The real job's own `[ -d .codegraph ] → sync` branch was silently
+choosing the one path never tested, and a real run's log finally caught
+it directly: `"codegraph sync didn't finish within 120s, even running
+first, before any Ollama/model work"`. CodeGraph's own docs describe
+`sync` as normally triggered *by the file watcher*, not run directly —
+plausibly it just isn't designed to be invoked as a one-shot CLI command
+the way this script was using it.
 
-An earlier guess here was "the compute node has no internet" — **wrong**,
-ruled out by checking CodeGraph's own docs directly: `init`/`sync` are
-purely local static analysis (embedded Rust kernel, local SQLite DB at
-`.codegraph/codegraph.db`), no API calls or credentials beyond an already-
-disabled telemetry ping. A 120s hang on this repo's ~15 files (which
-indexes in under a second locally) with no network involved points
-somewhere else. Two real candidates: (1) SQLite's file-locking is a
-well-documented source of indefinite hangs on **NFS-mounted**
-filesystems, which Aoraki's home/project dirs almost certainly are —
-check with `df -T $SLURM_SUBMIT_DIR` or `mount | grep`; (2) `sync` is
-described as driven by "the file watcher", implying a background daemon
-that may not behave correctly inside an apptainer container —
-`hpc_ollama_entrypoint.sh` now sets `CODEGRAPH_NO_DAEMON=1` to rule this
-one out. Neither is confirmed yet.
-
-`hpc_ollama_entrypoint.sh` also cleans up a timed-out attempt's
-`.codegraph/` so the *next* run at least retries with a genuine `init`
-instead of getting stuck choosing `sync` against a directory that was
-never actually finished — but that alone doesn't fix whichever of the
-above is the real cause. If `CODEGRAPH_NO_DAEMON` doesn't resolve it and
-(1) is confirmed, try pointing `.codegraph/` at local (non-NFS) scratch
-storage instead, e.g. `codegraph init --db-path /tmp/codegraph-$SLURM_JOB_ID.db .`
-if the CLI supports an override (check `codegraph init --help` on Aoraki
-— unconfirmed whether this flag exists). To build it once from the
-**login node** instead of inside a job (isolates whether the apptainer
-container itself is part of the problem):
-```
-cd /home/magha601/code/GenerativeSimulation
-codegraph unlock .
-rm -rf .codegraph
-codegraph init .
-```
-`.codegraph/` is gitignored and untouched by branch/checkout changes, so
-a login-node-built index persists for every future job run on that same
-checkout.
+Fix: `hpc_ollama_entrypoint.sh` no longer branches on whether
+`.codegraph/` already exists — it always `rm -rf .codegraph` then a full
+`codegraph init .`, every run, `sync` never called at all. This repo is
+19 files; a full rebuild costs low single-digit seconds, so there's no
+real cost to never using the incremental path.
 
 ## Non-obvious file ownership (not covered by the norm-implementer's own
 ## repo-shape notes, since these were added after that agent was defined)
