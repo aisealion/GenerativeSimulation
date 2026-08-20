@@ -34,10 +34,13 @@ class HarvestPhase(Phase):
         round_number = state["round_number"]
 
         stock_before = available_stock(runtime)
+        norm_cap = 0.30 * stock_before
         results = {}
         policy_violations = []  # Track any cap violations for this round
-        # Compute norm-imposed cap: 30% of current lake weight
-        norm_cap = 0.30 * stock_before
+        # Ensure trip count tracking exists
+        runtime.setdefault('agent_trip_counts', {})
+        # Compute norm-imposed cap: 30% of current lake weight, but only for agents with ≥3 prior trips
+        # We'll compute per-agent later based on their trip count
         for agent_id in agents:
             cap = effort_cap(agent_id, config, fluents, runtime)
             response = call_fisher_agent(
@@ -45,25 +48,30 @@ class HarvestPhase(Phase):
             )
             effort = min(1.0, max(0.0, float(response["effort"])) )
             harvested = catch_from_effort(effort, stock_before, config)
-            # Apply any effort cap from config
-            if cap is not None:
-                harvested = min(harvested, cap)
-            # Apply policy cap (30% of lake weight)
-            if harvested > norm_cap:
-                excess = harvested - norm_cap
-                # Record violation
-                policy_violations.append({
-                    "agent_id": agent_id,
-                    "excess_kg": excess,
-                })
-                # Reduce harvest to allowed cap
-                harvested = norm_cap
-                # Penalty: add 10% of excess to community reserve
-                penalty = 0.10 * excess
-                config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + penalty
-            # Deposit 5% of the (possibly reduced) harvest into community reserve
-            deposit = 0.05 * harvested
-            config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + deposit
+            # Check eligibility: need ≥3 completed trips before this round
+            trips = runtime['agent_trip_counts'].get(agent_id, 0)
+            if trips < 3:
+                # Not eligible: force harvest to 0 and no deposit
+                harvested = 0.0
+                # No deposit or penalty for ineligible agents
+            else:
+                # Apply any effort cap from config
+                if cap is not None:
+                    harvested = min(harvested, cap)
+                # Apply policy cap (30% of lake weight) only if eligible
+                if harvested > norm_cap:
+                    excess = harvested - norm_cap
+                    policy_violations.append({
+                        "agent_id": agent_id,
+                        "excess_kg": excess,
+                    })
+                    harvested = norm_cap
+                    penalty = 0.10 * excess
+                    config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + penalty
+                # Deposit 5% of the (possibly reduced) harvest into community reserve
+                deposit = 0.05 * harvested
+                config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + deposit
+
             results[agent_id] = {
                 "effort": effort,
                 "harvested_kg": harvested,
