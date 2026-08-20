@@ -2,7 +2,7 @@
 # Writes: state/runtime.json (today's catch).
 
 from mechanisms.effort import catch_from_effort, effort_cap
-from mechanisms.stock_check import available_stock, apply_regrowth
+from mechanisms.penalty import apply_penalty
 from llm_agents import call_fisher_agent
 from phases.base import Phase
 
@@ -41,8 +41,8 @@ class HarvestPhase(Phase):
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
-        # Max per trip is 80% of current lake stock (norm)
-        PER_TRIP_CAP_KG = 0.80 * stock_before
+        # Max per trip is 90% of current lake stock (norm)
+        PER_TRIP_CAP_KG = 0.90 * stock_before
         # No rolling community cap; total round cap handled after all agents harvest
 
         for agent_id in agents:
@@ -81,11 +81,12 @@ class HarvestPhase(Phase):
                 excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
                 harvested = min(base_harvest, PER_TRIP_CAP_KG)
 
-                # No penalty for excess; excess is simply not harvested (returned to lake)
-                # (excess is ignored; no additional action needed)
+                # Apply penalty for excess catch (skip next trip)
+                if excess > 0:
+                    apply_penalty(agent_id, 1, config, fluents, runtime)
 
-                # Deposit 1 % of (possibly reduced) harvest into maintenance fund (norm)
-                maintenance_deposit = 0.01 * harvested
+                # Deposit 0.05 % of (possibly reduced) harvest into maintenance fund (norm)
+                maintenance_deposit = 0.0005 * harvested
                 config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
 
             # Update tracking structures
