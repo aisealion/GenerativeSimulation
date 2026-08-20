@@ -40,12 +40,11 @@ class HarvestPhase(Phase):
         runtime.setdefault('banned_agents', {})  # agent_id -> remaining banned trips
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
-        # Policy parameters
-        PER_TRIP_CAP_KG = 5
-        COMMUNITY_MAX_30D_KG = 60
-        # Compute remaining community capacity for this round (rolling 30 rounds)
-        recent_total = sum(runtime.get('recent_catch_kg', []))
-        community_remaining = max(0, COMMUNITY_MAX_30D_KG - recent_total)
+        # Policy parameters based on norm.txt
+        # Max per trip is 45% of current lake stock
+        PER_TRIP_CAP_KG = 0.45 * stock_before
+        # No rolling community cap; total round cap handled after all agents harvest
+
         for agent_id in agents:
             # Check ban status
             bans_remaining = runtime['banned_agents'].get(agent_id, 0)
@@ -78,7 +77,7 @@ class HarvestPhase(Phase):
             if cap is not None:
                 base_harvest = min(base_harvest, cap)
 
-            # Enforce per‑trip policy cap (5 kg)
+        # Enforce per‑trip policy cap (45% of lake stock)
             excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
             if excess > 0:
                 # Contribute 10 % of excess to communal reserve
@@ -88,18 +87,11 @@ class HarvestPhase(Phase):
                 runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 2
             harvested = min(base_harvest, PER_TRIP_CAP_KG)
 
-            # Enforce community 30‑day rolling cap
-            if community_remaining > 0:
-                allowed = min(harvested, community_remaining)
-                if allowed < harvested:
-                    # Withhold excess until next month (simply reduce harvest)
-                    harvested = allowed
-                # Update remaining for subsequent agents
-                community_remaining -= harvested
+        # No community rolling cap; enforce round‑level lake protection later
 
-            # Deposit 5 % of (possibly reduced) harvest into community reserve
-            deposit = 0.05 * harvested
-            config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + deposit
+            # Deposit 1 % of (possibly reduced) harvest into maintenance fund
+            maintenance_deposit = 0.01 * harvested
+            config["maintenance_fund_kg"] = config.get("maintenance_fund_kg", 0) + maintenance_deposit
 
             # Update tracking structures
             runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
@@ -123,15 +115,12 @@ class HarvestPhase(Phase):
             }
 
 
-        # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
-        # which subtracts each agent's independently-computed catch (all against the
-        # same pre-harvest stock) directly, letting the stock go negative if
-        # oversubscribed. The existing collapse check below (stock <= 0) is this
-        # project's equivalent of their stop-the-simulation condition.
-        stock_after_harvest = stock_before - sum(r["harvested_kg"] for r in results.values())
-        # Log any policy violations for downstream phases or analysis
-        # No longer tracking policy_violations variable – removed legacy handling
-        # Apply regrowth after harvest
+        # After all agents have harvested, enforce round‑level lake protection per norm
+        total_harvested_round = sum(r["harvested_kg"] for r in results.values())
+        if total_harvested_round > 0.70 * stock_before:
+            # Replenish lake to pre‑harvest stock before regrowth
+            stock_after_harvest = stock_before
+        # Apply regrowth after harvest (or after replenishment)
         stock_after_regrowth = apply_regrowth(stock_after_harvest, config)
 
         round_record = {
