@@ -13,6 +13,7 @@ from call_log import log_call
 
 ROOT = Path(__file__).resolve().parent
 COLLAPSE_THRESHOLD_KG = 0
+RESERVE_THRESHOLD_KG = 120  # lake must retain at least this many kg; fishing suspended below
 DEFAULT_MAX_ROUNDS = 100
 NORM_IMPLEMENTER_TRACKED_PATHS = [
     "mechanisms",
@@ -287,12 +288,17 @@ def run_cycle(round_number):
     """Run every schedule.json phase gated on for this round, in file order.
     Skips phases already recorded for this round (resuming after a crash
     mid-round) instead of re-running or skipping past them. Returns False
-    if the lake collapsed this round (stop the simulation)."""
+    if the lake collapses (stock zero) and continues otherwise."""
     print(f"\n=== Round {round_number} ===")
     reload_project_modules()
     state = load_state(round_number)
     schedule = load_schedule()
     already_ran = {r["phase"] for r in state["runtime"]["rounds"] if r["round"] == round_number}
+
+    # Determine if fishing should be suspended due to low lake reserve
+    fishing_suspended = state["runtime"]["stock_kg"] < RESERVE_THRESHOLD_KG
+    if fishing_suspended:
+        print(f"Lake reserve below {RESERVE_THRESHOLD_KG}kg — fishing will be suspended this round.")
 
     for phase_name, gate in schedule.items():
         if phase_name in already_ran:
@@ -300,6 +306,11 @@ def run_cycle(round_number):
             continue
         if not evaluate_gate(gate, state["fluents"], round_number):
             print(f"--- {phase_name}: gated off this round ---")
+            continue
+
+        # Skip harvest phase if fishing is suspended
+        if phase_name == "harvest" and fishing_suspended:
+            print("--- harvest: fishing suspended due to low lake reserve ---")
             continue
 
         print(f"\n--- Round {round_number}: {phase_name} ---")
@@ -310,7 +321,8 @@ def run_cycle(round_number):
         print(json.dumps(record, indent=2))
         write_memory_episodes(phase_module.PHASE, state, record, round_number)
 
-        if state["runtime"]["stock_kg"] <= COLLAPSE_THRESHOLD_KG:
+        # Collapse condition now based on stock hitting zero
+        if state["runtime"]["stock_kg"] <= 0:
             print(
                 f"\nLake has collapsed at round {round_number} "
                 f"(stock_kg={state['runtime']['stock_kg']}). Stopping."
