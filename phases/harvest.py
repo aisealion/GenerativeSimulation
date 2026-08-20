@@ -35,20 +35,41 @@ class HarvestPhase(Phase):
 
         stock_before = available_stock(runtime)
         results = {}
+        policy_violations = []  # Track any cap violations for this round
+        # Compute norm-imposed cap: 30% of current lake weight
+        norm_cap = 0.30 * stock_before
         for agent_id in agents:
             cap = effort_cap(agent_id, config, fluents, runtime)
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
-            effort = min(1.0, max(0.0, float(response["effort"])))
+            effort = min(1.0, max(0.0, float(response["effort"])) )
             harvested = catch_from_effort(effort, stock_before, config)
+            # Apply any effort cap from config
             if cap is not None:
                 harvested = min(harvested, cap)
+            # Apply policy cap (30% of lake weight)
+            if harvested > norm_cap:
+                excess = harvested - norm_cap
+                # Record violation
+                policy_violations.append({
+                    "agent_id": agent_id,
+                    "excess_kg": excess,
+                })
+                # Reduce harvest to allowed cap
+                harvested = norm_cap
+                # Penalty: add 10% of excess to community reserve
+                penalty = 0.10 * excess
+                config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + penalty
+            # Deposit 5% of the (possibly reduced) harvest into community reserve
+            deposit = 0.05 * harvested
+            config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + deposit
             results[agent_id] = {
                 "effort": effort,
                 "harvested_kg": harvested,
                 "reasoning": response.get("reasoning", ""),
             }
+
 
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the
@@ -56,6 +77,14 @@ class HarvestPhase(Phase):
         # oversubscribed. The existing collapse check below (stock <= 0) is this
         # project's equivalent of their stop-the-simulation condition.
         stock_after_harvest = stock_before - sum(r["harvested_kg"] for r in results.values())
+        # Log any policy violations for downstream phases or analysis
+        if policy_violations:
+            # Store violations in runtime for visibility
+            runtime.setdefault("policy_violations", []).append({
+                "round": round_number,
+                "violations": policy_violations,
+            })
+        # Apply regrowth after harvest
         stock_after_regrowth = apply_regrowth(stock_after_harvest, config)
 
         round_record = {
