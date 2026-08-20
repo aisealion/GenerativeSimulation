@@ -99,8 +99,14 @@ def run_norm_implementer(round_number):
         cmd += ["--model", model]
     cmd.append(message)
 
+    # Raised alongside the norm-implementer's own `steps: 500` (was 60,
+    # .opencode/agent/norm-implementer.md) — a genuinely thorough run using
+    # that much bigger budget could now take longer than the old 900s
+    # (15min) ceiling, which would just cut it off here instead, making the
+    # step increase pointless. Local models only cost wall time, not money,
+    # so a generous ceiling is fine; still bounded, not unbounded.
     start = time.monotonic()
-    result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=900)
+    result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=3600)
     duration_s = time.monotonic() - start
 
     log_call(
