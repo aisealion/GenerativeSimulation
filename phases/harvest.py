@@ -1,7 +1,8 @@
 # Reads: state/config.json (effort caps, catchability, capacity), state/fluents.json (role holders).
 # Writes: state/runtime.json (today's catch).
 
-from mechanisms.effort import catch_from_effort, effort_cap
+from mechanisms.effort import catch_from_effort
+import datetime
 from mechanisms.penalty import apply_penalty
 from llm_agents import call_fisher_agent
 from phases.base import Phase
@@ -11,17 +12,16 @@ class HarvestPhase(Phase):
     name = "harvest"
 
     def prompt_fields(self, state, agent_id):
+        # Provide stock info and per‑trip cap message for the fisher persona.
         config = state["config"]
         fluents = state["fluents"]
         runtime = state["runtime"]
-        cap = effort_cap(agent_id, config, fluents, runtime)
-        cap_line = (
-            f" You currently have an agreed limit of {cap:.0f}kg for this trip."
-            if cap is not None
-            else ""
-        )
+        # Compute per‑trip cap (2 % of stock or 2 kg, whichever is lower)
+        stock = available_stock(runtime)
+        per_trip_cap = min(0.02 * stock, 2.0)
+        cap_line = f" You currently have a per‑trip limit of {per_trip_cap:.1f}kg (2 % of stock or 2 kg)."
         return {
-            "stock_kg": available_stock(runtime),
+            "stock_kg": stock,
             "carrying_capacity_kg": config.get("carrying_capacity_kg", 0),
             "cap_line": cap_line,
         }
@@ -78,21 +78,74 @@ class HarvestPhase(Phase):
                 results[agent_id] = {"effort": 0.0, "harvested_kg": harvested, "reasoning": "Banned for policy violation"}
                 continue
 
-            cap = effort_cap(agent_id, config, fluents, runtime)
+            # Compute per‑trip cap (2 % of current stock or 2 kg, whichever is lower)
+            per_trip_cap = min(0.02 * stock_before, 2.0)
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
             effort = min(1.0, max(0.0, float(response["effort"])) )
-            # Base harvest from effort before any caps
+            # Base harvest from effort before caps
             base_harvest = catch_from_effort(effort, stock_before, config)
 
-            # Apply effort cap if present
-            if cap is not None:
-                base_harvest = min(base_harvest, cap)
+            # Apply per‑trip cap
+            if base_harvest > per_trip_cap:
+                excess_trip = base_harvest - per_trip_cap
+                harvested = per_trip_cap
+            else:
+                excess_trip = 0.0
+                harvested = base_harvest
 
-            # New norm: keep all fish; apply donation if caught >4kg
-            harvested = base_harvest
-            # donation handled later
+            # Apply 25 % restocking contribution from harvested amount
+            donation = 0.25 * harvested
+            kept = harvested - donation
+
+            # Track monthly catch and enforce monthly cap (3 kg total kept per fisher per month)
+            now_month = datetime.datetime.now().month
+            # Initialize month tracking structures if needed
+            runtime.setdefault('monthly_catch', {})
+            runtime.setdefault('monthly_month', now_month)
+            if runtime['monthly_month'] != now_month:
+                # New month: reset monthly catches and warnings
+                runtime['monthly_catch'] = {}
+                runtime['monthly_month'] = now_month
+                runtime.setdefault('warnings', {})
+                runtime['warnings'] = {}
+                runtime.setdefault('banned_months', {})
+                runtime['banned_months'] = {}
+            month_total = runtime['monthly_catch'].get(agent_id, 0.0) + kept
+            if month_total > 3.0:
+                excess_month = month_total - 3.0
+                # Apply penalty: 10 % of excess goes to fund, issue warning
+                penalty_fund = 0.10 * excess_month
+                runtime.setdefault('restocking_fund_kg', 0.0)
+                runtime['restocking_fund_kg'] += penalty_fund
+                # Increment warnings
+                runtime.setdefault('warnings', {})
+                runtime['warnings'][agent_id] = runtime['warnings'].get(agent_id, 0) + 1
+                if runtime['warnings'][agent_id] >= 2:
+                    # Ban for next month
+                    runtime.setdefault('banned_months', {})
+                    runtime['banned_months'][agent_id] = now_month + 1
+                # Cap kept to 3 kg
+                kept = 3.0
+                month_total = 3.0
+            else:
+                excess_month = 0.0
+                # No penalty for this trip
+                runtime.setdefault('restocking_fund_kg', 0.0)
+                runtime['restocking_fund_kg'] += donation
+
+            # Update monthly catch record
+            runtime['monthly_catch'][agent_id] = month_total
+
+            # Update last trip round after successful harvest
+            runtime['last_trip_round'][agent_id] = round_number
+            runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
+            runtime['recent_catch_kg'].append(kept)
+            if len(runtime['recent_catch_kg']) > 30:
+                runtime['recent_catch_kg'].pop(0)
+
+            excess = excess_trip + excess_month
 
 
 
@@ -105,34 +158,9 @@ class HarvestPhase(Phase):
 
             excess = 0.0  # already accounted; keep variable for ledger
 
-        # Handle donation and penalty per agent
-        donation = 0.0
-        if harvested > 5.0:
-            donation = 0.05
-            harvested -= donation
-        # Apply penalty factor (if any)
-        penalty_factors = runtime.get('penalty_factors', {})
-        factor = penalty_factors.get(agent_id, 1.0)
-        harvested = harvested * factor
-        # Reset penalty after applied
-        if agent_id in penalty_factors:
-            del runtime['penalty_factors'][agent_id]
-        # Record trip details
-        runtime['trip_records'].append({
-            "agent_id": agent_id,
-            "round": round_number,
-            "harvested_kg": harvested,
-            "donation": donation,
-            "excess_kg": excess,
-            "banned": False,
-        })
-        # Store results for later redistribution
-        results[agent_id] = {
-            "effort": effort,
-            "harvested_kg": harvested,
-            "donation": donation,
-            "reasoning": response.get("reasoning", ""),
-        }
+        # Donation and penalty have been applied per‑agent inside the loop above.
+        # At this point, `results` already contains each fisher's `kept` amount under the key `harvested_kg`.
+        # No further post‑processing is needed here.
 
 
         # After processing all agents, handle pool redistribution to zero‑catchers
