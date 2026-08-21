@@ -30,16 +30,13 @@ class HarvestPhase(Phase):
 
         stock_before = available_stock(runtime)
         results = {}
-        # Ensure tracking structures exist
+        # Initialize tracking structures if not present
         runtime.setdefault('agent_trip_counts', {})
-        runtime.setdefault('agent_trip_counts', {})
-        runtime.setdefault('trip_records', [])  # ledger of trips
-        runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
-        # Track last trip round for each agent to enforce 48‑hour rest (skip if they fished previous round)
+        runtime.setdefault('trip_records', [])  # optional ledger of trips (logging optional per norm)
+        runtime.setdefault('recent_catch_kg', [])  # keep last 30 rounds total catch
         runtime.setdefault('last_trip_round', {})
-                # New norm: no per‑trip cap; catch up to 100% of current lake weight per fisher
-                # (per‑trip cap removed – harvest directly from effort)
-        # No community cap enforced; reserve must stay >= 90 kg (handled elsewhere)
+        # No per‑trip cap: each fisher may harvest up to 100% of current lake stock.
+        # No community deposit or penalty logic needed for this norm.
 
         for agent_id in agents:
             # Check rest requirement: if fished previous round, treat as ban for this round
@@ -98,18 +95,11 @@ class HarvestPhase(Phase):
             runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
             results[agent_id] = {"effort": effort, "harvested_kg": harvested, "reasoning": response.get("reasoning", "")}
 
-            excess = excess_trip + excess_month
+            # No excess tracking needed under new norm
 
 
 
-            # Update last trip round after successful harvest
-            runtime['last_trip_round'][agent_id] = round_number
-            runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
-            runtime['recent_catch_kg'].append(harvested)
-            if len(runtime['recent_catch_kg']) > 30:
-                runtime['recent_catch_kg'].pop(0)
 
-            excess = 0.0  # already accounted; keep variable for ledger
 
         # Donation and penalty have been applied per‑agent inside the loop above.
         # At this point, `results` already contains each fisher's `kept` amount under the key `harvested_kg`.
