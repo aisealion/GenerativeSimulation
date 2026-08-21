@@ -88,9 +88,24 @@ class HarvestPhase(Phase):
                 )
                 effort = min(1.0, max(0.0, float(response["effort"])) )
                 base_harvest = catch_from_effort(effort, stock_before, config)
-                # Apply per‑trip cap of 0.7 kg as defined in norm.txt
-                per_trip_cap = 0.7
-                harvested = min(base_harvest, per_trip_cap, stock_before)
+                # Apply per‑trip cap of 4 kg as defined in norm.txt
+                per_trip_cap = 4.0
+                # Enforce trip limit: no more than 4 trips in rolling 30‑day window
+                recent_trips = sum(1 for rec in runtime['trip_records'] if rec['agent_id'] == agent_id and rec['round'] >= round_number - 29)
+                if recent_trips >= 4:
+                    # Violation: trip limit exceeded – no harvest and fine (10% of attempted catch) returned to lake
+                    fine = 0.10 * base_harvest
+                    harvested = 0.0
+                    # Return fine amount to lake stock via adjusting stock_before later
+                    runtime.setdefault('pending_fine_return', 0.0)
+                    runtime['pending_fine_return'] += fine
+                else:
+                    harvested = min(base_harvest, per_trip_cap, stock_before)
+                # Excess contribution: if harvested >3 kg, add 5% of excess to communal reserve
+                if harvested > 3.0:
+                    excess = harvested - 3.0
+                    contribution = 0.05 * excess
+                    config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + contribution
                 # Deposit 60 % of caught fish into communal reserve
                 deposit = 0.6 * harvested
                 config["community_reserve_kg"] = config.get("community_reserve_kg", 0) + deposit
@@ -106,9 +121,18 @@ class HarvestPhase(Phase):
                 runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
                 results[agent_id] = {"effort": effort, "harvested_kg": harvested, "reasoning": response.get("reasoning", "")}
 
-            total_harvested_round = sum(r["harvested_kg"] for r in results.values())
-            # Reduce lake stock by total harvested (cannot go negative)
-            stock_after_harvest = max(stock_before - total_harvested_round, 0)
+        # Determine total harvested this round
+        total_harvested_round = sum(r["harvested_kg"] for r in results.values())
+        # Community 30‑day harvest limit (40 kg)
+        recent_community_harvest = sum(rec["harvested_kg"] for rec in runtime['trip_records'] if rec["round"] >= round_number - 29)
+        if recent_community_harvest > 40.0:
+            # Exceeds cap: cancel this round's harvests
+            for aid in results:
+                results[aid]["harvested_kg"] = 0.0
+                results[aid]["reasoning"] = "Community harvest cap exceeded; no harvest allowed"
+            total_harvested_round = 0.0
+        # Compute stock after harvest (cannot go negative)
+        stock_after_harvest = max(stock_before - total_harvested_round, 0)
 
         # Apply regrowth after harvest (or after any replenishment)
         stock_after_regrowth = apply_regrowth(stock_after_harvest, config)
