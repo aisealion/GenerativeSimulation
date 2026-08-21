@@ -30,7 +30,45 @@ class HarvestPhase(Phase):
         round_number = state["round_number"]
 
         import datetime
+        results = {}
         stock_before = available_stock(runtime)
+        # Enforce norm: pause fishing if stock below minimum
+        if stock_before < 30:
+            # Begin pause until stock recovers to 120 kg
+            runtime['fishing_paused'] = True
+        if runtime.get('fishing_paused') and stock_before < 120:
+            # Continue pause
+            for agent_id in agents:
+                runtime['trip_records'].append({
+                    "agent_id": agent_id,
+                    "round": round_number,
+                    "harvested_kg": 0.0,
+                    "excess_kg": 0.0,
+                    "banned": False,
+                })
+                results[agent_id] = {"effort": 0.0, "harvested_kg": 0.0, "reasoning": "Fishing paused due to low stock"}
+                runtime['reported_this_round'][agent_id] = True
+            # Compute totals (all zero) and return round record
+            total_harvested_round = 0.0
+            stock_after_harvest = stock_before
+            stock_after_regrowth = stock_before
+            round_record = {
+                "round": round_number,
+                "phase": "harvest",
+                "stock_kg_before": stock_before,
+                "reserve_kg_before": 0,
+                "agents": {agent_id: {"effort": 0.0, "harvested_kg": 0.0, "reasoning": "Fishing paused (stock <30 kg)"} for agent_id in agents},
+                "stock_kg_after_harvest": stock_after_harvest,
+                "stock_kg_after_regrowth": stock_after_regrowth,
+                "reserve_kg_after": 0,
+            }
+            runtime["round"] = round_number
+            runtime["stock_kg"] = stock_after_regrowth
+            runtime["rounds"].append(round_record)
+            # If stock recovered, clear pause flag
+            if stock_before >= 120:
+                runtime.pop('fishing_paused', None)
+            return round_record
         # Close fishing during May (5) and June (6)
         current_month = datetime.datetime.now().month
         if current_month in (5, 6):
@@ -182,6 +220,12 @@ class HarvestPhase(Phase):
                 # Deposit 90% of harvested catch into communal fund, fisher keeps 10%
                 deposit = harvested * 0.9
                 kept = harvested * 0.1
+                # Enforce per‑fisher daily cap (3,000,000 kg)
+                if kept > 3_000_000:
+                    excess_fisher = kept - 3_000_000
+                    kept = 3_000_000
+                    # Return excess to lake via maintenance fund (or could add to stock later)
+                    runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + excess_fisher
                 runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + deposit
                 # Record the kept amount as the actual harvested for stock accounting
                 runtime['trip_records'].append({
@@ -235,7 +279,30 @@ class HarvestPhase(Phase):
             pass
         # Determine total harvested this round
         total_harvested_round = sum(r["harvested_kg"] for r in results.values())
-        # Community harvest cap removed per norm (no communal pool)
+        # Enforce community daily cap (17,000,000 kg). If exceeded, proportionally reduce each fisher's kept catch and return excess to lake (maintenance fund).
+        community_cap = 17_000_000
+        if total_harvested_round > community_cap:
+            excess_total = total_harvested_round - community_cap
+            # Proportionally reduce each fisher's kept harvest based on their contribution.
+            for agent_id, entry in results.items():
+                original = entry["harvested_kg"]
+                if original <= 0:
+                    continue
+                reduction = (original / total_harvested_round) * excess_total
+                new_harvest = max(original - reduction, 0)
+                # Update result
+                entry["harvested_kg"] = new_harvest
+                # Adjust runtime trip_records for this agent (find last record and modify harvested_kg)
+                for rec in reversed(runtime['trip_records']):
+                    if rec['agent_id'] == agent_id and rec['round'] == round_number:
+                        rec['harvested_kg'] = new_harvest
+                        break
+                # Add reduction to maintenance fund (or could be returned to lake)
+                runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + reduction
+            # Recompute total after adjustments
+            total_harvested_round = sum(r["harvested_kg"] for r in results.values())
+        # Remove community cap enforcement – per‑trip cap already applied above
+        # Community total cap removed per norm (no communal pool)
         # Compute stock after harvest (cannot go negative)
         stock_after_harvest = max(stock_before - total_harvested_round, 0)
 
