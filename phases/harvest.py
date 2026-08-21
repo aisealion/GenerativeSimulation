@@ -3,7 +3,7 @@
 
 from mechanisms.effort import catch_from_effort
 import datetime
-from mechanisms.stock_check import available_stock, apply_regrowth
+from mechanisms.stock_check import available_stock
 from llm_agents import call_fisher_agent
 from phases.base import Phase
 
@@ -88,19 +88,8 @@ class HarvestPhase(Phase):
                 )
                 effort = min(1.0, max(0.0, float(response["effort"])) )
                 base_harvest = catch_from_effort(effort, stock_before, config)
-                # Apply per‑trip cap of 4 kg as defined in norm.txt
-                per_trip_cap = 4.0
-                # Enforce trip limit: no more than 4 trips in rolling 30‑day window
-                recent_trips = sum(1 for rec in runtime['trip_records'] if rec['agent_id'] == agent_id and rec['round'] >= round_number - 29)
-                if recent_trips >= 4:
-                    # Violation: trip limit exceeded – no harvest and fine (10% of attempted catch) returned to lake
-                    fine = 0.10 * base_harvest
-                    harvested = 0.0
-                    # Return fine amount to lake stock via adjusting stock_before later
-                    runtime.setdefault('pending_fine_return', 0.0)
-                    runtime['pending_fine_return'] += fine
-                else:
-                    harvested = min(base_harvest, per_trip_cap, stock_before)
+                # No per‑trip cap or trip limits per updated norm.
+                harvested = min(base_harvest, stock_before)
                 # Excess contribution: if harvested >3 kg, add 5% of excess to communal reserve
                 if harvested > 3.0:
                     excess = harvested - 3.0
@@ -134,8 +123,14 @@ class HarvestPhase(Phase):
         # Compute stock after harvest (cannot go negative)
         stock_after_harvest = max(stock_before - total_harvested_round, 0)
 
-        # Apply regrowth after harvest (or after any replenishment)
-        stock_after_regrowth = apply_regrowth(stock_after_harvest, config)
+        # Apply replenishment logic per updated norm
+        if total_harvested_round >= 3 * stock_before:
+            # Cumulative catch exceeds 300% of starting stock – fully replenish to pre‑fishing weight
+            stock_after_regrowth = stock_before
+        else:
+            # Below threshold – lake stays depleted (no regrowth)
+            stock_after_regrowth = stock_after_harvest
+
 
         round_record = {
             "round": round_number,
