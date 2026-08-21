@@ -13,7 +13,7 @@ from call_log import log_call
 
 ROOT = Path(__file__).resolve().parent
 COLLAPSE_THRESHOLD_KG = 0
-RESERVE_THRESHOLD_KG = 120  # lake must retain at least this many kg; fishing suspended below
+RESERVE_THRESHOLD_KG = 90  # lake must retain at least this many kg; fishing suspended below
 DEFAULT_MAX_ROUNDS = 100
 NORM_IMPLEMENTER_TRACKED_PATHS = [
     "mechanisms",

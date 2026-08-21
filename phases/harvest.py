@@ -41,11 +41,9 @@ class HarvestPhase(Phase):
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
-        # Per‑fisher cap: 2% of current lake stock per month (treated as per‑trip cap here)
-        PER_TRIP_CAP_KG = 0.02 * stock_before
-        # Community monthly cap: 5% of stock (enforced cumulatively within the round)
-        COMMUNITY_CAP_KG = 0.05 * stock_before
-        # Enforce community monthly cap after agents harvest
+        # Per‑fisher cap: up to 1.0 kg per trip (regardless of lake size)
+        PER_TRIP_CAP_KG = 1.0
+        # No community cap enforced; reserve must stay >= 90 kg (handled elsewhere)
 
         for agent_id in agents:
             # Check ban status
