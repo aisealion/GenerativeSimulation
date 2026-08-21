@@ -12,18 +12,13 @@ class HarvestPhase(Phase):
     name = "harvest"
 
     def prompt_fields(self, state, agent_id):
-        # Provide stock info and per‑trip cap message for the fisher persona.
+        # Provide stock info for the fisher persona (no per‑trip cap).
         config = state["config"]
-        fluents = state["fluents"]
         runtime = state["runtime"]
-        # Compute per‑trip cap (2 % of stock or 2 kg, whichever is lower)
         stock = available_stock(runtime)
-        per_trip_cap = min(0.02 * stock, 2.0)
-        cap_line = f" You currently have a per‑trip limit of {per_trip_cap:.1f}kg (2 % of stock or 2 kg)."
         return {
             "stock_kg": stock,
             "carrying_capacity_kg": config.get("carrying_capacity_kg", 0),
-            "cap_line": cap_line,
         }
 
     def run(self, state):
@@ -78,8 +73,7 @@ class HarvestPhase(Phase):
                 results[agent_id] = {"effort": 0.0, "harvested_kg": harvested, "reasoning": "Banned for policy violation"}
                 continue
 
-            # Compute per‑trip cap (2 % of current stock or 2 kg, whichever is lower)
-            per_trip_cap = min(0.02 * stock_before, 2.0)
+            # Compute per‑trip cap (removed per new norm)
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
@@ -87,13 +81,9 @@ class HarvestPhase(Phase):
             # Base harvest from effort before caps
             base_harvest = catch_from_effort(effort, stock_before, config)
 
-            # Apply per‑trip cap
-            if base_harvest > per_trip_cap:
-                excess_trip = base_harvest - per_trip_cap
-                harvested = per_trip_cap
-            else:
-                excess_trip = 0.0
-                harvested = base_harvest
+            # Apply per‑trip cap (removed) – use base harvest directly
+            harvested = base_harvest
+            excess_trip = 0.0
 
             # Apply 25 % restocking contribution from harvested amount
             donation = 0.25 * harvested
