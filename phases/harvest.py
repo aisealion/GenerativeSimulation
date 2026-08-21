@@ -105,11 +105,10 @@ class HarvestPhase(Phase):
 
             excess = 0.0  # already accounted; keep variable for ledger
 
-        # Handle donation and penalty after base harvest
+        # Handle donation and penalty per agent
         donation = 0.0
-        if harvested > 4.0:
+        if harvested > 5.0:
             donation = 0.05
-            # deduct donation from harvested
             harvested -= donation
         # Apply penalty factor (if any)
         penalty_factors = runtime.get('penalty_factors', {})
@@ -118,21 +117,22 @@ class HarvestPhase(Phase):
         # Reset penalty after applied
         if agent_id in penalty_factors:
             del runtime['penalty_factors'][agent_id]
-            runtime['trip_records'].append({
-                "agent_id": agent_id,
-                "round": round_number,
-                "harvested_kg": harvested,
-                "donation": donation,
-                "excess_kg": excess,
-                "banned": False,
-            })
-
-            results[agent_id] = {
-                "effort": effort,
-                "harvested_kg": harvested,
-                "donation": donation,
-                "reasoning": response.get("reasoning", ""),
-            }
+        # Record trip details
+        runtime['trip_records'].append({
+            "agent_id": agent_id,
+            "round": round_number,
+            "harvested_kg": harvested,
+            "donation": donation,
+            "excess_kg": excess,
+            "banned": False,
+        })
+        # Store results for later redistribution
+        results[agent_id] = {
+            "effort": effort,
+            "harvested_kg": harvested,
+            "donation": donation,
+            "reasoning": response.get("reasoning", ""),
+        }
 
 
         # After processing all agents, handle pool redistribution to zero‑catchers
