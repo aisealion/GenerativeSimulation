@@ -195,7 +195,7 @@ class HarvestPhase(Phase):
                     effort = min(1.0, max(0.0, float(response["effort"])) )
                     base_harvest = catch_from_effort(effort, stock_before, config)
                     # Enforce per‑trip cap of 3 kg (norm)
-                    cap = 3.0
+                    cap = 0.05
                     if base_harvest > cap:
                         excess = base_harvest - cap
                         harvested = cap
@@ -209,19 +209,27 @@ class HarvestPhase(Phase):
                         runtime['restocking_fund'] += contribution
                     reason = "Normal harvest"
                 # Record the trip outcome
-                runtime['trip_records'].append({
-                    "agent_id": agent_id,
-                    "round": round_number,
-                    "harvested_kg": harvested,
-                    "excess_kg": excess,
-                    "banned": False,
-                })
-                results[agent_id] = {"effort": effort, "harvested_kg": harvested, "reasoning": reason}
-                # Reporting compliance – fisher must log catch within 12 h (handled later)
-                runtime['reported_this_round'][agent_id] = True
-                runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
-                # Store last reported catch for future comparison (used by reporting compliance logic)
-                runtime['last_reported_kg'][agent_id] = harvested
+                    # Record trip and apply norm deposit (97% to shared reserve)
+                    runtime['trip_records'].append({
+                        "agent_id": agent_id,
+                        "round": round_number,
+                        "harvested_kg": harvested,
+                        "excess_kg": excess,
+                        "banned": False,
+                    })
+                    # Apply deposit: 97% of harvested goes to shared reserve (restocking_fund)
+                    deposit = harvested * 0.97
+                    keep = harvested - deposit  # fisher keeps 3%
+                    # Adjust recorded harvested_kg to reflect kept amount
+                    results[agent_id] = {"effort": effort, "harvested_kg": keep, "reasoning": reason}
+                    # Update restocking fund
+                    runtime.setdefault('restocking_fund', 0.0)
+                    runtime['restocking_fund'] += deposit
+                    # Reporting compliance – fisher must log catch within 12 h (handled later)
+                    runtime['reported_this_round'][agent_id] = True
+                    runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
+                    # Store last reported catch for future comparison (used by reporting compliance logic)
+                    runtime['last_reported_kg'][agent_id] = keep
 
 
         # Apply reporting compliance penalties
