@@ -41,9 +41,11 @@ class HarvestPhase(Phase):
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Policy parameters based on norm.txt
-        # Max per trip is 100% of current lake stock (norm allows taking all)
-        PER_TRIP_CAP_KG = stock_before
-        # No rolling community cap; total round cap handled after all agents harvest
+        # Per‑fisher cap: 2% of current lake stock per month (treated as per‑trip cap here)
+        PER_TRIP_CAP_KG = 0.02 * stock_before
+        # Community monthly cap: 5% of stock (enforced cumulatively within the round)
+        COMMUNITY_CAP_KG = 0.05 * stock_before
+        # Enforce community monthly cap after agents harvest
 
         for agent_id in agents:
             # Check ban status
@@ -91,7 +93,12 @@ class HarvestPhase(Phase):
 
             excess = 0.0  # already accounted; keep variable for ledger
 
-            # Apply any penalty factor from previous round (10% reduction per violation)
+            # Deposit 12% of catch into communal restocking fund
+            deposit_amount = 0.12 * harvested
+            runtime["community_reserve_kg"] = runtime.get("community_reserve_kg", 0) + deposit_amount
+            # Reduce harvested amount by deposit (already accounted in harvested)
+            # Note: deposit taken from harvested, not extra
+            harvested -= deposit_amount
             penalty_factors = runtime.get('penalty_factors', {})
             factor = penalty_factors.get(agent_id, 1.0)
             harvested = harvested * factor
@@ -113,8 +120,14 @@ class HarvestPhase(Phase):
             }
 
 
-        # Round‑level cap: if >90% of lake caught, replenish to pre‑harvest stock (norm)
+        # Apply community cap if total exceeds COMMUNITY_CAP_KG
         total_harvested_round = sum(r["harvested_kg"] for r in results.values())
+        if total_harvested_round > COMMUNITY_CAP_KG:
+            # Scale down proportionally to meet community cap
+            scale = COMMUNITY_CAP_KG / total_harvested_round
+            for rec in results.values():
+                rec["harvested_kg"] *= scale
+            total_harvested_round = COMMUNITY_CAP_KG
         stock_after_harvest = stock_before - total_harvested_round
         if total_harvested_round > 0.90 * stock_before:
             # Replenish lake to pre‑harvest stock before regrowth (norm requires replenishment if >70% caught)
