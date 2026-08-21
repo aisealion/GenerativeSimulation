@@ -42,7 +42,7 @@ class HarvestPhase(Phase):
         runtime.setdefault('banned_agents', {})
 
         # Norm check: prohibit fishing if lake or reserve below thresholds
-        if stock_before < 95 or reserve_before < 95:
+        if stock_before < 95:
             # No fishing this round for any agent
             for agent_id in agents:
                 results[agent_id] = {"effort": 0.0, "harvested_kg": 0.0, "reasoning": "Fishing prohibited due to low stock or reserve"}
