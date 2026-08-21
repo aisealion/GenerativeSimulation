@@ -41,23 +41,9 @@ class HarvestPhase(Phase):
         runtime.setdefault('last_trip_round', {})
         runtime.setdefault('banned_agents', {})
 
-        # Norm check: prohibit fishing if lake or reserve below thresholds
-        if stock_before < 95:
-            # No fishing this round for any agent
-            for agent_id in agents:
-                results[agent_id] = {"effort": 0.0, "harvested_kg": 0.0, "reasoning": "Fishing prohibited due to low stock or reserve"}
-                runtime['trip_records'].append({
-                    "agent_id": agent_id,
-                    "round": round_number,
-                    "harvested_kg": harvested,
-                    "excess_kg": 0.0,
-                    "banned": True,
-                })
-                runtime['reported_this_round'][agent_id] = True
-            total_harvested_round = 0.0
-            stock_after_harvest = stock_before
-        else:
-            for agent_id in agents:
+        # Removed early stock‑threshold ban – fishers may fish regardless of lake level
+        
+        for agent_id in agents:
                 # Rest requirement: if fished previous round, treat as ban
                 if runtime.get('last_trip_round', {}).get(agent_id) == round_number - 1:
                     # Agent must rest; no harvest this round
@@ -109,12 +95,9 @@ class HarvestPhase(Phase):
                     continue
                 effort = min(1.0, max(0.0, float(response["effort"])) )
                 base_harvest = catch_from_effort(effort, stock_before, config)
-                # No per‑trip cap or trip limits per updated norm.
-                harvested = min(base_harvest, stock_before)
-                # No communal reserve contribution under the new norm – fisher keeps all catch
-                # excess contribution logic removed
-                # deposit logic removed
-                # Record trip
+        # Harvest phase now allows fishing regardless of stock level, as each fisher keeps all catch.
+        # No communal reserve or contribution logic; excess_kg stays zero.
+        
                 runtime['trip_records'].append({
                     "agent_id": agent_id,
                     "round": round_number,
