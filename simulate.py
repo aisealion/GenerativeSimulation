@@ -334,11 +334,15 @@ def run_cycle(round_number):
         if norm_already_committed(round_number):
             print(f"\nRound {round_number}: norm-implementer already committed for this round, skipping.")
         else:
-            norm_text = (
-                f"Policy: {winning_proposal['policy']}\n\n"
-                f"Operationalization: {winning_proposal['operationalization']}\n"
-            )
-            (ROOT / "norm.txt").write_text(norm_text)
+            norm_path = ROOT / "norm.txt"
+            if norm_path.is_file():
+                norm_text = norm_path.read_text()
+            else:
+                norm_text = (
+                    f"Policy: {winning_proposal['policy']}\n\n"
+                    f"Operationalization: {winning_proposal['operationalization']}\n"
+                )
+                norm_path.write_text(norm_text)
             print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
             run_norm_implementer(round_number)
             compile_errors = norm_implementation_compile_errors()
