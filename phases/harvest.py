@@ -3,7 +3,7 @@
 
 from mechanisms.effort import catch_from_effort
 import datetime
-from mechanisms.penalty import apply_penalty
+from mechanisms.stock_check import available_stock, apply_regrowth
 from llm_agents import call_fisher_agent
 from phases.base import Phase
 
@@ -37,7 +37,8 @@ class HarvestPhase(Phase):
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Track last trip round for each agent to enforce 48‑hour rest (skip if they fished previous round)
         runtime.setdefault('last_trip_round', {})
-        # New norm: per‑trip cap is min(2% of stock, 2kg) – already calculated as PER_TRIP_CAP_KG
+                # New norm: no per‑trip cap; catch up to 100% of current lake weight per fisher
+                # (per‑trip cap removed – harvest directly from effort)
         # No community cap enforced; reserve must stay >= 90 kg (handled elsewhere)
 
         for agent_id in agents:
@@ -56,6 +57,7 @@ class HarvestPhase(Phase):
                 })
                 results[agent_id] = {"effort": 0.0, "harvested_kg": harvested, "reasoning": "Rest requirement violation"}
                 continue
+            bans_remaining = runtime['banned_agents'].get(agent_id, 0)
             if bans_remaining > 0:
                 # Agent is banned this trip
                 runtime['banned_agents'][agent_id] = bans_remaining - 1
@@ -77,63 +79,24 @@ class HarvestPhase(Phase):
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
+            # effort is fisher's chosen intensity; no per‑trip cap applied
             effort = min(1.0, max(0.0, float(response["effort"])) )
-            # Base harvest from effort before caps
+            # Base harvest from effort before caps; enforce max 100% of current stock
             base_harvest = catch_from_effort(effort, stock_before, config)
-
-            # Apply per‑trip cap (removed) – use base harvest directly
-            harvested = base_harvest
+            # If base_harvest exceeds stock, limit to stock (100% catch) and note violation
+            if base_harvest > stock_before:
+                harvested = stock_before
+                # No further penalty logic implemented; future catch forfeiture not needed as each agent fishes once per round
+            else:
+                harvested = base_harvest
             excess_trip = 0.0
 
-            # Apply 25 % restocking contribution from harvested amount
-            donation = 0.25 * harvested
-            kept = harvested - donation
 
-            # Track monthly catch and enforce monthly cap (3 kg total kept per fisher per month)
-            now_month = datetime.datetime.now().month
-            # Initialize month tracking structures if needed
-            runtime.setdefault('monthly_catch', {})
-            runtime.setdefault('monthly_month', now_month)
-            if runtime['monthly_month'] != now_month:
-                # New month: reset monthly catches and warnings
-                runtime['monthly_catch'] = {}
-                runtime['monthly_month'] = now_month
-                runtime.setdefault('warnings', {})
-                runtime['warnings'] = {}
-                runtime.setdefault('banned_months', {})
-                runtime['banned_months'] = {}
-            month_total = runtime['monthly_catch'].get(agent_id, 0.0) + kept
-            if month_total > 3.0:
-                excess_month = month_total - 3.0
-                # Apply penalty: 10 % of excess goes to fund, issue warning
-                penalty_fund = 0.10 * excess_month
-                runtime.setdefault('restocking_fund_kg', 0.0)
-                runtime['restocking_fund_kg'] += penalty_fund
-                # Increment warnings
-                runtime.setdefault('warnings', {})
-                runtime['warnings'][agent_id] = runtime['warnings'].get(agent_id, 0) + 1
-                if runtime['warnings'][agent_id] >= 2:
-                    # Ban for next month
-                    runtime.setdefault('banned_months', {})
-                    runtime['banned_months'][agent_id] = now_month + 1
-                # Cap kept to 3 kg
-                kept = 3.0
-                month_total = 3.0
-            else:
-                excess_month = 0.0
-                # No penalty for this trip
-                runtime.setdefault('restocking_fund_kg', 0.0)
-                runtime['restocking_fund_kg'] += donation
-
-            # Update monthly catch record
-            runtime['monthly_catch'][agent_id] = month_total
 
             # Update last trip round after successful harvest
             runtime['last_trip_round'][agent_id] = round_number
             runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
-            runtime['recent_catch_kg'].append(kept)
-            if len(runtime['recent_catch_kg']) > 30:
-                runtime['recent_catch_kg'].pop(0)
+            results[agent_id] = {"effort": effort, "harvested_kg": harvested, "reasoning": response.get("reasoning", "")}
 
             excess = excess_trip + excess_month
 
@@ -160,19 +123,14 @@ class HarvestPhase(Phase):
             share = total_donation / len(zero_catch_ids)
             for aid in zero_catch_ids:
                 results[aid]['harvested_kg'] += share
-        # Community cap still applies to total harvested after redistribution
-        COMMUNITY_CAP_KG = 0.03 * stock_before
+        # New norm: no community cap; lake replenishes if total catch exceeds 250% of current stock
         total_harvested_round = sum(r["harvested_kg"] for r in results.values())
-        if total_harvested_round > COMMUNITY_CAP_KG:
-            # Scale down proportionally to meet community cap
-            scale = COMMUNITY_CAP_KG / total_harvested_round
-            for rec in results.values():
-                rec["harvested_kg"] *= scale
-            total_harvested_round = COMMUNITY_CAP_KG
-        stock_after_harvest = stock_before - total_harvested_round
-        if total_harvested_round > 0.90 * stock_before:
-            # Replenish lake to pre‑harvest stock before regrowth (norm requires replenishment if >70% caught)
+        if total_harvested_round > 2.5 * stock_before:
+            # Replenish lake to pre‑harvest stock
             stock_after_harvest = stock_before
+        else:
+            # Reduce stock by total harvested, but not below zero
+            stock_after_harvest = max(stock_before - total_harvested_round, 0)
         # Apply regrowth after harvest (or after replenishment)
         stock_after_regrowth = apply_regrowth(stock_after_harvest, config)
 
