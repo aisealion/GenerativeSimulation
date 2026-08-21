@@ -42,11 +42,8 @@ class HarvestPhase(Phase):
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
         # Track last trip round for each agent to enforce 48‑hour rest (skip if they fished previous round)
         runtime.setdefault('last_trip_round', {})
-        # Policy parameters based on norm.txt
-        # Per‑trip cap: minimum of 2 % of current stock or 2 kg (per norm)
-        per_trip_cap_dynamic = min(0.02 * stock_before, 2.0)
-        PER_TRIP_CAP_KG = per_trip_cap_dynamic
-        # No community cap enforced; reserve must stay >= 90 kg (handled elsewhere)
+        # New norm: per‑trip cap is min(2% of stock, 2kg) – already calculated as PER_TRIP_CAP_KG
+        # No community cap enforced; reserve must stay >= 90 kg (handled elsewhere)
 
         for agent_id in agents:
             # Check rest requirement: if fished previous round, treat as ban for this round
@@ -93,9 +90,9 @@ class HarvestPhase(Phase):
             if cap is not None:
                 base_harvest = min(base_harvest, cap)
 
-            # Enforce per‑trip quota cap (100% of lake stock) per norm
-            excess = max(0.0, base_harvest - PER_TRIP_CAP_KG)
-            harvested = min(base_harvest, PER_TRIP_CAP_KG)
+            # New norm: keep all fish; apply donation if caught >4kg
+            harvested = base_harvest
+            # donation handled later
 
 
 
@@ -108,22 +105,24 @@ class HarvestPhase(Phase):
 
             excess = 0.0  # already accounted; keep variable for ledger
 
-            # Deposit 15% of catch into communal restocking fund
-            deposit_amount = 0.15 * harvested
-            runtime["community_reserve_kg"] = runtime.get("community_reserve_kg", 0) + deposit_amount
-            # Reduce harvested amount by deposit (already accounted in harvested)
-            # Note: deposit taken from harvested, not extra
-            harvested -= deposit_amount
-            penalty_factors = runtime.get('penalty_factors', {})
-            factor = penalty_factors.get(agent_id, 1.0)
-            harvested = harvested * factor
-            # Reset penalty for next round after applied
-            if agent_id in penalty_factors:
-                del runtime['penalty_factors'][agent_id]
+        # Handle donation and penalty after base harvest
+        donation = 0.0
+        if harvested > 4.0:
+            donation = 0.05
+            # deduct donation from harvested
+            harvested -= donation
+        # Apply penalty factor (if any)
+        penalty_factors = runtime.get('penalty_factors', {})
+        factor = penalty_factors.get(agent_id, 1.0)
+        harvested = harvested * factor
+        # Reset penalty after applied
+        if agent_id in penalty_factors:
+            del runtime['penalty_factors'][agent_id]
             runtime['trip_records'].append({
                 "agent_id": agent_id,
                 "round": round_number,
                 "harvested_kg": harvested,
+                "donation": donation,
                 "excess_kg": excess,
                 "banned": False,
             })
@@ -131,10 +130,19 @@ class HarvestPhase(Phase):
             results[agent_id] = {
                 "effort": effort,
                 "harvested_kg": harvested,
+                "donation": donation,
                 "reasoning": response.get("reasoning", ""),
             }
 
 
+        # After processing all agents, handle pool redistribution to zero‑catchers
+        total_donation = sum([rec.get('donation', 0.0) for rec in results.values()])
+        zero_catch_ids = [aid for aid, rec in results.items() if rec['harvested_kg'] == 0]
+        if zero_catch_ids:
+            share = total_donation / len(zero_catch_ids)
+            for aid in zero_catch_ids:
+                results[aid]['harvested_kg'] += share
+        # Community cap still applies to total harvested after redistribution
         COMMUNITY_CAP_KG = 0.03 * stock_before
         total_harvested_round = sum(r["harvested_kg"] for r in results.values())
         if total_harvested_round > COMMUNITY_CAP_KG:
