@@ -2,6 +2,7 @@
 # Writes: state/runtime.json (today's catch).
 
 from mechanisms.effort import catch_from_effort
+from mechanisms.penalty import apply_penalty
 import datetime
 from mechanisms.stock_check import available_stock
 from llm_agents import call_fisher_agent
@@ -95,6 +96,12 @@ class HarvestPhase(Phase):
                     continue
                 effort = min(1.0, max(0.0, float(response["effort"])) )
                 base_harvest = catch_from_effort(effort, stock_before, config)
+                # Apply any penalty factor from prior violations
+                penalty_factor = runtime.get('penalty_factors', {}).get(agent_id, 1.0)
+                harvested = base_harvest * penalty_factor
+                # Add penalty amount to maintenance fund
+                penalty_amount = base_harvest - harvested
+                runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + penalty_amount
         # Harvest phase now allows fishing regardless of stock level, as each fisher keeps all catch.
         # No communal reserve or contribution logic; excess_kg stays zero.
         
@@ -118,6 +125,9 @@ class HarvestPhase(Phase):
                 # Increment non‑report count
                 cnt = runtime['non_report_counts'].get(agent_id, 0) + 1
                 runtime['non_report_counts'][agent_id] = cnt
+                # Apply penalty for this violation (each non‑report counts as a violation)
+                from mechanisms.penalty import apply_penalty
+                runtime = apply_penalty(agent_id, 1, config, fluents, runtime)
                 if cnt == 1:
                     # First offense: next round catch treated as zero
                     runtime['zero_next_round'][agent_id] = True
