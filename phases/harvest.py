@@ -119,11 +119,20 @@ class HarvestPhase(Phase):
         # Harvest phase now allows fishing regardless of stock level, as each fisher keeps all catch.
         # No communal reserve or contribution logic; excess_kg stays zero.
         
+                # Enforce per‑trip cap of 150% of current stock
+                cap_limit = 1.5 * stock_before
+                if harvested > cap_limit:
+                    excess = harvested - cap_limit
+                    harvested = cap_limit
+                    # Apply a one‑month (4‑round) ban for exceeding cap
+                    runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 4
+                else:
+                    excess = 0.0
                 runtime['trip_records'].append({
                     "agent_id": agent_id,
                     "round": round_number,
                     "harvested_kg": harvested,
-                    "excess_kg": 0.0,
+                    "excess_kg": excess,
                     "banned": False,
                 })
                 # Check for lower‑catch report without justification (simple heuristic)
