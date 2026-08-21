@@ -296,7 +296,7 @@ def run_cycle(round_number):
     already_ran = {r["phase"] for r in state["runtime"]["rounds"] if r["round"] == round_number}
 
     # Determine if fishing should be suspended due to low lake reserve
-    fishing_suspended = state["runtime"]["stock_kg"] < RESERVE_THRESHOLD_KG
+    fishing_suspended = False
     if fishing_suspended:
         print(f"Lake reserve below {RESERVE_THRESHOLD_KG}kg — fishing will be suspended this round.")
 

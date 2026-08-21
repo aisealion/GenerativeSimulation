@@ -137,14 +137,7 @@ class HarvestPhase(Phase):
             pass
         # Determine total harvested this round
         total_harvested_round = sum(r["harvested_kg"] for r in results.values())
-        # Community 30‑day harvest limit (40 kg)
-        recent_community_harvest = sum(rec["harvested_kg"] for rec in runtime['trip_records'] if rec["round"] >= round_number - 29)
-        if recent_community_harvest > 40.0:
-            # Exceeds cap: cancel this round's harvests
-            for aid in results:
-                results[aid]["harvested_kg"] = 0.0
-                results[aid]["reasoning"] = "Community harvest cap exceeded; no harvest allowed"
-            total_harvested_round = 0.0
+        # Community harvest cap removed per norm (no communal pool)
         # Compute stock after harvest (cannot go negative)
         stock_after_harvest = max(stock_before - total_harvested_round, 0)
 
