@@ -176,76 +176,51 @@ class HarvestPhase(Phase):
                     # Remove the flag so it doesn't persist beyond this round
                     runtime['zero_next_round'].pop(agent_id, None)
                     continue
-                effort = min(1.0, max(0.0, float(response["effort"])) )
-                base_harvest = catch_from_effort(effort, stock_before, config)
-                # Apply any penalty factor from prior violations
-                penalty_factor = runtime.get('penalty_factors', {}).get(agent_id, 1.0)
-                harvested = base_harvest * penalty_factor
-                # Apply donation penalty if applicable
-                donation = runtime['donation_next_round'].get(agent_id, 0.0)
-                if donation:
-                    # Ensure we don't deduct more than harvested
-                    deduction = min(donation, harvested)
-                    harvested -= deduction
-                    runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + deduction
-                    # Reset donation after applied
-                    runtime['donation_next_round'].pop(agent_id, None)
-                
-                # Add penalty amount to maintenance fund (existing penalty logic)
-                penalty_amount = base_harvest - harvested
-                runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + penalty_amount
-
-        # Harvest phase now allows fishing regardless of stock level, as each fisher keeps all catch.
-        # No communal reserve or contribution logic; excess_kg stays zero.
-        
-                # Enforce per‑trip cap based on new norm: lesser of 0.15% of current stock or 0.15 kg, adjusted quarterly
-                # Initialize quarterly adjustment factor if not present
-                if 'monthly_quota_factor' not in runtime:
-                    runtime['monthly_quota_factor'] = 1.0
-                # Quarterly adjustment (every 12 rounds ≈ 3 months)
-                if round_number % 12 == 0:
-                    if stock_before < 80:
-                        runtime['monthly_quota_factor'] += 0.002  # increase quota by 0.2%
-                    elif stock_before > 95:
-                        runtime['monthly_quota_factor'] -= 0.002  # decrease quota by 0.2%
-                base_cap = 0.0015 * stock_before * runtime['monthly_quota_factor']
-                cap_limit = min(base_cap, 0.15)
-                if harvested > cap_limit:
-                    excess = harvested - cap_limit
-                    harvested = cap_limit
-                    # Apply a one‑month (4‑round) ban for exceeding cap
-                    runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 4
-                else:
+                # Determine current month for trip limits
+                month = datetime.datetime.now().month
+                # Initialise monthly trip tracking
+                runtime.setdefault('monthly_trip_counts', {})
+                monthly_counts = runtime['monthly_trip_counts'].setdefault(agent_id, {})
+                trip_count = monthly_counts.get(month, 0)
+                if trip_count >= 3:
+                    # Exceeds monthly trip limit – no harvest this turn
+                    effort = 0.0
+                    harvested = 0.0
                     excess = 0.0
-                # Deposit 90% of harvested catch into communal fund, fisher keeps 10%
-                deposit = harvested * 0.9
-                kept = harvested * 0.1
-                # Enforce per‑fisher daily cap (3,000,000 kg)
-                if kept > 3_000_000:
-                    excess_fisher = kept - 3_000_000
-                    kept = 3_000_000
-                    # Return excess to lake via maintenance fund (or could add to stock later)
-                    runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + excess_fisher
-                runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + deposit
-                # Record the kept amount as the actual harvested for stock accounting
+                    reason = "Monthly trip limit reached"
+                else:
+                    # Increment monthly trip count
+                    monthly_counts[month] = trip_count + 1
+                    # Compute effort from the fisher's response
+                    effort = min(1.0, max(0.0, float(response["effort"])) )
+                    base_harvest = catch_from_effort(effort, stock_before, config)
+                    # Enforce per‑trip cap of 3 kg (norm)
+                    cap = 3.0
+                    if base_harvest > cap:
+                        excess = base_harvest - cap
+                        harvested = cap
+                    else:
+                        excess = 0.0
+                        harvested = base_harvest
+                    # Restocking fund: 5 % of any excess above the cap
+                    contribution = 0.05 * excess
+                    if contribution:
+                        runtime.setdefault('restocking_fund', 0.0)
+                        runtime['restocking_fund'] += contribution
+                    reason = "Normal harvest"
+                # Record the trip outcome
                 runtime['trip_records'].append({
                     "agent_id": agent_id,
                     "round": round_number,
-                    "harvested_kg": kept,
+                    "harvested_kg": harvested,
                     "excess_kg": excess,
                     "banned": False,
                 })
-                # Store result entry for later aggregation
-                results[agent_id] = {"effort": effort, "harvested_kg": kept, "reasoning": "Normal harvest"}
-                # Check for lower‑catch report without justification (simple heuristic)
-                last_report = runtime['last_reported_kg'].get(agent_id)
-                if last_report is not None and harvested < last_report:
-                    donation_amt = max(0.05 * last_report, 1.0)
-                    runtime['donation_next_round'][agent_id] = donation_amt
-                    print(f"Agent {agent_id} reported lower catch ({harvested:.2f} < {last_report:.2f}); donation scheduled: {donation_amt:.2f} kg", file=sys.stderr)
+                results[agent_id] = {"effort": effort, "harvested_kg": harvested, "reasoning": reason}
+                # Reporting compliance – fisher must log catch within 12 h (handled later)
                 runtime['reported_this_round'][agent_id] = True
                 runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
-                # Record last reported catch for future comparison
+                # Store last reported catch for future comparison (used by reporting compliance logic)
                 runtime['last_reported_kg'][agent_id] = harvested
 
 
