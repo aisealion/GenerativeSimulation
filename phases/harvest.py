@@ -29,7 +29,48 @@ class HarvestPhase(Phase):
         agents = state["agents"]
         round_number = state["round_number"]
 
+        import datetime
         stock_before = available_stock(runtime)
+        # Close fishing during May (5) and June (6)
+        current_month = datetime.datetime.now().month
+        if current_month in (5, 6):
+            # No harvesting this round for any agent
+            for agent_id in agents:
+                runtime['trip_records'].append({
+                    "agent_id": agent_id,
+                    "round": round_number,
+                    "harvested_kg": 0.0,
+                    "excess_kg": 0.0,
+                    "banned": False,
+                })
+                results[agent_id] = {"effort": 0.0, "harvested_kg": 0.0, "reasoning": "Fishing closed for season"}
+            # Compute totals (all zero) and return round record
+            total_harvested_round = 0.0
+            stock_after_harvest = stock_before
+            stock_after_regrowth = stock_before
+            round_record = {
+                "round": round_number,
+                "phase": "harvest",
+                "stock_kg_before": stock_before,
+                "reserve_kg_before": 0,
+                "agents": {
+                    agent_id: {
+                        "effort": 0.0,
+                        "harvested_kg": 0.0,
+                        "reasoning": "Fishing closed (May-June)"
+                    }
+                    for agent_id in agents
+                },
+                "stock_kg_after_harvest": stock_after_harvest,
+                "stock_kg_after_regrowth": stock_after_regrowth,
+                "reserve_kg_after": 0,
+            }
+            runtime["round"] = round_number
+            runtime["stock_kg"] = stock_after_regrowth
+            runtime["rounds"].append(round_record)
+            return round_record
+        # Otherwise continue normal harvesting
+
         # Reserve is no longer used under the new norm; keep placeholder for compatibility
         reserve_before = 0
         results = {}
@@ -119,8 +160,18 @@ class HarvestPhase(Phase):
         # Harvest phase now allows fishing regardless of stock level, as each fisher keeps all catch.
         # No communal reserve or contribution logic; excess_kg stays zero.
         
-                # Enforce per‑trip cap of 150% of current stock
-                cap_limit = 1.5 * stock_before
+                # Enforce per‑trip cap based on new norm: lesser of 0.15% of current stock or 0.15 kg, adjusted quarterly
+                # Initialize quarterly adjustment factor if not present
+                if 'monthly_quota_factor' not in runtime:
+                    runtime['monthly_quota_factor'] = 1.0
+                # Quarterly adjustment (every 12 rounds ≈ 3 months)
+                if round_number % 12 == 0:
+                    if stock_before < 80:
+                        runtime['monthly_quota_factor'] += 0.002  # increase quota by 0.2%
+                    elif stock_before > 95:
+                        runtime['monthly_quota_factor'] -= 0.002  # decrease quota by 0.2%
+                base_cap = 0.0015 * stock_before * runtime['monthly_quota_factor']
+                cap_limit = min(base_cap, 0.15)
                 if harvested > cap_limit:
                     excess = harvested - cap_limit
                     harvested = cap_limit
@@ -128,13 +179,20 @@ class HarvestPhase(Phase):
                     runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 4
                 else:
                     excess = 0.0
+                # Deposit 90% of harvested catch into communal fund, fisher keeps 10%
+                deposit = harvested * 0.9
+                kept = harvested * 0.1
+                runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + deposit
+                # Record the kept amount as the actual harvested for stock accounting
                 runtime['trip_records'].append({
                     "agent_id": agent_id,
                     "round": round_number,
-                    "harvested_kg": harvested,
+                    "harvested_kg": kept,
                     "excess_kg": excess,
                     "banned": False,
                 })
+                # Store result entry for later aggregation
+                results[agent_id] = {"effort": effort, "harvested_kg": kept, "reasoning": "Normal harvest"}
                 # Check for lower‑catch report without justification (simple heuristic)
                 last_report = runtime['last_reported_kg'].get(agent_id)
                 if last_report is not None and harvested < last_report:
