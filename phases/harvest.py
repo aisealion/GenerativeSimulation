@@ -3,7 +3,7 @@
 
 from mechanisms.effort import catch_from_effort
 from mechanisms.penalty import apply_penalty
-import datetime
+import sys
 from mechanisms.stock_check import available_stock
 from llm_agents import call_fisher_agent
 from phases.base import Phase
@@ -37,10 +37,13 @@ class HarvestPhase(Phase):
         # We'll store a flag in runtime['reported_this_round'] for each agent.
         runtime.setdefault('reported_this_round', {})
         runtime.setdefault('agent_trip_counts', {})
-        runtime.setdefault('trip_records', [])  # ledger of trips
+        runtime.setdefault('trip_records', [])  # ledger of trips (ledger)
         runtime.setdefault('recent_catch_kg', [])  # keep last 30 rounds total catch
         runtime.setdefault('last_trip_round', {})
+        runtime.setdefault('last_reported_kg', {})
+        runtime.setdefault('donation_next_round', {})
         runtime.setdefault('banned_agents', {})
+        runtime.setdefault('maintenance_fund', 0.0)
 
         # Removed early stock‑threshold ban – fishers may fish regardless of lake level
         
@@ -99,9 +102,20 @@ class HarvestPhase(Phase):
                 # Apply any penalty factor from prior violations
                 penalty_factor = runtime.get('penalty_factors', {}).get(agent_id, 1.0)
                 harvested = base_harvest * penalty_factor
-                # Add penalty amount to maintenance fund
+                # Apply donation penalty if applicable
+                donation = runtime['donation_next_round'].get(agent_id, 0.0)
+                if donation:
+                    # Ensure we don't deduct more than harvested
+                    deduction = min(donation, harvested)
+                    harvested -= deduction
+                    runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + deduction
+                    # Reset donation after applied
+                    runtime['donation_next_round'].pop(agent_id, None)
+                
+                # Add penalty amount to maintenance fund (existing penalty logic)
                 penalty_amount = base_harvest - harvested
                 runtime['maintenance_fund'] = runtime.get('maintenance_fund', 0.0) + penalty_amount
+
         # Harvest phase now allows fishing regardless of stock level, as each fisher keeps all catch.
         # No communal reserve or contribution logic; excess_kg stays zero.
         
@@ -112,10 +126,17 @@ class HarvestPhase(Phase):
                     "excess_kg": 0.0,
                     "banned": False,
                 })
+                # Check for lower‑catch report without justification (simple heuristic)
+                last_report = runtime['last_reported_kg'].get(agent_id)
+                if last_report is not None and harvested < last_report:
+                    donation_amt = max(0.05 * last_report, 1.0)
+                    runtime['donation_next_round'][agent_id] = donation_amt
+                    print(f"Agent {agent_id} reported lower catch ({harvested:.2f} < {last_report:.2f}); donation scheduled: {donation_amt:.2f} kg", file=sys.stderr)
                 runtime['reported_this_round'][agent_id] = True
-                runtime['last_trip_round'][agent_id] = round_number
                 runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
-                results[agent_id] = {"effort": effort, "harvested_kg": harvested, "reasoning": response.get("reasoning", "")}
+                # Record last reported catch for future comparison
+                runtime['last_reported_kg'][agent_id] = harvested
+
 
         # Apply reporting compliance penalties
         runtime.setdefault('non_report_counts', {})
