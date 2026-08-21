@@ -40,14 +40,30 @@ class HarvestPhase(Phase):
         runtime.setdefault('agent_trip_counts', {})
         runtime.setdefault('trip_records', [])  # ledger of trips
         runtime.setdefault('recent_catch_kg', [])  # list of total catch per round for last 30 rounds
+        # Track last trip round for each agent to enforce 48‑hour rest (skip if they fished previous round)
+        runtime.setdefault('last_trip_round', {})
         # Policy parameters based on norm.txt
-        # Per‑fisher cap: up to 1.0 kg per trip (regardless of lake size)
-        PER_TRIP_CAP_KG = 1.0
+        # Per‑trip cap: minimum of 2 % of current stock or 2 kg (per norm)
+        per_trip_cap_dynamic = min(0.02 * stock_before, 2.0)
+        PER_TRIP_CAP_KG = per_trip_cap_dynamic
         # No community cap enforced; reserve must stay >= 90 kg (handled elsewhere)
 
         for agent_id in agents:
-            # Check ban status
-            bans_remaining = runtime['banned_agents'].get(agent_id, 0)
+            # Check rest requirement: if fished previous round, treat as ban for this round
+            if runtime.get('last_trip_round', {}).get(agent_id) == round_number - 1:
+                # Agent must rest; no harvest this round
+                runtime['banned_agents'][agent_id] = runtime['banned_agents'].get(agent_id, 0) + 1  # add a ban round
+                harvested = 0.0
+                excess = 0.0
+                runtime['trip_records'].append({
+                    "agent_id": agent_id,
+                    "round": round_number,
+                    "harvested_kg": harvested,
+                    "excess_kg": excess,
+                    "banned": True,
+                })
+                results[agent_id] = {"effort": 0.0, "harvested_kg": harvested, "reasoning": "Rest requirement violation"}
+                continue
             if bans_remaining > 0:
                 # Agent is banned this trip
                 runtime['banned_agents'][agent_id] = bans_remaining - 1
@@ -83,7 +99,8 @@ class HarvestPhase(Phase):
 
 
 
-            # Update tracking structures
+            # Update last trip round after successful harvest
+            runtime['last_trip_round'][agent_id] = round_number
             runtime['agent_trip_counts'][agent_id] = runtime['agent_trip_counts'].get(agent_id, 0) + 1
             runtime['recent_catch_kg'].append(harvested)
             if len(runtime['recent_catch_kg']) > 30:
@@ -91,8 +108,8 @@ class HarvestPhase(Phase):
 
             excess = 0.0  # already accounted; keep variable for ledger
 
-            # Deposit 12% of catch into communal restocking fund
-            deposit_amount = 0.12 * harvested
+            # Deposit 15% of catch into communal restocking fund
+            deposit_amount = 0.15 * harvested
             runtime["community_reserve_kg"] = runtime.get("community_reserve_kg", 0) + deposit_amount
             # Reduce harvested amount by deposit (already accounted in harvested)
             # Note: deposit taken from harvested, not extra
@@ -118,7 +135,7 @@ class HarvestPhase(Phase):
             }
 
 
-        # Apply community cap if total exceeds COMMUNITY_CAP_KG
+        COMMUNITY_CAP_KG = 0.03 * stock_before
         total_harvested_round = sum(r["harvested_kg"] for r in results.values())
         if total_harvested_round > COMMUNITY_CAP_KG:
             # Scale down proportionally to meet community cap
