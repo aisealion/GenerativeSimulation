@@ -1,7 +1,4 @@
 {
-  "carrying_capacity_kg": 300,
-  "growth_rate": 0.2,
-  "harvest_productivity": 0.05,
   "agent_count": 10,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5

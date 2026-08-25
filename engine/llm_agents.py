@@ -6,8 +6,9 @@ from pathlib import Path
 
 import litellm
 
-from call_log import log_call
-from mechanisms.roles import role_holder
+from engine.call_log import log_call
+from engine.physics import catch_from_effort, CONSUMPTION_KG
+from mechanisms.roles import role_holder, visible_facts
 
 
 def _patch_litellm_message_rebuild():
@@ -40,7 +41,7 @@ def _patch_litellm_message_rebuild():
 
 _patch_litellm_message_rebuild()
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 LITELLM_PROXY_BASE_URL = "https://llm.uod.otago.ac.nz/v1"
 DEFAULT_FISHER_MODEL = "litellm/Kimi-K2.5"
 
@@ -74,9 +75,11 @@ def render_persona(agent_id, round_number, phase_name):
     role_directives = (ROOT / "prompts" / "role_directives" / "fisher.md").read_text().strip()
     persona_template = (ROOT / "prompts" / "persona_template.md").read_text()
     daily_status = f"This is round {round_number}."
+    survival_status = render_survival_status(agent_id, runtime)
     history = render_history(
         agent_id, round_number, runtime, agents, config.get("history_window_rounds", 5)
     )
+    notices = render_notices(agent_id, round_number, fluents)
     relevant_memories = render_relevant_memories(agent_id, phase_name, round_number)
 
     return persona_template.format(
@@ -84,9 +87,43 @@ def render_persona(agent_id, round_number, phase_name):
         personality_traits=agent["personality_traits"],
         role_directives=role_directives,
         daily_status=daily_status,
+        survival_status=survival_status,
         history=history,
+        notices=notices,
         relevant_memories=relevant_memories,
     ).strip()
+
+
+def render_survival_status(agent_id, runtime):
+    """Fishing isn't just for profit — every fisher owes a fixed cost just
+    to feed themselves each trip, tracked as a running balance that goes
+    back to round 0, not reset each round. Ties directly to the mechanic in
+    phases/harvest.py: apply_consumption()/is_dead() decide the same
+    balance this renders. Deliberately repeated on every phase's prompt,
+    not just harvest's, matching how Gupta et al.'s CPRAgent restates this
+    same survival framing in every one of its own prompt templates
+    (strategy/punishment/norm-update/vote), not only the harvest one."""
+    balance = runtime.get("payoff", {}).get(agent_id, 0.0)
+    return (
+        f"Fishing isn't just for profit — you need roughly {CONSUMPTION_KG:.0f}kg a trip just to "
+        f"keep yourself fed. Your running reserves stand at {balance:.1f}kg right now; if that "
+        f"ever drops below zero, you won't be able to keep fishing."
+    )
+
+
+def render_notices(agent_id, round_number, fluents):
+    """Everything currently true about this agent (or the community) that
+    some mechanism wanted surfaced — bans, obligations, statuses, whatever a
+    future norm invents. Never interprets a raw state value itself: it only
+    concatenates the already-phrased `narration` text on each currently-
+    active fluent visible_facts() returns, which the mechanism that wrote
+    the fact authored at the moment it happened (mirroring how
+    phases/*.py's memory_writes() already hands the memory layer
+    already-phrased text rather than raw fields)."""
+    facts = visible_facts(fluents, agent_id, round_number)
+    if not facts:
+        return "(nothing notable comes to mind)"
+    return " ".join(fact["narration"] for fact in facts)
 
 
 def render_relevant_memories(agent_id, phase_name, round_number):
@@ -98,7 +135,7 @@ def render_relevant_memories(agent_id, phase_name, round_number):
     if not os.environ.get("NEO4J_URI"):
         return "(nothing notable comes to mind)"
     try:
-        from memory.query import retrieve_memories
+        from engine.memory.query import retrieve_memories
         from prompts.memory_phrasing import phrase_memory
 
         records = retrieve_memories(agent_id, phase_name, round_number)
@@ -108,6 +145,38 @@ def render_relevant_memories(agent_id, phase_name, round_number):
     except Exception as exc:
         print(f"  [memory retrieval skipped: {exc}]")
         return "(nothing notable comes to mind)"
+
+
+def _harvest_shortfall_clause(mine_record, entry):
+    """Every norm the norm-implementer has ever written enforces itself by
+    reducing/zeroing an agent's harvested_kg (a cap, a ban, a forfeiture) —
+    but not one of those five past mechanisms has ever reported that back to
+    the affected agent; they only ever see the resulting kg number, with no
+    way to tell an enforced outcome apart from one they freely chose. Rather
+    than depend on each round's from-scratch phases/harvest.py rewrite to
+    remember to author that explanation (llm_agents.py isn't editable by the
+    norm-implementer, but phases/harvest.py is rewritten wholesale most
+    rounds, and every past attempt has skipped this), this derives the gap
+    itself: catch_from_effort() is pure and mechanism-agnostic, so re-running
+    it on the agent's own recorded effort against that round's starting stock
+    gives what their effort alone would have produced with nothing else in
+    play. If the agent wasn't even asked that round (harvest.py's own way of
+    enforcing a ban/suspension, not something this function can infer from
+    numbers alone), it should set "participated": False explicitly — anything
+    else defaults to participated.
+    """
+    if mine_record.get("participated") is False:
+        return " You weren't able to fish at all this round — something about the community's current rules held you back."
+
+    baseline_kg = catch_from_effort(mine_record["effort"], entry["stock_kg_before"])
+    shortfall = baseline_kg - mine_record["harvested_kg"]
+    if shortfall > max(0.5, 0.05 * baseline_kg):
+        return (
+            f" That's less than your effort alone would normally have brought in "
+            f"(more like {baseline_kg:.0f}kg) — something about the community's "
+            f"current rules held some of it back."
+        )
+    return ""
 
 
 def render_history(agent_id, round_number, runtime, agents, window):
@@ -120,7 +189,8 @@ def render_history(agent_id, round_number, runtime, agents, window):
     for r in past_rounds:
         for entry in (e for e in runtime["rounds"] if e["round"] == r):
             if entry["phase"] == "harvest":
-                mine = entry["agents"][agent_id]["harvested_kg"]
+                mine_record = entry["agents"][agent_id]
+                mine = mine_record["harvested_kg"]
                 total_others = sum(
                     a["harvested_kg"] for oid, a in entry["agents"].items() if oid != agent_id
                 )
@@ -128,6 +198,7 @@ def render_history(agent_id, round_number, runtime, agents, window):
                     f"Round {r}: you brought in {mine:.0f}kg; the rest of the community brought "
                     f"in {total_others:.0f}kg between them. The lake stood at "
                     f"{entry['stock_kg_after_regrowth']:.0f}kg afterward."
+                    f"{_harvest_shortfall_clause(mine_record, entry)}"
                 )
             elif entry["phase"] == "propose":
                 mine = entry["proposals"][agent_id]["policy"]

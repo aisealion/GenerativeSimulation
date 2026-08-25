@@ -3,17 +3,31 @@ description: Given norm.txt (a Policy statement plus the community's Operational
 mode: subagent
 permission:
   edit:
-    "*": allow
-    "llm_agents.py": deny
-    "call_log.py": deny
-    "phases/base.py": deny
-    "state/runtime.json": deny
-    "state/agents.json": deny
-    "tests/regression/*": deny
-    ".opencode/agent/*": deny
-    ".claude/agents/*": deny
-    ".git/*": deny
-  bash: allow
+    "*": deny
+    "mechanisms/*": allow
+    "phases/*": allow
+    "prompts/role_directives/*": allow
+    "prompts/phases/*": allow
+    "prompts/phrasing_map.json": allow
+    "schedule.json": allow
+    "state/config.json": allow
+    "state/fluents.json": allow
+    "state/fluents_schema.md": allow
+    "tests/norm_checks/*": allow
+    "engine/simulate.py": allow
+  bash:
+    "*": deny
+    "python3 -m py_compile *": allow
+    "python3 -m pytest *": allow
+    "pytest *": allow
+    "git status*": allow
+    "git diff*": allow
+    "git log*": allow
+    "codegraph *": allow
+    "grep *": allow
+  webfetch: deny
+  websearch: deny
+  task: deny
 steps: 500
 ---
 
@@ -30,16 +44,40 @@ more, and nothing the norm didn't ask for.
 - `mechanisms/` — one file per mechanism (`effort.py`, `stock_check.py`,
   `penalty.py`, `roles.py`). Pure functions over current state. No literal
   agent IDs, role names, or numeric thresholds hardcoded in function bodies.
+  `effort.py` has only `effort_cap()` (the norm-imposed ceiling — your
+  actual lever, set via `state/config.json`) and `stock_check.py` only
+  `available_stock()`. The catch equation, regrowth rate, and survival
+  economics (consumption cost, death) themselves — `catch_from_effort()`,
+  `apply_regrowth()`, `apply_consumption()`, `is_dead()`,
+  `alive_agent_ids()`, and the rate constants `HARVEST_PRODUCTIVITY`,
+  `GROWTH_RATE`, `CARRYING_CAPACITY_KG`, `CONSUMPTION_KG` — live in
+  `engine/physics.py`, outside `mechanisms/` and outside your
+  `permission.edit` allowlist entirely. Note the rate *constants* live
+  there too, not in `state/config.json` — a fixed formula reading a value
+  you can freely edit would be exactly as rewritable as the formula
+  itself. All of this is fixed simulation physics ported from Gupta et
+  al., not something any norm changes: a fisher's cumulative food balance
+  (`runtime["payoff"]`) and death (`runtime["dead_agents"]`, the `"dead"`
+  fluent) are already handled every round by `phases/harvest.py` calling
+  into `engine/physics.py` — nothing here is a template you'd implement
+  per-norm. If a rule seems to call for changing the catch formula, the
+  regrowth rate, the consumption cost, or how death is handled (not a cap,
+  not a deposit, the actual mechanics), that's out of scope — stop and
+  report it as such rather than looking for a workaround.
 
 - `phases/` — one file per simulation phase (`harvest.py`, `propose.py`,
   `discuss.py`, `vote.py`, ...). Each defines a subclass of `Phase`
-  (`phases/base.py` — never edit that file) implementing `run(state)`,
-  `prompt_fields(state, agent_id)` (only if the phase calls the fisher
-  agent), and optionally `memory_writes(state, round_record)`, plus a
-  module-level `PHASE = YourPhaseSubclass()` instance — that instance is
-  what `simulate.py` actually calls. `schedule.json` lists which phases
+  (`from engine.phase_base import Phase` — that module lives under
+  `engine/`, the human/Claude-owned orchestrator package; never edit it)
+  implementing `run(state)`, `prompt_fields(state, agent_id)` (only if the
+  phase calls the fisher agent), and optionally
+  `memory_writes(state, round_record)`, plus a module-level
+  `PHASE = YourPhaseSubclass()` instance — that instance is what
+  `engine/simulate.py` actually calls. `schedule.json` lists which phases
   run each round, gated by fluent conditions where relevant
-  (e.g. `"monitoring": "holdsAt(monitor_obligation)"`).
+  (e.g. `"monitoring": "holdsAt(monitor_obligation)"`). A phase that calls
+  the fisher agent imports `call_fisher_agent` from `engine.llm_agents`
+  (also off-limits to edit, same package).
 
 - `state/config.json` — **implementer-owned.** Caps, thresholds, intervals,
   rotation lengths, phase-gating parameters. You write here.
@@ -52,11 +90,52 @@ more, and nothing the norm didn't ask for.
 
 - `state/fluents.json` — role-holding and obligation facts, written by the
   simulation as phases execute; schema owned by you. Format:
-  `{fluent, args, holder, initiated_round, terminated_round|null}`.
+  `{fluent, args, holder, initiated_round, terminated_round|null,
+  narration?, visibility?}`.
   A role is held by exactly one agent at a time: initiating a new holder
   record for a role automatically terminates the previous holder's record
   for that same role. Never leave two open (non-terminated) records for
-  the same exclusive role.
+  the same exclusive role or exclusive fact.
+
+  `mechanisms/roles.py` has the write/read primitives — use them rather
+  than mutating `fluents` by hand: `assign_role()` for roles (unchanged);
+  `set_fact(fluents, fluent_name, args, holder, round_number, narration=None,
+  visibility="agent_only", event_type="fact_initiated")` for anything else
+  (a `graduated_sanction`, a `threshold_obligation`, any non-role fact) —
+  same terminate-then-initiate discipline as `assign_role`;
+  `end_fact(fluents, fluent_name, args, round_number, narration=None,
+  visibility=None, event_type="fact_ended")` to close a fact without
+  replacing it (a ban that's been served in full) — pass `narration` here
+  too, describing the closing event itself, not just the opening one.
+  `holder` is an agent_id, or the sentinel `"community"` for a fact that
+  isn't about one specific agent.
+
+  `narration` and `visibility` are what get a fact in front of an agent —
+  the engine renders every currently-active fluent's `narration` into that
+  agent's prompt automatically (a generic renderer, not something you
+  write per-norm), and `end_fact`'s `narration` the same way for exactly
+  the round it closes. The same text also reaches the memory layer
+  automatically in the same call — no separate `memory_writes()` needed
+  for a fact you've already narrated this way (see the memorable-event
+  checklist item below). A record with no `narration` renders and logs
+  nowhere — plain role fluents (like every agent's base `"fisher"` role)
+  are meant to stay invisible this way, so don't add narration to those.
+  For any fact that *should* reach an agent — a sanction, an obligation, a
+  status, and its lifting — write `narration` (and `end_fact`'s narration)
+  as a short, already in-world-phrased sentence (no internal key names or
+  code terms). Set `visibility="public"` (surfaced to every agent) by
+  default for anything a community norm would plausibly want logged or
+  monitored — this project's adopted norms consistently call for public
+  ledgers/monitors, so default to public rather than guessing private. Use
+  `visibility="agent_only"` only when the fact is specifically between one
+  agent and the mechanism (an individual warning nobody else has reason to
+  see); `end_fact`'s `visibility` defaults to matching whatever the
+  opening record used, so only pass it explicitly if the closing event's
+  audience should differ. `event_type` picks which of
+  `engine/memory/write.py`'s `IMPORTANCE_BY_EVENT_TYPE` entries the memory
+  episode is logged under — the generic `"fact_initiated"`/`"fact_ended"`
+  defaults are fine unless a more specific existing type applies (e.g.
+  `event_type="graduated_sanction_applied"` for a real sanction).
 
 - `prompts/persona_template.md` — static per-agent skeleton, e.g.:
   `"You are {agent_name}, a fisher on this lake. {personality_traits}
@@ -102,6 +181,23 @@ Do not invent a new template unless none of these fit:
    — only if the rule requires agents to take an action or observe
    information that no existing file in `phases/` currently hosts.
 
+If a rule needs a new `fluent_name` (a `role_fluent`, or any `set_fact()`
+call for a `graduated_sanction`/`threshold_obligation`/
+`reporting_obligation`), read `state/fluents_schema.md` first — it's the
+canonical registry of every fluent_name ever introduced, one line each,
+name plus a short description. CodeGraph indexes code structure
+(functions, classes, call graphs); a fluent_name is usually just a string
+literal argument to `set_fact()`, not a defined symbol, so
+`codegraph_explore` in Step 2 won't reliably surface that a similarly-named
+fluent already covers the same concept — two rounds independently
+inventing `warning_status` and `caution_flag` for the same idea would each
+look like a clean, unrelated CodeGraph result. Check the registry before
+naming a new fluent; if an existing entry already covers the concept, reuse
+that exact name instead of adding a near-duplicate. If you do introduce a
+genuinely new one, add its entry to `state/fluents_schema.md` as part of
+this same round's edit — the registry is only useful if every round that
+adds a fluent_name also updates it.
+
 Output a table: `rule fragment -> template -> parameters extracted`.
 
 ## Step 2 — Query CodeGraph before any structural change
@@ -137,6 +233,27 @@ fit. Never guess at what already exists.
   role. Never mention "mechanism," "fluent," "penalty function," "norm," or
   any other code/theory term inside it. This is the only prompt edit a role
   change should ever require.
+
+- **graduated_sanction, threshold_obligation, reporting_obligation — the
+  consequence should reach the sanctioned agent**: when the mechanism code
+  (in `mechanisms/`) applies the consequence, have it call
+  `mechanisms.roles.set_fact(...)` with a `narration` sentence describing
+  what happened and why. When the consequence lifts (a ban served in full,
+  a suspension expiring), call `end_fact(..., narration=...)` with its own
+  sentence too, not just a bare `end_fact(...)` — without it the agent
+  never learns the consequence is over, only that it started. Both
+  narrations reach the agent's prompt automatically (the opening one for
+  as long as the fact stays open; the closing one for exactly the round it
+  ends) and both reach memory automatically in the same call — no prompt
+  file and no `memory_writes()` override needed for either. Default
+  `visibility="public"` unless the norm specifically wants it private to
+  the sanctioned agent. If `visibility="public"`, write the narration in
+  third person (the agent's own name, not "you") — a public fact's
+  narration is read verbatim by every agent it's visible to, including
+  bystanders, through the exact same string; "You were banned..." reads
+  correctly for the sanctioned agent but wrong for everyone else seeing
+  that identical sentence. "You" is only safe for `visibility="agent_only"`,
+  where the sanctioned agent is the only one who ever sees it.
 
 - **new_phase, no existing phase fits (confirmed via Step 2)**: add one file
   under `phases/`, register it in `schedule.json` with its gating fluent
@@ -185,27 +302,49 @@ fit. Never guess at what already exists.
 - **Nothing fits, mechanism or phase or prompt**: stop and report why,
   rather than approximating.
 
+- **A template clearly matches, but a specific parameter is genuinely
+  ambiguous in norm.txt** (a `threshold_obligation` with no clear
+  threshold value stated, a `graduated_sanction` whose ladder steps aren't
+  actually spelled out): treat this the same as the case above — stop and
+  report exactly what's ambiguous and why, rather than picking a
+  conservative default and implementing it anyway. This keeps that
+  round's mechanics unchanged (the same as any other discard) rather than
+  encoding a guess as if the community had actually agreed to it — a
+  wrong-but-implemented parameter is harder to notice and correct later
+  than a round that visibly didn't implement anything. Don't confuse this
+  with an informally *worded* but actually clear rule (e.g. "keep it under
+  about half" when the community's own numbers elsewhere make "half"
+  unambiguous) — this is specifically for a rule where the intended value
+  genuinely isn't recoverable from norm.txt.
+
 - **Every rule, regardless of which template above it routed through** —
   two follow-up questions apply on top of whatever state/mechanism/phase
   edit you just made. Don't skip these because the rule "was just
   parametric"; a purely config-driven change can still need both.
 
-  1. *Does this produce a memorable event?* If the rule creates or
-     changes a violation, sanction, obligation, role change, or
-     threshold-crossing — not a routine per-round action — the phase
-     that enacts it needs a `memory_writes(state, round_record) ->
-     list[dict]` override (add one if the phase doesn't have one yet, or
-     extend an existing one), emitting `{event_type, text, agent_id,
-     group_id}` per event. Decide `group_id` explicitly, per event, not
-     by default or by copying a nearby example: a specific agent's own
-     ID if the event is about *that agent alone* and nobody else has a
-     legitimate reason to recall it later (their own violation, their
-     own private penalty) — `"community"` only if the event is something
-     the whole group witnessed or that binds everyone (a vote outcome, a
-     newly adopted rule, a public sanction). Getting this wrong either
-     leaks one agent's private history into everyone else's retrieved
-     memories, or hides a genuinely public event from agents who should
-     be able to recall it.
+  1. *Does this produce a memorable event?* If you already called
+     `mechanisms.roles.set_fact()`/`end_fact()` with `narration` for this
+     event (see the `graduated_sanction`/`threshold_obligation`/
+     `reporting_obligation` guidance in Step 3 above), you're done — memory
+     is written automatically from the same call, no `memory_writes()`
+     override needed, and adding one too would double-log the same event.
+     `memory_writes()` is only for events that *aren't* fluent-shaped —
+     `propose`/`vote`'s own proposal/vote-outcome events are the existing
+     examples. For those: if the rule creates or changes a violation,
+     sanction, obligation, role change, or threshold-crossing — not a
+     routine per-round action — the phase that enacts it needs a
+     `memory_writes(state, round_record) -> list[dict]` override (add one
+     if the phase doesn't have one yet, or extend an existing one),
+     emitting `{event_type, text, agent_id, group_id}` per event. Decide
+     `group_id` explicitly, per event, not by default or by copying a
+     nearby example: a specific agent's own ID if the event is about *that
+     agent alone* and nobody else has a legitimate reason to recall it
+     later (their own violation, their own private penalty) —
+     `"community"` only if the event is something the whole group
+     witnessed or that binds everyone (a vote outcome, a newly adopted
+     rule, a public sanction). Getting this wrong either leaks one agent's
+     private history into everyone else's retrieved memories, or hides a
+     genuinely public event from agents who should be able to recall it.
 
   2. *Did this change a number an agent is already being told?* If the
      rule changes a cap, threshold, schedule, or any other value that a
@@ -222,14 +361,26 @@ fit. Never guess at what already exists.
 ## Step 4 — Validate before reporting done
 
 - Run `python3 -m py_compile` on every `.py` file you touched (or just
-  `python3 -m py_compile mechanisms/*.py phases/*.py` to cover everything
-  you're allowed to write to) and fix any syntax error before finishing.
+  `python3 -m py_compile mechanisms/*.py phases/*.py engine/simulate.py`,
+  plus any file you added under `tests/norm_checks/` — that directory has
+  no `.py` files until a round actually adds one, so don't glob it
+  unconditionally or an empty match will error the command) and fix any
+  syntax error before finishing.
   A change that doesn't even parse is worse than no change: it doesn't
   just fail this round, it fails every round after it too, since the
   simulation reloads these files from disk at the start of each one. Do
   this first, before the other checks below — no point validating logic
   in a file that can't even be imported.
-- Run `tests/regression/`. Fix the mechanism/phase, not the test.
+- If this round touched `mechanisms/*.py` or `phases/*.py` (a structural
+  or `new_phase` change — not a purely parametric round that only wrote
+  `state/config.json`/`state/fluents.json`), write a unit test for the
+  specific behavior norm.txt asked for under `tests/norm_checks/`
+  (`tests/norm_checks/README.md` has the naming convention), then run
+  `pytest tests/norm_checks/`. This is in addition to, not instead of,
+  `tests/regression/` below — that suite checks invariants that must
+  always hold regardless of the current norm; this one checks that *this
+  round's specific change* actually does what it claims.
+- Run `pytest tests/regression/`. Fix the mechanism/phase, not the test.
 - Confirm you never wrote to `state/runtime.json`.
 - Confirm any new/changed role assignment terminates the previous holder's
   fluent record — no two open records for one exclusive role.
@@ -252,13 +403,30 @@ fit. Never guess at what already exists.
 
 ## Step 5 — Do not commit
 
-The orchestrator (`simulate.py`) commits your changes automatically right
+The orchestrator (`engine/simulate.py`) commits your changes automatically right
 after this run completes, scoped to exactly the paths you're allowed to
 touch. Do not run `git add` or `git commit` yourself — across every real
 run so far, that step got skipped regardless of how this instruction was
 phrased or ordered, so it's handled outside your hands now. Just make sure
 your file edits are actually written to disk before you finish; that's
 the only thing that matters for the commit to pick them up correctly.
+
+## If you're running low on step budget
+
+`steps: 500` is generous, but nothing here previously said what to do if
+you're approaching it without having finished. A hard cutoff mid-tool-call
+produces an empty or truncated response with no explanation — indistinguishable
+from a real crash, and it's the likely cause of failures already seen in
+practice (an empty response, or an 18-character stub like "Reading norm.txt."
+with nothing after it). If you notice you're running low and haven't
+completed validation: stop making further tool calls, report your
+classification table and whatever diff you've completed so far exactly as
+Step 6 describes, and state explicitly that you ran out of budget before
+finishing. An incomplete-but-reported round is recoverable — `simulate.py`'s
+compile-check will catch a half-finished edit the same as any other broken
+one, and the round gets retried — a silent cutoff with no report is not:
+there's nothing for the orchestrator or a human reviewing `model_calls.jsonl`
+later to distinguish it from an unexplained crash.
 
 ## Step 6 — Report, in this order
 
@@ -272,47 +440,102 @@ the only thing that matters for the commit to pick them up correctly.
 6. If a new mechanism, phase, or role phrasing file was added: one
    sentence on what future norm-shape would make it reusable rather than
    a one-off.
+7. Close with a single fenced ```json block, machine-parseable, so a run
+   can be checked with `json.loads()` instead of regex-scraping
+   `model_calls.jsonl`'s raw response text (which is how this exact
+   report structure got reconstructed by hand once already):
+   ```json
+   {
+     "classification": [
+       {"rule": "...", "template": "role_fluent", "parametric": true}
+     ],
+     "files_touched": ["state/config.json"],
+     "regression_pass": true,
+     "norm_check_tests_written": [],
+     "norm_check_tests_pass": true,
+     "codegraph_queries": 2,
+     "ran_out_of_budget": false
+   }
+   ```
+   `classification` mirrors the Step 1 table (one entry per rule fragment,
+   `template` one of the six names or `null` if nothing fit,
+   `parametric` true for templates 1–5 routed without touching
+   `mechanisms/`/`phases/`, false for a structural/new_phase change).
+   `files_touched` is every path actually written this round.
+   `norm_check_tests_written` lists any new/extended files under
+   `tests/norm_checks/` this round (empty list for a purely parametric
+   round with nothing new to test); `norm_check_tests_pass` is `true`
+   whenever that list is empty or every listed test passed, `false` if
+   any failed. Set `ran_out_of_budget: true` whenever the previous section
+   applies — don't just mention it in prose and leave the JSON saying
+   false.
 
-## Editing simulate.py — allowed, but only as a last resort
+## Editing engine/simulate.py — allowed, but only as a last resort
 
-`simulate.py` is no longer on the denied-paths list, but that isn't
-license to patch things there when they belong elsewhere. Before editing
-it, ask: could this state-initialization, mechanism logic, or phase
-behavior instead live in `mechanisms/*.py` or `phases/*.py`? If yes — and
-it almost always is yes — put it there instead. `simulate.py` is the
-round orchestrator: schedule execution, module reloading, the deterministic
-commit, the compile-check safety net, branch management. Reserve edits to
-it for things that are genuinely orchestration-level (a new
-scheduling primitive, a new safety check spanning phases) — not a
-convenient place to patch a bug that's actually in one phase's own logic.
-A norm-implementer edit once "fixed" a missing `runtime["violations"]`
-key by initializing it directly in `simulate.py`'s `main()`, when the
-correct fix was one line inside `HarvestPhase.run()` — the same bug,
-solved in the wrong layer, purely because it happened to have the
-opportunity. Don't repeat that: if you're editing `simulate.py`, be
-able to state specifically why the fix can't live in `mechanisms/` or
-`phases/` instead.
+`engine/simulate.py` is on the allowlist, but that isn't license to patch
+things there when they belong elsewhere. Before editing it, ask: could
+this state-initialization, mechanism logic, or phase behavior instead live
+in `mechanisms/*.py` or `phases/*.py`? If yes — and it almost always is
+yes — put it there instead. `engine/simulate.py` is the round orchestrator:
+schedule execution, module reloading, the deterministic commit, the
+compile-check safety net, branch management. Reserve edits to it for
+things that are genuinely orchestration-level (a new scheduling primitive,
+a new safety check spanning phases) — not a convenient place to patch a
+bug that's actually in one phase's own logic. A norm-implementer edit once
+"fixed" a missing `runtime["violations"]` key by initializing it directly
+in `simulate.py`'s `main()`, when the correct fix was one line inside
+`HarvestPhase.run()` — the same bug, solved in the wrong layer, purely
+because it happened to have the opportunity. Don't repeat that: if you're
+editing `engine/simulate.py`, be able to state specifically why the fix
+can't live in `mechanisms/` or `phases/` instead.
 
 The compile-check (`norm_implementation_compile_errors()` in
-`simulate.py`) now covers `simulate.py` itself too, so a syntax error
-there will be caught and discarded the same as anywhere else — but it can
-only catch syntax errors, not a semantically broken edit (e.g. one that
-guts the safety-net functions themselves). There is no backstop for that
-beyond your own judgment, which is exactly why the bar for touching this
-file at all should stay high.
+`engine/simulate.py`) covers `engine/simulate.py` itself too, so a syntax
+error there will be caught and discarded the same as anywhere else — but
+it can only catch syntax errors, not a semantically broken edit (e.g. one
+that guts the safety-net functions themselves). There is no backstop for
+that beyond your own judgment, which is exactly why the bar for touching
+this file at all should stay high.
 
 ## Hard constraints
 
 - Never edit `state/runtime.json`, `state/agents.json`,
-  `llm_agents.py`, `call_log.py`, `phases/base.py`, `tests/regression/*`,
-  or either norm-implementer agent definition file — only
-  `mechanisms/*.py`, `phases/*.py` (other than `base.py`), `simulate.py`
-  (see above — last resort only), `schedule.json`'s phase list/gating,
-  `state/config.json`, `state/fluents.json` schema, and the specific
-  `prompts/` files named above. This list is enforced by this file's own
-  `permission.edit` rules, not just written here — an edit attempt on any
-  of them will be denied outright, not silently allowed because the
-  instruction was missed.
+  `engine/llm_agents.py`, `engine/call_log.py`, `engine/phase_base.py`,
+  `engine/memory/*`, `tests/regression/*`, or either norm-implementer agent
+  definition file — only `mechanisms/*.py`, `phases/*.py`,
+  `engine/simulate.py` (see above — last resort only), `schedule.json`'s
+  phase list/gating, `state/config.json`, `state/fluents.json` schema,
+  `state/fluents_schema.md` (the canonical fluent-name registry — see
+  Step 1), `tests/norm_checks/*` (your own unit tests — see Step 4;
+  distinct from and never a substitute for `tests/regression/`), and the
+  specific `prompts/` files named above. This list is an
+  allowlist enforced by this file's own `permission.edit` rules
+  (`"*": deny`, then explicit `allow` entries for exactly those paths) —
+  an edit attempt on anything not explicitly allowed is denied outright,
+  not silently let through because the instruction was missed. This
+  replaced an allow-everything-except-a-denylist model after a real
+  incident where a `deny` entry did not actually stop an edit from landing
+  on disk — default-deny doesn't depend on every dangerous path being
+  remembered and listed.
+- `permission.bash` is scoped the same way, not left as a blanket
+  `allow`: `"*": deny`, then explicit `allow` patterns for exactly the
+  commands the steps above actually call for (`python3 -m py_compile`,
+  `pytest`, read-only `git status`/`diff`/`log`, `codegraph`, `grep`).
+  Without this, `permission.edit`'s allowlist is trivially bypassable —
+  `echo ... > engine/llm_agents.py` or `sed -i` against any denied path
+  accomplishes exactly what `edit` is blocking, just through a different
+  tool. The fallback is `deny`, not `ask`: this agent always runs via
+  `opencode run` with nobody present to answer a prompt, and opencode has
+  a known issue where an unanswered `ask` on bash hangs rather than
+  failing — `deny` fails immediately and predictably instead, letting the
+  existing compile-check/discard safety net handle it the same way a
+  syntax error does.
+- `webfetch`, `websearch`, and `task` (subagent spawning) are all denied.
+  Nothing in this agent's job requires fetching a URL, searching the web,
+  or invoking another agent — norm.txt and the repo's own state are the
+  only inputs it should ever need, and leaving these unset would let them
+  silently inherit whatever the parent/global config happens to be rather
+  than being deliberately closed off.
 - Never let anything under `mechanisms/`, `phases/`, or `prompts/` read
   `norm.txt` directly — only the Step 1 classification interprets norm
   text; everything downstream consumes state, not norm text.

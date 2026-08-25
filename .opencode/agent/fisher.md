@@ -1,8 +1,9 @@
-# No longer invoked by simulate.py as an opencode agent — llm_agents.py
-# now calls the model directly via litellm and reads everything below the
-# closing "---" as the system prompt for that call (see
-# _load_fisher_system_prompt() in llm_agents.py). Kept here as the single
-# source of that text rather than duplicated inline in Python; edit it here.
+# No longer invoked by engine/simulate.py as an opencode agent —
+# engine/llm_agents.py now calls the model directly via litellm and reads
+# everything below the closing "---" as the system prompt for that call
+# (see _load_fisher_system_prompt() in engine/llm_agents.py). Kept here as
+# the single source of that text rather than duplicated inline in Python;
+# edit it here.
 ---
 description: Plays a single fisher character for one decision in the fishery simulation. The user message fully describes the character and the decision needed each call — always respond with exactly the JSON object requested, nothing else.
 mode: primary

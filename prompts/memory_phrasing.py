@@ -4,12 +4,12 @@ in rendered text directly, only their mapped phrasing does), for the one
 case a static JSON map can't handle: a memory record's phrasing needs to
 wrap dynamic text, not just substitute a fixed string.
 
-Callers of memory.write.write_episode() are expected to pass already
-in-world-phrased text as the episode body (see memory/write.py) — the
-frame sentences below only add the temporal/social framing around it, they
-don't synthesize content from raw internal fields.
+Callers of engine.memory.write.write_episode() are expected to pass already
+in-world-phrased text as the episode body (see engine/memory/write.py) —
+the frame sentences below only add the temporal/social framing around it,
+they don't synthesize content from raw internal fields.
 """
-from memory.write import IMPORTANCE_BY_EVENT_TYPE
+from engine.memory.write import IMPORTANCE_BY_EVENT_TYPE
 
 _FRAMES = {
     "role_fluent_initiated": "A while back, {text}",
@@ -21,6 +21,8 @@ _FRAMES = {
     "vote_outcome": "The community decided: {text}",
     "proposal_made": "You once proposed: {text}",
     "routine_harvest": "{text}",
+    "fact_initiated": "You remember: {text}",
+    "fact_ended": "You remember it didn't last forever: {text}",
 }
 
 _missing = set(IMPORTANCE_BY_EVENT_TYPE) - set(_FRAMES)

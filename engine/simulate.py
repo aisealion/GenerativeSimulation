@@ -9,20 +9,28 @@ import sys
 import time
 from pathlib import Path
 
-from call_log import log_call
+from engine.call_log import log_call
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 100
 NORM_IMPLEMENTER_TRACKED_PATHS = [
     "mechanisms",
     "phases",
     "prompts",
+    # Implementer-authored unit tests for its own mechanism/phase changes
+    # (added 2026-08-26) — distinct from tests/regression/, which stays a
+    # human-owned fixed suite the implementer must never edit. Tracked here
+    # so a new test file actually gets committed, and so a syntax error in
+    # one is caught by the same compile gate as everything else, rather
+    # than silently sitting broken until the next round tries to run it.
+    "tests/norm_checks",
     "schedule.json",
     "state/config.json",
     "state/fluents.json",
-    # simulate.py itself is now editable by the norm-implementer (was
-    # previously denied — see CLAUDE.md for why that changed and the
+    "state/fluents_schema.md",
+    # engine/simulate.py itself is now editable by the norm-implementer
+    # (was previously denied — see CLAUDE.md for why that changed and the
     # residual risk). It has to be listed here for two reasons: so
     # commit_norm_implementation()'s `git add` actually picks up edits to
     # it (before this, an edit landed on disk but never got committed by
@@ -30,7 +38,7 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # and so norm_implementation_compile_errors() below includes it in the
     # pre-commit syntax check, since it derives its file list from this
     # same list.
-    "simulate.py",
+    "engine/simulate.py",
 ]
 
 HOLDS_AT_RE = re.compile(r"holdsAt\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)")
@@ -89,9 +97,30 @@ def write_memory_episodes(phase, state, record, round_number):
     if not os.environ.get("NEO4J_URI"):
         return
     try:
-        from memory.write import write_episode
+        from engine.memory.write import write_episode
 
         for spec in phase.memory_writes(state, record):
+            write_episode(round_num=round_number, **spec)
+    except Exception as exc:
+        print(f"  [memory write skipped: {exc}]")
+
+
+def write_fact_memory_events(state, round_number):
+    """Mirrors write_memory_episodes() above, but for fluent-sourced events
+    (mechanisms.roles.set_fact()/end_fact() calls carrying narration) rather
+    than a phase's own memory_writes() hook. Called once per round, after
+    every phase for that round has finished — not per-phase like
+    write_memory_episodes() — because fact_memory_events() finds facts by
+    initiated_round/terminated_round == round_number, and a fact set by an
+    early phase would still look "new" to a later phase's own call this
+    same round, double-writing it to memory."""
+    if not os.environ.get("NEO4J_URI"):
+        return
+    try:
+        from engine.memory.write import write_episode
+        from mechanisms.roles import fact_memory_events
+
+        for spec in fact_memory_events(state["fluents"], round_number):
             write_episode(round_num=round_number, **spec)
     except Exception as exc:
         print(f"  [memory write skipped: {exc}]")
@@ -316,6 +345,8 @@ def run_cycle(round_number):
                 f"(stock_kg={state['runtime']['stock_kg']}). Stopping."
             )
             return False
+
+    write_fact_memory_events(state, round_number)
 
     winning_proposal = state.get("adopted_norm") or find_adopted_norm(state["runtime"], round_number)
     if winning_proposal:

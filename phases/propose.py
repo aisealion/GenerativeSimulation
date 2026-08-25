@@ -1,8 +1,9 @@
 # Reads: state/config.json, state/fluents.json.
 # Writes: state/runtime.json (proposals for the round).
 
-from llm_agents import call_fisher_agent
-from phases.base import Phase
+from engine.llm_agents import call_fisher_agent
+from engine.phase_base import Phase
+from engine.physics import alive_agent_ids
 
 
 class ProposePhase(Phase):
@@ -11,7 +12,7 @@ class ProposePhase(Phase):
     def prompt_fields(self, state, agent_id):
         runtime = state["runtime"]
         agents = state["agents"]
-        agent_ids = list(agents.keys())
+        agent_ids = alive_agent_ids(agents, runtime)
         last_harvest = next(r for r in reversed(runtime["rounds"]) if r["phase"] == "harvest")
 
         others_summary = "\n".join(
@@ -30,7 +31,7 @@ class ProposePhase(Phase):
         runtime = state["runtime"]
         agents = state["agents"]
         round_number = state["round_number"]
-        agent_ids = list(agents.keys())
+        agent_ids = alive_agent_ids(agents, runtime)
 
         proposals = {}
         for agent_id in agent_ids:

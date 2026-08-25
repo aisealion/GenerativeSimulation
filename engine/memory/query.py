@@ -12,7 +12,7 @@ going through graphiti.search()/retrieve_episodes() — this keeps a single
 consistent record shape across the relevance and importance paths, which
 matters since they get merged and deduplicated below.
 """
-from memory.client import ensure_indices, graphiti, round_reference_time, run_async
+from engine.memory.client import ensure_indices, graphiti, round_reference_time, run_async
 
 PHASE_QUERY_TEMPLATES = {
     "harvest": [

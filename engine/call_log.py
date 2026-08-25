@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-LOG_PATH = Path(__file__).resolve().parent / "logs" / "model_calls.jsonl"
+LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "model_calls.jsonl"
 
 
 def log_call(**fields):

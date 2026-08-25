@@ -20,7 +20,7 @@ from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
 from graphiti_core.llm_client.config import LLMConfig
 from graphiti_core.llm_client.openai_client import OpenAIClient
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(ROOT / ".env")
 
 LITELLM_PROXY_BASE_URL = "https://llm.uod.otago.ac.nz/v1"

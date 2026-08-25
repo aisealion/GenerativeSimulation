@@ -1,13 +1,13 @@
 class Phase:
     """Base class for one entry in schedule.json. A module under phases/
     defines exactly one subclass and exposes a module-level `PHASE` instance
-    of it — that's what simulate.py imports and calls."""
+    of it — that's what engine/simulate.py imports and calls."""
 
     name = None  # must match the filename stem and the schedule.json key
 
     def run(self, state):
         """Execute this phase's mechanism logic (and any agent calls this
-        round). Returns the round_record dict simulate.py appends to
+        round). Returns the round_record dict engine/simulate.py appends to
         runtime['rounds']."""
         raise NotImplementedError
 

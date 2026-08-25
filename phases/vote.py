@@ -1,8 +1,9 @@
 # Reads: state/config.json, state/fluents.json, state/runtime.json (proposals).
 # Writes: state/runtime.json (vote tallies), state/fluents.json (adopted rules).
 
-from llm_agents import call_fisher_agent
-from phases.base import Phase
+from engine.llm_agents import call_fisher_agent
+from engine.phase_base import Phase
+from engine.physics import alive_agent_ids
 
 
 class VotePhase(Phase):
@@ -16,7 +17,10 @@ class VotePhase(Phase):
         runtime = state["runtime"]
         agents = state["agents"]
         last_propose = next(r for r in reversed(runtime["rounds"]) if r["phase"] == "propose")
-        return [(agent_id, last_propose["proposals"][agent_id]) for agent_id in agents]
+        return [
+            (agent_id, last_propose["proposals"][agent_id])
+            for agent_id in alive_agent_ids(agents, runtime)
+        ]
 
     def prompt_fields(self, state, agent_id):
         proposals = self._proposals(state)
@@ -30,7 +34,7 @@ class VotePhase(Phase):
         runtime = state["runtime"]
         agents = state["agents"]
         round_number = state["round_number"]
-        agent_ids = list(agents.keys())
+        agent_ids = alive_agent_ids(agents, runtime)
 
         proposals = self._proposals(state)
 

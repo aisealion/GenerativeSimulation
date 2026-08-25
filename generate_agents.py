@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-time roster generator — run manually, never called by simulate.py.
+"""One-time roster generator — run manually, never called by engine/simulate.py.
 
 Assigns personalities the same way Gupta et al.'s CPRModel does
 (ostrom3/Model.py on origin/hiromu/llm-norm in the Gupta/CPRG_fishing
@@ -14,6 +14,8 @@ meaningfully continuable.
 import json
 import random
 from pathlib import Path
+
+from engine.physics import CARRYING_CAPACITY_KG
 
 ROOT = Path(__file__).resolve().parent
 
@@ -53,7 +55,7 @@ def generate():
     (ROOT / "state" / "agents.json").write_text(json.dumps(agents, indent=2) + "\n")
     (ROOT / "state" / "fluents.json").write_text(json.dumps(fluents, indent=2) + "\n")
 
-    runtime = {"round": 0, "stock_kg": config["carrying_capacity_kg"], "rounds": []}
+    runtime = {"round": 0, "stock_kg": CARRYING_CAPACITY_KG, "rounds": []}
     (ROOT / "state" / "runtime.json").write_text(json.dumps(runtime, indent=2) + "\n")
 
     altruistic_count = sum(1 for a in agents.values() if a["is_altruistic"])

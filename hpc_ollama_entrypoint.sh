@@ -240,22 +240,23 @@ fi
 # Reproduce the exact failure point from the 2026-08-19 incident
 # (ModelResponse() construction) right here, so a real break fails loudly
 # before round 1 rather than three silent retries into it. Crucially, this
-# must go through llm_agents.py (like simulate.py actually does), NOT a
-# bare `import litellm` — llm_agents.py applies a workaround at import time
-# for a genuine litellm bug on Python 3.10 (Message's pydantic schema has a
-# forward ref that never resolves there; see _patch_litellm_message_rebuild()
-# in llm_agents.py). A bare `from litellm.types.utils import ModelResponse`
-# check bypasses that workaround entirely and fails even when the real
-# simulate.py run would succeed — cost real time chasing exactly that
-# false alarm on 2026-08-19/20 before catching it.
+# must go through engine/llm_agents.py (like engine/simulate.py actually
+# does), NOT a bare `import litellm` — llm_agents.py applies a workaround
+# at import time for a genuine litellm bug on Python 3.10 (Message's
+# pydantic schema has a forward ref that never resolves there; see
+# _patch_litellm_message_rebuild() in engine/llm_agents.py). A bare
+# `from litellm.types.utils import ModelResponse` check bypasses that
+# workaround entirely and fails even when the real engine/simulate.py run
+# would succeed — cost real time chasing exactly that false alarm on
+# 2026-08-19/20 before catching it.
 if ! "$FISHERY_VENV/bin/python3" -c "
 import sys
 sys.path.insert(0, '$SLURM_SUBMIT_DIR')
-import llm_agents
+import engine.llm_agents
 from litellm.types.utils import ModelResponse
 ModelResponse()
 "; then
-  echo "Still broken even going through llm_agents.py's own workaround." >&2
+  echo "Still broken even going through engine/llm_agents.py's own workaround." >&2
   echo "Full dependency tree for a direct diff:" >&2
   "$FISHERY_VENV/bin/pip" freeze >&2
   exit 1
@@ -279,10 +280,14 @@ mkdir -p logs
 export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
 # Run through the venv's interpreter, not the container's bare python3 —
-# that's the whole point of building it above. simulate.py itself and
-# everything it imports besides llm_agents.py (call_log, mechanisms/*,
-# phases/*) is stdlib-only, so this venv (litellm/pydantic/python-dotenv
-# only, no --system-site-packages) has everything the run needs; the
-# opencode subprocess call for the norm-implementer is an external binary,
-# unaffected by which Python interpreter launched it.
-"$FISHERY_VENV/bin/python3" simulate.py --max-rounds "${MAX_ROUNDS:-100}"
+# that's the whole point of building it above. engine/simulate.py itself
+# and everything it imports besides engine/llm_agents.py (engine/call_log,
+# mechanisms/*, phases/*) is stdlib-only, so this venv (litellm/pydantic/
+# python-dotenv only, no --system-site-packages) has everything the run
+# needs; the opencode subprocess call for the norm-implementer is an
+# external binary, unaffected by which Python interpreter launched it.
+# Run as a module (-m engine.simulate), not a script path, so `engine`
+# resolves as a package relative to $SLURM_SUBMIT_DIR (the repo root and
+# cwd here) — a plain `python3 engine/simulate.py` would put engine/ itself
+# on sys.path instead and break every `from engine.x import y` inside it.
+"$FISHERY_VENV/bin/python3" -m engine.simulate --max-rounds "${MAX_ROUNDS:-100}"
