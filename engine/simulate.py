@@ -11,6 +11,20 @@ from pathlib import Path
 
 from engine.call_log import log_call
 
+try:
+    # matplotlib isn't part of the minimal HPC venv hpc_ollama_entrypoint.sh
+    # builds (litellm/pydantic/python-dotenv only) unless that script has
+    # been updated to install it too — monitoring is observability, not
+    # core simulation logic, so its absence degrades to a no-op the same
+    # way the optional memory layer already does, rather than taking the
+    # whole round loop down over a missing plotting dependency.
+    from engine.monitoring import update_plots
+except ImportError as exc:
+    print(f"  [monitoring disabled: {exc}]")
+
+    def update_plots(state):
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 100
@@ -126,13 +140,58 @@ def write_fact_memory_events(state, round_number):
         print(f"  [memory write skipped: {exc}]")
 
 
+def parse_opencode_jsonl(stdout):
+    """Parses `opencode run --format json`'s JSONL event stream: counts
+    completed tool_use events (per-round tool-call telemetry) and keeps
+    the last text event's content as the model's final response (where the
+    Step 6 report lives). Documented opencode behavior, not empirically
+    verified against the installed 1.18.14 build — no model credentials
+    available to exercise a real run while writing this. Degrades
+    gracefully on any parse failure (falls back to a zero count and the
+    raw stdout) rather than raising, so a schema mismatch here costs
+    telemetry, not the round itself."""
+    tool_calls = 0
+    final_text = None
+    try:
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            event = json.loads(line)
+            if event.get("type") == "tool_use":
+                tool_calls += 1
+            elif event.get("type") == "text":
+                text = event.get("part", {}).get("text")
+                if text:
+                    final_text = text
+    except (json.JSONDecodeError, AttributeError):
+        return 0, stdout
+    return tool_calls, final_text or stdout
+
+
+def extract_norm_implementer_report(text):
+    """Pulls the trailing fenced ```json block (Step 6 of both
+    norm-implementer specs) out of its final response. Takes the last
+    match, in case the report text quotes other JSON earlier; returns
+    None on no-match or a malformed block rather than raising — a report
+    parse failure shouldn't be able to break a round any more than a
+    missing tool-call count can."""
+    matches = re.findall(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if not matches:
+        return None
+    try:
+        return json.loads(matches[-1])
+    except json.JSONDecodeError:
+        return None
+
+
 def run_norm_implementer(round_number):
     print("\n--- invoking norm-implementer ---")
     message = (
         "norm.txt has been updated for this round. Read it and implement "
         "accordingly, following your standing instructions."
     )
-    cmd = ["opencode", "run", "--agent", "norm-implementer"]
+    cmd = ["opencode", "run", "--agent", "norm-implementer", "--format", "json"]
     model = os.environ.get("OPENCODE_MODEL")
     if model:
         cmd += ["--model", model]
@@ -148,6 +207,9 @@ def run_norm_implementer(round_number):
     result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=3600)
     duration_s = time.monotonic() - start
 
+    tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
+    report = extract_norm_implementer_report(final_text)
+
     log_call(
         call="norm_implementer",
         agent_id=None,
@@ -159,10 +221,12 @@ def run_norm_implementer(round_number):
         prompt=message,
         raw_response=result.stdout,
         parsed_response=None,
+        tool_call_count=tool_call_count,
+        report=report,
         error=None if result.returncode == 0 else result.stderr.strip(),
     )
 
-    print(result.stdout)
+    print(final_text)
     if result.returncode != 0:
         print(result.stderr, file=sys.stderr)
         raise RuntimeError("norm-implementer run failed")
@@ -286,6 +350,12 @@ def commit_norm_implementation(round_number, winning_proposal):
 
     if not staged:
         print(f"Round {round_number}: norm-implementer made no changes in the tracked paths — nothing to commit.")
+        log_call(
+            call="norm_implementer_no_changes",
+            agent_id=None, round=round_number, phase=None, model=None,
+            duration_s=None, returncode=None, prompt=None,
+            raw_response=None, parsed_response=None, error=None,
+        )
         return None
 
     message = f"Round {round_number} norm: {winning_proposal['policy']}\n\n{winning_proposal['operationalization']}"
@@ -294,6 +364,16 @@ def commit_norm_implementation(round_number, winning_proposal):
         ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
     ).stdout.strip()
     print(f"Committed round {round_number} as {commit_hash}: {winning_proposal['policy'][:72]}")
+    # Distinct from norm_implementer_discarded — the only other log_call()
+    # this function's caller can reach — so plot 6 (engine/monitoring.py)
+    # gets a clean, mutually-exclusive per-round commit/discard/no-op
+    # signal without inferring anything from git log.
+    log_call(
+        call="norm_implementer_committed",
+        agent_id=None, round=round_number, phase=None, model=None,
+        duration_s=None, returncode=None, prompt=None,
+        raw_response=None, parsed_response=None, commit_hash=commit_hash, error=None,
+    )
     return commit_hash
 
 
@@ -365,6 +445,8 @@ def run_cycle(round_number):
                 discard_norm_implementation(round_number, compile_errors)
             else:
                 commit_norm_implementation(round_number, winning_proposal)
+
+    update_plots(state)
 
     return True
 

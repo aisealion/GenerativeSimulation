@@ -235,7 +235,16 @@ fi
 "$FISHERY_VENV/bin/pip" install --quiet --upgrade pip \
   litellm==1.97.0 pydantic==2.13.4 pydantic-core==2.46.4 \
   annotated-types==0.7.0 typing-extensions==4.15.0 typing-inspection==0.4.2 \
-  anyio==4.14.0 jiter==0.15.0 python-dotenv
+  anyio==4.14.0 jiter==0.15.0 python-dotenv matplotlib
+# matplotlib (added for engine/monitoring.py's live plots, 2026-08-26) is
+# unpinned, unlike everything above it — it doesn't have the fragile
+# cross-package resolution issue that pinning exists to work around here,
+# so it doesn't need the same treatment. engine/simulate.py imports
+# engine.monitoring defensively (try/except ImportError) specifically so
+# forgetting this line degrades to "no live plots" rather than crashing
+# every round at import time — but the whole point of this feature is
+# watching a long unattended HPC run's progress, so it shouldn't actually
+# be left out.
 
 # Reproduce the exact failure point from the 2026-08-19 incident
 # (ModelResponse() construction) right here, so a real break fails loudly
@@ -281,11 +290,12 @@ export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
 # Run through the venv's interpreter, not the container's bare python3 —
 # that's the whole point of building it above. engine/simulate.py itself
-# and everything it imports besides engine/llm_agents.py (engine/call_log,
-# mechanisms/*, phases/*) is stdlib-only, so this venv (litellm/pydantic/
-# python-dotenv only, no --system-site-packages) has everything the run
-# needs; the opencode subprocess call for the norm-implementer is an
-# external binary, unaffected by which Python interpreter launched it.
+# and everything it imports besides engine/llm_agents.py and
+# engine/monitoring.py (engine/call_log, mechanisms/*, phases/*) is
+# stdlib-only, so this venv (litellm/pydantic/python-dotenv/matplotlib,
+# no --system-site-packages) has everything the run needs; the opencode
+# subprocess call for the norm-implementer is an external binary,
+# unaffected by which Python interpreter launched it.
 # Run as a module (-m engine.simulate), not a script path, so `engine`
 # resolves as a package relative to $SLURM_SUBMIT_DIR (the repo root and
 # cwd here) — a plain `python3 engine/simulate.py` would put engine/ itself

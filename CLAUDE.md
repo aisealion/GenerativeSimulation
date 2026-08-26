@@ -433,6 +433,60 @@ so one early miscalibration doesn't end a whole 100-round run.
   `runtime.json`) now imports `CARRYING_CAPACITY_KG` from
   `engine.physics` directly.
 
+## Live monitoring plots (added 2026-08-26)
+
+`engine/monitoring.py` — new module, `update_plots(state)` called once at
+the end of every `run_cycle()` round. Renders seven PNGs to
+`plots/{branch}/` (branch from `git rev-parse --abbrev-ref HEAD`,
+sanitized for the filesystem — the same run branch `ensure_run_branch()`
+cuts), each one a **fixed filename overwritten every round**, not a
+per-round snapshot — that's what makes them "live": open the file once,
+it keeps updating in place for the whole run, including on Aoraki where
+there's no display (`matplotlib.use("Agg")`, mandatory here, not
+optional). Not gitignored, not auto-committed by
+`commit_norm_implementation()` — same treatment `logs/model_calls.jsonl`
+already gets, written continuously and left for a human to inspect or
+commit at their own discretion.
+
+`effort.png`/`harvest.png`/`stock.png`/`active_agents.png` read straight
+from `runtime["rounds"]`; each carries a footer with the run's fixed
+parameters (`GROWTH_RATE`, `HARVEST_PRODUCTIVITY`, `CARRYING_CAPACITY_KG`,
+`CONSUMPTION_KG` from `engine.physics`, `altruism_ratio`/`agent_count`
+from config) so a chart is self-describing without cross-referencing
+`state/config.json`. `tool_calls.png`/`commits.png`/`tests.png` read
+`logs/model_calls.jsonl`, which needed two real gaps closed to have
+anything to plot:
+
+- **`run_norm_implementer()` now invokes `opencode run --format json`**
+  instead of capturing plain-text stdout, to get an accurate per-round
+  tool-call count. New `parse_opencode_jsonl()` walks the documented JSONL
+  event stream (counts `tool_use` events, keeps the last `text` event as
+  the final response) and `extract_norm_implementer_report()` pulls the
+  trailing fenced ```json block (Step 6 of both norm-implementer specs)
+  out of it. Both degrade gracefully (zero count / `None`) on any parse
+  failure rather than raising — this is built against opencode's
+  documented event schema, **not empirically verified against the
+  installed 1.18.14 build** (no model credentials available locally to
+  exercise a real run while writing this), the same caveat already on
+  record for the permission-schema work.
+- **`commit_norm_implementation()` now logs its own outcome.** Previously
+  only the discard path (`norm_implementer_discarded`) was logged; a
+  successful commit left no trace in `model_calls.jsonl` at all. Now logs
+  `norm_implementer_committed` (with `commit_hash`) or
+  `norm_implementer_no_changes`, giving `commits.png` a clean,
+  mutually-exclusive per-round signal without inferring anything from
+  `git log`.
+
+`engine/simulate.py` imports `engine.monitoring` defensively
+(`try/except ImportError`, falling back to a no-op `update_plots`) because
+`hpc_ollama_entrypoint.sh`'s minimal venv (litellm/pydantic/python-dotenv,
+no `--system-site-packages`) doesn't have matplotlib unless that script
+installs it too — which it now does, since the whole point of this
+feature is watching a long unattended HPC run's progress, so it shouldn't
+actually be missing there. `matplotlib` added to `pyproject.toml`,
+unpinned (no known fragile cross-package resolution issue the way
+litellm/pydantic have).
+
 ## Prompt layer rules
 
 The `prompts/` tree is the only place agent-facing text lives. It stays
