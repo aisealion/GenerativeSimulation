@@ -1,0 +1,3 @@
+Policy: Each fisher may take up to 12 kg per trip; the lake must maintain a communal reserve of at least 30 kg; any fish beyond the limit must be returned immediately and all catches recorded.
+
+Operationalization: At the start of each trip, the fisher declares intended catch and checks lake reserve. After fishing, the fisher records exact weight in a communal logbook. If the catch exceeds 12 kg, the excess is returned to the lake on the spot. The lake reserve is tracked by a designated keeper; if it falls below 30 kg, all fishing stops until it recovers. Violations of the 12 kg limit result in a 2‑trip fishing ban for the offender. The community meets monthly to review logs and adjust the reserve target if needed.
