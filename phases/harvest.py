@@ -77,6 +77,9 @@ class HarvestPhase(Phase):
             )
             effort = min(1.0, max(0.0, float(response["effort"])))
             harvested = catch_from_effort(effort, stock_before)
+            # Enforce norm: no fisher may take more than 15% of the lake's current stock per trip
+            max_norm_catch = 0.15 * stock_before
+            harvested = min(harvested, max_norm_catch)
             if cap is not None:
                 harvested = min(harvested, cap)
 
