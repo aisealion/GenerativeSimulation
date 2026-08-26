@@ -70,6 +70,7 @@ class HarvestPhase(Phase):
 
         stock_before = available_stock(runtime)
         results = {}
+        cumulative_kept = 0.0
         for agent_id in alive_agent_ids(agents, runtime):
             cap = effort_cap(agent_id, config, fluents, runtime)
             response = call_fisher_agent(
@@ -77,13 +78,21 @@ class HarvestPhase(Phase):
             )
             effort = min(1.0, max(0.0, float(response["effort"])))
             harvested = catch_from_effort(effort, stock_before)
-            # Enforce norm: Fisher may keep up to 35 kg per trip; excess goes to communal reserve.
+            # Enforce norm: Fisher may keep up to 8 kg per trip; excess goes to communal reserve.
             # Determine the maximum keepable amount, respecting any effort cap.
-            max_keep = 35.0
+            max_keep = 8.0
             if cap is not None:
                 max_keep = min(max_keep, cap)
             # Amount the fisher actually keeps before possible withdrawal
             kept = min(harvested, max_keep)
+            # Enforce total daily catch cap: 20 % of lake stock across all fishers.
+            max_total = 0.20 * stock_before
+            remaining = max_total - cumulative_kept
+            if remaining <= 0:
+                kept = 0.0
+            else:
+                kept = min(kept, remaining)
+            cumulative_kept += kept
             # Excess goes to reserve
             reserve_added = harvested - kept
             # Initialize communal reserve if not present
@@ -92,15 +101,15 @@ class HarvestPhase(Phase):
             max_reserve = 0.20 * stock_before
             new_reserve_total = runtime["communal_reserve_kg"] + reserve_added
             runtime["communal_reserve_kg"] = min(new_reserve_total, max_reserve)
-            # If fisher kept less than 5 kg, allow withdrawal up to the shortfall from reserve.
-            if kept < 5.0:
-                shortfall = 5.0 - kept
+            # If fisher kept less than 1 kg, allow withdrawal up to the shortfall from reserve.
+            if kept < 1.0:
+                shortfall = 1.0 - kept
                 withdraw = min(shortfall, runtime["communal_reserve_kg"])
                 kept += withdraw
                 runtime["communal_reserve_kg"] -= withdraw
-            # Handle missing report: if response lacked 'effort' field, reduce share by 5 kg (or to zero) and add to reserve.
+            # Handle missing report: if response lacked 'effort' field, reduce share by 1 kg (or to zero) and add to reserve.
             if "effort" not in response:
-                reduction = min(5.0, kept)
+                reduction = min(1.0, kept)
                 kept -= reduction
                 # Add reduced amount back to reserve respecting cap
                 runtime["communal_reserve_kg"] = min(runtime["communal_reserve_kg"] + reduction, max_reserve)
