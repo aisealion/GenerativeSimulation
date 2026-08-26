@@ -531,6 +531,36 @@ compile cleanly and can even pass a narrow test:
   loop's actual exit condition, rather than leaving "how long do I keep
   trying" unanswered.
 
+## Norm-implementer instructions restructured into phases (2026-08-27)
+
+Both norm-implementer specs were rewritten shorter and procedural, at the
+user's request: `## Step 1` … `## Step 6` became `## PHASE 1 — UNDERSTAND`
+through `## PHASE 7 — REPAIR`, each phase a tight checklist rather than
+prose paragraphs (668 → 307 lines on the opencode copy, 668 → 284 on the
+Claude Code copy). Every rule documented in the two sections above this
+one is still present in the new files — the compression cut explanatory
+prose and historical justification, not substance (verified by grepping
+both new files for every function name, JSON key, and specific constraint
+this doc and the previous section reference).
+
+**This means the two sections above — "Norm-implementer hardening" and
+"Norm-implementer safe-modification protocol" — now describe the OLD
+`## Step N` structure, which no longer exists in either spec file as
+written.** Left as-written rather than retroactively rewritten (this
+file's own convention is to accumulate dated history, not edit past
+entries) — but treat "Step 3"/"Step 4"/"Step 6" in those two sections as
+historical pointers to *content* (the routing decision tree, the
+validation checklist, the JSON report schema) now living under
+`PHASE 3`/`PHASE 4`–`PHASE 7`/the closing `Report` section respectively,
+not as literal section names to look up in the current file.
+
+The phase boundaries don't map 1:1 to the old steps — old Step 4's single
+validate-then-report block split across `PHASE 5` (VALIDATE), `PHASE 6`
+(SELF-REVIEW), and `PHASE 7` (REPAIR, the iterate-until-passing loop),
+since the user's requested structure treats "run the checks," "review the
+diff," and "fix and retry" as three distinct phases rather than one
+flat checklist.
+
 ## Prompt layer rules
 
 The `prompts/` tree is the only place agent-facing text lives. It stays
