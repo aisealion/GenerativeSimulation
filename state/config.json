@@ -1,4 +1,6 @@
 {
+  "default_effort_cap_kg": 12,
+  "reserve_min_kg": 30,
   "agent_count": 10,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5

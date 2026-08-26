@@ -4,7 +4,7 @@
 
 from mechanisms.effort import effort_cap
 from mechanisms.stock_check import available_stock
-from mechanisms.roles import set_fact, end_fact
+from mechanisms.roles import set_fact, end_fact, role_holder
 from engine.physics import (
     catch_from_effort,
     apply_regrowth,
@@ -68,22 +68,78 @@ class HarvestPhase(Phase):
         runtime.setdefault("payoff", {})
         runtime.setdefault("dead_agents", [])
 
+        # Process expired bans: end any ban that has served 2 rounds
+        for record in list(fluents):
+            if record["fluent"] == "ban" and record["terminated_round"] is None:
+                if record["initiated_round"] + 2 <= round_number:
+                    end_fact(fluents, "ban", record["args"], round_number)
+
         stock_before = available_stock(runtime)
-        results = {}
+        # If lake reserve below minimum, halt fishing this round
+        if stock_before < config.get("reserve_min_kg", 0):
+            set_fact(
+                fluents,
+                "fishing_halted",
+                [],
+                "community",
+                round_number,
+                narration=f"Fishing halted this round because lake reserve ({stock_before:.0f}kg) fell below the minimum of {config.get('reserve_min_kg')}kg.",
+                visibility="public",
+            )
+            results = {}
+            # No harvest, just apply regrowth
+            stock_after_harvest = stock_before
+            stock_after_regrowth = apply_regrowth(stock_after_harvest)
+            round_record = {
+                "round": round_number,
+                "phase": "harvest",
+                "stock_kg_before": stock_before,
+                "agents": {},
+                "stock_kg_after_harvest": stock_after_harvest,
+                "stock_kg_after_regrowth": stock_after_regrowth,
+            }
+            runtime["round"] = round_number
+            runtime["stock_kg"] = stock_after_regrowth
+            runtime["rounds"].append(round_record)
+            return round_record
+
         for agent_id in alive_agent_ids(agents, runtime):
-            cap = effort_cap(agent_id, config, fluents, runtime)
+            # Check for active ban
+            ban_record = role_holder("ban", agent_id, fluents, round_number)
+            if ban_record is not None:
+                # Banned agents cannot fish this round
+                harvested = 0.0
+                # Record that they did not participate
+                results[agent_id] = {
+                    "effort": 0.0,
+                    "harvested_kg": harvested,
+                    "reasoning": "Banned from fishing due to prior violation.",
+                }
+                continue
+
             response = call_fisher_agent(
                 agent_id, round_number, "harvest", **self.prompt_fields(state, agent_id)
             )
             effort = min(1.0, max(0.0, float(response["effort"])))
             harvested = catch_from_effort(effort, stock_before)
-            # Enforce norm: no fisher may take more than 15% of the lake's current stock per trip
-            max_norm_catch = 0.15 * stock_before
-            harvested = min(harvested, max_norm_catch)
+            # Enforce catch cap (default 12 kg from config)
             if cap is not None:
                 harvested = min(harvested, cap)
 
-            new_payoff = apply_consumption(runtime["payoff"].get(agent_id, 0.0), harvested)
+
+            # Detect violation of catch limit and impose 2‑trip ban
+            if cap is not None and harvested < catch_from_effort(effort, stock_before):
+                # Violation occurred (catch reduced by cap)
+                set_fact(
+                    fluents,
+                    "ban",
+                    [agent_id],
+                    agent_id,
+                    round_number,
+                    narration="You have been banned for 2 trips due to exceeding the catch limit.",
+                    visibility="public",
+                )
+
             runtime["payoff"][agent_id] = new_payoff
 
             results[agent_id] = {
