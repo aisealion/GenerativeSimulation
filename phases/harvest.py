@@ -78,9 +78,9 @@ class HarvestPhase(Phase):
             )
             effort = min(1.0, max(0.0, float(response["effort"])))
             harvested = catch_from_effort(effort, stock_before)
-            # Enforce norm: Fisher may keep up to 8 kg per trip; excess goes to communal reserve.
+            # Enforce norm: Fisher may keep up to 35 kg per trip; excess goes to communal reserve.
             # Determine the maximum keepable amount, respecting any effort cap.
-            max_keep = 8.0
+            max_keep = 35.0
             if cap is not None:
                 max_keep = min(max_keep, cap)
             # Amount the fisher actually keeps before possible withdrawal
@@ -101,9 +101,9 @@ class HarvestPhase(Phase):
             max_reserve = 0.20 * stock_before
             new_reserve_total = runtime["communal_reserve_kg"] + reserve_added
             runtime["communal_reserve_kg"] = min(new_reserve_total, max_reserve)
-            # If fisher kept less than 1 kg, allow withdrawal up to the shortfall from reserve.
-            if kept < 1.0:
-                shortfall = 1.0 - kept
+            # If fisher kept less than 3 kg, allow withdrawal up to 5 kg from reserve.
+            if kept < 3.0:
+                shortfall = min(5.0, 3.0 - kept)
                 withdraw = min(shortfall, runtime["communal_reserve_kg"])
                 kept += withdraw
                 runtime["communal_reserve_kg"] -= withdraw
