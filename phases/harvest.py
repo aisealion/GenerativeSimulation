@@ -77,16 +77,26 @@ class HarvestPhase(Phase):
             )
             effort = min(1.0, max(0.0, float(response["effort"])))
             harvested = catch_from_effort(effort, stock_before)
-            # Enforce norm: 10% reserve and max 20kg taken per trip
-            # Compute reserve amount: at least 10% of original harvest, and any excess over 20kg
-            reserve = max(0.1 * harvested, harvested - 20 if harvested > 20 else 0)
-            # Adjust harvested to reflect what the fisher actually keeps
-            harvested = harvested - reserve
+            # Enforce new norm: Fisher can keep up to 18 kg per trip; excess goes to communal reserve.
+            # Determine the maximum keepable amount, respecting any effort cap.
+            max_keep = 18.0
             if cap is not None:
-                harvested = min(harvested, cap)
-            # Ensure the reserve is recorded in communal state
+                max_keep = min(max_keep, cap)
+            # Amount the fisher actually keeps before possible withdrawal
+            kept = min(harvested, max_keep)
+            # Excess goes to reserve
+            reserve_added = harvested - kept
+            # Initialize communal reserve if not present
             runtime.setdefault("communal_reserve_kg", 0.0)
-            runtime["communal_reserve_kg"] += reserve
+            runtime["communal_reserve_kg"] += reserve_added
+            # If fisher kept less than 5 kg, allow withdrawal up to the shortfall from reserve.
+            if kept < 5.0:
+                shortfall = 5.0 - kept
+                withdraw = min(shortfall, runtime["communal_reserve_kg"])
+                kept += withdraw
+                runtime["communal_reserve_kg"] -= withdraw
+            # Use the final kept amount as harvested for consumption calculations.
+            harvested = kept
 
             new_payoff = apply_consumption(runtime["payoff"].get(agent_id, 0.0), harvested)
             runtime["payoff"][agent_id] = new_payoff
