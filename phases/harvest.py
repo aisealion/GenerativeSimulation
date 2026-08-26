@@ -77,9 +77,9 @@ class HarvestPhase(Phase):
             )
             effort = min(1.0, max(0.0, float(response["effort"])))
             harvested = catch_from_effort(effort, stock_before)
-            # Enforce norm: Fisher may keep up to 30 kg per trip; excess goes to communal reserve.
+            # Enforce norm: Fisher may keep up to 35 kg per trip; excess goes to communal reserve.
             # Determine the maximum keepable amount, respecting any effort cap.
-            max_keep = 30.0
+            max_keep = 35.0
             if cap is not None:
                 max_keep = min(max_keep, cap)
             # Amount the fisher actually keeps before possible withdrawal
@@ -88,13 +88,22 @@ class HarvestPhase(Phase):
             reserve_added = harvested - kept
             # Initialize communal reserve if not present
             runtime.setdefault("communal_reserve_kg", 0.0)
-            runtime["communal_reserve_kg"] += reserve_added
+            # Apply reserve cap: cannot exceed 20 % of the lake’s current stock (stock_before)
+            max_reserve = 0.20 * stock_before
+            new_reserve_total = runtime["communal_reserve_kg"] + reserve_added
+            runtime["communal_reserve_kg"] = min(new_reserve_total, max_reserve)
             # If fisher kept less than 5 kg, allow withdrawal up to the shortfall from reserve.
             if kept < 5.0:
                 shortfall = 5.0 - kept
                 withdraw = min(shortfall, runtime["communal_reserve_kg"])
                 kept += withdraw
                 runtime["communal_reserve_kg"] -= withdraw
+            # Handle missing report: if response lacked 'effort' field, reduce share by 5 kg (or to zero) and add to reserve.
+            if "effort" not in response:
+                reduction = min(5.0, kept)
+                kept -= reduction
+                # Add reduced amount back to reserve respecting cap
+                runtime["communal_reserve_kg"] = min(runtime["communal_reserve_kg"] + reduction, max_reserve)
             # Use the final kept amount as harvested for consumption calculations.
             harvested = kept
 
