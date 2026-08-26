@@ -219,6 +219,50 @@ fit. Never guess at what already exists.
 
 ## Step 3 — Route each rule
 
+Don't assume a rule fragment's template number decides parametric-vs-structural
+by itself — a `graduated_sanction` or `threshold_obligation` rule can still
+need real code if no existing mechanism already expresses the specific
+shape it needs. Route each fragment through this chain, in order, and stop
+at the first step that answers it:
+
+1. What's the underlying policy concept (a cap, a gate, a ban, a
+   deposit, a review cadence)?
+2. Is it just a *parameter* of something that already exists (a number,
+   a threshold, a role name)?
+3. If yes — does an existing mechanism/phase already read that parameter
+   in the shape this rule needs? If yes: **configure** (below). If the
+   parameter is new but the mechanism reading it already exists in
+   general form (e.g. `effort_cap()` already reads *some* cap from
+   config; a norm just changing the number is still configure), that's
+   still configure.
+4. If the concept needs code that doesn't exist yet in any form — a new
+   gate condition, a new kind of consequence, a new value nothing
+   currently computes — that's **structural**, regardless of which
+   template number it started from.
+
+A single norm's operationalization routinely fragments across both — a
+"12 kg cap, 30 kg reserve floor, 2-trip ban for violations, monthly
+review" rule might be one `configure` (the cap number), one `structural`
+addition (a reserve-floor gate nothing currently checks), and one
+`configure`-once-the-mechanism-exists `graduated_sanction` (the ban, via
+`set_fact()`/`end_fact()` as below). Classify each fragment on its own
+merits — don't let one fragment's template drag the whole rule's routing
+with it.
+
+**Before editing any existing file**, for structural changes: read the
+*complete* function or class you're about to modify, start to finish —
+never edit from a search-result excerpt or a remembered snippet. Identify
+every responsibility it currently has (state initialization, agent
+iteration, payoff/death handling, logging, stock updates, whatever
+applies) before writing a single line. Preserve every one of them that
+this norm didn't ask you to change — "nothing more, and nothing the norm
+didn't ask for" (this file's own opening line) applies to a function's
+existing behavior, not just to which files you touch. After editing,
+re-read the function and confirm each pre-existing responsibility is
+still present and still reachable on every code path — this is also
+checked explicitly in Step 4's final validation item, but catching it
+here, before you've moved on, is cheaper than catching it there.
+
 - **Templates 1–5, matching shape already exists**: parametric. Write only
   to `state/config.json` and/or `state/fluents.json`. Touch nothing in
   `mechanisms/`, `phases/`, or `prompts/`.
@@ -360,6 +404,35 @@ fit. Never guess at what already exists.
 
 ## Step 4 — Validate before reporting done
 
+**This is a loop, not a one-shot checklist — do not report completion
+after the first pass through it.** For any structural change (this round
+touched `mechanisms/*.py` or `phases/*.py` — see Step 3), a clean
+`py_compile` is not enough to call the round done: actually execute the
+affected behavior at least once, via the `tests/norm_checks/` test
+required below (a real `PHASE.run(state)` call against fabricated state,
+not just confirming the file imports). If any check anywhere in this list
+fails:
+
+1. Inspect the actual failure — read the real error, don't guess from the
+   symptom alone.
+2. Decide whether it's caused by the change you made *this round*, or a
+   pre-existing condition unrelated to it (e.g. a `tests/regression/`
+   test that was already broken before you touched anything). Only the
+   first case is yours to fix.
+3. If it's your change: repair the implementation and rerun the full
+   check sequence from the top, not just the one check that failed — a
+   fix for one failure can reintroduce or mask another.
+4. If it's pre-existing and outside this round's scope: stop and report
+   it explicitly, the same as the "nothing fits"/ambiguous-parameter
+   cases in Step 3 — don't spend this round's budget trying to fix
+   something the norm didn't ask you to change.
+
+Repeat until every required check below passes, or you hit the step
+budget ("If you're running low on step budget," further down this file)
+— whichever comes first. An incomplete-but-honestly-reported round from
+running out of budget mid-loop is exactly what that section already
+covers; it is not a reason to skip iterating in the first place.
+
 - Run `python3 -m py_compile` on every `.py` file you touched (or just
   `python3 -m py_compile mechanisms/*.py phases/*.py engine/simulate.py`,
   plus any file you added under `tests/norm_checks/` — that directory has
@@ -373,13 +446,33 @@ fit. Never guess at what already exists.
   in a file that can't even be imported.
 - If this round touched `mechanisms/*.py` or `phases/*.py` (a structural
   or `new_phase` change — not a purely parametric round that only wrote
-  `state/config.json`/`state/fluents.json`), write a unit test for the
-  specific behavior norm.txt asked for under `tests/norm_checks/`
+  `state/config.json`/`state/fluents.json`), write a test for the specific
+  behavior norm.txt asked for under `tests/norm_checks/`
   (`tests/norm_checks/README.md` has the naming convention), then run
   `pytest tests/norm_checks/`. This is in addition to, not instead of,
   `tests/regression/` below — that suite checks invariants that must
   always hold regardless of the current norm; this one checks that *this
-  round's specific change* actually does what it claims.
+  round's specific change* actually does what it claims. Two requirements
+  on what this test actually has to do, not just that one exists:
+  - **Cover every new conditional branch your change introduced, not just
+    the common case.** A 12kg cap with a 30kg reserve floor and a 2-trip
+    ban needs cases for: catch at/under/over the cap, reserve at/below the
+    floor, an agent currently under an active ban, and one whose ban has
+    just expired — not one test that only exercises "normal catch, no
+    ban, healthy reserve." `python3 -m py_compile` cannot catch a bug like
+    a variable only defined inside a branch this test never runs — it
+    only proves the file parses, not that any given line ever executes
+    correctly.
+  - **Actually run the phase, don't just unit-test a helper function in
+    isolation.** Import the phase module, build a minimal fake `state`
+    dict (matches what `engine/simulate.py`'s `load_state()` assembles:
+    `config`, `fluents`, `runtime`, `agents`, `round_number`) shaped to
+    hit the branch under test, call `PHASE.run(state)` directly, and
+    assert on the returned `round_record` and the resulting
+    `runtime`/`fluents` mutations. A function that compiles fine and even
+    passes a narrow unit test on its own can still crash the instant
+    `run()` actually executes it with real state shaped a specific way —
+    testing only in isolation would miss exactly that.
 - Run `pytest tests/regression/`. Fix the mechanism/phase, not the test.
 - Confirm you never wrote to `state/runtime.json`.
 - Confirm any new/changed role assignment terminates the previous holder's
@@ -400,6 +493,20 @@ fit. Never guess at what already exists.
   event is actually private or public.
 - Confirm no `prompt_fields()` in a phase you touched still describes a
   cap/threshold/rule your own change just superseded.
+- **Last check, after everything above passes**: `git diff` every file you
+  touched and read it against the pre-edit version, function by function —
+  not just skimming that your own addition looks right. For every
+  modified function specifically: is every variable it uses still defined
+  on every path that reaches its use (not just the path your own new code
+  added)? Is every pre-existing state initialization, agent-iteration
+  step, payoff/death update, or logging call that this norm did *not* ask
+  you to change still present, unmodified, and still reachable? A rewrite
+  that quietly drops a `results = {}` initialization, or introduces a
+  variable that's only assigned inside the branch you added and then
+  referenced outside it, compiles cleanly and can even pass a narrow test
+  — this is the check that's actually supposed to catch that, by reading
+  the diff itself rather than trusting that the new code you wrote is the
+  only code that changed.
 
 ## Step 5 — Do not commit
 
@@ -430,7 +537,17 @@ later to distinguish it from an unexplained crash.
 
 ## Step 6 — Report, in this order
 
-1. Classification table from Step 1.
+1. Classification table from Step 1 — extended with two more columns
+   from here on: **implementation owner** (the exact file/function this
+   fragment's behavior actually lives in — `state/config.json`'s
+   `effort_caps_kg` key, `mechanisms/penalty.py::apply_penalty()`,
+   whatever's true) and **verification** (the specific test or check that
+   exercises it — a `tests/norm_checks/` test name, or, for a purely
+   parametric fragment, which existing regression test or manual check
+   confirms the new config value actually gets read). Every rule fragment
+   in the table needs exactly one owner and at least one verification —
+   a fragment with neither is exactly the kind of thing that silently
+   doesn't work while still compiling and still reporting success.
 2. CodeGraph queries run and what they returned (symbols found, callers
    affected), if Step 2 was invoked.
 3. Parametric vs. structural routing per rule, with rationale for any
@@ -447,7 +564,9 @@ later to distinguish it from an unexplained crash.
    ```json
    {
      "classification": [
-       {"rule": "...", "template": "role_fluent", "parametric": true}
+       {"rule": "...", "template": "role_fluent", "parametric": true,
+        "owner": "state/fluents.json (role_holder record)",
+        "verification": "tests/norm_checks/test_round_12_role.py"}
      ],
      "files_touched": ["state/config.json"],
      "regression_pass": true,
@@ -460,7 +579,10 @@ later to distinguish it from an unexplained crash.
    `classification` mirrors the Step 1 table (one entry per rule fragment,
    `template` one of the six names or `null` if nothing fit,
    `parametric` true for templates 1–5 routed without touching
-   `mechanisms/`/`phases/`, false for a structural/new_phase change).
+   `mechanisms/`/`phases/`, false for a structural/new_phase change,
+   `owner`/`verification` as described above — `verification` can name a
+   `tests/regression/` test instead of a new `norm_checks/` one when
+   that's genuinely what covers it, but it can't be empty).
    `files_touched` is every path actually written this round.
    `norm_check_tests_written` lists any new/extended files under
    `tests/norm_checks/` this round (empty list for a purely parametric

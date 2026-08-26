@@ -487,6 +487,50 @@ actually be missing there. `matplotlib` added to `pyproject.toml`,
 unpinned (no known fragile cross-package resolution issue the way
 litellm/pydantic have).
 
+## Norm-implementer safe-modification protocol (added 2026-08-26)
+
+Both norm-implementer specs gained a stronger process around Steps 3–6,
+prompted by a review of failure modes a `py_compile`-only gate can't
+catch — a variable only defined inside one branch, or a pre-existing
+`results = {}`-style initialization quietly dropped by a rewrite, both
+compile cleanly and can even pass a narrow test:
+
+- **Step 3** now opens with an explicit routing decision tree (policy
+  concept → is it a parameter? → does an existing mechanism already read
+  it? → configure, else structural) instead of letting a rule's template
+  number alone imply parametric — a single norm's operationalization
+  routinely fragments across both, and one fragment's template shouldn't
+  drag the whole rule's routing with it. Also new: before editing an
+  existing function for a structural change, read it complete (never from
+  a search-result excerpt), enumerate its existing responsibilities, and
+  preserve every one this norm didn't ask to change.
+- **Step 4**'s `tests/norm_checks/` requirement is stricter: a test must
+  cover every new conditional branch (not just the common case), and must
+  call `PHASE.run(state)` against a minimal fabricated `state` dict rather
+  than unit-testing a helper function in isolation — a function can pass
+  in isolation and still crash the instant the real phase executes it. A
+  new final validation item requires reading the actual `git diff`,
+  function by function, checking specifically that every variable used is
+  still defined on every reachable path and every pre-existing
+  responsibility the norm didn't target is still present.
+- **Step 6**'s classification table gained `owner` (the exact
+  file/function a rule fragment's behavior lives in) and `verification`
+  (the specific test that exercises it) columns, mirrored into the
+  closing JSON report — every rule fragment needs exactly one of each, so
+  an omission is visible in the report itself rather than silently absent.
+- **Step 4 is now explicitly a loop, not a one-shot checklist.** It's not
+  enough to run each check once and report whatever the first pass found:
+  for a structural change, the round-record-producing behavior must
+  actually execute at least once (the `PHASE.run(state)` test above, not
+  just a clean `py_compile`), and any failure triggers inspect → decide
+  whether it's this round's change or a pre-existing condition → fix and
+  rerun the *whole* sequence (own-change case) or stop and report (a
+  pre-existing failure isn't this round's to fix) — repeated until every
+  check passes or the step budget runs out, whichever comes first. Ties
+  directly into the existing step-budget-exhaustion protocol as the
+  loop's actual exit condition, rather than leaving "how long do I keep
+  trying" unanswered.
+
 ## Prompt layer rules
 
 The `prompts/` tree is the only place agent-facing text lives. It stays
