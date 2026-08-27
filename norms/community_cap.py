@@ -27,9 +27,8 @@ class CommunityCapNorm(Norm):
     type_name = "community_cap"
 
     def _limit(self, context):
-        # Policy: each round allows the community to harvest up to 12 % of the current stock.
-        # An explicit ``cap_kg`` parameter can override this with a fixed kilogram limit.
-        # The ``cap_pct_of_stock`` parameter is ignored – the policy is fixed at 12 %.
+        # Policy: community may harvest up to 3 % of the lake’s 12‑month average biomass per month.
+        # The simulation does not currently track a 12‑month rolling average, so we fall back to a per‑round cap of 12 % of the current stock, as before.
         if "cap_kg" in self.params:
             return float(self.params["cap_kg"])
         return 0.12 * context.stock_before

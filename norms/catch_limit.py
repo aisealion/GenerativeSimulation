@@ -26,12 +26,12 @@ class CatchLimitNorm(Norm):
         #   1. per‑agent override (limits_by_agent_kg)
         #   2. explicit percent of stock (limit_pct_of_stock)
         #   3. explicit flat kg limit (limit_kg)
-        # 4. policy fallback: min(1.5 kg, 3% of current stock)
+        # 4. policy fallback: per trip limit = min(1 kg, 2% of current stock)
         stock = context.stock_before
         # Suspension condition: if stock is below a minimal viable level (<6 kg), no catch allowed.
         if stock < 6.0:
             return 0.0
-        # 1. per‑agent override
+        # 1. per agent override
         overrides = self.params.get("limits_by_agent_kg", {})
         if isinstance(overrides, dict) and agent_id in overrides:
             return overrides[agent_id]
@@ -43,8 +43,8 @@ class CatchLimitNorm(Norm):
         flat = self.params.get("limit_kg")
         if flat is not None:
             return flat
-        # 4. policy fallback
-        return min(1.5, 0.03 * stock)
+        # 4. policy fallback: limit is the smaller of 1 kg or 2% of stock
+        return min(1.0, 0.02 * stock)
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)
