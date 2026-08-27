@@ -22,26 +22,17 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # Determine the applicable catch limit for this agent.
-        # 1. Per‑agent override takes precedence.
-        overrides = self.params.get("limits_by_agent_kg", {})
-        if isinstance(overrides, dict) and agent_id in overrides:
-            return overrides[agent_id]
-        # 2. Percentage of current stock, if configured.
-        pct = self.params.get("limit_pct_of_stock")
-        if pct is not None:
-            return pct * context.stock_before
-        # 3. Flat kilogram limit, if configured.
-        if "limit_kg" in self.params:
-            return self.params["limit_kg"]
-        # 4. Policy defaults apply only if enabled via params.
-        if self.params.get("policy_defaults"):
-            agent_info = getattr(context, "agents", {}).get(agent_id, {})
-            name = agent_info.get("name", "").lower()
-            if name == "solo":
-                return min(0.5 * context.stock_before, 6.0)
-            else:
-                return min(0.3 * context.stock_before, 3.0)
+        # Determine the applicable catch limit based on lake stock levels per policy.
+        stock = context.stock_before
+        if stock >= 12:
+            return 1.0
+        elif stock >= 8:
+            return 0.8
+        elif stock >= 6:
+            return 0.5
+        else:
+            # No limit when stock is below 6kg; suspension handled by DepositNorm.
+            return 0.0
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)
