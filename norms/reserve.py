@@ -75,7 +75,7 @@ class ReserveNorm(Norm):
         # Normal deposit flow
         deposit_pct = self.params.get("deposit_pct", 0.05)
         deposit_amount = round(deposit_pct * proposed_kg, 1)
-        min_reserve = self.params.get("min_reserve_kg", 20.0)
+        min_reserve = self.params.get("min_reserve_kg", 25.0)
 
         if state.get("balance_kg", 0.0) < min_reserve:
             # Reserve too low – fisher forfeits the deposit (loses it)
