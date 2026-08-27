@@ -40,6 +40,7 @@ class ReserveNorm(Norm):
         state = self._balance_state(context)
         excess = raw_kg - proposed_kg
         if excess > 0:
+            # Deposit any excess (catch trimmed by earlier caps) into the reserve
             state["balance_kg"] += excess
             return NormDecision.allow(proposed_kg)
 
@@ -53,4 +54,18 @@ class ReserveNorm(Norm):
                     kept_kg=proposed_kg + withdrawal,
                     note=f"You drew {withdrawal:.0f}kg from the community reserve to top up a short trip.",
                 )
+        # No excess or withdrawal needed; allow the proposed amount
         return NormDecision.allow(proposed_kg)
+
+    def on_round_end(self, context, round_results):
+        """Add 10% of the total harvested kg for the day to the reserve.
+
+        This implements the policy that 10% of the daily harvest is set aside
+        for future generations.
+        """
+        total_harvested = sum(r.get("harvested_kg", 0.0) for r in round_results.values())
+        deposit = 0.1 * total_harvested
+        if deposit:
+            state = self._balance_state(context)
+            state["balance_kg"] += deposit
+
