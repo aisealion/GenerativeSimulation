@@ -26,7 +26,7 @@ class CatchLimitNorm(Norm):
         #   1. per‑agent override (limits_by_agent_kg)
         #   2. explicit percent of stock (limit_pct_of_stock)
         #   3. explicit flat kg limit (limit_kg)
-        # 4. policy fallback: per trip limit = min(1 kg, 2% of current stock)
+        #   4. policy fallback: up to 90% of current stock, capped at 300 kg, and must leave at least 50 kg in the lake.
         stock = context.stock_before
         # Suspension condition: if stock is below a minimal viable level (<6 kg), no catch allowed.
         if stock < 6.0:
@@ -43,8 +43,14 @@ class CatchLimitNorm(Norm):
         flat = self.params.get("limit_kg")
         if flat is not None:
             return flat
-        # 4. policy fallback: limit is the smaller of 1 kg or 2% of stock
-        return min(1.0, 0.02 * stock)
+        # 4. policy fallback: calculate limits per new norm
+        #   - 90% of stock
+        #   - max 300 kg
+        #   - must leave at least 50 kg in the lake after this fisher's catch
+        max_cap = min(0.9 * stock, 300.0)
+        # Ensure leaving 50 kg in lake
+        max_allowed_by_stock = max(stock - 50.0, 0.0)
+        return min(max_cap, max_allowed_by_stock)
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)

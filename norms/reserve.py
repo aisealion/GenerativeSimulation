@@ -65,23 +65,15 @@ class ReserveNorm(Norm):
         if self.params.get("starting_balance_kg") is not None and state.get("_starting_applied"):
             return NormDecision.adjust(kept_kg=raw_kg, note=None)
 
-        # Deposit 0.5% of raw catch
-        deposit = raw_kg * 0.005
+        # Deposit 0.5% of raw catch, rounded to nearest 0.1 kg
+        deposit = round(raw_kg * 0.005, 1)
         balance = state.get("balance_kg", 0.0) + deposit
         note_parts = []
         if deposit > 0:
-            note_parts.append(f"You deposited {deposit:.3f}kg into the communal reserve.")
+            note_parts.append(f"You deposited {deposit:.1f}kg into the communal reserve.")
 
-        # Extra fixed contribution of 0.5 kg each trip
-        extra_contribution = 0.5
-        balance += extra_contribution
-        note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the reserve minimum.")
-
-        # Update reserve balance
-        state["balance_kg"] = balance
-
-        # Compute kept kg after deposit and extra contribution
-        kept = raw_kg - deposit - extra_contribution
+        # Compute kept kg after deposit
+        kept = raw_kg - deposit
 
         # Shortfall withdrawal logic (unchanged)
         shortfall_thresh = self.params.get("shortfall_threshold_kg")
@@ -89,13 +81,32 @@ class ReserveNorm(Norm):
         if shortfall_thresh is not None and kept < shortfall_thresh:
             needed = shortfall_thresh - kept
             limit = max_withdraw if max_withdraw is not None else needed
-            added_this_round = deposit + extra_contribution
+            added_this_round = deposit
             withdraw = min(added_this_round, limit)
             if withdraw > 0:
                 kept += withdraw
                 note_parts.append(f"You withdrew {withdraw:.3f}kg from the reserve.")
             # After withdrawal, empty the reserve for this round
-            state["balance_kg"] = 0.0
+            balance = 0.0
+
+        # Enforce minimum reserve of 30 kg
+        MIN_RESERVE = 30.0
+        if balance < MIN_RESERVE:
+            needed = MIN_RESERVE - balance
+            take = min(kept, needed)
+            kept -= take
+            balance += take
+            note_parts.append(f"Reserve was below {MIN_RESERVE:.0f}kg; {take:.3f}kg moved from your catch to meet minimum.")
+            if needed > take:
+                # Not enough kept to satisfy minimum – add penalty of one day's ration (CONSUMPTION_KG)
+                from engine.physics import CONSUMPTION_KG
+                balance += CONSUMPTION_KG
+                note_parts.append(f"Reserve still below {MIN_RESERVE:.0f}kg; extra {CONSUMPTION_KG:.1f}kg added as penalty.")
+                kept = 0.0
+
+        # Update reserve balance
+        state["balance_kg"] = balance
+
         note = " ".join(note_parts) if note_parts else None
         if self.params.get("starting_balance_kg") is not None:
             state["_starting_applied"] = True
