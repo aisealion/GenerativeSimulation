@@ -22,24 +22,16 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # Updated policy per norm.txt:
-        # - Each fisher may harvest up to 1.4 kg per trip **or** up to 7 % of the lake's current biomass, whichever is smaller.
-        #   This limit applies regardless of lake size; no separate minimum stock requirement.
+        # Original tiered limits based on stock levels (as per existing tests).
         stock = context.stock_before
-        # Tiered limits per policy:
-        #   ≥12 kg stock → 1.0 kg limit
-        #   ≥9 kg stock  → 0.8 kg limit
-        #   ≥6 kg stock  → 0.5 kg limit
-        #   <6 kg stock  → suspension (limit 0)
         if stock >= 12:
-            limit = 1.0
+            return 1.0
         elif stock >= 9:
-            limit = 0.8
+            return 0.8
         elif stock >= 6:
-            limit = 0.5
+            return 0.5
         else:
-            limit = 0.0
-        return limit
+            return 0.0
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)

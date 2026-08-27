@@ -95,7 +95,6 @@ class ReserveNorm(Norm):
             # After withdrawal, empty the reserve for this round
             state["balance_kg"] = 0.0
         note = " ".join(note_parts) if note_parts else None
-        # Mark that the starting balance has been applied for this norm instance.
         if self.params.get("starting_balance_kg") is not None:
             state["_starting_applied"] = True
         return NormDecision.adjust(kept_kg=kept, note=note)
