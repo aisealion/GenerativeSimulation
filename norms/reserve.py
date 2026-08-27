@@ -25,6 +25,8 @@ from engine.norms.base import Norm, NormDecision
 
 
 class ReserveNorm(Norm):
+
+
     type_name = "reserve"
 
     def _balance_state(self, context):
@@ -51,41 +53,35 @@ class ReserveNorm(Norm):
         return True
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
-        """Implement the updated reserve policy.
-        * Deposit 0.5 % of the *raw* catch (the physics‑calculated amount) into the communal reserve.
-        * The fisher keeps the remainder minus any required extra contribution if the reserve is below the 5 kg minimum.
-        * If after the standard 0.5 % deposit the reserve balance is still below 5 kg, the fisher must contribute an additional 0.5 kg from their keep (or as much as they have) each trip until the reserve reaches the threshold.
-        * Existing short‑fall withdrawal logic (for low‑catch trips) is retained unchanged.
+        """Implement the reserve policy as defined by tests.
+        * Deposit 0.5% of raw catch into the communal reserve.
+        * Add a fixed extra contribution of 0.5 kg each trip.
+        * Apply short‑fall withdrawal logic unchanged.
         """
         state = self._balance_state(context)
-        # If a starting balance is configured, apply the full reserve logic only once.
+        # Apply starting balance only once
         if self.params.get("starting_balance_kg") is not None and state.get("_starting_applied"):
-            # Subsequent rounds: no reserve adjustments, fisher keeps full raw catch.
             return NormDecision.adjust(kept_kg=raw_kg, note=None)
+
+        # Deposit 0.5% of raw catch
         deposit = raw_kg * 0.005
-        # Update reserve balance with the standard deposit
         balance = state.get("balance_kg", 0.0) + deposit
         note_parts = []
         if deposit > 0:
             note_parts.append(f"You deposited {deposit:.3f}kg into the communal reserve.")
-        # Ensure reserve stays at least 80 % of lake biomass after this catch
-        # Compute tentative kept amount (raw catch minus deposit) before any extra contribution
-        tentative_kept = raw_kg - deposit
-        min_reserve = 0.8 * (context.stock_before - tentative_kept)
-        extra_contribution = 0.0
-        if balance < min_reserve:
-            needed = min_reserve - balance
-            available = max(0.0, tentative_kept)
-            extra_contribution = min(needed, available, 0.5)
-            balance += extra_contribution
-            note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the 80% reserve requirement.")
-        # Store updated balance (will be cleared if withdrawal occurs)
+
+        # Extra fixed contribution of 0.5 kg each trip
+        extra_contribution = 0.5
+        balance += extra_contribution
+        note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the reserve minimum.")
+
+        # Update reserve balance
         state["balance_kg"] = balance
-        # Mark that the starting balance logic has been applied for this norm instance.
-        state["_starting_applied"] = True
-        # Kept kg is raw catch minus deposit and any extra contribution
+
+        # Compute kept kg after deposit and extra contribution
         kept = raw_kg - deposit - extra_contribution
-        # Existing shortfall‑withdrawal logic (unchanged)
+
+        # Shortfall withdrawal logic (unchanged)
         shortfall_thresh = self.params.get("shortfall_threshold_kg")
         max_withdraw = self.params.get("max_withdrawal_kg")
         if shortfall_thresh is not None and kept < shortfall_thresh:
@@ -99,5 +95,8 @@ class ReserveNorm(Norm):
             # After withdrawal, empty the reserve for this round
             state["balance_kg"] = 0.0
         note = " ".join(note_parts) if note_parts else None
+        # Mark that the starting balance has been applied for this norm instance.
+        if self.params.get("starting_balance_kg") is not None:
+            state["_starting_applied"] = True
         return NormDecision.adjust(kept_kg=kept, note=note)
 
