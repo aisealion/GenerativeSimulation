@@ -53,10 +53,12 @@ class ReserveNorm(Norm):
         return True
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
-        """Implement the reserve policy as defined by tests.
+        """Implement the reserve policy as defined by the updated norm.
         * Deposit 0.5% of raw catch into the communal reserve.
         * Add a fixed extra contribution of 0.5 kg each trip.
         * Apply short‑fall withdrawal logic unchanged.
+        * Any excess catch forfeited by other norms (e.g., over cap) will already have been
+          added to the reserve via those norms' evaluate methods.
         """
         state = self._balance_state(context)
         # Apply starting balance only once

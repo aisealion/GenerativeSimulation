@@ -27,13 +27,9 @@ class CommunityCapNorm(Norm):
     type_name = "community_cap"
 
     def _limit(self, context):
-        pct = self.params.get("cap_pct_of_stock")
-        if pct is not None:
-            return pct * context.stock_before
-        if "cap_kg" in self.params:
-            return self.params.get("cap_kg")
-        # No cap configured – treat as unlimited (no-op)
-        return None
+        # Policy: lake must retain at least 88 % of its biomass after harvest.
+        # Therefore total allowable catch per round is 12 % of current stock.
+        return 0.12 * context.stock_before
 
     def describe(self, context, agent_id):
         limit = self._limit(context)
@@ -44,17 +40,18 @@ class CommunityCapNorm(Norm):
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
         limit = self._limit(context)
-        if limit is None:
-            # No cap – allow all
-            return NormDecision.allow(proposed_kg)
         tally = context.round_scratch(self.key)
         used = tally.get("total_kg", 0.0)
         remaining = max(0.0, limit - used)
-        if proposed_kg <= remaining:
+        if proposed_kg < remaining:
             tally["total_kg"] = used + proposed_kg
             return NormDecision.allow(proposed_kg)
-        # Exceeds remaining allowance
+        # Equality or exceeds remaining allowance: treat as violation
+        excess = max(0.0, proposed_kg - remaining)
         tally["total_kg"] = used + remaining
+        if excess > 0.0:
+            reserve_state = context.norm_state("reserve")
+            reserve_state["balance_kg"] = reserve_state.get("balance_kg", 0.0) + excess
         return NormDecision.violation(
             kept_kg=remaining,
             sanction="over_community_cap",
