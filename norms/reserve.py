@@ -32,9 +32,18 @@ class ReserveNorm(Norm):
         state.setdefault("balance_kg", self.params.get("starting_balance_kg", 0.0))
         return state
 
-    def describe(self, context, agent_id):
-        balance = self._balance_state(context)["balance_kg"]
-        return f"The community reserve currently holds {balance:.0f}kg."
+    def on_round_end(self, context, round_results):
+        """Ensure the communal reserve never falls below the configured minimum.
+        By default the policy requires at least 5% of the lake's biomass to be kept in reserve.
+        If the balance is lower, we top it up to the required level. This does not penalize
+        any individual fisher and simply preserves the reserve for future rounds.
+        """
+        min_pct = self.params.get("min_reserve_pct", 0.05)
+        required = min_pct * context.stock_before
+        state = self._balance_state(context)
+        current = state.get("balance_kg", 0.0)
+        if current < required:
+            state["balance_kg"] = required
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
         state = self._balance_state(context)

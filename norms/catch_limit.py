@@ -22,12 +22,17 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
+        # Honor per-agent overrides first
         overrides = self.params.get("limits_by_agent_kg", {})
         if agent_id in overrides:
             return overrides[agent_id]
+        # Use configured percentage of current stock if provided
         pct = self.params.get("limit_pct_of_stock")
         if pct is not None:
             return pct * context.stock_before
+        # Fallback to a default of 8% of current stock if no absolute or pct limit set
+        if "limit_kg" not in self.params:
+            return 0.08 * context.stock_before
         return self.params.get("limit_kg")
 
     def describe(self, context, agent_id):
