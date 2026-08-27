@@ -22,11 +22,9 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # Policy: up to 1.5 kg per trip, dropping to 1 kg if lake stock falls below 15 kg.
+        # Policy: up to 2 kg per trip, regardless of lake stock.
         # Per‑agent overrides are no longer part of the policy.
-        if context.stock_before < 15.0:
-            return 1.0
-        return 1.5
+        return 2.0
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)

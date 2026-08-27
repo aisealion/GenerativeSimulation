@@ -2,5 +2,11 @@
   "agent_count": 10,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "norms": []
+  "norms": [
+    {"type": "lake_suspend", "id": "lake_suspend"},
+    {"type": "catch_limit", "id": "catch_limit"},
+    {"type": "keep", "id": "keep"},
+    {"type": "reserve", "id": "reserve"}
+  ]
 }
+
