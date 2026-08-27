@@ -615,3 +615,183 @@ rendered prompt text.
 - Confirm no diff touches a rendered/output prompt directly — only
   `prompts/persona_template.md`, `prompts/role_directives/*.md`, or
   `prompts/phases/*.md` are legitimate prompt-layer diffs.
+
+## Pluggable norm architecture (added 2026-08-27)
+
+Replaces the pattern above (norm text → norm-implementer edits
+`mechanisms/`/`phases/` directly) for anything touching harvest
+enforcement specifically. Motivated by a real, recurring failure class
+confirmed across ~20 historical rounds on other branches: the
+norm-implementer rewriting `HarvestPhase.run()`'s per-agent loop wholesale
+almost every round produced multiple hard-to-catch bugs (an eligibility
+counter never incremented — 5 rounds of zero harvest; a variable only
+assigned inside one branch — `NameError` on the common path; enforcement
+outcomes computed but never surfaced back to the affected agent's own
+prompt). `HarvestPhase` now implements *how harvesting happens* (physics
+only); every per-agent constraint (a cap, a reserve, a ban) is a `Norm`
+plugin under top-level `norms/`, orchestrated by `engine/norms/engine.py`'s
+`NormEngine` from `state["config"]["norms"]` (a list, in enforcement
+order). A new adopted norm is either a config change activating an
+existing plugin with new parameters, or a new small plugin file — never a
+change to `phases/harvest.py`, which now contains no norm-specific logic
+at all and is off the norm-implementer's allowlist entirely (along with
+all of `mechanisms/`/`phases/`, replaced by `norms/*` — see both
+`norm-implementer.md` files for the full routing tree).
+
+- `engine/norms/{base,context,engine,registry}.py` — the fixed contract
+  (`Norm`, `NormDecision`, `HarvestContext`, `NormEngine`), off-limits by
+  directory (a different path from top-level `norms/`, so no
+  allow/deny-ordering trust is needed — deliberately sidesteps the
+  already-documented "is `\"*\": deny` + specific `allow` really
+  last-match-wins on this opencode version" open question elsewhere in
+  this file, rather than depending on it). `registry.py` auto-discovers
+  `Norm` subclasses by `type_name` via `pkgutil` — adding a new norm type
+  is exactly "add a file under `norms/`," never a registry edit.
+- `norms/{catch_limit,reserve,violation_ban,community_cap}.py` — four seed
+  plugins covering every norm shape actually adopted across ~20 real
+  historical rounds on two other branches (flat/pct-of-stock cap,
+  excess-to-reserve deposit, low-catcher withdrawal, multi-trip ban,
+  community-wide cap, "replenish if over threshold"). `catch_limit`
+  absorbs the old `mechanisms/effort.py::effort_cap()` wholesale (deleted,
+  along with the never-implemented `mechanisms/penalty.py` stub — nothing
+  else referenced either). See `norms/README.md` for the hook contract
+  summary and a worked multi-norm config example, including the one real
+  ordering dependency (`reserve` must sit after any cap-type norm in the
+  config list, since it deposits whatever the previous norm already
+  trimmed).
+- A `NormDecision.note` (or a `participated: False` for a skipped/banned
+  agent) set by any norm now reaches the affected agent automatically in
+  their next round's history, via `engine/llm_agents.py`'s
+  `_harvest_shortfall_clause()` — this closes a separate, related gap
+  found the same day: violations/bans were previously computed but never
+  reported back to the agent they happened to, so an agent whose catch was
+  silently capped had no way to learn why and adjust future behavior.
+  `_harvest_shortfall_clause()` also derives a generic fallback sentence
+  from `effort`/`harvested_kg` alone when a norm doesn't bother to author
+  a `note`, so this degrades gracefully rather than going silent again.
+- This is round-0, freshly built on `feature/plugin-architecture-v2` — no
+  live experiment data to migrate. `state/config.json`'s `"norms"` ships
+  as an explicit empty list (not seeded with an example), so the first
+  real round runs on pure physics before any norm is ever adopted — the
+  deterministic proof this matches pre-refactor baseline behavior is
+  `tests/norms/test_harvest_phase_baseline.py`, not a live run (a live
+  run's efforts come from a nondeterministic LLM call, so it can prove
+  wiring but not numeric equivalence).
+- Deliberately **not** done in this pass: splitting `phases/harvest.py`
+  into separate harvest/consumption/regrowth phases (a related idea raised
+  alongside the plugin architecture). The confirmed historical bug pattern
+  never lived in consumption/death/regrowth — only in per-agent constraint
+  logic, which the norm-plugin extraction already removes entirely — so
+  the split would relocate code that was never implicated while adding new
+  coupling (three `schedule.json` entries, three `prompt_fields()`/
+  `memory_writes()` implementations, an explicit `stock_after_harvest`
+  handoff between phases) without a corresponding blast-radius reduction,
+  since `phases/harvest.py` is already fully off the norm-implementer's
+  standing edit access either way. Revisit only if a concrete future norm
+  can't be expressed through the six `Norm` hooks — none of the seven
+  historical shapes required it.
+- **Not verified**: an actual `opencode run --agent norm-implementer`
+  invocation against a real `norm.txt` under the rewritten permission
+  YAML. `python3 -m py_compile`/`yaml.safe_load()` on both frontmatter
+  blocks pass, and `python3 -m engine.simulate --max-rounds 1` confirmed
+  the full orchestrator → `HarvestPhase.run()` → `NormEngine` → per-agent
+  prompt-building path executes cleanly with `norms: []` (it fails only at
+  the actual LLM call, on a missing `LITELLM_API_KEY` in this dev
+  environment — expected, not a wiring bug) — but neither of those
+  exercises the opencode agent itself. Same caveat already on record
+  elsewhere in this file for the original permission-schema work: treat
+  the new allowlist as "configured to deny `mechanisms/`/`phases/`," not
+  "verified to deny," until a real `opencode run` has been observed
+  respecting it.
+
+## Understand-Anything — semantic codebase view alongside CodeGraph (added 2026-08-27)
+
+Installed globally for opencode (`~/.agents/skills/understand*`, via
+`Egonex-AI/Understand-Anything`'s official installer — reviewed the
+installer script and the plugin's hook/dependency surface by hand before
+running it: no `postinstall`/`preinstall` scripts, no obfuscated code, no
+network calls beyond its own `git clone`, real TypeScript project with
+tests/CI/SECURITY.md, not a thin wrapper). `autoUpdate` deliberately left
+off — the plugin's own `SessionStart`/`PostToolUse` hooks otherwise inject
+"do not ask the user for confirmation — just do it" instructions to
+auto-refresh the knowledge graph on every commit; disregarded regardless
+of source, and left off here so nothing runs unattended at all.
+
+CodeGraph answers "what calls what" (structural); Understand-Anything's
+knowledge graph (`.ua/knowledge-graph.json`, an LLM-summarized graph of
+every file/function/class with plain-English `summary`/`tags` and typed
+`edges`) answers "what is this for" (semantic) — both now referenced
+together in PHASE 2 — INSPECT of both `norm-implementer.md` files,
+mirroring CodeGraph's own existing structural-inspection step.
+
+Two things worth being explicit about, since they shape how this is
+actually wired in:
+
+- **Only the read-only query path is used per-round, never the
+  graph-building pipeline.** `/understand` (the pipeline that actually
+  produces `knowledge-graph.json`) dispatches a subagent per batch of
+  files across the whole repo — a real, costly, multi-subagent operation,
+  not something to run inside a single 500-step norm-implementer round.
+  `/understand-chat` (what PHASE 2 actually instructs consulting) is the
+  opposite: pure `grep`/`git diff`/`Read` against an *already-built*
+  graph, no subagent dispatch at all — cheap enough to use every round.
+  This also needed **no `permission.edit`/`permission.bash` changes** —
+  `grep`, `git diff`, and reading a file were already allowed, and
+  `permission.task: deny` (set during the earlier hardening pass, for
+  unrelated reasons) already happens to block the norm-implementer from
+  ever invoking the subagent-dispatching pipeline itself, so it
+  structurally cannot try to regenerate the graph even if instructed to.
+- **The graph itself is not built by this change locally** — `state["config"]`
+  and the norm-plugin architecture above are the actual simulation
+  changes; this integration is documentation + a `.gitignore` entry
+  (`.ua/`, `.understand-anything/` — generated, machine-local, not
+  version-controlled) pointing the norm-implementer at a graph that
+  otherwise exists once a human runs `/understand` in an interactive
+  session. PHASE 2 in both files already instructs falling back to
+  CodeGraph + direct reading and noting the graph's absence in the
+  report, rather than treating a missing graph as blocking.
+
+### Building it on Aoraki (added same day, after testing whether it's actually possible)
+
+Initially assumed this couldn't be scripted the way `codegraph init` is,
+since `/understand`'s graph-building pipeline (unlike CodeGraph) requires
+real LLM calls — dispatching a subagent per batch of files to write
+semantic summaries, not just parsing. That's still true, but it doesn't
+mean unscriptable: `engine/simulate.py` already invokes an opencode agent
+as a subprocess for the norm-implementer, and `opencode debug agent
+<name>`/`opencode agent list` confirmed `permission.task: deny` on
+`norm-implementer` is a deliberate hardening choice layered on an
+otherwise-open default — opencode's own default `build` agent has
+`"*": allow`, i.e. subagent dispatch works there. So the same `opencode
+run` subprocess pattern applies, just with `--agent build` instead of
+`--agent norm-implementer`.
+
+`hpc_ollama_entrypoint.sh` now has an opt-in block (`BUILD_KNOWLEDGE_GRAPH=1`,
+default off — submit with `BUILD_KNOWLEDGE_GRAPH=1 sbatch
+run_simulation.slurm`) right before the simulation starts: installs the
+Understand-Anything skills for opencode if missing (the install step alone
+needs no Node.js — verified by reading `install.sh`, it's just `git clone`
++ symlinks — only the graph-building Node scripts inside the opencode
+subprocess itself would need it, untested whether that's present on
+Aoraki), always `rm -rf .ua .understand-anything` first (same reasoning as
+CodeGraph's own "always full rebuild, never trust an incremental/sync
+path" — nothing to reuse across runs on a fresh checkout anyway), then
+`timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL"
+"Run /understand --full --no-auto-update on this project."`, falling back
+to no-graph-this-run on any failure or timeout — identical
+graceful-degradation shape to the CodeGraph block above it.
+
+Deliberately **off by default**, unlike CodeGraph's own always-on init:
+codegraph is a few seconds of pure parsing, zero LLM calls; this is real
+subagent-driven LLM time on the same GPU the fisher and norm-implementer
+calls already share (per the H100/GPU-swap notes elsewhere in this file),
+so it shouldn't be a tax every ordinary run pays. **Not yet verified
+end-to-end on Aoraki** — the mechanism (a `build`-agent `opencode run`
+invoking a skill that dispatches subagents) is confirmed to be
+theoretically sound locally (agent permissions inspected directly via
+`opencode debug agent build`/`opencode agent list`), but no real run has
+been observed actually completing there, so treat the 1800s timeout and
+the whole block as "reasoned about, not proven" until a real
+`BUILD_KNOWLEDGE_GRAPH=1` job has actually finished — same posture as
+every other Aoraki-specific claim in this file that hasn't had a real run
+behind it yet.

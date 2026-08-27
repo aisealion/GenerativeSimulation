@@ -5,3 +5,5 @@ slurm-*.err
 .opencode/opencode.json
 .env
 .venv-fishery/
+.ua/
+.understand-anything/

@@ -31,7 +31,9 @@
 #SBATCH --time=16:00:00                # tune from an observed per-round duration x --max-rounds;
                                         #   shorter requests queue faster on Aoraki (backfill) —
                                         #   if this exceeds the partition's own MaxTime, sbatch
-                                        #   rejects the submission outright, so check that if so
+                                        #   rejects the submission outright, so check that if so.
+                                        #   Add real margin (up to +30min, see BUILD_KNOWLEDGE_GRAPH
+                                        #   below) if submitting with that env var set to 1.
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
 # No --account line: Aoraki gives every user a default account per-partition,
@@ -53,6 +55,11 @@ fi
 
 export OLLAMA_MODELS=/projects/sciences/computing/cranefield_lab/magha601/models
 export MAX_ROUNDS="${MAX_ROUNDS:-100}"
+# Opt-in, off by default — see hpc_ollama_entrypoint.sh for what this does
+# and why it isn't on by default (real extra GPU time, not free like
+# codegraph). Submit with BUILD_KNOWLEDGE_GRAPH=1 sbatch run_simulation.slurm
+# to build a fresh Understand-Anything semantic graph before this run starts.
+export BUILD_KNOWLEDGE_GRAPH="${BUILD_KNOWLEDGE_GRAPH:-0}"
 
 # Direct apptainer invocation, matching the (uncommented, i.e. recommended)
 # form in Otago's own ollama-batch-example.slurm — this is what ollama-env.sh

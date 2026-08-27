@@ -148,25 +148,29 @@ def render_relevant_memories(agent_id, phase_name, round_number):
 
 
 def _harvest_shortfall_clause(mine_record, entry):
-    """Every norm the norm-implementer has ever written enforces itself by
-    reducing/zeroing an agent's harvested_kg (a cap, a ban, a forfeiture) —
-    but not one of those five past mechanisms has ever reported that back to
-    the affected agent; they only ever see the resulting kg number, with no
-    way to tell an enforced outcome apart from one they freely chose. Rather
-    than depend on each round's from-scratch phases/harvest.py rewrite to
-    remember to author that explanation (llm_agents.py isn't editable by the
-    norm-implementer, but phases/harvest.py is rewritten wholesale most
-    rounds, and every past attempt has skipped this), this derives the gap
-    itself: catch_from_effort() is pure and mechanism-agnostic, so re-running
-    it on the agent's own recorded effort against that round's starting stock
-    gives what their effort alone would have produced with nothing else in
-    play. If the agent wasn't even asked that round (harvest.py's own way of
-    enforcing a ban/suspension, not something this function can infer from
-    numbers alone), it should set "participated": False explicitly — anything
-    else defaults to participated.
+    """Norm plugins (norms/*.py, orchestrated by engine/norms/engine.py)
+    enforce themselves by reducing/zeroing an agent's harvested_kg (a cap, a
+    ban, a reserve draw) — this is what makes sure the affected agent
+    actually learns that, rather than only ever seeing the resulting kg
+    number with no way to tell an enforced outcome apart from one they
+    freely chose. A NormDecision.note (round_record["agents"][agent_id]
+    ["note"]) is preferred verbatim when a norm authored one — it's the
+    specific, in-world sentence that norm chose (an over-cap trim, a reserve
+    top-up). Falls back to a generic derived sentence when no norm bothered
+    to explain itself: catch_from_effort() is pure and mechanism-agnostic,
+    so re-running it on the agent's own recorded effort against that
+    round's starting stock gives what their effort alone would have
+    produced with nothing else in play. If the agent wasn't even asked that
+    round (a live ban — norms/violation_ban.py's is_eligible() hook, not
+    something inferable from numbers alone), "participated": False is set
+    explicitly by phases/harvest.py; anything else defaults to
+    participated.
     """
     if mine_record.get("participated") is False:
         return " You weren't able to fish at all this round — something about the community's current rules held you back."
+
+    if mine_record.get("note"):
+        return f" {mine_record['note'].strip()}"
 
     baseline_kg = catch_from_effort(mine_record["effort"], entry["stock_kg_before"])
     shortfall = baseline_kg - mine_record["harvested_kg"]

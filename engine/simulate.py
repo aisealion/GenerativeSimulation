@@ -29,8 +29,12 @@ ROOT = Path(__file__).resolve().parent.parent
 COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 100
 NORM_IMPLEMENTER_TRACKED_PATHS = [
-    "mechanisms",
-    "phases",
+    # norms/ replaced mechanisms/ + phases/ here (2026-08-27) — the
+    # norm-implementer's per-norm enforcement logic now lives entirely in
+    # norms/*.py plugins; mechanisms/ and phases/ are no longer on its
+    # permission.edit allowlist at all (see .opencode/agent/
+    # norm-implementer.md), so a norm round no longer touches either.
+    "norms",
     "prompts",
     # Implementer-authored unit tests for its own mechanism/phase changes
     # (added 2026-08-26) — distinct from tests/regression/, which stays a

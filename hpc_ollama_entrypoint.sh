@@ -288,6 +288,65 @@ mkdir -p logs
 # correctness issue, but factor it into --time and MAX_ROUNDS sizing.
 export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
+
+# Understand-Anything: a semantic ("what is this for") complement to
+# CodeGraph's structural ("what calls what") index — see CLAUDE.md's
+# "Understand-Anything" section. Opt-in, off by default: unlike codegraph
+# init (a few seconds, zero LLM calls, pure parsing), building this graph
+# means opencode dispatching a real subagent per batch of files across the
+# whole repo — genuine LLM time on the same GPU the fisher/norm-implementer
+# calls already share, not something every ordinary run should pay for.
+# Set BUILD_KNOWLEDGE_GRAPH=1 to opt in.
+#
+# Skills are installed for opencode the same way codegraph is above
+# (install-if-missing, from the tool's own official installer) — but unlike
+# codegraph, installing the skill files here doesn't require Node.js on this
+# node: it's just `git clone` + symlinks (verified by reading install.sh
+# directly before ever running it — see CLAUDE.md). Node/pnpm would only be
+# needed by the graph-*building* pipeline's own Node scripts, which run
+# inside the opencode subprocess below, in whatever environment opencode
+# itself provides — untested on Aoraki specifically; if that's missing
+# there, expect this whole block to fail and fall through to the
+# graceful-skip path, same as any other failure here.
+if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
+  if ! find "$HOME/.agents/skills" -maxdepth 1 -name 'understand*' -print -quit 2>/dev/null | grep -q .; then
+    echo "Understand-Anything skills not found — installing for opencode"
+    curl -fsSL https://raw.githubusercontent.com/Egonex-AI/Understand-Anything/main/install.sh | bash -s opencode
+  fi
+
+  # .ua/ is gitignored and machine-local (see .gitignore) — same reasoning
+  # as .codegraph/ above: nothing to reuse or sync from a previous run on
+  # this same checkout, so always build fresh rather than trying an
+  # incremental update whose correctness here is unverified.
+  rm -rf .ua .understand-anything
+
+  echo "Building the Understand-Anything knowledge graph (BUILD_KNOWLEDGE_GRAPH=1)..."
+  # --agent build: norm-implementer deliberately has permission.task=deny
+  # (a hardening choice, not a technical limit — see CLAUDE.md) so it can
+  # never dispatch the subagents this pipeline needs. opencode's default
+  # "build" agent has no such restriction (permission "*": allow), which is
+  # what actually makes this scriptable via the same `opencode run`
+  # subprocess pattern engine/simulate.py already uses for the
+  # norm-implementer, not a fundamentally different mechanism.
+  # --model reuses OPENCODE_MODEL (the 120b variant) rather than pulling or
+  # configuring a third model just for this.
+  # Generous timeout, not a tight one: unverified how long a real run takes
+  # here — if it's still stuck, fail this step loudly and continue without
+  # a graph (norm-implementer's PHASE 2 already treats a missing graph as
+  # non-blocking — falls back to CodeGraph + direct reading), exactly like
+  # codegraph's own graceful-degradation pattern above, rather than eating
+  # the rest of this job's wall time.
+  if ! timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL" \
+    "Run /understand --full --no-auto-update on this project." \
+    > logs/understand-anything-build.log 2>&1; then
+    echo "Understand-Anything build didn't finish within 1800s or failed —" >&2
+    echo "see logs/understand-anything-build.log. Continuing without a" >&2
+    echo "knowledge graph: the norm-implementer will fall back to CodeGraph" >&2
+    echo "+ direct reading, which still works, just without the semantic view." >&2
+    rm -rf .ua .understand-anything
+  fi
+fi
+
 # Run through the venv's interpreter, not the container's bare python3 —
 # that's the whole point of building it above. engine/simulate.py itself
 # and everything it imports besides engine/llm_agents.py and

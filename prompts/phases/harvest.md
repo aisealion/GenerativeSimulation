@@ -1,4 +1,4 @@
-It's time to go out on the lake. The most recent survey estimates about {stock_kg:.0f}kg of fish remaining, out of a lake that can hold up to {carrying_capacity_kg:.0f}kg when it's fully healthy.{cap_line}
+It's time to go out on the lake. The most recent survey estimates about {stock_kg:.0f}kg of fish remaining, out of a lake that can hold up to {carrying_capacity_kg:.0f}kg when it's fully healthy.{constraints_line}
 
 {stock_trend}
 
