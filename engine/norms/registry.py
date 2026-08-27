@@ -20,6 +20,9 @@ def _discover_norm_types():
         module = importlib.import_module(module_info.name)
         for attr in vars(module).values():
             if isinstance(attr, type) and issubclass(attr, Norm) and attr is not Norm and attr.type_name:
+                # Exclude norm types with underscores to keep only core seed norms
+                if "_" in attr.type_name:
+                    continue
                 existing = types.get(attr.type_name)
                 if existing is not None and existing is not attr:
                     raise ValueError(

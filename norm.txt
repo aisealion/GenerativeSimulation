@@ -1,0 +1,3 @@
+Policy: Each fisher keeps 97% of their catch; 3% goes into a communal pot that is released automatically when the lake stock falls below 100 kg for restoration or community events.
+
+Operationalization: Every trip, each fisher takes 3 % of their haul and deposits it into the communal pot; the pot is monitored by the community council. If the lake stock drops below 100 kg, the pot is opened and the funds are allocated to stocking or shared events without needing a vote. Failure to deposit the 3 % triggers a 0.1 kg penalty taken from the pot and the fisher must pay it back within the next trip.
