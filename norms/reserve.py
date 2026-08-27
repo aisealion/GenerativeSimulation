@@ -46,14 +46,8 @@ class ReserveNorm(Norm):
 
 
     def is_eligible(self, context, agent_id):
-        """Fisher is eligible unless stock is low and reserve is insufficient.
-        Policy: when lake stock is below 6 kg, fishing is suspended until the
-        communal reserve has at least 12 kg.
+        """All agents are eligible; the 70 % reserve requirement is enforced during evaluation.
         """
-        if context.stock_before < 6:
-            state = self._balance_state(context)
-            if state.get("balance_kg", 0.0) < 12.0:
-                return False
         return True
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
@@ -71,16 +65,20 @@ class ReserveNorm(Norm):
         note_parts = []
         if deposit > 0:
             note_parts.append(f"You deposited {deposit:.3f}kg into the communal reserve.")
-        # Ensure reserve stays at least 15 % of lake stock after deposit
-        MIN_RESERVE = 0.15 * context.stock_before
-        if balance < MIN_RESERVE:
-            # Take extra from fisher's keep to meet minimum reserve
-            needed = MIN_RESERVE - balance
-            # Cannot take more than what fisher has left after deposit
-            available = max(0.0, raw_kg - deposit)
+        # Ensure reserve stays at least 70 % of lake biomass after this catch
+        # We'll compute needed reserve after we know how much the fisher keeps (tentative).
+        # For now, keep the raw catch as tentative kept amount; adjustments will be made later.
+        tentative_kept = raw_kg - deposit
+        # Minimum required reserve after catch
+        min_reserve = 0.7 * (context.stock_before - tentative_kept)
+        extra_contribution = 0.0
+        if balance < min_reserve:
+            needed = min_reserve - balance
+            # Fisher can contribute at most what they have left after deposit
+            available = max(0.0, tentative_kept)
             extra_contribution = min(needed, available)
             balance += extra_contribution
-            note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the reserve minimum.")
+            note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the 70% reserve requirement.")
         # Store updated balance
         state["balance_kg"] = balance
         # Kept kg is raw catch minus standard deposit and any extra contribution
