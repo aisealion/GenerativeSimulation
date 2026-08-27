@@ -22,16 +22,10 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # Tiered limits based on lake stock as per policy in norm.txt
+        # New policy: max 1.2 kg or 12 % of current lake biomass, whichever is lower.
         stock = context.stock_before
-        if stock >= 12:
-            return 1.2
-        if 8 <= stock < 12:
-            return 1.1
-        if 6 <= stock < 8:
-            return 1.0
-        # Below 6 kg fishing is suspended via ReserveNorm eligibility, but set a low limit
-        return 0.0
+        limit_by_percent = 0.12 * stock
+        return min(1.2, limit_by_percent)
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)
