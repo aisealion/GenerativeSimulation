@@ -30,10 +30,11 @@ class CatchLimitNorm(Norm):
         pct = self.params.get("limit_pct_of_stock")
         if pct is not None:
             return pct * context.stock_before
-        # Fallback to a default of 8% of current stock if no absolute or pct limit set
-        if "limit_kg" not in self.params:
-            return 0.08 * context.stock_before
-        return self.params.get("limit_kg")
+        # Flat per-trip ceiling if set
+        if "limit_kg" in self.params:
+            return self.params.get("limit_kg")
+        # No limit configured
+        return None
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)
