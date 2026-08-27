@@ -339,6 +339,34 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
     curl -fsSL https://raw.githubusercontent.com/Egonex-AI/Understand-Anything/main/install.sh | bash -s opencode
   fi
 
+  # install.sh's cmd_install() only git-clones the repo and symlinks skill
+  # files — read directly, it never runs `pnpm install`. That means the
+  # plugin's compiled core (understand-anything-plugin/packages/core/dist/
+  # index.js, produced by the *root* package.json's own `"prepare": "pnpm
+  # --filter @understand-anything/core build"` lifecycle script, which only
+  # fires on a real `pnpm install`) is never actually built by the installer
+  # on its own. Confirmed as a real, repeatable gap across two separate
+  # real opencode sessions, not a one-off: one where the build agent tried to
+  # self-repair it (correctly ran `pnpm install && pnpm build` itself) and got
+  # silently permission-denied — the reason --auto exists below — and a
+  # second, later session where it didn't even attempt a self-repair and
+  # generate-ignore.mjs just crashed with ERR_MODULE_NOT_FOUND importing the
+  # never-built dist/index.js. Two different failure shapes from the same
+  # root cause is a sign this shouldn't be left to an LLM session to notice
+  # and fix each time — it's a deterministic, non-LLM step, so do it directly
+  # here instead of inside the opencode subprocess below.
+  UA_REPO_DIR="$HOME/.understand-anything/repo"
+  UA_CORE_DIST="$UA_REPO_DIR/understand-anything-plugin/packages/core/dist/index.js"
+  if [ -d "$UA_REPO_DIR" ] && [ ! -f "$UA_CORE_DIST" ]; then
+    echo "Understand-Anything core not built — running pnpm install (its 'prepare' script builds the core)"
+    if command -v pnpm >/dev/null 2>&1; then
+      ( cd "$UA_REPO_DIR" && pnpm install ) || \
+        echo "pnpm install failed in $UA_REPO_DIR — continuing; the build-agent invocation below will fail fast on the same missing dist/index.js and fall through to the graceful-skip path" >&2
+    else
+      echo "pnpm not found on this node — Understand-Anything's core can't be built; continuing without it (graceful-skip path below)" >&2
+    fi
+  fi
+
   # .ua/ is gitignored and machine-local (see .gitignore) — same reasoning
   # as .codegraph/ above: nothing to reuse or sync from a previous run on
   # this same checkout, so always build fresh rather than trying an
@@ -399,7 +427,15 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   # codegraph's own graceful-degradation pattern above, rather than eating
   # the rest of this job's wall time.
   build_failed=0
-  if ! timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL" --auto \
+  # Fail fast instead of paying the 1800s timeout (and the GPU/model time it
+  # burns, shared with the fisher/norm-implementer calls) for a run that's
+  # already known to hit the same ERR_MODULE_NOT_FOUND the pnpm-install step
+  # above just tried to prevent — e.g. pnpm wasn't found on this node, or
+  # `pnpm install` itself failed.
+  if [ ! -f "$UA_CORE_DIST" ]; then
+    echo "Understand-Anything core still missing at $UA_CORE_DIST after the pnpm install attempt — skipping the opencode build call entirely rather than spending 1800s on a run that would fail the same way" >&2
+    build_failed=1
+  elif ! timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL" --auto \
     --command understand -- "--full --no-auto-update" \
     "Begin the analysis immediately, following the skill's own instructions completely — do not wait for further input." \
     > logs/understand-anything-build.log 2>&1; then

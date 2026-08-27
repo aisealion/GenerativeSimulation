@@ -1152,3 +1152,57 @@ code itself.
   permissions that are not explicitly denied") to both `opencode run
   --agent build` invocations — confirmed as accepted syntax locally, not
   yet confirmed end-to-end on a real run.
+
+### The actual root cause of the `.ua/` failures — install.sh never builds the plugin (found 2026-08-28)
+
+A second real Aoraki log, from a `sim/run-*` branch (not committed to git —
+`.ua/` and the opencode build log both live outside any tracked path, so this
+was pasted directly rather than found in `logs/`), showed a *different*
+failure signature than the `--auto`/permission-denial one above: this time
+`generate-ignore.mjs` crashed immediately with `ERR_MODULE_NOT_FOUND`
+importing `understand-anything-plugin/packages/core/dist/index.js`, before
+the model ever got a chance to notice anything was missing, let alone try to
+fix it. Two different failure shapes from the same underlying gap, across
+two separate real sessions, is what made this worth root-causing properly
+instead of patching around a third time.
+
+Read `install.sh`'s `cmd_install()` directly (the actual script, not
+assumed from its earlier security review): it calls `clone_or_update` (a
+`git clone`) and `link_skills`/`link_plugin_root` (symlinks) — and nothing
+else. It **never runs `pnpm install`**. The plugin repo's root
+`package.json` has `"scripts": {"prepare": "pnpm --filter
+@understand-anything/core build", ...}` — a `prepare` lifecycle script,
+which only fires on a real `pnpm install`, which the installer never runs.
+So on any fresh install, `packages/core/dist/index.js` simply doesn't
+exist yet, and every one of `/understand`'s own skill scripts that imports
+the compiled core fails — deterministically, not intermittently. The
+`--auto` fix from the entry above was correctly diagnosing a *second*,
+real problem (the build agent's own self-repair attempt getting
+permission-denied) but couldn't have been the whole story, because on this
+second run the model never even reached the point of trying to self-repair.
+
+Fixed in `hpc_ollama_entrypoint.sh`: right after the skill-install-if-missing
+block, an explicit, deterministic check — if
+`$HOME/.understand-anything/repo/understand-anything-plugin/packages/core/dist/index.js`
+doesn't exist, run `pnpm install` directly inside the cloned repo (which
+triggers the `prepare` script and builds the core), with a graceful skip if
+`pnpm` isn't on the node at all. The `opencode run --agent build` call right
+after now also fail-fasts before its 1800s timeout if the core is still
+missing at that point (pnpm unavailable, or `pnpm install` itself failed) —
+no reason to spend real GPU/model time on an attempt already known to hit
+the identical `ERR_MODULE_NOT_FOUND`.
+
+This is deliberately *not* left for the LLM session to notice and fix each
+time, even though `--auto` plus a capable model can sometimes do it (as the
+first log showed, right up until the permission denial): a plain `pnpm
+install` is a mechanical, deterministic step with one correct outcome, and
+delegating it to an agent has now produced two different failure modes on
+two different real runs. Verified locally, not just reasoned about: renamed
+away an already-built `dist/index.js`, ran the exact new `pnpm install`
+gate, watched `prepare`'s `tsc` rebuild it from scratch with no manual
+intervention, confirmed the file exists again afterward. Still open: this
+was verified on the local macOS/nvm Node toolchain, not on Aoraki — whether
+`pnpm`/Node are available there at all, and whether the workspace's several
+native `tree-sitter-*`/`sharp` postinstall builds succeed in that
+environment, remains the same "untested on Aoraki specifically" caveat this
+section's own comments already carried before this fix.
