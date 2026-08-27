@@ -1,0 +1,3 @@
+Policy: Solo may harvest up to 30% of the lake’s current weight per trip; each other fisher may harvest up to 12% per trip; the total daily harvest may not exceed 60% of the lake’s current weight.
+
+Operationalization: At the start of each day, a community monitor records the lake’s weight and publishes it. Each fisher submits a written pledge of the amount they intend to catch that day. Solo’s pledge cannot exceed 30% of the recorded weight, and each other fisher’s pledge cannot exceed 12%. The community maintains a shared ledger of actual catches; any overage results in a 24‑hour fishing ban for the offender. If the sum of all pledged catches would exceed the 60% daily cap, fishers must adjust their pledges to stay within the total limit before the day begins.
