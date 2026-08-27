@@ -1293,3 +1293,84 @@ every round instead of never actually exercised.
 Not yet verified end-to-end on a real Aoraki job — same standing caveat
 as every other Aoraki-specific claim in this file without a completed run
 behind it.
+
+### Neo4j/Graphiti memory layer, opt-in on Aoraki (2026-08-28)
+
+By request: previously "local-only infra, never deployed on Aoraki" (this
+file's own words, from the original memory-layer entry) — `NEO4J_URI` was
+never set anywhere in `hpc_ollama_entrypoint.sh`/`run_simulation.slurm`, so
+`write_memory_episodes()`/`write_fact_memory_events()`
+(`engine/simulate.py`) and `render_relevant_memories()`
+(`engine/llm_agents.py`) always hit their own `if not os.environ.get(
+"NEO4J_URI"): return` guard and no-op'd — confirmed by direct inspection
+of both scripts (zero `NEO4J` references) and both functions' guard
+clauses, not assumed. Every round of every Aoraki run to date wrote zero
+memory episodes and rendered the same static `"(nothing notable comes to
+mind)"` placeholder for every agent's `{relevant_memories}` slot.
+
+`ENABLE_NEO4J_MEMORY=1` (off by default, passed through from
+`run_simulation.slurm`) now attempts to actually stand one up, in
+`hpc_ollama_entrypoint.sh`, positioned right after the `LITELLM_API_KEY`
+check (the memory layer's own LLM/embedder calls —
+`engine/memory/client.py`'s `DEFAULT_MEMORY_LLM_MODEL =
+"litellm/Kimi-K2.5"` / `DEFAULT_MEMORY_EMBED_MODEL =
+"litellm/text-embedding-3-small"` — reuse that same key, so no new secret
+was needed):
+
+- Pulls `docker://neo4j:5` into a `.sif` once via `apptainer pull`, cached
+  under `/projects/sciences/computing/cranefield_lab/magha601/neo4j/` —
+  same persistent-storage convention as `OLLAMA_MODELS` — so only the
+  first-ever run pays for the Docker Hub pull.
+- Starts it as a named `apptainer instance` (`neo4j-fishery`), data and
+  logs directories bound to that same persistent storage so the graph
+  accumulates across job resubmissions rather than starting empty every
+  time.
+- A password is generated once (`secrets.token_urlsafe(24)` via the
+  fishery venv's own Python) and persisted alongside the data directory —
+  required because Neo4j only accepts the password that was in effect the
+  *first* time a given data directory was initialized; passing a
+  different `NEO4J_AUTH` on a later run against existing data would just
+  fail auth, not reset it.
+- Health-checks `127.0.0.1:7687` (bash `/dev/tcp`, 60 attempts / 2s each,
+  ~120s ceiling) before exporting `NEO4J_URI=bolt://localhost:7687`,
+  `NEO4J_USER=neo4j`, `NEO4J_PASSWORD`. Only exports them on success.
+- A `trap ... EXIT` stops the instance when the script exits, so a
+  leftover instance can't block a future job landing on the same node
+  before SLURM's own cgroup cleanup would otherwise have handled it.
+
+**This is a genuinely different kind of change from every other Aoraki fix
+in this file** — those were all "run a known command correctly"; this
+starts a *second* Apptainer container concurrently with the
+`ollama_shellenv.sif` one this whole script already runs inside, via a
+*nested* `apptainer` invocation from within that first container. Real,
+named uncertainties, not yet resolved by anything short of an actual job
+run:
+
+- Whether the `apptainer` binary is even reachable from inside
+  `ollama_shellenv.sif` at all (checked with `command -v apptainer` and
+  skipped cleanly if not — but if it's missing, this entire feature is a
+  no-op every time, silently).
+- Whether Docker Hub egress specifically works from an Aoraki compute
+  node — general network egress to `llm.uod.otago.ac.nz` was confirmed
+  during the CodeGraph investigation, but pulling from a container
+  registry is a different kind of network traffic, never tested.
+- Whether Apptainer permits two named instances (the implicit Ollama one
+  from `ollama_shellenv.sif`'s own runscript, plus this new
+  `neo4j-fishery` one) to coexist on the same allocated node without
+  port or resource conflicts — plausible given Apptainer's normal
+  host-network-sharing model, not confirmed.
+- Whether the compute node's `--mem=32G` (CPU RAM, set in
+  `run_simulation.slurm`) has enough headroom left for a Neo4j JVM
+  alongside everything else already running there.
+
+Every one of those degrades to exactly today's behavior (memory off,
+`NEO4J_URI` unset, the already-verified no-op guards handle it) rather
+than failing the job — deliberately, given how much of this is unverified
+at once. The local piece (`bash /dev/tcp` health-check logic, the
+password-persistence logic) was smoke-tested directly against this
+machine's own `fishery-neo4j` Docker container (started it, confirmed
+`127.0.0.1:7687` becomes reachable and `secrets.token_urlsafe(24)`
+produces a usable password, stopped it again afterward) — that part is
+sound. The Apptainer-specific mechanics above are not verified by that
+test and remain the real open question until a real
+`ENABLE_NEO4J_MEMORY=1 sbatch run_simulation.slurm` job actually runs.

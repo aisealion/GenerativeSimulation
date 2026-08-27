@@ -74,6 +74,15 @@ export MAX_ROUNDS="${MAX_ROUNDS:-100}"
 # incrementally refreshed after every round that commits a norm.
 export BUILD_KNOWLEDGE_GRAPH="${BUILD_KNOWLEDGE_GRAPH:-0}"
 
+# Opt-in, off by default — see hpc_ollama_entrypoint.sh for the nested
+# Apptainer Neo4j instance this starts and health-checks before exporting
+# NEO4J_URI/NEO4J_USER/NEO4J_PASSWORD. Genuinely unverified end-to-end on a
+# real Aoraki job (see that script's comments and CLAUDE.md) — every
+# failure path there degrades to today's behavior (memory layer off), so
+# this is safe to try, just not guaranteed to actually come up. Submit with
+# ENABLE_NEO4J_MEMORY=1 sbatch run_simulation.slurm to try it.
+export ENABLE_NEO4J_MEMORY="${ENABLE_NEO4J_MEMORY:-0}"
+
 # Direct apptainer invocation, matching the (uncommented, i.e. recommended)
 # form in Otago's own ollama-batch-example.slurm — this is what ollama-env.sh
 # itself runs internally, so there's no need for the one-time PATH setup

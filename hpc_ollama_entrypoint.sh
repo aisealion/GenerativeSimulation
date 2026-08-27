@@ -335,6 +335,112 @@ if [ -z "${LITELLM_API_KEY:-}" ]; then
   exit 1
 fi
 
+# Neo4j / Graphiti memory layer (engine/memory/) — previously "local-only
+# infra, never deployed on Aoraki" (see CLAUDE.md), by design: nothing here
+# ever set NEO4J_URI, and write_memory_episodes()/render_relevant_memories()
+# both check `if not os.environ.get("NEO4J_URI")` before touching anything
+# memory-related, so its absence was always a silent, correct no-op rather
+# than a crash. Opt-in now via ENABLE_NEO4J_MEMORY=1 (off by default — same
+# reasoning as BUILD_KNOWLEDGE_GRAPH below: real new failure surface and
+# job-startup latency, not something every ordinary run should pay for
+# unverified).
+#
+# Genuinely more speculative than every other Aoraki fix in this file: this
+# starts a *second* Apptainer instance (Neo4j) concurrently with the
+# ollama_shellenv.sif container this whole script is already running
+# inside, from a nested `apptainer` invocation — untested whether the
+# `apptainer` binary is even reachable from inside that container at all.
+# Every step below degrades gracefully on failure (leaves NEO4J_URI unset,
+# exactly today's behavior) rather than failing the job, for exactly that
+# reason.
+if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
+  if ! command -v apptainer >/dev/null 2>&1; then
+    echo "ENABLE_NEO4J_MEMORY=1 but no 'apptainer' binary is reachable inside" >&2
+    echo "this container — can't start a nested Neo4j instance. Continuing" >&2
+    echo "without the memory layer (NEO4J_URI stays unset)." >&2
+  else
+    # Persistent storage, same convention as OLLAMA_MODELS above: the .sif
+    # image and the graph's own data directory both survive across job
+    # resubmissions, so only the very first run pays for the Docker Hub
+    # pull, and the graph accumulates across runs rather than starting
+    # empty every time.
+    NEO4J_STORE_DIR="/projects/sciences/computing/cranefield_lab/magha601/neo4j"
+    NEO4J_SIF="$NEO4J_STORE_DIR/neo4j.sif"
+    NEO4J_DATA_DIR="$NEO4J_STORE_DIR/data"
+    NEO4J_LOGS_DIR="$NEO4J_STORE_DIR/logs"
+    NEO4J_PASSWORD_FILE="$NEO4J_STORE_DIR/password"
+    mkdir -p "$NEO4J_DATA_DIR" "$NEO4J_LOGS_DIR"
+
+    if [ ! -f "$NEO4J_SIF" ]; then
+      echo "Neo4j image not found at $NEO4J_SIF — pulling docker://neo4j:5 (one-time;"
+      echo "needs Docker Hub egress from this compute node, unconfirmed as of this"
+      echo "writing — different from the llm.uod.otago.ac.nz egress already"
+      echo "confirmed elsewhere, see CLAUDE.md)."
+      apptainer pull "$NEO4J_SIF" docker://neo4j:5 || true
+    fi
+
+    if [ ! -f "$NEO4J_SIF" ]; then
+      echo "Neo4j image still missing after the pull attempt — continuing without" >&2
+      echo "the memory layer (NEO4J_URI stays unset)." >&2
+    else
+      # Neo4j requires the SAME password on every restart against an
+      # existing data directory (the password is set into the DB itself on
+      # first init, not re-readable from NEO4J_AUTH alone) — persist it
+      # alongside the data directory rather than regenerating one per job.
+      if [ -f "$NEO4J_PASSWORD_FILE" ]; then
+        NEO4J_PW="$(cat "$NEO4J_PASSWORD_FILE")"
+      else
+        NEO4J_PW="$("$FISHERY_VENV/bin/python3" -c 'import secrets; print(secrets.token_urlsafe(24))')"
+        echo -n "$NEO4J_PW" > "$NEO4J_PASSWORD_FILE"
+        chmod 600 "$NEO4J_PASSWORD_FILE"
+      fi
+
+      # Stop any leftover instance from a previous killed/crashed job before
+      # starting fresh — apptainer instance start fails if the name's
+      # already in use.
+      apptainer instance stop neo4j-fishery >/dev/null 2>&1 || true
+      echo "Starting Neo4j as a nested apptainer instance..."
+      if apptainer instance start \
+        --bind "$NEO4J_DATA_DIR:/data" \
+        --bind "$NEO4J_LOGS_DIR:/logs" \
+        --env NEO4J_AUTH="neo4j/${NEO4J_PW}" \
+        "$NEO4J_SIF" neo4j-fishery; then
+
+        neo4j_ready=0
+        for _ in $(seq 1 60); do
+          if (exec 3<>/dev/tcp/127.0.0.1/7687) 2>/dev/null; then
+            exec 3<&- 3>&- 2>/dev/null || true
+            neo4j_ready=1
+            break
+          fi
+          sleep 2
+        done
+
+        if [ "$neo4j_ready" = "1" ]; then
+          export NEO4J_URI="bolt://localhost:7687"
+          export NEO4J_USER="neo4j"
+          export NEO4J_PASSWORD="$NEO4J_PW"
+          echo "Neo4j reachable at $NEO4J_URI — memory layer enabled for this run."
+          # Stop the instance when this script exits, success or failure —
+          # SLURM would eventually clean up the job's cgroup regardless, but
+          # an explicit stop avoids a stale instance blocking the next job's
+          # `apptainer instance start neo4j-fishery` if it lands on the same
+          # node before that cleanup happens.
+          trap 'apptainer instance stop neo4j-fishery >/dev/null 2>&1 || true' EXIT
+        else
+          echo "Neo4j instance started but 127.0.0.1:7687 never became reachable" >&2
+          echo "within 120s — continuing without the memory layer (NEO4J_URI stays" >&2
+          echo "unset)." >&2
+          apptainer instance stop neo4j-fishery >/dev/null 2>&1 || true
+        fi
+      else
+        echo "apptainer instance start failed — continuing without the memory" >&2
+        echo "layer (NEO4J_URI stays unset)." >&2
+      fi
+    fi
+  fi
+fi
+
 # Understand-Anything: a semantic ("what is this for") complement to
 # CodeGraph's structural ("what calls what") index — see CLAUDE.md's
 # "Understand-Anything" section. Opt-in, off by default: unlike codegraph
