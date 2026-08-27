@@ -1,3 +1,3 @@
-Policy: Each fisher may keep up to 12kg per trip; any excess goes to a communal pool.
+Policy: Each fisher may keep up to 12kg per trip; any catch above 12kg is deposited into a communal pool that is allocated to fishers who caught less than 5kg.
 
-Operationalization: On every trip each fisher reports their catch. If the catch is above 12kg, the excess must be deposited into the communal pool. If a fisher reports a catch below 1kg, they must supply 1kg from the pool. The community records net catch weekly; if a fisher repeatedly exceeds the limit or fails to meet the minimum, they lose a fishing slot for one week. All rules are reviewed monthly and may be amended by a community vote.
+Operationalization: On each trip, fishers record their catch in a shared ledger. If a fisher exceeds 12kg, the excess is placed in a communal bucket. After the trip, the bucket is divided among fishers who caught <5kg, giving each enough to bring their total up to 5kg, up to the amount in the bucket. Anyone who fails to deposit excess or keep within the limit must return the fish to the lake and pay a 10% fine to the pool.
