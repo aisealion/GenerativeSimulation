@@ -22,9 +22,20 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # Policy: up to 2 kg per trip, regardless of lake stock.
-        # Per‑agent overrides are no longer part of the policy.
-        return 2.0
+        # Determine the applicable catch limit for this agent.
+        # 1. Per‑agent override takes precedence.
+        overrides = self.params.get("limits_by_agent_kg", {})
+        if isinstance(overrides, dict) and agent_id in overrides:
+            return overrides[agent_id]
+        # 2. Percentage of current stock, if configured.
+        pct = self.params.get("limit_pct_of_stock")
+        if pct is not None:
+            return pct * context.stock_before
+        # 3. Flat kilogram limit, if configured.
+        if "limit_kg" in self.params:
+            return self.params["limit_kg"]
+        # No limit configured.
+        return None
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)

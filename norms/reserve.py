@@ -51,22 +51,38 @@ class ReserveNorm(Norm):
         return True
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
-        """Deposit any excess catch (beyond the required 1 kg keep) into the communal reserve.
-        Enforce a reserve cap of 120 kg; excess beyond the cap is forfeited.
+        """Deposit any trimmed excess (raw_kg - proposed_kg) into the reserve and optionally withdraw
+        to satisfy a shortfall threshold.
+        The reserve balance is capped at 120 kg; excess beyond the cap is forfeited.
+        If `shortfall_threshold_kg` is set and the kept amount is below it, up to
+        `max_withdrawal_kg` (or the remaining shortfall) can be withdrawn from the reserve,
+        limited by the reserve's available balance.
         """
         state = self._balance_state(context)
-        # Determine required keep amount (policy mandates at least 1 kg kept)
-        keep_required = 1.0
-        # If proposed_kg already respects keep, compute excess
-        excess = max(0.0, proposed_kg - keep_required)
-        # Deposit excess into reserve, respecting cap
-        new_balance = state.get("balance_kg", 0.0) + excess
-        if new_balance > 120.0:
-            # Cap reached – excess beyond cap is forfeited (no sanction per policy)
+        # Deposit trimmed excess
+        excess = max(0.0, raw_kg - proposed_kg)
+        balance = state.get("balance_kg", 0.0) + excess
+        if balance > 120.0:
+            # Cap reached – excess beyond cap is forfeited
             state["balance_kg"] = 120.0
-            # Fisher keeps only keep_required kg
-            kept = keep_required
+            kept = proposed_kg  # keep what the earlier norm allowed
         else:
-            state["balance_kg"] = new_balance
-            kept = proposed_kg - excess
-        return NormDecision.adjust(kept_kg=kept, note="You deposited {}kg into the communal reserve.".format(excess))
+            state["balance_kg"] = balance
+            kept = proposed_kg
+        # Withdrawal handling for shortfall
+        shortfall_thresh = self.params.get("shortfall_threshold_kg")
+        max_withdraw = self.params.get("max_withdrawal_kg")
+        if shortfall_thresh is not None and kept < shortfall_thresh:
+            needed = shortfall_thresh - kept
+            limit = max_withdraw if max_withdraw is not None else needed
+            withdraw = min(needed, limit, state["balance_kg"])
+            if withdraw > 0:
+                kept += withdraw
+                state["balance_kg"] -= withdraw
+        note_parts = []
+        if excess > 0:
+            note_parts.append(f"You deposited {excess}kg into the communal reserve.")
+        if shortfall_thresh is not None and kept > proposed_kg:
+            note_parts.append(f"You withdrew {kept - proposed_kg}kg from the reserve.")
+        note = " ".join(note_parts) if note_parts else None
+        return NormDecision.adjust(kept_kg=kept, note=note)
