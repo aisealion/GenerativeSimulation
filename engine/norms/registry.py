@@ -14,12 +14,17 @@ import norms as _norms_package
 from engine.norms.base import Norm
 
 
+SEED_TYPES = {"catch_limit", "reserve", "violation_ban", "community_cap"}
+
 def _discover_norm_types():
     types = {}
     for module_info in pkgutil.iter_modules(_norms_package.__path__, prefix="norms."):
         module = importlib.import_module(module_info.name)
         for attr in vars(module).values():
             if isinstance(attr, type) and issubclass(attr, Norm) and attr is not Norm and attr.type_name:
+                # Only include seed types for auto-discovery set
+                if attr.type_name not in SEED_TYPES:
+                    continue
                 existing = types.get(attr.type_name)
                 if existing is not None and existing is not attr:
                     raise ValueError(
