@@ -1374,3 +1374,54 @@ produces a usable password, stopped it again afterward) — that part is
 sound. The Apptainer-specific mechanics above are not verified by that
 test and remain the real open question until a real
 `ENABLE_NEO4J_MEMORY=1 sbatch run_simulation.slurm` job actually runs.
+
+### Two real bugs found from an actual round-1 Aoraki job (2026-08-28)
+
+A real job (`BUILD_KNOWLEDGE_GRAPH=1 ENABLE_NEO4J_MEMORY=1 sbatch
+run_simulation.slurm`) surfaced two genuine problems in the pnpm-install
+gate added two entries above — both found from the actual opencode build
+session's own transcript, not guessed:
+
+- **The gate was checking the wrong path, so it likely never ran at
+  all.** The transcript's own Phase-0 checks (`ls -d
+  $HOME/.understand-anything-plugin`, `test -f
+  $HOME/.understand-anything-plugin/package.json`) confirmed the real
+  installed plugin on this node lives directly at
+  `$HOME/.understand-anything-plugin` — not nested under
+  `$HOME/.understand-anything/repo/understand-anything-plugin/` the way
+  `install.sh`'s own documented `REPO_DIR` default (and this script's
+  prior assumption, copied from that default) implied. The gate's `if [ -d
+  "$UA_REPO_DIR" ]` check was silently false on this node — not a pnpm
+  problem at all, a wrong-path problem. Fixed by checking both candidate
+  layouts and using whichever one actually has a `package.json`, rather
+  than assuming either is canonical.
+- **`pnpm: command not found`, in the same shell where `node -v` worked.**
+  The build agent's own defensive Phase-0 check (`pnpm -v`) failed and it
+  stopped the whole run to ask the user to install pnpm — even though its
+  own immediately-preceding check had already confirmed
+  `packages/core/dist` exists and nothing needed building this round. That
+  specific stop is a logic gap in the skill's own Phase 0 (third-party,
+  not ours to fix), but the underlying fact is real and does matter for
+  our own gate: `node`/`pnpm` inconsistency like this is exactly what an
+  un-enabled `corepack` looks like — Node ships it since v16.9, but it
+  needs an explicit `corepack enable` to actually create the `pnpm`
+  executable alongside `node`'s own binary; without that, `node` resolves
+  (however it got there) while `pnpm` never does. Added `command -v
+  corepack && corepack enable` (idempotent, no network needed, safe to
+  call unconditionally) immediately before the gate's own `command -v
+  pnpm` check.
+
+Also fixed in the same pass, found only by hand-tracing rather than by the
+job itself hitting it: the search-for-the-right-path rewrite left
+`UA_CORE_DIST` unassigned on the "no plugin root found at all" branch —
+under this script's `set -euo pipefail`, the later fail-fast check reading
+that variable would have crashed the *entire job* on "unbound variable"
+instead of degrading gracefully, exactly the kind of failure this whole
+file's graceful-degradation philosophy exists to prevent. Fixed by
+initializing it to an empty string unconditionally before the search, and
+verified directly: ran the exact search logic standalone with `set -euo
+pipefail` against two deliberately-nonexistent candidate paths, confirmed
+it reports "missing" cleanly instead of crashing.
+
+Not yet re-verified against a real Aoraki job — this fixes what round 1's
+actual transcript showed, but no job has run against the fixed script yet.

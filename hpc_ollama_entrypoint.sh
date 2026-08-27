@@ -487,16 +487,48 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   # root cause is a sign this shouldn't be left to an LLM session to notice
   # and fix each time — it's a deterministic, non-LLM step, so do it directly
   # here instead of inside the opencode subprocess below.
-  UA_REPO_DIR="$HOME/.understand-anything/repo"
-  UA_CORE_DIST="$UA_REPO_DIR/understand-anything-plugin/packages/core/dist/index.js"
-  if [ -d "$UA_REPO_DIR" ] && [ ! -f "$UA_CORE_DIST" ]; then
-    echo "Understand-Anything core not built — running pnpm install (its 'prepare' script builds the core)"
-    if command -v pnpm >/dev/null 2>&1; then
-      ( cd "$UA_REPO_DIR" && pnpm install ) || \
-        echo "pnpm install failed in $UA_REPO_DIR — continuing; the build-agent invocation below will fail fast on the same missing dist/index.js and fall through to the graceful-skip path" >&2
-    else
-      echo "pnpm not found on this node — Understand-Anything's core can't be built; continuing without it (graceful-skip path below)" >&2
+  # Don't hardcode one assumed layout — a real Aoraki run showed the
+  # installed plugin actually lives at $HOME/.understand-anything-plugin
+  # directly, NOT nested under $HOME/.understand-anything/repo/
+  # understand-anything-plugin/ the way install.sh's own documented
+  # REPO_DIR default (and this script's own earlier assumption) implied.
+  # Check both: whichever one actually has a package.json is the real one.
+  UA_REPO_DIR=""
+  UA_CORE_DIST=""  # stays empty (never a real file) if no plugin root is found below —
+                    # must be defined unconditionally: set -u would otherwise crash the
+                    # whole job on the fail-fast check further down that reads it.
+  for candidate in \
+    "$HOME/.understand-anything-plugin" \
+    "$HOME/.understand-anything/repo/understand-anything-plugin"; do
+    if [ -f "$candidate/package.json" ]; then
+      UA_REPO_DIR="$candidate"
+      break
     fi
+  done
+
+  if [ -n "$UA_REPO_DIR" ]; then
+    UA_CORE_DIST="$UA_REPO_DIR/packages/core/dist/index.js"
+    if [ ! -f "$UA_CORE_DIST" ]; then
+      echo "Understand-Anything core not built at $UA_REPO_DIR — running pnpm install (its 'prepare' script builds the core)"
+      # corepack ships with Node >=16.9 but needs an explicit 'enable' to
+      # actually create the pnpm shim alongside node's own binary — a real
+      # run showed `node -v` working but `pnpm -v` failing as "command not
+      # found" in the exact same shell, which is what a never-enabled
+      # corepack looks like. Idempotent and safe to call unconditionally.
+      command -v corepack >/dev/null 2>&1 && corepack enable >/dev/null 2>&1
+      if command -v pnpm >/dev/null 2>&1; then
+        ( cd "$UA_REPO_DIR" && pnpm install ) || \
+          echo "pnpm install failed in $UA_REPO_DIR — continuing; the build-agent invocation below will fail fast on the same missing dist/index.js and fall through to the graceful-skip path" >&2
+      else
+        echo "pnpm still not found on this node after 'corepack enable' — Understand-Anything's core can't be built; continuing without it (graceful-skip path below)" >&2
+      fi
+    fi
+  else
+    echo "No Understand-Anything plugin checkout found under \$HOME (checked" >&2
+    echo "$HOME/.understand-anything-plugin and $HOME/.understand-anything/repo/" >&2
+    echo "understand-anything-plugin) — the skill install above may have used a" >&2
+    echo "different layout than either. Continuing without building the core;" >&2
+    echo "the build-agent invocation below will fall through to the graceful-skip path." >&2
   fi
 
   # .ua/ is gitignored and machine-local (see .gitignore) — same reasoning
