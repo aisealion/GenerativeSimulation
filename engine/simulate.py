@@ -303,33 +303,14 @@ def find_adopted_norm(runtime, round_number):
 
 
 def norm_implementation_compile_errors():
-    """Syntax-check every .py file the norm-implementer could have touched,
-    before anything gets committed. Without this, a broken edit gets
-    committed deterministically by commit_norm_implementation() below, and
-    then permanently blocks every future round too — reload_project_modules()
-    re-imports these files from disk at the start of every single round, so
-    a syntax error here doesn't just fail this round, it fails the rest of
-    the run and needs manual git surgery to recover from (this happened for
-    real: a broken phases/harvest.py got committed and crashed every
-    subsequent round with an IndentationError). Derives its file list from
-    NORM_IMPLEMENTER_TRACKED_PATHS rather than a hardcoded directory list,
-    so this stays in sync automatically as that list changes — this is
-    specifically what closes the gap that let a broken simulate.py edit
-    through uncaught before it was added there (a syntax check alone still
-    can't catch a *semantically* broken edit, e.g. one that guts this very
-    function — that residual risk doesn't go away just because this exists).
-
-    Also validates every .json file in the same tracked paths (state/
-    config.json, state/fluents.json) — a second, real incident, not a
-    hypothetical: the norm-implementer left a trailing comma in
-    state/config.json once before (root-caused and fixed by hand at the
-    time), and it happened again on a real Aoraki run, crashing round 1's
-    load_state() with a JSONDecodeError before the round even started.
-    py_compile never covered this at all — .json files aren't Python, so
-    a broken one sailed straight through the existing check and got
-    committed exactly like a clean one would. This closes that gap the
-    same way: catch it here, before commit_norm_implementation(), not
-    after."""
+    # Syntax-check every touched .py file and validate every touched .json
+    # file, before anything gets committed — a broken edit here blocks
+    # every future round too, since reload_project_modules() re-imports
+    # from disk at the start of each one. Also confirms every norm "type"
+    # referenced in state/config.json actually has a matching registered
+    # class (checked in a fresh subprocess so a stale in-process NORM_TYPES
+    # snapshot can't hide a type this round just added) — a config can be
+    # syntactically valid JSON and still reference nothing real.
     errors = []
     py_files = set()
     json_files = set()
@@ -357,19 +338,6 @@ def norm_implementation_compile_errors():
         except json.JSONDecodeError as exc:
             errors.append(f"{json_file.relative_to(ROOT)}:\n{exc}")
 
-    # Second real incident, distinct from the JSON-syntax one above: a
-    # round can commit a syntactically valid state/config.json that
-    # references a "type" with no matching norms/*.py class at all — every
-    # check above passes (valid Python, valid JSON), but the next round's
-    # HarvestPhase.run() crashes hard the moment NormEngine.from_config()
-    # calls load_norms() and hits its own "unknown norm type" ValueError,
-    # with nothing here ever having caught it first. Run in a fresh
-    # subprocess rather than importing engine.norms.registry in this
-    # process directly — this function runs mid-round, before
-    # reload_project_modules() would next pick up whatever norms/*.py
-    # changes this round just made, so an in-process import here could
-    # still be reading a stale NORM_TYPES snapshot from before those edits;
-    # a fresh interpreter has no such staleness to worry about.
     config_path = ROOT / "state" / "config.json"
     if config_path.is_file() and not any(f.startswith("state/config.json") for f in errors):
         check = subprocess.run(
@@ -389,52 +357,26 @@ def norm_implementation_compile_errors():
     return errors
 
 
-def norm_implementation_smoke_test_error():
-    """Actually run HarvestPhase.run() against a small fabricated state,
-    with call_fisher_agent monkeypatched to a canned response — no real LLM
-    call, no network, done in well under a second. This is deliberately the
-    same check PHASE 5 of both norm-implementer.md files has always asked
-    the model to write for itself under tests/norm_checks/ (per that
-    phase's own wording: "not a unit test of an isolated helper in
-    isolation... a function can compile and even pass a narrow test on its
-    own and still crash the instant run() actually executes it"). Across
-    every real round observed so far, across two different actual
-    multi-round runs, it never once did — not because the norms it built
-    were always fine (round 8 of sim/run-20260827-140855 referenced a norm
-    type with no matching class at all, and that round still "passed"
-    everything that existed to check it at the time), but because writing
-    the test is itself an easy-to-skip, easy-to-forget instruction next to
-    everything else PHASE 1-7 already asks for, and nothing ever verified
-    it actually happened. Rather than keep asking the model to reliably
-    remember a step it has a consistent track record of not doing, the
-    orchestrator now just does the equivalent check itself, unconditionally,
-    every round — this doesn't replace tests/norm_checks/ (a real,
-    committed test still documents and locks in *why* a specific norm's
-    behavior is what it is, for whoever reads this repo later), it just
-    means a round can no longer silently skip having *any* runtime check
-    of its own changes at all.
-
-    Fabricated state deliberately mirrors tests/norms/test_harvest_phase_baseline.py's
-    own fixture shape (2 agents, fixed efforts, full stock) rather than
-    inventing a second one — if that fixture shape needs to change, this
-    should track it.
-
-    Run in a fresh subprocess for the same reason norm_implementation_compile_errors()'s
-    own norm-type check does — this runs mid-round, before
-    reload_project_modules() would next pick up whatever this round just
-    changed on disk, so importing phases.harvest in this same process
-    could still execute a stale, pre-edit version of it."""
+def norm_implementation_runtime_errors():
+    # Actually run HarvestPhase against fabricated state (no real LLM
+    # calls, monkeypatched fisher response) — once using whatever
+    # config.json currently activates, then once per registered norm type
+    # standalone with generic params, so a type that compiles and passes
+    # the checks above but was never wired into config (dead code) still
+    # gets exercised instead of sitting silently broken. Run in a fresh
+    # subprocess: this runs mid-round, before reload_project_modules()
+    # would next pick up whatever this round just changed on disk.
     script = (
-        "import sys\n"
+        "import sys, json\n"
         "sys.path.insert(0, '.')\n"
         "import phases.harvest as harvest_module\n"
+        "from engine.norms.registry import NORM_TYPES\n"
+        "from engine.norms.context import HarvestContext\n"
         "\n"
         "def _fake_call_fisher_agent(agent_id, round_number, phase_name, **fields):\n"
         "    return {'effort': 0.5, 'reasoning': 'orchestrator smoke test'}\n"
-        "\n"
         "harvest_module.call_fisher_agent = _fake_call_fisher_agent\n"
         "\n"
-        "import json\n"
         "config = json.loads(open('state/config.json').read())\n"
         "state = {\n"
         "    'config': config,\n"
@@ -447,54 +389,6 @@ def norm_implementation_smoke_test_error():
         "    'round_number': 1,\n"
         "}\n"
         "harvest_module.PHASE.run(state)\n"
-    )
-    check = subprocess.run(
-        [sys.executable, "-c", script],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if check.returncode != 0:
-        return f"HarvestPhase.run() smoke test (fabricated state, monkeypatched fisher agent):\n{check.stderr.strip()}"
-    return None
-
-
-def norm_implementation_orphaned_type_errors():
-    """The check above only ever exercises whatever state["config"]["norms"]
-    currently activates — it has zero visibility into any other norms/*.py
-    file that exists on disk but isn't referenced by the live config.
-    Confirmed as a real, exploited-in-practice blind spot, not a
-    hypothetical one: a real round (round 7, sim/run-20260827-171159)
-    rewrote norms/reserve.py's evaluate() to call
-    `NormDecision.allow(0.0, note=...)` — allow() has never taken a `note`
-    kwarg (only adjust()/violation() do) — a guaranteed TypeError on every
-    single call where reserve runs first/alone in the chain (proposed_kg
-    starts equal to raw_kg, and raw_kg > raw_kg * 0.95 always holds, so the
-    branch that raises is not a rare edge case, it fires every time). That
-    round still committed clean, because state/config.json's actual active
-    type that whole run was a *different* one (stock_reserve_fisher_limit,
-    from an earlier round) — reserve.py was dead code from the agent's own
-    perspective too, just like norms/excess_pool.py and the first
-    norms/reserve.py both were on the other run analyzed the same day —
-    the exact same "created a plugin, never wired it into config" pattern,
-    just now proven to also hide a guaranteed runtime crash behind it, not
-    only wasted effort.
-
-    So: smoke-test *every* norm type engine.norms.registry can currently
-    discover, generic params, regardless of whether today's config
-    activates it — closing the gap for good rather than only for
-    round 7's specific file. Runs unconditionally every round, same as the
-    compile-check above already re-scans every tracked .py file every
-    round regardless of what that specific round touched — a poisoned file
-    blocking every subsequent round until someone fixes it is an existing,
-    already-accepted tradeoff in this codebase (see
-    norm_implementation_compile_errors()), not a new one introduced here."""
-    script = (
-        "import sys\n"
-        "sys.path.insert(0, '.')\n"
-        "from engine.norms.registry import NORM_TYPES\n"
-        "from engine.norms.context import HarvestContext\n"
         "\n"
         "context = HarvestContext.from_state({\n"
         "    'config': {}, 'fluents': [], 'runtime': {'stock_kg': 200.0},\n"
@@ -528,7 +422,7 @@ def norm_implementation_orphaned_type_errors():
     )
     if check.returncode != 0:
         detail = check.stdout.strip() or check.stderr.strip()
-        return f"Every registered norm type, generic params (regardless of active config):\n{detail}"
+        return f"Harvest runtime check (active config + every registered norm type):\n{detail}"
     return None
 
 
@@ -904,13 +798,9 @@ def run_cycle(round_number):
             else:
                 compile_errors = norm_implementation_compile_errors()
                 if not compile_errors:
-                    smoke_test_error = norm_implementation_smoke_test_error()
-                    if smoke_test_error:
-                        compile_errors = [smoke_test_error]
-                    else:
-                        orphaned_error = norm_implementation_orphaned_type_errors()
-                        if orphaned_error:
-                            compile_errors = [orphaned_error]
+                    runtime_error = norm_implementation_runtime_errors()
+                    if runtime_error:
+                        compile_errors = [runtime_error]
                 if compile_errors:
                     discard_norm_implementation(round_number, compile_errors)
                 else:

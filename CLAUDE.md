@@ -1020,7 +1020,8 @@ else the model is already asked to do that round, and nothing ever
 verified it actually happened. Rather than keep re-asking (the prose
 instruction hasn't changed what actually happens across either run), the
 orchestrator now runs the equivalent check itself:
-`norm_implementation_smoke_test_error()` in `engine/simulate.py`, called
+`norm_implementation_runtime_errors()` in `engine/simulate.py` (renamed
+same day when merged with the orphaned-type check below), called
 right after `norm_implementation_compile_errors()` passes, before
 `commit_norm_implementation()` — calls `phases.harvest.PHASE.run(state)`
 in a fresh subprocess (same staleness reasoning as the norm-type check
@@ -1107,3 +1108,16 @@ this project's own ability to see why, going forward. The two distinct
 failure signatures already on record (loaded-then-passive; stuck on
 `ls`/ripgrep tool confusion before ever reaching the skill) remain the
 best evidence available for anything that already ran before this fix.
+
+### Simplified engine/simulate.py's validation functions (added same day)
+
+The three validation functions above (compile/JSON/norm-type check, the
+harvest smoke test, the orphaned-type check) had accumulated
+multi-paragraph docstrings retelling the incident behind each one —
+useful once, but well past the point where a short comment would do.
+Trimmed all three to plain comments, and merged the two runtime smoke
+checks into one `norm_implementation_runtime_errors()` (one subprocess
+instead of two, same coverage). `norm_implementation_compile_errors()`
+keeps its name and shape. The actual incident history behind each check
+is still here, in this file, not lost — just not repeated inline in the
+code itself.

@@ -344,13 +344,16 @@ place to patch a bug that actually belongs in a norm plugin's own logic.
 
   **Do this even though the orchestrator now also runs its own generic
   smoke test automatically, every round, whether you write one or not**
-  (`norm_implementation_smoke_test_error()` in `engine/simulate.py` — not
+  (`norm_implementation_runtime_errors()` in `engine/simulate.py` — not
   yours to edit, just know it's there): it calls `PHASE.run(state)` against
   one fixed, minimal fabricated scenario (2 agents, effort 0.5 each, full
-  stock) and discards the round if that crashes. That catches a real class
-  of bug on its own (confirmed: a config value of the wrong type crashing
-  deep inside `NormEngine`, syntax-clean and JSON-valid, invisible to every
-  earlier check) — but it is one fixed scenario, not this norm's own actual
+  stock), and separately smoke-tests every registered norm type generically
+  regardless of whether today's config activates it — discarding the round
+  if either crashes. That catches a real class of bug on its own (confirmed:
+  a config value of the wrong type crashing deep inside `NormEngine`,
+  syntax-clean and JSON-valid, invisible to every earlier check; and a norm
+  type edited but never wired into config, invisible to the simulation
+  itself) — but it is one fixed scenario, not this norm's own actual
   edge cases (a threshold boundary, a specific multi-agent interaction, the
   branch that only fires when the community cap is nearly exhausted). It
   will not catch a norm that runs without crashing but enforces the wrong
