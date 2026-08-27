@@ -1,0 +1,3 @@
+Policy: No fisher may take more than 12kg of fish per trip, and each must keep at least 1kg for themselves.
+
+Operationalization: All fishers report their catch at the weekly community meeting. If a fisher exceeds 12kg, the excess fish must be returned to the lake or donated to a community pool, and the fisher may receive a temporary fishing ban until the surplus is made up. Catch limits are reviewed monthly against lake biomass and adjusted if needed. Non‑compliance leads to a brief suspension and required restitution.
