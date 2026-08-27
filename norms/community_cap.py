@@ -27,19 +27,12 @@ class CommunityCapNorm(Norm):
     type_name = "community_cap"
 
     def _limit(self, context):
-        # Policy: lake must retain at least 92 % of its biomass after harvest.
-        # Therefore total allowable catch per round is 8 % of current stock,
-        # unless an explicit cap is configured via params.
-        # Params:
-        #   cap_kg: explicit flat kilogram limit for the round.
-        #   cap_pct_of_stock: explicit percent of stock (fraction) limit.
-        # If either param is provided, it overrides the policy default.
+        # Policy: each round allows the community to harvest up to 12 % of the current stock.
+        # An explicit ``cap_kg`` parameter can override this with a fixed kilogram limit.
+        # The ``cap_pct_of_stock`` parameter is ignored – the policy is fixed at 12 %.
         if "cap_kg" in self.params:
             return float(self.params["cap_kg"])
-        pct = self.params.get("cap_pct_of_stock")
-        if pct is not None:
-            return float(pct) * context.stock_before
-        return 0.08 * context.stock_before
+        return 0.12 * context.stock_before
 
     def describe(self, context, agent_id):
         limit = self._limit(context)
