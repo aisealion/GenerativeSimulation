@@ -371,6 +371,15 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   # Arguments after -- go to the skill as $ARGUMENTS, same as SKILL.md's
   # own documented parsing (a single string it greps for flags in, not an
   # argv array), matching how --full/--no-auto-update are described there.
+  #
+  # Trailing message required too — a real run confirmed --command alone
+  # loads the skill into context and then just stops ("The understand
+  # skill is now loaded and ready. Let me know what you'd like to do"),
+  # never executing a single phase, still exit 0. --command answers "what
+  # skill" but apparently not "go run it now" on its own; an explicit
+  # directive is still needed alongside it. Confirmed locally to still be
+  # accepted syntax (reaches the auth step) with both present.
+  #
   # Generous timeout, not a tight one: unverified how long a real run takes
   # here — if it's still stuck, fail this step loudly and continue without
   # a graph (norm-implementer's PHASE 2 already treats a missing graph as
@@ -380,6 +389,7 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   build_failed=0
   if ! timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL" \
     --command understand -- "--full --no-auto-update" \
+    "Begin the analysis immediately, following the skill's own instructions completely — do not wait for further input." \
     > logs/understand-anything-build.log 2>&1; then
     build_failed=1
   fi

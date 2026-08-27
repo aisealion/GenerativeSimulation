@@ -959,3 +959,88 @@ hypothetical ones:
   already broken in a given checkout's `state/config.json` today, only
   prevents a *future* norm-implementer round from committing a new break
   the same way.
+
+### Two more real bugs found analyzing an actual multi-round run (added same day)
+
+Round 8 of a real run (`sim/run-20260827-140855`) replaced the active
+`catch_limit` norm with `"type": "percent_catch_limit"` in
+`state/config.json` — but never created a matching `norms/percent_catch_limit.py`
+file. Both `py_compile` and the new JSON-syntax check above passed cleanly
+(valid Python, valid JSON) and the round committed — the break is
+*semantic*, not syntactic: the type string just doesn't resolve to any
+registered `Norm` subclass. Confirmed by hand:
+`engine.norms.registry.load_norms()` immediately raises `ValueError:
+unknown norm type 'percent_catch_limit'` against that exact config, which
+means the very next round's `HarvestPhase.run()` → `NormEngine.from_config()`
+crashes hard, uncaught, at the first line of the harvest phase — plausibly
+why that run's `state/runtime.json` stops at round 8. Neither existing
+check was designed to catch this class of failure — `norm_implementation_compile_errors()`
+now also runs `load_norms()` against `state/config.json` in a fresh
+subprocess (deliberately not importing `engine.norms.registry` in this
+same process — see below for why that would be unreliable) and reports
+any `ValueError` as a discard-worthy error, the same as a syntax error.
+
+Separately, and worse in a way this run never happened to expose: the
+same investigation found `reload_project_modules()` never covered `norms/`
+or `engine.norms.registry` at all — only `mechanisms`/`phases`. `engine.norms.registry`'s
+`NORM_TYPES` is a module-level statement (`NORM_TYPES = _discover_norm_types()`),
+computed exactly once at first import, never recomputed lazily. On this
+same run, two separate rounds (2 and 5) each added a genuinely new
+`norms/*.py` plugin file mid-run — neither was ever referenced by
+`state/config.json` afterward, so the gap never actually got exercised
+this time, but had either one been activated in the same continuous
+process that created it, `load_norms()` would have raised the identical
+"unknown norm type" error against a plugin that, on disk, genuinely
+exists — exactly the failure mode `engine/norms/registry.py`'s own
+auto-discovery design was supposed to make structurally impossible.
+Fixed: `reload_project_modules()` now also reloads `norms/*.py`, then
+`engine.norms.registry` (so `NORM_TYPES` re-scans against the freshly
+reloaded classes), then `engine.norms.engine` (so its own `from
+engine.norms.registry import load_norms` name binding picks up the fresh
+function `registry.py`'s reload just created — a plain module reload
+updates a module's own namespace in place, but doesn't retroactively fix
+a *different* module's already-bound reference to a name it imported
+*from* that module) — all before the existing `mechanisms`/`phases`
+reload, so `phases/harvest.py`'s own `from engine.norms.engine import
+NormEngine` import picks up the fully fresh chain in turn.
+
+Note: neither fix repairs `sim/run-20260827-140855`'s own already-broken
+`state/config.json` — same caveat as the JSON-syntax check above, this
+prevents a *future* round from committing the same class of break, it
+doesn't retroactively heal a checkout that's already in this state.
+
+### Orchestrator-owned smoke test — PHASE 5's own tests/norm_checks/ ask, done automatically instead (added same day)
+
+Across every real round observed on two separate multi-round runs so far,
+`tests/norm_checks/` has never once gained a test file — not because
+nothing structural ever happened (two rounds created brand-new
+`norms/*.py` plugin files, which PHASE 4/5 explicitly requires a test
+for) but because writing it is an easy-to-skip step next to everything
+else the model is already asked to do that round, and nothing ever
+verified it actually happened. Rather than keep re-asking (the prose
+instruction hasn't changed what actually happens across either run), the
+orchestrator now runs the equivalent check itself:
+`norm_implementation_smoke_test_error()` in `engine/simulate.py`, called
+right after `norm_implementation_compile_errors()` passes, before
+`commit_norm_implementation()` — calls `phases.harvest.PHASE.run(state)`
+in a fresh subprocess (same staleness reasoning as the norm-type check
+next to it) against one fixed, minimal fabricated scenario (2 agents,
+effort 0.5 each, full stock, `call_fisher_agent` monkeypatched to a
+canned response, mirroring `tests/norms/test_harvest_phase_baseline.py`'s
+own fixture rather than inventing a second shape) — a crash there
+discards the round, same treatment as a compile error. Verified locally
+against a real, non-hypothetical failure: a `norms/*.py` config value of
+the wrong type (a string where `catch_limit`'s `limit_kg` expects a
+number) crashes deep inside `NormEngine.describe_constraints()` — clean
+Python syntax, valid JSON, a real norm type that genuinely exists — and
+none of the other checks would ever have caught it.
+
+This doesn't replace `tests/norm_checks/` — PHASE 5 in both
+`norm-implementer.md` files still asks for one, now explicitly
+acknowledging the automatic backstop exists so the model understands why
+it still matters: the generic smoke test exercises one fixed scenario,
+not a given norm's own actual edge cases (a threshold boundary, a
+specific multi-agent interaction), and it will not catch a norm that runs
+without crashing but enforces the wrong number. It closes the specific
+gap where a round could previously skip having *any* runtime check of its
+own changes at all, not the broader value a real, norm-specific test adds.

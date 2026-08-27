@@ -350,7 +350,108 @@ def norm_implementation_compile_errors():
             json.loads(json_file.read_text())
         except json.JSONDecodeError as exc:
             errors.append(f"{json_file.relative_to(ROOT)}:\n{exc}")
+
+    # Second real incident, distinct from the JSON-syntax one above: a
+    # round can commit a syntactically valid state/config.json that
+    # references a "type" with no matching norms/*.py class at all — every
+    # check above passes (valid Python, valid JSON), but the next round's
+    # HarvestPhase.run() crashes hard the moment NormEngine.from_config()
+    # calls load_norms() and hits its own "unknown norm type" ValueError,
+    # with nothing here ever having caught it first. Run in a fresh
+    # subprocess rather than importing engine.norms.registry in this
+    # process directly — this function runs mid-round, before
+    # reload_project_modules() would next pick up whatever norms/*.py
+    # changes this round just made, so an in-process import here could
+    # still be reading a stale NORM_TYPES snapshot from before those edits;
+    # a fresh interpreter has no such staleness to worry about.
+    config_path = ROOT / "state" / "config.json"
+    if config_path.is_file() and not any(f.startswith("state/config.json") for f in errors):
+        check = subprocess.run(
+            [sys.executable, "-c", (
+                "import json, sys\n"
+                "sys.path.insert(0, '.')\n"
+                "from engine.norms.registry import load_norms\n"
+                "config = json.loads(open('state/config.json').read())\n"
+                "load_norms(config)\n"
+            )],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if check.returncode != 0:
+            errors.append(f"state/config.json (norm type check):\n{check.stderr.strip()}")
     return errors
+
+
+def norm_implementation_smoke_test_error():
+    """Actually run HarvestPhase.run() against a small fabricated state,
+    with call_fisher_agent monkeypatched to a canned response — no real LLM
+    call, no network, done in well under a second. This is deliberately the
+    same check PHASE 5 of both norm-implementer.md files has always asked
+    the model to write for itself under tests/norm_checks/ (per that
+    phase's own wording: "not a unit test of an isolated helper in
+    isolation... a function can compile and even pass a narrow test on its
+    own and still crash the instant run() actually executes it"). Across
+    every real round observed so far, across two different actual
+    multi-round runs, it never once did — not because the norms it built
+    were always fine (round 8 of sim/run-20260827-140855 referenced a norm
+    type with no matching class at all, and that round still "passed"
+    everything that existed to check it at the time), but because writing
+    the test is itself an easy-to-skip, easy-to-forget instruction next to
+    everything else PHASE 1-7 already asks for, and nothing ever verified
+    it actually happened. Rather than keep asking the model to reliably
+    remember a step it has a consistent track record of not doing, the
+    orchestrator now just does the equivalent check itself, unconditionally,
+    every round — this doesn't replace tests/norm_checks/ (a real,
+    committed test still documents and locks in *why* a specific norm's
+    behavior is what it is, for whoever reads this repo later), it just
+    means a round can no longer silently skip having *any* runtime check
+    of its own changes at all.
+
+    Fabricated state deliberately mirrors tests/norms/test_harvest_phase_baseline.py's
+    own fixture shape (2 agents, fixed efforts, full stock) rather than
+    inventing a second one — if that fixture shape needs to change, this
+    should track it.
+
+    Run in a fresh subprocess for the same reason norm_implementation_compile_errors()'s
+    own norm-type check does — this runs mid-round, before
+    reload_project_modules() would next pick up whatever this round just
+    changed on disk, so importing phases.harvest in this same process
+    could still execute a stale, pre-edit version of it."""
+    script = (
+        "import sys\n"
+        "sys.path.insert(0, '.')\n"
+        "import phases.harvest as harvest_module\n"
+        "\n"
+        "def _fake_call_fisher_agent(agent_id, round_number, phase_name, **fields):\n"
+        "    return {'effort': 0.5, 'reasoning': 'orchestrator smoke test'}\n"
+        "\n"
+        "harvest_module.call_fisher_agent = _fake_call_fisher_agent\n"
+        "\n"
+        "import json\n"
+        "config = json.loads(open('state/config.json').read())\n"
+        "state = {\n"
+        "    'config': config,\n"
+        "    'fluents': [],\n"
+        "    'runtime': {'stock_kg': 300.0, 'rounds': []},\n"
+        "    'agents': {\n"
+        "        'agent_0': {'name': 'Smoke0', 'personality_traits': ''},\n"
+        "        'agent_1': {'name': 'Smoke1', 'personality_traits': ''},\n"
+        "    },\n"
+        "    'round_number': 1,\n"
+        "}\n"
+        "harvest_module.PHASE.run(state)\n"
+    )
+    check = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if check.returncode != 0:
+        return f"HarvestPhase.run() smoke test (fabricated state, monkeypatched fisher agent):\n{check.stderr.strip()}"
+    return None
 
 
 def discard_norm_implementation(round_number, errors):
@@ -498,7 +599,14 @@ def refresh_knowledge_graph(round_number):
     model = os.environ.get("OPENCODE_MODEL")
     if model:
         cmd += ["--model", model]
-    cmd += ["--command", "understand", "--", "--no-auto-update"]
+    cmd += ["--command", "understand", "--", "--no-auto-update",
+            "Begin the analysis immediately, following the skill's own instructions completely — "
+            "do not wait for further input."]
+    # A real run confirmed --command alone loads the skill into context and
+    # then stops there ("...now loaded and ready. Let me know what you'd
+    # like to do"), never executing a single phase, still exit 0 — the
+    # trailing message above is what actually drives it to act, not
+    # optional framing (see hpc_ollama_entrypoint.sh for the same fix).
 
     start = time.monotonic()
     try:
@@ -553,17 +661,41 @@ def knowledge_graph_matches_head():
 
 def reload_project_modules():
     """Python caches imported modules for the life of the process — without
-    this, a norm-implementer edit to mechanisms/*.py or phases/*.py on disk
-    never actually takes effect within a single continuous simulate.py run,
-    only the very first round's version of that code ever executes. Reload
-    mechanisms before phases so phases' `from mechanisms.x import y`
-    statements re-bind to the freshly reloaded functions, not stale ones
-    captured at the first import. Modules not yet imported (a brand new
-    phase file) don't need reloading — the plain import a few lines down
-    already gets them fresh."""
-    for prefix in ("mechanisms", "phases"):
+    this, a norm-implementer edit to mechanisms/*.py, norms/*.py, or
+    phases/*.py on disk never actually takes effect within a single
+    continuous simulate.py run, only the very first round's version of
+    that code ever executes. Modules not yet imported (a brand new plugin
+    or phase file) don't need reloading — the plain import a few lines
+    down already gets them fresh.
+
+    norms/ needs more than the mechanisms/phases pattern: engine.norms.
+    registry's NORM_TYPES is a module-level statement
+    (`NORM_TYPES = _discover_norm_types()`), computed exactly once at
+    first import, not recomputed lazily — reloading norms/*.py alone
+    doesn't make it re-scan. Confirmed missing this caused a real problem:
+    on one actual run, two rounds each added a genuinely new norms/*.py
+    plugin file mid-run, and neither ever became usable within that same
+    continuous process even after config referenced it — this is exactly
+    the failure mode the registry's own auto-discovery design was
+    supposed to make impossible. Order matters throughout: reload
+    dependencies before their dependents, so each already-imported
+    module's own `from x import y` name bindings get refreshed to the
+    newly reloaded objects, not left pointing at stale ones —
+    mechanisms/norms first (no project-internal deps of their own),
+    then engine.norms.registry (rebinds its own NORM_TYPES against the
+    freshly reloaded norms/*.py classes), then engine.norms.engine
+    (rebinds its own `from engine.norms.registry import load_norms` to
+    the fresh function registry.py's reload just created), then phases
+    (rebinds phases/harvest.py's own `from engine.norms.engine import
+    NormEngine` the same way, and mechanisms.x imports same as before)."""
+    for prefix in ("mechanisms", "norms"):
         for name in sorted(n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")):
             importlib.reload(sys.modules[name])
+    for module_name in ("engine.norms.registry", "engine.norms.engine"):
+        if module_name in sys.modules:
+            importlib.reload(sys.modules[module_name])
+    for name in sorted(n for n in list(sys.modules) if n == "phases" or n.startswith("phases.")):
+        importlib.reload(sys.modules[name])
 
 
 def run_cycle(round_number):
@@ -619,6 +751,10 @@ def run_cycle(round_number):
                 )
             else:
                 compile_errors = norm_implementation_compile_errors()
+                if not compile_errors:
+                    smoke_test_error = norm_implementation_smoke_test_error()
+                    if smoke_test_error:
+                        compile_errors = [smoke_test_error]
                 if compile_errors:
                     discard_norm_implementation(round_number, compile_errors)
                 else:

@@ -341,6 +341,23 @@ place to patch a bug that actually belongs in a norm plugin's own logic.
   instant it runs inside the real `NormEngine` chain (wrong order
   relative to another active norm, e.g.). Then run
   `pytest tests/norm_checks/`.
+
+  **Do this even though the orchestrator now also runs its own generic
+  smoke test automatically, every round, whether you write one or not**
+  (`norm_implementation_smoke_test_error()` in `engine/simulate.py` — not
+  yours to edit, just know it's there): it calls `PHASE.run(state)` against
+  one fixed, minimal fabricated scenario (2 agents, effort 0.5 each, full
+  stock) and discards the round if that crashes. That catches a real class
+  of bug on its own (confirmed: a config value of the wrong type crashing
+  deep inside `NormEngine`, syntax-clean and JSON-valid, invisible to every
+  earlier check) — but it is one fixed scenario, not this norm's own actual
+  edge cases (a threshold boundary, a specific multi-agent interaction, the
+  branch that only fires when the community cap is nearly exhausted). It
+  will not catch a norm that runs without crashing but enforces the wrong
+  number. Across real rounds observed so far, this step has been skipped
+  every single time regardless of what norms/*.py changed that round — the
+  generic smoke test exists specifically because that kept happening, not
+  as a replacement for actually doing this.
 - Run `pytest tests/regression/`.
 
 ## PHASE 6 — SELF-REVIEW
