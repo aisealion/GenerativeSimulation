@@ -612,40 +612,22 @@ def refresh_knowledge_graph(round_number):
     if os.environ.get("BUILD_KNOWLEDGE_GRAPH") != "1":
         return
     print(f"\n--- refreshing Understand-Anything knowledge graph (round {round_number}) ---")
-    # --command understand, not a natural-language "Run /understand ..."
-    # message — a real Aoraki run on gpt-oss-120b confirmed the local model
-    # doesn't reliably infer "this names a skill, read its SKILL.md and
-    # execute those steps yourself" from prose: it tried to find and run a
-    # literal `understand` binary instead, then gave up and printed manual
-    # install instructions without ever touching the pipeline — and
-    # returned exit code 0 doing it, an entirely silent no-op (see
-    # CLAUDE.md). `--command <name>` invokes the named skill directly and
-    # structurally, no inference required. Args after -- become the
-    # skill's $ARGUMENTS as one string, same as hpc_ollama_entrypoint.sh's
-    # initial build and SKILL.md's own documented parsing.
-    cmd = ["opencode", "run", "--agent", "build", "--format", "json"]
+    # --command names the skill directly instead of hoping a prose message
+    # gets inferred as one. --format json so raw_response actually captures
+    # the session (opencode's default format writes to stderr, not stdout).
+    # --auto because the build agent's external_directory permission
+    # defaults to "ask", and the plugin's own checkout lives outside the
+    # project directory — headless, no one to answer, so it silently
+    # auto-denies the pnpm build step without this (see CLAUDE.md).
+    cmd = ["opencode", "run", "--agent", "build", "--format", "json", "--auto"]
     model = os.environ.get("OPENCODE_MODEL")
     if model:
         cmd += ["--model", model]
+    # Trailing message required: --command alone loads the skill into
+    # context and then just stops there without executing a single phase.
     cmd += ["--command", "understand", "--", "--no-auto-update",
             "Begin the analysis immediately, following the skill's own instructions completely — "
             "do not wait for further input."]
-    # A real run confirmed --command alone loads the skill into context and
-    # then stops there ("...now loaded and ready. Let me know what you'd
-    # like to do"), never executing a single phase, still exit 0 — the
-    # trailing message above is what actually drives it to act, not
-    # optional framing (see hpc_ollama_entrypoint.sh for the same fix).
-    #
-    # --format json matters for a second, separate reason found later the
-    # same day: opencode's *default* output format writes the entire
-    # session transcript to stderr, not stdout (confirmed directly, not
-    # assumed) — this function was logging raw_response=result.stdout,
-    # which was therefore empty on every real call, discarding the actual
-    # diagnostic content before it ever reached logs/model_calls.jsonl.
-    # run_norm_implementer() above already gets this right (it already
-    # passes --format json and parses the resulting JSONL via
-    # parse_opencode_jsonl() to get tool_call_count + final_text) — this
-    # now matches that pattern instead of quietly losing data.
 
     start = time.monotonic()
     try:

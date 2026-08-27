@@ -4,7 +4,11 @@ from engine.norms.registry import NORM_TYPES, load_norms
 
 
 def test_auto_discovery_finds_all_seed_types():
-    assert set(NORM_TYPES) == {"catch_limit", "reserve", "violation_ban", "community_cap"}
+    # Subset, not equality: norm-implementer rounds legitimately add new
+    # types over time (that's the whole point of auto-discovery) — this
+    # only guards that the four seed types stay discoverable, not that
+    # nothing else is ever added.
+    assert {"catch_limit", "reserve", "violation_ban", "community_cap"} <= set(NORM_TYPES)
 
 
 def test_load_norms_empty_config():

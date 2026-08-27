@@ -1121,3 +1121,34 @@ instead of two, same coverage). `norm_implementation_compile_errors()`
 keeps its name and shape. The actual incident history behind each check
 is still here, in this file, not lost — just not repeated inline in the
 code itself.
+
+### Two more real bugs found on a third run (added 2026-08-28)
+
+- **A leftover `SEED_TYPES` filter in `engine/norms/registry.py`** hardcoded
+  the four seed types as an allowlist and excluded anything else from
+  `NORM_TYPES` — silently defeating the entire auto-discovery design. A
+  round had correctly created a new `norms/minimum_keep.py` (nothing
+  existing fit), and it got rejected as "unknown norm type" anyway,
+  discarding the round. Reverted. `test_auto_discovery_finds_all_seed_types`
+  also had the same bug in test form (`==` instead of subset) — asserting
+  the seed types stay discoverable is right, asserting *nothing else* ever
+  gets added contradicts the architecture's own purpose. Fixed to `<=`.
+- **The real reason `.ua/` never gets created, finally found**: with
+  `--format json` actually capturing real diagnostics (previous entry),
+  a log showed the model correctly diagnosing "need to build core" and
+  issuing exactly the right `pnpm install && pnpm build` command — which
+  then got denied: `"The user rejected permission to use this specific
+  tool call."` Same failure signature already on record from round 7 of
+  the other run (a `glob` call denied the same way) — not a new failure
+  mode, the same one, now traced to its actual cause. The `build` agent's
+  `external_directory` permission defaults to `"ask"`, and the plugin's
+  own checkout (`$HOME/.understand-anything/repo/...`) is outside the
+  project directory — headless, no one to answer, so it silently
+  auto-denies. Every previous fix this session (the message, `--format
+  json`) was correctly diagnosing and fixing real problems on the way to
+  this one, but none of them could have worked while this permission gate
+  was still silently blocking the one command that actually builds
+  anything. Added `--auto` (opencode's own documented flag: "auto-approve
+  permissions that are not explicitly denied") to both `opencode run
+  --agent build` invocations — confirmed as accepted syntax locally, not
+  yet confirmed end-to-end on a real run.

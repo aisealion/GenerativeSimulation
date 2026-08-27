@@ -380,6 +380,18 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   # directive is still needed alongside it. Confirmed locally to still be
   # accepted syntax (reaches the auth step) with both present.
   #
+  # --auto matters too, found later the same day: with --format json
+  # actually capturing real diagnostics (see refresh_knowledge_graph()),
+  # a real log showed the model correctly diagnosing "need to build core"
+  # and issuing exactly the right `pnpm install && pnpm build` command —
+  # which then got denied: "The user rejected permission to use this
+  # specific tool call." The build agent's external_directory permission
+  # defaults to "ask", and the plugin's own checkout
+  # ($HOME/.understand-anything/repo/...) is outside the project
+  # directory — headless, no one to answer, so it silently auto-denies.
+  # --auto ("auto-approve permissions that are not explicitly denied") is
+  # opencode's own documented mechanism for exactly this unattended case.
+  #
   # Generous timeout, not a tight one: unverified how long a real run takes
   # here — if it's still stuck, fail this step loudly and continue without
   # a graph (norm-implementer's PHASE 2 already treats a missing graph as
@@ -387,7 +399,7 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   # codegraph's own graceful-degradation pattern above, rather than eating
   # the rest of this job's wall time.
   build_failed=0
-  if ! timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL" \
+  if ! timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL" --auto \
     --command understand -- "--full --no-auto-update" \
     "Begin the analysis immediately, following the skill's own instructions completely — do not wait for further input." \
     > logs/understand-anything-build.log 2>&1; then
