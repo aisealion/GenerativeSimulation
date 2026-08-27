@@ -29,12 +29,16 @@ class CatchLimitNorm(Norm):
         # Use configured percentage of current stock if provided
         pct = self.params.get("limit_pct_of_stock")
         if pct is not None:
-            return pct * context.stock_before
-        # Flat per-trip ceiling if set
-        if "limit_kg" in self.params:
-            return self.params.get("limit_kg")
-        # No limit configured
-        return None
+            limit = pct * context.stock_before
+        elif "limit_kg" in self.params:
+            limit = self.params.get("limit_kg")
+        else:
+            # Default per‑trip quota when no config supplied
+            limit = 4.0
+        # Enforce lake minimum: if stock is below 15kg, halve the limit
+        if limit is not None and context.stock_before < 15.0:
+            limit = limit / 2.0
+        return limit
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)

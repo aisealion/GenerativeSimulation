@@ -30,7 +30,10 @@ class CommunityCapNorm(Norm):
         pct = self.params.get("cap_pct_of_stock")
         if pct is not None:
             return pct * context.stock_before
-        return self.params.get("cap_kg")
+        if "cap_kg" in self.params:
+            return self.params.get("cap_kg")
+        # Default community daily catch cap per policy
+        return 30.0
 
     def describe(self, context, agent_id):
         limit = self._limit(context)
