@@ -2,5 +2,24 @@
   "agent_count": 10,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "norms": []
+  "norms": [
+    {
+      "type": "catch_limit",
+      "id": "catch_limit",
+      "limit_kg": 20
+    },
+    {
+      "type": "reserve",
+      "id": "community_reserve",
+      "shortfall_threshold_kg": 1,
+      "max_withdrawal_kg": 5
+    },
+    {
+      "type": "conditional_ban",
+      "id": "suspension",
+      "trigger_sanction": "over_cap",
+      "max_trips": 1,
+      "reserve_norm_key": "community_reserve"
+    }
+  ]
 }
