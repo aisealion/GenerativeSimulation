@@ -58,7 +58,7 @@ class ReserveNorm(Norm):
         * Existing short‑fall withdrawal logic (for low‑catch trips) is retained unchanged.
         """
         state = self._balance_state(context)
-        # Standard deposit: 0.5 % of the raw catch
+        # Updated deposit to 0.5 % of raw catch, matching the 0.5%‑of‑catch rule in norm.txt
         deposit = raw_kg * 0.005
         # Update reserve balance with the standard deposit
         balance = state.get("balance_kg", 0.0) + deposit

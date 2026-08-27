@@ -27,7 +27,7 @@ class CatchLimitNorm(Norm):
         #   This limit applies regardless of lake size; no separate minimum stock requirement.
         stock = context.stock_before
         # Limit is the smaller of 1.0 kg or 8 % of current stock
-        limit = min(1.0, 0.08 * stock)
+        limit = min(1.0, 0.07 * stock)
         return limit
 
     def describe(self, context, agent_id):
