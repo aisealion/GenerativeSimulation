@@ -22,16 +22,37 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # Original tiered limits based on stock levels (as per existing tests).
+        # Determine per‑trip catch limit.
+        # Order of precedence (highest first):
+        #   1. per‑agent override via params["limits_by_agent_kg"]
+        #   2. explicit percent of stock via params["limit_pct_of_stock"]
+        #   3. explicit flat kg limit via params["limit_kg"]
+        #   4. default policy: min(1.3 kg, 6 % of current stock).
         stock = context.stock_before
+        # Suspension condition: if stock is below 6 kg, no catch allowed.
+        if stock < 6.0:
+            return 0.0
+        # 1. per‑agent override
+        overrides = self.params.get("limits_by_agent_kg", {})
+        if isinstance(overrides, dict) and agent_id in overrides:
+            return overrides[agent_id]
+        # 2. percent of stock
+        pct = self.params.get("limit_pct_of_stock")
+        if pct is not None:
+            return pct * stock
+        # 3. flat kg limit
+        flat = self.params.get("limit_kg")
+        if flat is not None:
+            return flat
+        # 4. tiered default limits (original behavior)
         if stock >= 12:
             return 1.0
         elif stock >= 9:
             return 0.8
         elif stock >= 6:
             return 0.5
-        else:
-            return 0.0
+        # 5. default policy (fallback if needed)
+        return min(1.3, 0.06 * stock)
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)
