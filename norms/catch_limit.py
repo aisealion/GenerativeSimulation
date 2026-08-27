@@ -34,6 +34,8 @@ class CatchLimitNorm(Norm):
         # 3. Flat kilogram limit, if configured.
         if "limit_kg" in self.params:
             return self.params["limit_kg"]
+        # Default per‑trip ceiling per policy
+        return 3.0
         # No limit configured.
         return None
 

@@ -33,7 +33,7 @@ class CommunityCapNorm(Norm):
         if "cap_kg" in self.params:
             return self.params.get("cap_kg")
         # Default community daily catch cap per policy
-        return 30.0
+        return 45.0
 
     def describe(self, context, agent_id):
         limit = self._limit(context)

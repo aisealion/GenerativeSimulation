@@ -10,12 +10,8 @@ class LakeSuspendNorm(Norm):
         """If lake stock is below 10 kg and reserve balance is under 15 kg,
         prohibit fishing for all agents.
         """
-        if context.stock_before < 10.0:
-            # Reserve norm stores its balance under its key, default "reserve"
-            reserve_state = context.norm_state("reserve")
-            balance = reserve_state.get("balance_kg", 0.0)
-            if balance < 15.0:
-                return False
+        if context.stock_before < 8.0:
+            return False
         return True
 
     def describe(self, context, agent_id):
