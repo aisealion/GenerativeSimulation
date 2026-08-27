@@ -22,23 +22,33 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # New policy: max 1.2 kg or 12 % of current lake biomass, whichever is lower.
+        # New policy: limit is based on current stock per the following tiers
         stock = context.stock_before
-        limit_by_percent = 0.12 * stock
-        return min(1.2, limit_by_percent)
+        if stock < 6:
+            # Suspension: no allowance
+            return 0.0
+        if stock >= 12:
+            return 1.0
+        if stock >= 9:
+            return 0.8
+        # stock between 6 and 9 (inclusive lower bound 6)
+        return 0.5
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)
-        if limit is None:
+        if limit == 0.0:
             return None
-        return f"You currently have an agreed limit of {limit:.0f}kg for this trip."
+        return f"You currently have an agreed limit of {limit:g}kg for this trip."
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
         limit = self._limit_for(context, agent_id)
-        if limit is None or proposed_kg <= limit:
+        if limit == 0.0:
+            # Suspension: fisher keeps nothing but no violation flag
+            return NormDecision.allow(0.0)
+        if proposed_kg <= limit:
             return NormDecision.allow(proposed_kg)
         return NormDecision.violation(
             kept_kg=limit,
             sanction="over_cap",
-            note=f"That's more than your {limit:.0f}kg limit for the trip — the rest wasn't counted.",
+            note=f"That's more than your {limit:g}kg limit for the trip — the rest wasn't counted.",
         )

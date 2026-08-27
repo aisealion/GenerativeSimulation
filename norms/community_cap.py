@@ -32,8 +32,8 @@ class CommunityCapNorm(Norm):
             return pct * context.stock_before
         if "cap_kg" in self.params:
             return self.params.get("cap_kg")
-        # Default community daily catch cap per policy
-        return 45.0
+        # No cap configured – treat as unlimited (no-op)
+        return None
 
     def describe(self, context, agent_id):
         limit = self._limit(context)
@@ -45,6 +45,7 @@ class CommunityCapNorm(Norm):
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
         limit = self._limit(context)
         if limit is None:
+            # No cap – allow all
             return NormDecision.allow(proposed_kg)
         tally = context.round_scratch(self.key)
         used = tally.get("total_kg", 0.0)
@@ -52,6 +53,7 @@ class CommunityCapNorm(Norm):
         if proposed_kg <= remaining:
             tally["total_kg"] = used + proposed_kg
             return NormDecision.allow(proposed_kg)
+        # Exceeds remaining allowance
         tally["total_kg"] = used + remaining
         return NormDecision.violation(
             kept_kg=remaining,
