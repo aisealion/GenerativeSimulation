@@ -10,7 +10,7 @@ def _context(stock=100.0):
 
 
 def test_running_tally_trims_the_agent_who_pushes_over_the_limit():
-    # Policy: total catch limited to 12% of stock (default stock 100 => cap 12kg)
+    # Policy: total catch limited to 8% of stock (default stock 100 => cap 8kg)
     norm = CommunityCapNorm(key="cap", params={})
     context = _context()
     d1 = norm.evaluate(context, "agent_0", raw_kg=6.0, proposed_kg=6.0)
