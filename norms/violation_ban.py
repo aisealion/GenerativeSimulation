@@ -43,6 +43,7 @@ class ViolationBanNorm(Norm):
         return NormDecision.allow(proposed_kg)  # a banned agent never reaches evaluate()
 
     def on_agent_settled(self, context, agent_id, decision, harvested_kg):
-        trigger = self.params.get("trigger_sanction")
+        trigger = self.params.get("trigger_sanction", "deposit_forfeit")
         if trigger and decision.sanction == trigger:
-            self._ban_state(context, agent_id)["trips_remaining"] = self.params.get("trips", 1)
+            self._ban_state(context, agent_id)["trips_remaining"] = self.params.get("trips", 3)
+

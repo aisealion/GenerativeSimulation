@@ -45,44 +45,36 @@ class ReserveNorm(Norm):
         return f"The community reserve currently holds {int(balance)}kg."
 
 
+    def is_eligible(self, context, agent_id):
+        """Fisher is eligible only if the community reserve meets the minimum.
+
+        The policy requires the reserve to hold at least 20 kg at all times. If the
+        balance is below that threshold the fisher must wait until it is restored.
+        """
+        state = self._balance_state(context)
+        min_reserve = self.params.get("min_reserve_kg", 20.0)
+        return state.get("balance_kg", 0.0) >= min_reserve
+
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
         """Enforce a 5 % deposit of the fisher's kept catch into the communal reserve.
 
         * ``deposit_pct`` – fraction of the kept catch that must be deposited
           (default 0.05 for 5 %). Rounded to the nearest 0.1 kg.
         * ``min_reserve_kg`` – absolute minimum reserve weight (default 20 kg).
-        * ``shortfall_threshold_kg`` / ``max_withdrawal_kg`` retain their original
-          behaviour for short‑trip top‑ups.
         """
         state = self._balance_state(context)
-
-        # First handle shortfall withdrawals (same as previous implementation)
-        threshold = self.params.get("shortfall_threshold_kg")
-        if (
-            threshold is not None
-            and proposed_kg < threshold
-            and state.get("balance_kg", 0.0) > 0
-        ):
-            max_withdrawal = self.params.get("max_withdrawal_kg", state["balance_kg"])
-            withdrawal = min(threshold - proposed_kg, max_withdrawal, state["balance_kg"])
-            if withdrawal > 0:
-                state["balance_kg"] -= withdrawal
-                return NormDecision.adjust(
-                    kept_kg=proposed_kg + withdrawal,
-                    note=f"You drew {withdrawal:.0f}kg from the community reserve to top up a short trip.",
-                )
 
         # Normal deposit flow
         deposit_pct = self.params.get("deposit_pct", 0.05)
         deposit_amount = round(deposit_pct * proposed_kg, 1)
-        min_reserve = self.params.get("min_reserve_kg", 25.0)
+        min_reserve = self.params.get("min_reserve_kg", 20.0)
 
         if state.get("balance_kg", 0.0) < min_reserve:
-            # Reserve too low – fisher forfeits the deposit (loses it)
+            # Reserve too low – fisher forfeits the deposit (loses it) and receives a sanction
             kept = proposed_kg - deposit_amount
-            # No change to reserve balance
-            return NormDecision.adjust(
+            return NormDecision.violation(
                 kept_kg=kept,
+                sanction="deposit_forfeit",
                 note=f"Reserve below {min_reserve:.0f}kg; you forfeit the {deposit_amount:.1f}kg deposit.",
             )
         else:
