@@ -22,17 +22,8 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # Determine the applicable catch limit based on lake stock levels per policy.
-        stock = context.stock_before
-        if stock >= 12:
-            return 1.0
-        elif stock >= 8:
-            return 0.8
-        elif stock >= 6:
-            return 0.5
-        else:
-            # No limit when stock is below 6kg; suspension handled by DepositNorm.
-            return 0.0
+        # Policy: up to 70% of the lake's current stock per trip.
+        return 0.7 * context.stock_before
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)
