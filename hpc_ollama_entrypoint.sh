@@ -355,19 +355,47 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   # norm-implementer, not a fundamentally different mechanism.
   # --model reuses OPENCODE_MODEL (the 120b variant) rather than pulling or
   # configuring a third model just for this.
+  #
+  # --command understand, not a natural-language "Run /understand ..."
+  # message: a real run on gpt-oss-120b confirmed the smaller local model
+  # doesn't reliably infer "this is a skill, read SKILL.md and execute its
+  # steps yourself" from prose — it tried to find and run a literal
+  # `understand` binary instead (`command not found`), then gave up and
+  # printed manual install instructions without ever touching the actual
+  # pipeline, leaving no .ua/ directory at all despite reporting no error to
+  # this script (opencode's own exit code was 0 — a "successful" no-op).
+  # `opencode run --command <name>` invokes the named skill/command
+  # directly and structurally — confirmed to be accepted syntax locally
+  # (reached the auth step, not an argument-parsing error) — instead of
+  # depending on the model correctly inferring skill intent from a message.
+  # Arguments after -- go to the skill as $ARGUMENTS, same as SKILL.md's
+  # own documented parsing (a single string it greps for flags in, not an
+  # argv array), matching how --full/--no-auto-update are described there.
   # Generous timeout, not a tight one: unverified how long a real run takes
   # here — if it's still stuck, fail this step loudly and continue without
   # a graph (norm-implementer's PHASE 2 already treats a missing graph as
   # non-blocking — falls back to CodeGraph + direct reading), exactly like
   # codegraph's own graceful-degradation pattern above, rather than eating
   # the rest of this job's wall time.
+  build_failed=0
   if ! timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL" \
-    "Run /understand --full --no-auto-update on this project." \
+    --command understand -- "--full --no-auto-update" \
     > logs/understand-anything-build.log 2>&1; then
-    echo "Understand-Anything build didn't finish within 1800s or failed —" >&2
-    echo "see logs/understand-anything-build.log. Continuing without a" >&2
-    echo "knowledge graph: the norm-implementer will fall back to CodeGraph" >&2
-    echo "+ direct reading, which still works, just without the semantic view." >&2
+    build_failed=1
+  fi
+  # Exit code alone isn't trustworthy here — a real run returned 0 while
+  # having done nothing at all (gave up internally, printed advice, never
+  # wrote anything). Verify the actual claimed outcome instead of just the
+  # process's own report of it.
+  if [ ! -f .ua/knowledge-graph.json ] && [ ! -f .understand-anything/knowledge-graph.json ]; then
+    build_failed=1
+  fi
+  if [ "$build_failed" = "1" ]; then
+    echo "Understand-Anything build didn't finish within 1800s, failed, or" >&2
+    echo "produced no knowledge-graph.json despite exiting cleanly — see" >&2
+    echo "logs/understand-anything-build.log. Continuing without a knowledge" >&2
+    echo "graph: the norm-implementer will fall back to CodeGraph + direct" >&2
+    echo "reading, which still works, just without the semantic view." >&2
     rm -rf .ua .understand-anything
   fi
 fi

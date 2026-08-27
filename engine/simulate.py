@@ -311,15 +311,31 @@ def norm_implementation_compile_errors():
     specifically what closes the gap that let a broken simulate.py edit
     through uncaught before it was added there (a syntax check alone still
     can't catch a *semantically* broken edit, e.g. one that guts this very
-    function — that residual risk doesn't go away just because this exists)."""
+    function — that residual risk doesn't go away just because this exists).
+
+    Also validates every .json file in the same tracked paths (state/
+    config.json, state/fluents.json) — a second, real incident, not a
+    hypothetical: the norm-implementer left a trailing comma in
+    state/config.json once before (root-caused and fixed by hand at the
+    time), and it happened again on a real Aoraki run, crashing round 1's
+    load_state() with a JSONDecodeError before the round even started.
+    py_compile never covered this at all — .json files aren't Python, so
+    a broken one sailed straight through the existing check and got
+    committed exactly like a clean one would. This closes that gap the
+    same way: catch it here, before commit_norm_implementation(), not
+    after."""
     errors = []
     py_files = set()
+    json_files = set()
     for tracked in NORM_IMPLEMENTER_TRACKED_PATHS:
         path = ROOT / tracked
         if path.is_dir():
             py_files.update(path.rglob("*.py"))
+            json_files.update(path.rglob("*.json"))
         elif path.suffix == ".py" and path.is_file():
             py_files.add(path)
+        elif path.suffix == ".json" and path.is_file():
+            json_files.add(path)
     for py_file in sorted(py_files):
         result = subprocess.run(
             [sys.executable, "-m", "py_compile", str(py_file)],
@@ -329,6 +345,11 @@ def norm_implementation_compile_errors():
         )
         if result.returncode != 0:
             errors.append(f"{py_file.relative_to(ROOT)}:\n{result.stderr.strip()}")
+    for json_file in sorted(json_files):
+        try:
+            json.loads(json_file.read_text())
+        except json.JSONDecodeError as exc:
+            errors.append(f"{json_file.relative_to(ROOT)}:\n{exc}")
     return errors
 
 
@@ -462,11 +483,22 @@ def refresh_knowledge_graph(round_number):
     if os.environ.get("BUILD_KNOWLEDGE_GRAPH") != "1":
         return
     print(f"\n--- refreshing Understand-Anything knowledge graph (round {round_number}) ---")
+    # --command understand, not a natural-language "Run /understand ..."
+    # message — a real Aoraki run on gpt-oss-120b confirmed the local model
+    # doesn't reliably infer "this names a skill, read its SKILL.md and
+    # execute those steps yourself" from prose: it tried to find and run a
+    # literal `understand` binary instead, then gave up and printed manual
+    # install instructions without ever touching the pipeline — and
+    # returned exit code 0 doing it, an entirely silent no-op (see
+    # CLAUDE.md). `--command <name>` invokes the named skill directly and
+    # structurally, no inference required. Args after -- become the
+    # skill's $ARGUMENTS as one string, same as hpc_ollama_entrypoint.sh's
+    # initial build and SKILL.md's own documented parsing.
     cmd = ["opencode", "run", "--agent", "build"]
     model = os.environ.get("OPENCODE_MODEL")
     if model:
         cmd += ["--model", model]
-    cmd.append("Run /understand --no-auto-update on this project.")
+    cmd += ["--command", "understand", "--", "--no-auto-update"]
 
     start = time.monotonic()
     try:
@@ -476,21 +508,47 @@ def refresh_knowledge_graph(round_number):
               f"with the graph as it was; norm-implementer's own staleness check will flag this.")
         log_call(
             call="knowledge_graph_refresh", agent_id=None, round=round_number, phase=None,
-            model=model, duration_s=600.0, returncode=None, prompt=cmd[-1],
+            model=model, duration_s=600.0, returncode=None, prompt=" ".join(cmd),
             raw_response=None, parsed_response=None, error="timeout",
         )
         return
 
     duration_s = time.monotonic() - start
-    if result.returncode != 0:
-        print(f"Round {round_number}: knowledge graph refresh failed (see logs) — continuing "
+    # Exit code alone isn't trustworthy — the same silent-no-op failure
+    # above returned 0. Verify the graph's own stored commit hash actually
+    # caught up to HEAD rather than trusting the process's own report.
+    error = None if result.returncode == 0 else result.stderr.strip()
+    if error is None and not knowledge_graph_matches_head():
+        error = "opencode exited 0 but the graph's stored commit hash didn't advance to HEAD — likely a silent no-op"
+    if error:
+        print(f"Round {round_number}: knowledge graph refresh failed ({error}) — continuing "
               f"with the graph as it was.", file=sys.stderr)
     log_call(
         call="knowledge_graph_refresh", agent_id=None, round=round_number, phase=None,
         model=model, duration_s=round(duration_s, 3), returncode=result.returncode,
-        prompt=cmd[-1], raw_response=result.stdout,
-        parsed_response=None, error=None if result.returncode == 0 else result.stderr.strip(),
+        prompt=" ".join(cmd), raw_response=result.stdout,
+        parsed_response=None, error=error,
     )
+
+
+def knowledge_graph_matches_head():
+    """True iff a knowledge graph exists and its stored gitCommitHash
+    (meta.json, written by /understand's own Phase 7) equals the current
+    HEAD — the only reliable way to tell a refresh actually did something,
+    since a failed/no-op opencode invocation has been observed to still
+    exit 0 (see refresh_knowledge_graph())."""
+    for data_dir in (".understand-anything", ".ua"):
+        meta_path = ROOT / data_dir / "meta.json"
+        if meta_path.is_file():
+            try:
+                stored_hash = json.loads(meta_path.read_text()).get("gitCommitHash")
+            except (json.JSONDecodeError, OSError):
+                return False
+            head = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+            ).stdout.strip()
+            return stored_hash == head
+    return False
 
 
 def reload_project_modules():

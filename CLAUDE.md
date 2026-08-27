@@ -913,3 +913,49 @@ practical outcome (a fresh graph after each real change) by calling
 `/understand` directly instead of relying on hook injection, so there's
 no gap being left unaddressed here, just a different implementation path
 than the "standard" one for a reason that doesn't apply to CodeGraph.
+
+### Two real bugs from an actual Aoraki run (added same day)
+
+A real `BUILD_KNOWLEDGE_GRAPH=1` run surfaced two genuine issues, not
+hypothetical ones:
+
+- **The natural-language `/understand` invocation silently did nothing.**
+  The log (`logs/understand-anything-build.log`) showed the model
+  (gpt-oss-120b via the `build` agent) failed to recognize `"Run
+  /understand --full --no-auto-update on this project."` as a skill
+  invocation — it tried running `understand --full --no-auto-update` as a
+  literal shell command (`command not found`), then tried reading a
+  nonexistent file, then gave up and printed manual install instructions
+  in its final response. It never touched the actual pipeline, and no
+  `.ua/` directory was ever created — but it still **exited 0**, an
+  entirely silent no-op the exit-code-only check in
+  `hpc_ollama_entrypoint.sh` couldn't see at all. Two fixes, both applied
+  to the initial build and `refresh_knowledge_graph()`:
+  1. Switched from a prose message to `opencode run --command understand
+     -- "<args>"` — confirmed locally that this syntax is accepted
+     (reaches the auth step, not an argument-parsing error) — a
+     structural invocation that doesn't depend on the model correctly
+     inferring skill intent from natural language at all.
+  2. Added a positive post-hoc check instead of trusting the exit code:
+     the entrypoint script now also checks that
+     `.ua/knowledge-graph.json`/`.understand-anything/knowledge-graph.json`
+     actually exists after the call; `refresh_knowledge_graph()` gained
+     `knowledge_graph_matches_head()`, comparing the graph's own stored
+     `meta.json` `gitCommitHash` against `git rev-parse HEAD` — a refresh
+     that exits 0 without actually advancing the graph to HEAD is now
+     still treated as a failure.
+- **`state/config.json` crashed round 1 with a JSONDecodeError** — the
+  same bug class fixed once already earlier in this project's history
+  (a norm-implementer edit leaving a trailing comma), recurring on this
+  branch. `norm_implementation_compile_errors()` only ever ran
+  `py_compile` on `.py` files — `.json` files were never covered by the
+  pre-commit safety net at all, so a broken one sailed through exactly
+  like a clean one would. Extended the same function to also
+  `json.loads()` every `.json` file in `NORM_IMPLEMENTER_TRACKED_PATHS`
+  (`state/config.json`, `state/fluents.json`, `schedule.json`,
+  `prompts/phrasing_map.json`), verified locally to actually catch an
+  injected trailing-comma break before restoring the file. This is a
+  pre-commit gate, not a retroactive fix — it doesn't repair whatever's
+  already broken in a given checkout's `state/config.json` today, only
+  prevents a *future* norm-implementer round from committing a new break
+  the same way.
