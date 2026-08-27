@@ -38,19 +38,23 @@ class ReserveNorm(Norm):
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
         state = self._balance_state(context)
+        # Deposit any excess catch into the reserve
         excess = raw_kg - proposed_kg
         if excess > 0:
             state["balance_kg"] += excess
             return NormDecision.allow(proposed_kg)
 
-        threshold = self.params.get("shortfall_threshold_kg")
-        if threshold is not None and proposed_kg < threshold and state["balance_kg"] > 0:
+        # Minimum catch per policy (default 1kg)
+        min_catch = self.params.get("min_catch_kg", 1)
+        if proposed_kg < min_catch and state["balance_kg"] > 0:
+            # Determine maximum withdrawal allowed per trip
             max_withdrawal = self.params.get("max_withdrawal_kg", state["balance_kg"])
-            withdrawal = min(threshold - proposed_kg, max_withdrawal, state["balance_kg"])
+            needed = min_catch - proposed_kg
+            withdrawal = min(needed, max_withdrawal, state["balance_kg"])
             if withdrawal > 0:
                 state["balance_kg"] -= withdrawal
                 return NormDecision.adjust(
                     kept_kg=proposed_kg + withdrawal,
-                    note=f"You drew {withdrawal:.0f}kg from the community reserve to top up a short trip.",
+                    note=f"You drew {withdrawal:.0f}kg from the community reserve to meet the minimum catch.",
                 )
         return NormDecision.allow(proposed_kg)
