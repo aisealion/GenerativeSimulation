@@ -1,0 +1,3 @@
+Policy: A fisher may take up to 20 kg per trip, keeping at least 1 kg for personal sustenance and donating any excess to a community reserve.
+
+Operationalization: Before each trip every fisher writes down an intended catch. After the trip the catch is weighed; if it exceeds 20 kg the excess over 20 kg is handed over to the community reserve. The reserve is used monthly to provide fish to any fisher whose reserves fall below 1 kg. Fisher who fails to follow the 20 kg limit is suspended from fishing for one week or until the reserve is replenished.
