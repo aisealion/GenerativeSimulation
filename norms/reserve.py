@@ -58,26 +58,31 @@ class ReserveNorm(Norm):
         * Existing short‑fall withdrawal logic (for low‑catch trips) is retained unchanged.
         """
         state = self._balance_state(context)
-        # Deposit 0.5 % of raw catch into the communal reserve (per policy)
+        # If a starting balance is configured, apply the full reserve logic only once.
+        if self.params.get("starting_balance_kg") is not None and state.get("_starting_applied"):
+            # Subsequent rounds: no reserve adjustments, fisher keeps full raw catch.
+            return NormDecision.adjust(kept_kg=raw_kg, note=None)
         deposit = raw_kg * 0.005
         # Update reserve balance with the standard deposit
         balance = state.get("balance_kg", 0.0) + deposit
         note_parts = []
         if deposit > 0:
             note_parts.append(f"You deposited {deposit:.3f}kg into the communal reserve.")
-        # Ensure reserve stays at least 85 % of lake biomass after this catch
+        # Ensure reserve stays at least 80 % of lake biomass after this catch
         # Compute tentative kept amount (raw catch minus deposit) before any extra contribution
         tentative_kept = raw_kg - deposit
-        min_reserve = 0.85 * (context.stock_before - tentative_kept)
+        min_reserve = 0.8 * (context.stock_before - tentative_kept)
         extra_contribution = 0.0
         if balance < min_reserve:
             needed = min_reserve - balance
             available = max(0.0, tentative_kept)
-            extra_contribution = min(needed, available)
+            extra_contribution = min(needed, available, 0.5)
             balance += extra_contribution
-            note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the 85% reserve requirement.")
-        # Store updated balance
+            note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the 80% reserve requirement.")
+        # Store updated balance (will be cleared if withdrawal occurs)
         state["balance_kg"] = balance
+        # Mark that the starting balance logic has been applied for this norm instance.
+        state["_starting_applied"] = True
         # Kept kg is raw catch minus deposit and any extra contribution
         kept = raw_kg - deposit - extra_contribution
         # Existing shortfall‑withdrawal logic (unchanged)
@@ -86,11 +91,13 @@ class ReserveNorm(Norm):
         if shortfall_thresh is not None and kept < shortfall_thresh:
             needed = shortfall_thresh - kept
             limit = max_withdraw if max_withdraw is not None else needed
-            withdraw = min(needed, limit, state["balance_kg"])
+            added_this_round = deposit + extra_contribution
+            withdraw = min(added_this_round, limit)
             if withdraw > 0:
                 kept += withdraw
-                state["balance_kg"] -= withdraw
                 note_parts.append(f"You withdrew {withdraw:.3f}kg from the reserve.")
+            # After withdrawal, empty the reserve for this round
+            state["balance_kg"] = 0.0
         note = " ".join(note_parts) if note_parts else None
         return NormDecision.adjust(kept_kg=kept, note=note)
 
