@@ -38,19 +38,31 @@ class ReserveNorm(Norm):
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
         state = self._balance_state(context)
-        excess = raw_kg - proposed_kg
-        if excess > 0:
-            state["balance_kg"] += excess
-            return NormDecision.allow(proposed_kg)
+        # 5% contribution to the communal reserve each trip (default)
+        contribution_pct = self.params.get("contribution_pct", 0.05)
+        contribution = raw_kg * contribution_pct
+        max_allowed_keep = raw_kg - contribution
+        # If agent keeps more than allowed, they failed to set aside required 5%
+        if proposed_kg > max_allowed_keep:
+            # entire catch (including what would have been contribution) goes to reserve
+            state["balance_kg"] += raw_kg
+            return NormDecision.allow(0.0, note="Failed to set aside required 5% contribution; entire catch forfeited.")
+        # Otherwise, add the mandatory contribution to the reserve
+        state["balance_kg"] += contribution
 
-        threshold = self.params.get("shortfall_threshold_kg")
-        if threshold is not None and proposed_kg < threshold and state["balance_kg"] > 0:
-            max_withdrawal = self.params.get("max_withdrawal_kg", state["balance_kg"])
-            withdrawal = min(threshold - proposed_kg, max_withdrawal, state["balance_kg"])
-            if withdrawal > 0:
-                state["balance_kg"] -= withdrawal
-                return NormDecision.adjust(
-                    kept_kg=proposed_kg + withdrawal,
-                    note=f"You drew {withdrawal:.0f}kg from the community reserve to top up a short trip.",
-                )
+        # Withdrawal allowed only when lake stock drops below a threshold (default 110kg)
+        stock_threshold = self.params.get("withdrawal_stock_threshold", 110)
+        # Optional approval flag (e.g., majority vote) – defaults to True for now
+        withdrawal_approved = self.params.get("withdrawal_approved", True)
+        if context.stock_before < stock_threshold and withdrawal_approved:
+            threshold = self.params.get("shortfall_threshold_kg")
+            if threshold is not None and proposed_kg < threshold and state["balance_kg"] > 0:
+                max_withdrawal = self.params.get("max_withdrawal_kg", state["balance_kg"])
+                withdrawal = min(threshold - proposed_kg, max_withdrawal, state["balance_kg"])
+                if withdrawal > 0:
+                    state["balance_kg"] -= withdrawal
+                    return NormDecision.adjust(
+                        kept_kg=proposed_kg + withdrawal,
+                        note=f"You drew {withdrawal:.0f}kg from the community reserve to top up a short trip.",
+                    )
         return NormDecision.allow(proposed_kg)
