@@ -1,0 +1,3 @@
+Policy: Each fisher may harvest no more than 10% of the lake’s current biomass per trip, leaving at least 1kg for the community reserve.
+
+Operationalization: Before each trip the community estimates the lake’s biomass (simple net‑weight sampling) and publishes the total. 10% of that figure is the trip limit. Each fisher records their catch in a shared ledger.  Exceeding the limit triggers a penalty: the excess weight must be returned to the lake or added to the reserve, and the fisher’s next trip quota is reduced.  A rotating steward reviews the ledger weekly to enforce compliance.
