@@ -1,3 +1,3 @@
-Policy: Each fisher may keep up to 25% of the lake’s current fish mass per trip, with at least 1kg reserved for personal sustenance.
+Policy: Each fisher may take up to 12kg per trip, and the lake must retain at least 40% of its fish stock at all times.
 
-Operationalization: Every fisher records their catch in the communal ledger immediately after each trip. The ledger is reviewed by a rotating chair chosen by community vote. If a fisher exceeds the 25% cap, they must release 50% of the excess fish back to the lake immediately; if they refuse or fail to comply, they are barred from fishing for one round and must repay any excess in the next available round.
+Operationalization: At the start of each trip, every fisher records a catch target; a communal tally is kept after each season. If the lake’s remaining stock falls below 40% of the original level, fishing is suspended until the stock is restored. Any fisher who exceeds 12kg must return the excess to a community pot that is used to subsidize fishers who fail to meet the 1kg survival minimum; a fisher who cannot catch 1kg must work a community shift for the next two trips.

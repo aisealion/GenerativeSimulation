@@ -4,25 +4,27 @@
   "history_window_rounds": 5,
   "norms": [
     {
-      "type": "sustenance_cap",
-      "id": "sustenance_cap",
-      "limit_pct_of_stock": 0.25,
-      "min_sustenance_kg": 1.0,
-      "excess_release_fraction": 0.5,
-      "sanction": "over_cap"
+      "type": "stock_protection",
+      "id": "stock_protection",
+      "min_stock_pct": 0.40,
+      "original_stock_kg": 300
+    },
+    {
+      "type": "catch_limit",
+      "id": "catch_limit_12kg",
+      "limit_kg": 12
     },
     {
       "type": "reserve",
-      "id": "community_reserve",
+      "id": "community_pot",
       "shortfall_threshold_kg": 1,
-      "max_withdrawal_kg": 5
+      "max_withdrawal_kg": 12
     },
     {
-      "type": "conditional_ban",
-      "id": "suspension",
-      "trigger_sanction": "over_cap",
-      "max_trips": 1,
-      "reserve_norm_key": "community_reserve"
+      "type": "work_shift",
+      "id": "low_catch_work_shift",
+      "min_catch_kg": 1.0,
+      "shift_trips": 2
     }
   ]
 }
