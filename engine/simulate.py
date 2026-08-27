@@ -29,6 +29,12 @@ ROOT = Path(__file__).resolve().parent.parent
 COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 100
 NORM_IMPLEMENTER_TRACKED_PATHS = [
+    # state/runtime.json is deliberately never on this list — it's
+    # simulation-owned (the implementer must never write it; see PHASE 1
+    # of both norm-implementer.md files) and it's what commit_round_artifacts()
+    # further down commits separately, every round, unconditionally — kept
+    # off this list so a discard's `git clean -fd` (scoped to exactly this
+    # list) can never touch it.
     # norms/ replaced mechanisms/ + phases/ here (2026-08-27) — the
     # norm-implementer's per-norm enforcement logic now lives entirely in
     # norms/*.py plugins; mechanisms/ and phases/ are no longer on its
@@ -454,6 +460,78 @@ def norm_implementation_smoke_test_error():
     return None
 
 
+def norm_implementation_orphaned_type_errors():
+    """The check above only ever exercises whatever state["config"]["norms"]
+    currently activates — it has zero visibility into any other norms/*.py
+    file that exists on disk but isn't referenced by the live config.
+    Confirmed as a real, exploited-in-practice blind spot, not a
+    hypothetical one: a real round (round 7, sim/run-20260827-171159)
+    rewrote norms/reserve.py's evaluate() to call
+    `NormDecision.allow(0.0, note=...)` — allow() has never taken a `note`
+    kwarg (only adjust()/violation() do) — a guaranteed TypeError on every
+    single call where reserve runs first/alone in the chain (proposed_kg
+    starts equal to raw_kg, and raw_kg > raw_kg * 0.95 always holds, so the
+    branch that raises is not a rare edge case, it fires every time). That
+    round still committed clean, because state/config.json's actual active
+    type that whole run was a *different* one (stock_reserve_fisher_limit,
+    from an earlier round) — reserve.py was dead code from the agent's own
+    perspective too, just like norms/excess_pool.py and the first
+    norms/reserve.py both were on the other run analyzed the same day —
+    the exact same "created a plugin, never wired it into config" pattern,
+    just now proven to also hide a guaranteed runtime crash behind it, not
+    only wasted effort.
+
+    So: smoke-test *every* norm type engine.norms.registry can currently
+    discover, generic params, regardless of whether today's config
+    activates it — closing the gap for good rather than only for
+    round 7's specific file. Runs unconditionally every round, same as the
+    compile-check above already re-scans every tracked .py file every
+    round regardless of what that specific round touched — a poisoned file
+    blocking every subsequent round until someone fixes it is an existing,
+    already-accepted tradeoff in this codebase (see
+    norm_implementation_compile_errors()), not a new one introduced here."""
+    script = (
+        "import sys\n"
+        "sys.path.insert(0, '.')\n"
+        "from engine.norms.registry import NORM_TYPES\n"
+        "from engine.norms.context import HarvestContext\n"
+        "\n"
+        "context = HarvestContext.from_state({\n"
+        "    'config': {}, 'fluents': [], 'runtime': {'stock_kg': 200.0},\n"
+        "    'agents': {}, 'round_number': 1,\n"
+        "})\n"
+        "errors = []\n"
+        "for type_name, cls in sorted(NORM_TYPES.items()):\n"
+        "    try:\n"
+        "        norm = cls(key=type_name, params={})\n"
+        "        norm.on_round_start(context)\n"
+        "        norm.is_eligible(context, 'agent_0')\n"
+        "        norm.describe(context, 'agent_0')\n"
+        "        decision = norm.evaluate(context, 'agent_0', raw_kg=20.0, proposed_kg=20.0)\n"
+        "        norm.on_agent_settled(context, 'agent_0', decision, decision.kept_kg)\n"
+        "        norm.on_round_end(context, {'agent_0': {\n"
+        "            'harvested_kg': decision.kept_kg, 'effort': 0.5,\n"
+        "            'participated': True, 'note': decision.note,\n"
+        "        }})\n"
+        "    except Exception as exc:\n"
+        "        errors.append(f'{type_name}: {type(exc).__name__}: {exc}')\n"
+        "if errors:\n"
+        "    print('\\n'.join(errors))\n"
+        "    sys.exit(1)\n"
+    )
+    check = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if check.returncode != 0:
+        detail = check.stdout.strip() or check.stderr.strip()
+        return f"Every registered norm type, generic params (regardless of active config):\n{detail}"
+    return None
+
+
 def discard_norm_implementation(round_number, errors):
     """Roll back everything the norm-implementer touched this round — a
     partially-broken change (a working mechanisms/effort.py alongside a
@@ -537,6 +615,62 @@ def commit_norm_implementation(round_number, winning_proposal):
     return commit_hash
 
 
+ROUND_ARTIFACT_PATHS = [
+    "logs",
+    "norm.txt",
+    "plots",
+    "state/runtime.json",
+    "state/agents.json",
+]
+
+
+def commit_round_artifacts(round_number):
+    """Commit the round's own produced data — logs, norm.txt, runtime
+    state, plots — every round, unconditionally, regardless of whether
+    this round's norm itself committed, was a no-op, or got discarded.
+    Without this, the only thing making it into git history is whatever a
+    human happens to sweep up in a manual commit — real logs/model_calls.jsonl
+    and norm.txt content have been lost this way before (a crash or an
+    interrupted run before the next manual commit). Every round of
+    forensic archaeology this session has depended on
+    logs/model_calls.jsonl actually existing in git — this is what makes
+    that reliable going forward instead of incidental.
+
+    Deliberately NOT folded into NORM_IMPLEMENTER_TRACKED_PATHS/
+    commit_norm_implementation() above, on purpose, not an oversight:
+    that list is scoped to what the norm-implementer is allowed to touch
+    and — critically — what discard_norm_implementation() is allowed to
+    `git clean -fd` on a discard. logs/ and norm.txt are exactly the
+    forensic record of *why* a round got discarded; if they were on that
+    list they'd be at risk of being wiped by the very discard they explain.
+    state/runtime.json is simulation-owned and already explicitly
+    off-limits to the implementer for the same reason it's not tracked
+    there either (see NORM_IMPLEMENTER_TRACKED_PATHS's own docstring
+    note) — this is the orchestrator committing its own output, not
+    granting the implementer any new reach.
+
+    A real cost worth naming, not hiding: state/runtime.json grows every
+    round and gets committed every round here, so a long many-round run
+    accumulates real repo history size this way. Traded deliberately in
+    favor of never losing round data to an interrupted run again — this
+    project's own history has already hit that failure mode more than
+    once."""
+    existing = [p for p in ROUND_ARTIFACT_PATHS if (ROOT / p).exists()]
+    if not existing:
+        return
+    subprocess.run(["git", "add"] + existing, cwd=ROOT, check=True)
+    staged = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    if not staged:
+        return
+    subprocess.run(
+        ["git", "commit", "-m", f"Round {round_number} artifacts: logs, norm.txt, runtime state, plots"],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    )
+    print(f"Round {round_number}: committed round artifacts (logs, norm.txt, runtime state, plots).")
+
+
 def refresh_knowledge_graph(round_number):
     """Keep the Understand-Anything semantic graph current after a round
     actually changes code — without this, it's frozen at whatever it looked
@@ -595,7 +729,7 @@ def refresh_knowledge_graph(round_number):
     # structurally, no inference required. Args after -- become the
     # skill's $ARGUMENTS as one string, same as hpc_ollama_entrypoint.sh's
     # initial build and SKILL.md's own documented parsing.
-    cmd = ["opencode", "run", "--agent", "build"]
+    cmd = ["opencode", "run", "--agent", "build", "--format", "json"]
     model = os.environ.get("OPENCODE_MODEL")
     if model:
         cmd += ["--model", model]
@@ -607,6 +741,17 @@ def refresh_knowledge_graph(round_number):
     # like to do"), never executing a single phase, still exit 0 — the
     # trailing message above is what actually drives it to act, not
     # optional framing (see hpc_ollama_entrypoint.sh for the same fix).
+    #
+    # --format json matters for a second, separate reason found later the
+    # same day: opencode's *default* output format writes the entire
+    # session transcript to stderr, not stdout (confirmed directly, not
+    # assumed) — this function was logging raw_response=result.stdout,
+    # which was therefore empty on every real call, discarding the actual
+    # diagnostic content before it ever reached logs/model_calls.jsonl.
+    # run_norm_implementer() above already gets this right (it already
+    # passes --format json and parses the resulting JSONL via
+    # parse_opencode_jsonl() to get tool_call_count + final_text) — this
+    # now matches that pattern instead of quietly losing data.
 
     start = time.monotonic()
     try:
@@ -622,6 +767,7 @@ def refresh_knowledge_graph(round_number):
         return
 
     duration_s = time.monotonic() - start
+    tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
     # Exit code alone isn't trustworthy — the same silent-no-op failure
     # above returned 0. Verify the graph's own stored commit hash actually
     # caught up to HEAD rather than trusting the process's own report.
@@ -634,8 +780,8 @@ def refresh_knowledge_graph(round_number):
     log_call(
         call="knowledge_graph_refresh", agent_id=None, round=round_number, phase=None,
         model=model, duration_s=round(duration_s, 3), returncode=result.returncode,
-        prompt=" ".join(cmd), raw_response=result.stdout,
-        parsed_response=None, error=error,
+        prompt=" ".join(cmd), raw_response=result.stdout, tool_call_count=tool_call_count,
+        parsed_response=final_text, error=error,
     )
 
 
@@ -730,6 +876,12 @@ def run_cycle(round_number):
                 f"\nLake has collapsed at round {round_number} "
                 f"(stock_kg={state['runtime']['stock_kg']}). Stopping."
             )
+            # This early return skips update_plots()/commit_round_artifacts()
+            # below — without calling it here too, the single most
+            # narratively important round of the whole run (the one that
+            # actually ends it) would be exactly the one round whose data
+            # never makes it into git.
+            commit_round_artifacts(round_number)
             return False
 
     write_fact_memory_events(state, round_number)
@@ -755,6 +907,10 @@ def run_cycle(round_number):
                     smoke_test_error = norm_implementation_smoke_test_error()
                     if smoke_test_error:
                         compile_errors = [smoke_test_error]
+                    else:
+                        orphaned_error = norm_implementation_orphaned_type_errors()
+                        if orphaned_error:
+                            compile_errors = [orphaned_error]
                 if compile_errors:
                     discard_norm_implementation(round_number, compile_errors)
                 else:
@@ -763,6 +919,7 @@ def run_cycle(round_number):
                         refresh_knowledge_graph(round_number)
 
     update_plots(state)
+    commit_round_artifacts(round_number)
 
     return True
 

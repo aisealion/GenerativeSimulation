@@ -1044,3 +1044,66 @@ specific multi-agent interaction), and it will not catch a norm that runs
 without crashing but enforces the wrong number. It closes the specific
 gap where a round could previously skip having *any* runtime check of its
 own changes at all, not the broader value a real, norm-specific test adds.
+
+### Round artifacts now auto-committed too (added same day)
+
+Only `NORM_IMPLEMENTER_TRACKED_PATHS` (the norm-implementer's own code
+edits) was ever committed automatically — `logs/`, `norm.txt`,
+`state/runtime.json`, `plots/` only ever reached git via a human's manual
+"manual commit" sweep. Real cost, not hypothetical: every round of
+forensic archaeology done across this whole project session has depended
+on `logs/model_calls.jsonl` happening to already be in git — a crash or
+an interrupted run before the next manual sweep would have lost it.
+`commit_round_artifacts(round_number)` (new `ROUND_ARTIFACT_PATHS` list:
+`logs`, `norm.txt`, `plots`, `state/runtime.json`, `state/agents.json`)
+now runs unconditionally at the end of every round — success, no-op norm,
+*or* discard — as its own separate commit, and also right before the
+lake-collapse early return (that return skips the normal end-of-round
+code entirely, which would otherwise have meant the single most
+narratively important round of a run — the one that ends it — was
+exactly the one round whose data never made it into git).
+
+Deliberately **not** folded into `NORM_IMPLEMENTER_TRACKED_PATHS` itself,
+on purpose: that list also scopes what `discard_norm_implementation()` is
+allowed to `git clean -fd` on a discard, and `logs/`/`norm.txt` are
+exactly the forensic record of *why* a round got discarded — putting them
+on that list would risk a discard wiping the evidence explaining itself.
+`state/runtime.json` stays off both lists for the same reason it always
+has been (simulation-owned, never the implementer's to write).
+
+One tradeoff named explicitly, not hidden: `state/runtime.json` grows
+every round and now gets committed every round, so a long many-round run
+accumulates real repo size this way. Chosen deliberately over the
+alternative (silently losing round data to an interrupted run again,
+which this project's own history has already hit more than once) — worth
+watching if it becomes a problem on a very long run.
+
+### Found the actual reason the knowledge graph diagnostics were empty (added same day)
+
+Went back to answer "why does .ua never get created" properly instead of
+re-describing the same two failure signatures already on record, and
+found a real bug in `refresh_knowledge_graph()` itself, not in
+Understand-Anything: `opencode run`'s *default* output format writes the
+entire session transcript to **stderr**, not stdout — confirmed directly
+(`result.stdout` empty, `result.stderr` holds the real content, for an
+otherwise-identical invocation). `refresh_knowledge_graph()` was logging
+`raw_response=result.stdout` — empty on every real call, all 4 of this
+run's refresh attempts — so the actual diagnostic content (whatever the
+model was doing during those 39-128 seconds of real wall time) was
+discarded before it ever reached `logs/model_calls.jsonl`. The positive
+verification added two rounds ago (`knowledge_graph_matches_head()`) was
+never affected by this — it reads `.ua/meta.json` off disk directly, not
+`raw_response` — so "all 4 refreshes were silent no-ops" was already
+correctly known; only the *why* was unrecoverable.
+
+Fixed by adding `--format json` to `refresh_knowledge_graph()`'s
+invocation, matching `run_norm_implementer()`'s own already-correct
+pattern exactly (confirmed separately: `--format json` writes structured
+JSONL to stdout, not stderr) — now parses it the same way via the
+existing `parse_opencode_jsonl()`, getting `tool_call_count` and
+`final_text` into the log for the first time. This doesn't fix
+Understand-Anything's underlying unreliability with this model — it fixes
+this project's own ability to see why, going forward. The two distinct
+failure signatures already on record (loaded-then-passive; stuck on
+`ls`/ripgrep tool confusion before ever reaching the skill) remain the
+best evidence available for anything that already ran before this fix.
