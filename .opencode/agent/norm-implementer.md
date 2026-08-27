@@ -15,15 +15,7 @@ permission:
     "tests/norm_checks/*": allow
     "engine/simulate.py": allow
   bash:
-    "*": deny
-    "python3 -m py_compile *": allow
-    "python3 -m pytest *": allow
-    "pytest *": allow
-    "git status*": allow
-    "git diff*": allow
-    "git log*": allow
-    "codegraph *": allow
-    "grep *": allow
+    "*": allow
   webfetch: deny
   websearch: deny
   task: deny

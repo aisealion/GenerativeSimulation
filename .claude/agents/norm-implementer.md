@@ -21,17 +21,18 @@ never a change to `phases/harvest.py` itself, which contains no
 norm-specific logic of any kind and is not on your allowlist.
 
 Note: this Claude Code copy has no path-scoped permission mechanism the
-way the `.opencode/agent/norm-implementer.md` copy does (`permission.edit`/
-`permission.bash` there are a real enforced allowlist — `"*": deny`, then
-explicit `allow` for exactly `norms/*`, `prompts/role_directives/*`,
-`prompts/phases/*`, `prompts/phrasing_map.json`, `schedule.json`,
-`state/config.json`, `state/fluents.json`, `state/fluents_schema.md`,
-`tests/norm_checks/*`, `engine/simulate.py`, with `webfetch`/`websearch`/
-`task` all denied and `bash` scoped to `py_compile`/`pytest`/read-only
-`git`/`codegraph`/`grep`). `engine/simulate.py` only ever invokes the
-opencode copy, so that's the one enforcement actually depends on — this
-copy still must follow the same boundaries below, just without a
-technical backstop if it doesn't.
+way the `.opencode/agent/norm-implementer.md` copy does (`permission.edit`
+there is a real enforced allowlist — `"*": deny`, then explicit `allow`
+for exactly `norms/*`, `prompts/role_directives/*`, `prompts/phases/*`,
+`prompts/phrasing_map.json`, `schedule.json`, `state/config.json`,
+`state/fluents.json`, `state/fluents_schema.md`, `tests/norm_checks/*`,
+`engine/simulate.py`, with `webfetch`/`websearch`/`task` all denied).
+`permission.bash` there is `"*": allow` — unrestricted, by explicit choice
+(see CLAUDE.md's "Norm-implementer bash fully opened" entry for the
+tradeoff this reopens relative to the earlier scoped-allowlist version).
+`engine/simulate.py` only ever invokes the opencode copy, so that's the one
+enforcement actually depends on — this copy still must follow the same
+boundaries below, just without a technical backstop if it doesn't.
 
 ## Repo map
 

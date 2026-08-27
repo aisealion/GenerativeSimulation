@@ -1206,3 +1206,39 @@ was verified on the local macOS/nvm Node toolchain, not on Aoraki — whether
 native `tree-sitter-*`/`sharp` postinstall builds succeed in that
 environment, remains the same "untested on Aoraki specifically" caveat this
 section's own comments already carried before this fix.
+
+### Norm-implementer bash fully opened (2026-08-28, by explicit request)
+
+`.opencode/agent/norm-implementer.md`'s `permission.bash` changed from the
+2026-08-26 hardening's scoped allowlist (`"*": deny` plus explicit `allow`
+for exactly `python3 -m py_compile`, `python3 -m pytest`/`pytest`, read-only
+`git status`/`diff`/`log`, `codegraph`, `grep`) to a flat `"*": allow` —
+the norm-implementer can now run any shell command. `.claude/agents/
+norm-implementer.md`'s descriptive prose (it has no enforced permission
+mechanism of its own) was updated to match.
+
+This is a deliberate reversal of a specific, reasoned decision, not an
+oversight — worth naming the tradeoff explicitly rather than letting the
+2026-08-26 entry above stand unqualified. That entry's own reasoning still
+holds as a fact: an unrestricted shell can trivially bypass `permission.
+edit`'s allowlist (`echo ... > engine/llm_agents.py`, `sed -i` against any
+denied path, `rm -rf` outside `NORM_IMPLEMENTER_TRACKED_PATHS`, `git push`,
+arbitrary network access via `curl`/`pip install`) — none of that risk has
+gone away technically, it's just no longer blocked at the permission layer.
+What changed is a judgment call about where the real safety net should
+live: `permission.edit`'s allowlist is unchanged and still the intended
+boundary for *what gets committed* (a stray `rm`/`echo` from a wide-open
+bash still can't get its damage past `norm_implementation_compile_errors()`/
+`norm_implementation_runtime_errors()` without also having correspondingly
+broken code, which those checks are built to catch — see the "Norm-
+implementer safe-modification protocol" and "orchestrator-owned smoke
+test" entries above), and `discard_norm_implementation()`'s `git checkout
+--`/`git clean -fd` still only ever touches `NORM_IMPLEMENTER_TRACKED_PATHS`
+regardless of what a wide-open bash did outside that scope. What this
+change actually removes is the *belt* (permission-layer prevention), not
+the *suspenders* (compile/runtime verification before commit) — but it is
+a real removal: a command with a side effect outside the repo entirely (a
+network call, a write to `$HOME`, a `git push` to a remote) has no
+suspenders at all. Not verified end-to-end against a real `opencode run`
+— same standing caveat as every other permission-schema claim in this
+file.
