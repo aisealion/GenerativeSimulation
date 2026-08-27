@@ -22,23 +22,11 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # Honor per-agent overrides first
-        overrides = self.params.get("limits_by_agent_kg", {})
-        if agent_id in overrides:
-            return overrides[agent_id]
-        # Use configured percentage of current stock if provided
-        pct = self.params.get("limit_pct_of_stock")
-        if pct is not None:
-            limit = pct * context.stock_before
-        elif "limit_kg" in self.params:
-            limit = self.params.get("limit_kg")
-        else:
-            # Default per‑trip quota when no config supplied
-            limit = 4.0
-        # Enforce lake minimum: if stock is below 15kg, halve the limit
-        if limit is not None and context.stock_before < 15.0:
-            limit = limit / 2.0
-        return limit
+        # Policy: up to 1.5 kg per trip, dropping to 1 kg if lake stock falls below 15 kg.
+        # Per‑agent overrides are no longer part of the policy.
+        if context.stock_before < 15.0:
+            return 1.0
+        return 1.5
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)

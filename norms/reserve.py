@@ -46,49 +46,27 @@ class ReserveNorm(Norm):
 
 
     def is_eligible(self, context, agent_id):
-        """Fisher is eligible only if the community reserve meets the minimum.
-
-        The policy requires the reserve to hold at least 20 kg at all times. If the
-        balance is below that threshold the fisher must wait until it is restored.
+        """Fisher is always eligible; deposit logic handles reserve constraints.
         """
-        state = self._balance_state(context)
-        min_reserve = self.params.get("min_reserve_kg", 20.0)
-        return state.get("balance_kg", 0.0) >= min_reserve
+        return True
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
-        """Enforce a 5 % deposit of the fisher's kept catch into the communal reserve.
-
-        * ``deposit_pct`` – fraction of the kept catch that must be deposited
-          (default 0.05 for 5 %). Rounded to the nearest 0.1 kg.
-        * ``min_reserve_kg`` – absolute minimum reserve weight (default 20 kg).
-        * ``stock_waiver_kg`` – lake stock threshold below which the deposit is waived
-          (default 20 kg, per policy).
+        """Deposit any excess catch (beyond the required 1 kg keep) into the communal reserve.
+        Enforce a reserve cap of 120 kg; excess beyond the cap is forfeited.
         """
         state = self._balance_state(context)
-
-        # Policy waiver: if lake stock is below the threshold, skip deposit entirely.
-        stock_waiver_kg = self.params.get("stock_waiver_kg", 20.0)
-        if context.stock_before < stock_waiver_kg:
-            # No deposit required; fisher keeps full proposed amount.
-            return NormDecision.allow(proposed_kg)
-
-        deposit_pct = self.params.get("deposit_pct", 0.05)
-        deposit_amount = round(deposit_pct * proposed_kg, 1)
-        min_reserve = self.params.get("min_reserve_kg", 20.0)
-
-        if state.get("balance_kg", 0.0) < min_reserve:
-            # Reserve too low – fisher forfeits the deposit (loses it) and receives a sanction
-            kept = proposed_kg - deposit_amount
-            return NormDecision.violation(
-                kept_kg=kept,
-                sanction="deposit_forfeit",
-                note=f"Reserve below {min_reserve:.0f}kg; you forfeit the {deposit_amount:.1f}kg deposit.",
-            )
+        # Determine required keep amount (policy mandates at least 1 kg kept)
+        keep_required = 1.0
+        # If proposed_kg already respects keep, compute excess
+        excess = max(0.0, proposed_kg - keep_required)
+        # Deposit excess into reserve, respecting cap
+        new_balance = state.get("balance_kg", 0.0) + excess
+        if new_balance > 120.0:
+            # Cap reached – excess beyond cap is forfeited (no sanction per policy)
+            state["balance_kg"] = 120.0
+            # Fisher keeps only keep_required kg
+            kept = keep_required
         else:
-            # Deposit succeeds – add to reserve and reduce fisher's kept kg
-            state["balance_kg"] = state.get("balance_kg", 0.0) + deposit_amount
-            kept = proposed_kg - deposit_amount
-            return NormDecision.adjust(
-                kept_kg=kept,
-                note=f"You deposited {deposit_amount:.1f}kg into the communal reserve.",
-            )
+            state["balance_kg"] = new_balance
+            kept = proposed_kg - excess
+        return NormDecision.adjust(kept_kg=kept, note="You deposited {}kg into the communal reserve.".format(excess))
