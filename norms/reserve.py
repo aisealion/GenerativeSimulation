@@ -46,7 +46,7 @@ class ReserveNorm(Norm):
 
 
     def is_eligible(self, context, agent_id):
-        """All agents are eligible; the 70 % reserve requirement is enforced during evaluation.
+        """All agents are eligible; the 85 % reserve requirement is enforced during evaluation.
         """
         return True
 
@@ -58,30 +58,27 @@ class ReserveNorm(Norm):
         * Existing short‑fall withdrawal logic (for low‑catch trips) is retained unchanged.
         """
         state = self._balance_state(context)
-        # Updated deposit to 0.5 % of raw catch, matching the 0.5%‑of‑catch rule in norm.txt
+        # Deposit 0.5 % of raw catch into the communal reserve (per policy)
         deposit = raw_kg * 0.005
         # Update reserve balance with the standard deposit
         balance = state.get("balance_kg", 0.0) + deposit
         note_parts = []
         if deposit > 0:
             note_parts.append(f"You deposited {deposit:.3f}kg into the communal reserve.")
-        # Ensure reserve stays at least 70 % of lake biomass after this catch
-        # We'll compute needed reserve after we know how much the fisher keeps (tentative).
-        # For now, keep the raw catch as tentative kept amount; adjustments will be made later.
+        # Ensure reserve stays at least 85 % of lake biomass after this catch
+        # Compute tentative kept amount (raw catch minus deposit) before any extra contribution
         tentative_kept = raw_kg - deposit
-        # Minimum required reserve after catch
-        min_reserve = 0.7 * (context.stock_before - tentative_kept)
+        min_reserve = 0.85 * (context.stock_before - tentative_kept)
         extra_contribution = 0.0
         if balance < min_reserve:
             needed = min_reserve - balance
-            # Fisher can contribute at most what they have left after deposit
             available = max(0.0, tentative_kept)
             extra_contribution = min(needed, available)
             balance += extra_contribution
-            note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the 70% reserve requirement.")
+            note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the 85% reserve requirement.")
         # Store updated balance
         state["balance_kg"] = balance
-        # Kept kg is raw catch minus standard deposit and any extra contribution
+        # Kept kg is raw catch minus deposit and any extra contribution
         kept = raw_kg - deposit - extra_contribution
         # Existing shortfall‑withdrawal logic (unchanged)
         shortfall_thresh = self.params.get("shortfall_threshold_kg")
