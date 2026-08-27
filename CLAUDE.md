@@ -795,3 +795,121 @@ the whole block as "reasoned about, not proven" until a real
 `BUILD_KNOWLEDGE_GRAPH=1` job has actually finished — same posture as
 every other Aoraki-specific claim in this file that hasn't had a real run
 behind it yet.
+
+### Keeping both indexes current as norms/*.py actually changes (added same day)
+
+Neither index automatically tracks the simulation's own code changes —
+both are built once, before round 1, and the whole multi-round run is one
+continuous Python process that never naturally revisits either. Worth
+being explicit about since they needed two different fixes:
+
+- **CodeGraph** — the norm-implementer's own PHASE 2 previously told it to
+  run `codegraph sync` to refresh a stale index before consulting it. That
+  instruction predates the norm-plugin refactor and was carried forward
+  unchanged, without re-checking it against the `sync`-hangs-on-Aoraki
+  finding already on record above — meaning every round after the first
+  was likely hitting exactly that hang on a real Aoraki run, this whole
+  time. Fixed: PHASE 2 in both `norm-implementer.md` files now does
+  `unlock` → `rm -rf .codegraph` → `init` (a full rebuild — same command
+  and reasoning as the one-time setup step, never `sync`) at the start of
+  every round's inspection, not just once at job start.
+- **Understand-Anything** — tried the "obvious" fix first (turn on the
+  plugin's own `autoUpdate`) and it doesn't actually work for this
+  project's architecture, for a specific reason worth recording rather
+  than rediscovering later: the plugin's hooks
+  (`understand-anything-plugin/hooks/hooks.json`) assume the *agent whose
+  session they're watching* is the one running `git commit`, so it can act
+  on the "you must update now" instruction injected right after. Here,
+  `commit_norm_implementation()` commits via a plain Python subprocess,
+  never through any agent's own tool calls — so the hook's `PostToolUse`
+  trigger (matches a `Bash` tool call containing `git commit`) would never
+  fire at all. Its `SessionStart` trigger *would* fire, once per round,
+  since `opencode run --agent norm-implementer` starts a fresh session
+  every time — but it would inject that same "must update, don't ask"
+  instruction into a session whose `permission.task: deny` makes it
+  structurally unable to comply (updating the graph needs the same
+  subagent dispatch the initial build does), just burning step budget
+  every round for nothing. Turning `autoUpdate` on would have made things
+  worse, not better, in this specific setup — worth remembering before
+  reaching for it again.
+
+  Real fix: `engine/simulate.py` gained `refresh_knowledge_graph(round_number)`,
+  called right after `commit_norm_implementation()` returns a real commit
+  hash (i.e., only when a round actually changed tracked files) — same
+  `opencode run --agent build` pattern as the initial build in
+  `hpc_ollama_entrypoint.sh` (same reasoning: `build` can dispatch
+  subagents, `norm-implementer` can't), but without `--full`, so
+  `/understand`'s own Phase 0 decision logic does a genuinely incremental
+  update (only the files that actually changed since the graph's last
+  commit hash) rather than a full re-analysis — cheaper, hence the shorter
+  600s timeout vs. the initial build's 1800s. Gated by the same
+  `BUILD_KNOWLEDGE_GRAPH=1` env var as the initial build (checked directly,
+  not by probing for the graph file's existence) so it stays symmetric
+  with whatever the entrypoint script actually did at job start, and never
+  fatal to the round if it fails or times out — same
+  graceful-degradation shape as everything else in this integration.
+
+  Real cost implication, not just a correctness footnote: this can now run
+  once per round that adopts and successfully commits a norm, not just
+  once per job. `run_simulation.slurm`'s `--time` guidance was updated to
+  reflect this explicitly — for a long run with many adopted norms, the
+  cumulative refresh time can end up dominating total wall time, not just
+  padding it.
+
+### Switched CodeGraph to its actual standard mechanism — daemon mode, re-enabled (added same day)
+
+The two fixes above (manual `init` in PHASE 2, `refresh_knowledge_graph()`)
+were both explicit workarounds for the fact that neither tool refreshes
+itself by default in this setup. Re-examined after being asked directly
+"does opencode do this by itself" — the honest answer was no for either,
+by deliberate departure from each tool's own standard design. For
+CodeGraph, decided that standard design (a background daemon, exposed via
+opencode.jsonc's `codegraph serve --mcp`, keeping the index live without
+anyone explicitly re-running `init`/`sync`) was worth actually trying
+rather than continuing to work around:
+
+- `CODEGRAPH_NO_DAEMON=1` removed from `hpc_ollama_entrypoint.sh`. Lower
+  risk than it first looks: the original Aoraki incident was specifically
+  `codegraph sync` invoked as a one-shot CLI command outside the daemon's
+  own control (its docs describe `sync` as normally daemon-triggered, not
+  meant to be run directly) — the daemon itself was separately tested and
+  cleared by direct reproduction at the time; `CODEGRAPH_NO_DAEMON=1` was
+  kept anyway purely out of low-cost caution, not because the daemon was
+  the confirmed cause. Still genuinely not proven safe in the specific
+  repeated-across-many-rounds production context standalone reproduction
+  never exercised — if a hang recurs, re-add
+  `export CODEGRAPH_NO_DAEMON=1` to revert.
+- PHASE 2 in both `norm-implementer.md` files no longer tells the
+  norm-implementer to run `init`/`sync`/`unlock` itself at all — just use
+  `codegraph_explore`/`impact`/`callers` directly and, if a tool call ever
+  looks stale or fails, note it and fall back to Read/Grep rather than
+  trying to fix the index itself.
+- **Companion safety fix, made necessary by this change**:
+  `run_norm_implementer()` in `engine/simulate.py` previously raised on
+  any failure (a non-zero exit, or hitting its own 3600s timeout) —
+  uncaught at the call site, so it crashed the entire multi-round
+  `simulate.py` process, losing every remaining round to one bad round.
+  This was already a latent risk before today (any opencode crash could
+  trigger it), but re-enabling a mechanism whose failure mode is
+  specifically "hangs" makes it meaningfully more likely to actually
+  happen, not just a theoretical concern. Now returns `False` instead of
+  raising; the call site treats that exactly like a compile-check failure
+  — `discard_norm_implementation()` reverts whatever was touched, the
+  round's mechanics stay as they were, and a similar norm gets another
+  chance later. One bad round now costs one round, not the rest of the
+  job.
+
+Deliberately **not attempted for Understand-Anything** — its standard
+mechanism (`autoUpdate` + `SessionStart`/`PostToolUse` hooks) isn't a
+risk/reward tradeoff the way CodeGraph's daemon is, it's a structural
+mismatch: those hooks only fire when the *agent whose session they're
+watching* is the one running `git commit`, and `commit_norm_implementation()`
+deliberately commits via a plain subprocess instead, specifically because
+early testing found the norm-implementer unreliable about committing
+itself. Undoing that to let the hook fire would mean re-opening an
+already-solved problem to chase one that isn't actually solvable that way
+regardless — `refresh_knowledge_graph()` already achieves the same
+practical outcome (a fresh graph after each real change) by calling
+`/understand` directly instead of relying on hook injection, so there's
+no gap being left unaddressed here, just a different implementation path
+than the "standard" one for a reason that doesn't apply to CodeGraph.

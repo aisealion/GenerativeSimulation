@@ -32,8 +32,12 @@
                                         #   shorter requests queue faster on Aoraki (backfill) —
                                         #   if this exceeds the partition's own MaxTime, sbatch
                                         #   rejects the submission outright, so check that if so.
-                                        #   Add real margin (up to +30min, see BUILD_KNOWLEDGE_GRAPH
-                                        #   below) if submitting with that env var set to 1.
+                                        #   Add real margin if submitting with BUILD_KNOWLEDGE_GRAPH=1
+                                        #   (below): +30min for the one-time initial build, PLUS up to
+                                        #   +10min for EVERY round that actually commits a norm (engine/
+                                        #   simulate.py's refresh_knowledge_graph() runs after each one) —
+                                        #   for a long run with many adopted norms this can dominate total
+                                        #   wall time, not just pad it; size --max-rounds accordingly.
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
 # No --account line: Aoraki gives every user a default account per-partition,
@@ -55,10 +59,13 @@ fi
 
 export OLLAMA_MODELS=/projects/sciences/computing/cranefield_lab/magha601/models
 export MAX_ROUNDS="${MAX_ROUNDS:-100}"
-# Opt-in, off by default — see hpc_ollama_entrypoint.sh for what this does
-# and why it isn't on by default (real extra GPU time, not free like
-# codegraph). Submit with BUILD_KNOWLEDGE_GRAPH=1 sbatch run_simulation.slurm
-# to build a fresh Understand-Anything semantic graph before this run starts.
+# Opt-in, off by default — see hpc_ollama_entrypoint.sh for the initial
+# build and engine/simulate.py's refresh_knowledge_graph() for the
+# per-round follow-up, and why neither is on by default (real extra GPU
+# time every time, not free like codegraph). Submit with
+# BUILD_KNOWLEDGE_GRAPH=1 sbatch run_simulation.slurm to build a fresh
+# Understand-Anything semantic graph before this run starts AND keep it
+# incrementally refreshed after every round that commits a norm.
 export BUILD_KNOWLEDGE_GRAPH="${BUILD_KNOWLEDGE_GRAPH:-0}"
 
 # Direct apptainer invocation, matching the (uncommented, i.e. recommended)

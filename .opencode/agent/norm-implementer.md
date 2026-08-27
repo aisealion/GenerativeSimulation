@@ -227,12 +227,19 @@ what's already there.
   parameters than what's currently configured is *still* parametric, not
   structural, even if it looks new at first glance.
 - For a genuinely new plugin, or any mechanism-shaped fragment with no
-  existing `norms/*.py` type fit: run `codegraph sync` (index may be
-  stale), `codegraph explore` on `norms/` and `engine/norms/` (extend
-  what's close, never create a near-duplicate type), then `codegraph
-  impact`/`codegraph callers` on every symbol you're about to touch —
-  list every caller and state whether it needs a change. This is the
-  **structural** view — what calls what.
+  existing `norms/*.py` type fit: use `codegraph explore` on `norms/` and
+  `engine/norms/` (extend what's close, never create a near-duplicate
+  type), then `codegraph impact`/`codegraph callers` on every symbol
+  you're about to touch — list every caller and state whether it needs a
+  change. This is the **structural** view — what calls what. **You do not
+  need to refresh the index yourself** — it runs in standard daemon mode
+  (a background file-watcher keeps it live automatically as files change),
+  not the manual per-round-rebuild workaround this used to require. If a
+  codegraph tool call ever returns nothing, an obviously stale answer
+  (missing a file/symbol you know exists), or fails outright, don't try to
+  fix it yourself (`init`/`sync`/`unlock` are no longer things you should
+  need to run) — note it in your report and fall back to plain Read/Grep
+  for that part of your inspection instead.
 - Also check for a **semantic** view: `.ua/knowledge-graph.json` or
   `.understand-anything/knowledge-graph.json` (whichever exists — same
   precedence as `/understand-chat`'s own resolution), if either is

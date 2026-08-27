@@ -190,6 +190,21 @@ def extract_norm_implementer_report(text):
 
 
 def run_norm_implementer(round_number):
+    """Returns True on a completed (returncode 0) run, False on anything
+    else — a timeout, a crash, a non-zero exit. Used to raise
+    unconditionally: a failed norm-implementer run ended the whole
+    simulate.py process, taking every remaining round down with it over
+    one bad round. That was always a real risk (any opencode crash or a
+    genuinely slow round hitting the 3600s ceiling below), and re-enabling
+    CodeGraph's daemon mode (see CODEGRAPH_NO_DAEMON's removal in
+    hpc_ollama_entrypoint.sh) makes a hang more likely to actually happen,
+    not just theoretically possible — daemon/sync is the exact mechanism
+    already root-caused as hanging on Aoraki once before (see CLAUDE.md).
+    False here now means "treat this round like a discarded/failed norm
+    implementation" (same as a compile error) — the round's own mechanics
+    stay whatever they were before this attempt, and a similar norm gets
+    another chance to be implemented later, instead of losing the rest of
+    the run to one bad round."""
     print("\n--- invoking norm-implementer ---")
     message = (
         "norm.txt has been updated for this round. Read it and implement "
@@ -206,11 +221,26 @@ def run_norm_implementer(round_number):
     # that much bigger budget could now take longer than the old 900s
     # (15min) ceiling, which would just cut it off here instead, making the
     # step increase pointless. Local models only cost wall time, not money,
-    # so a generous ceiling is fine; still bounded, not unbounded.
+    # so a generous ceiling is fine; still bounded, not unbounded — bounded
+    # is what actually matters now that a timeout here is caught below
+    # instead of crashing the whole run.
     start = time.monotonic()
-    result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=3600)
-    duration_s = time.monotonic() - start
+    try:
+        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=3600)
+    except subprocess.TimeoutExpired:
+        duration_s = time.monotonic() - start
+        print(f"Round {round_number}: norm-implementer didn't finish within 3600s — "
+              f"treating this round's norm implementation as failed, not crashing the run.",
+              file=sys.stderr)
+        log_call(
+            call="norm_implementer", agent_id=None, round=round_number, phase=None,
+            model=model, duration_s=round(duration_s, 3), returncode=None,
+            prompt=message, raw_response=None, parsed_response=None,
+            tool_call_count=None, report=None, error="timeout after 3600s",
+        )
+        return False
 
+    duration_s = time.monotonic() - start
     tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
     report = extract_norm_implementer_report(final_text)
 
@@ -232,8 +262,12 @@ def run_norm_implementer(round_number):
 
     print(final_text)
     if result.returncode != 0:
+        print(f"Round {round_number}: norm-implementer exited with code {result.returncode} — "
+              f"treating this round's norm implementation as failed, not crashing the run.",
+              file=sys.stderr)
         print(result.stderr, file=sys.stderr)
-        raise RuntimeError("norm-implementer run failed")
+        return False
+    return True
 
 
 def norm_already_committed(round_number):
@@ -381,6 +415,84 @@ def commit_norm_implementation(round_number, winning_proposal):
     return commit_hash
 
 
+def refresh_knowledge_graph(round_number):
+    """Keep the Understand-Anything semantic graph current after a round
+    actually changes code — without this, it's frozen at whatever it looked
+    like when hpc_ollama_entrypoint.sh built it before round 1, and gets
+    more wrong every round after that (norm-implementer's own PHASE 2
+    staleness check would just keep reporting it as unusable — no point
+    building it at all if nothing ever refreshes it).
+
+    Deliberately NOT done via the plugin's own `autoUpdate`/hook mechanism
+    (SessionStart / PostToolUse in understand-anything-plugin/hooks/
+    hooks.json): that mechanism assumes the agent whose session it's
+    watching is the one running `git commit` and can act on the "you must
+    update now" instruction it injects. Neither holds here — this project's
+    commit_norm_implementation() above commits via a plain subprocess, not
+    through any agent's own tool calls, so the PostToolUse hook would never
+    fire at all; and norm-implementer's own SessionStart hook would fire
+    every round but inject an instruction it's structurally unable to
+    follow (permission.task: deny blocks the subagent dispatch a graph
+    update needs), just burning step budget on every single round for
+    nothing. So this runs the refresh directly, as its own `build`-agent
+    `opencode run` call — same reasoning as the initial build in
+    hpc_ollama_entrypoint.sh (norm-implementer can't dispatch subagents;
+    opencode's default `build` agent can) — right after a round's commit
+    actually lands, from the orchestrator, not from inside any agent
+    session's own hooks.
+
+    Gated by the same BUILD_KNOWLEDGE_GRAPH=1 opt-in as the initial build:
+    if that was never set, no graph exists yet, and /understand's own
+    Phase 0 decision logic would treat a missing graph as "run a full
+    analysis" rather than a genuinely incremental one — silently far more
+    expensive than intended. Checking the env var here (rather than just
+    checking whether a graph file exists) keeps this symmetric with
+    whatever hpc_ollama_entrypoint.sh actually did at job start.
+
+    No `--full`: /understand's own decision table runs an incremental
+    update (only files changed since the graph's stored commit hash) when
+    a graph already exists — much cheaper than the initial full build, so
+    a shorter timeout than that one's 1800s is appropriate. Failure here is
+    never fatal to the round; same graceful-degradation shape as
+    hpc_ollama_entrypoint.sh's own codegraph/understand-anything blocks —
+    a stale-but-present graph is what PHASE 2's own staleness check is
+    already built to handle, so there's no reason to let this block the
+    round or the rest of the run.
+    """
+    if os.environ.get("BUILD_KNOWLEDGE_GRAPH") != "1":
+        return
+    print(f"\n--- refreshing Understand-Anything knowledge graph (round {round_number}) ---")
+    cmd = ["opencode", "run", "--agent", "build"]
+    model = os.environ.get("OPENCODE_MODEL")
+    if model:
+        cmd += ["--model", model]
+    cmd.append("Run /understand --no-auto-update on this project.")
+
+    start = time.monotonic()
+    try:
+        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired:
+        print(f"Round {round_number}: knowledge graph refresh timed out after 600s — continuing "
+              f"with the graph as it was; norm-implementer's own staleness check will flag this.")
+        log_call(
+            call="knowledge_graph_refresh", agent_id=None, round=round_number, phase=None,
+            model=model, duration_s=600.0, returncode=None, prompt=cmd[-1],
+            raw_response=None, parsed_response=None, error="timeout",
+        )
+        return
+
+    duration_s = time.monotonic() - start
+    if result.returncode != 0:
+        print(f"Round {round_number}: knowledge graph refresh failed (see logs) — continuing "
+              f"with the graph as it was.", file=sys.stderr)
+    log_call(
+        call="knowledge_graph_refresh", agent_id=None, round=round_number, phase=None,
+        model=model, duration_s=round(duration_s, 3), returncode=result.returncode,
+        prompt=cmd[-1], raw_response=result.stdout,
+        parsed_response=None, error=None if result.returncode == 0 else result.stderr.strip(),
+    )
+
+
 def reload_project_modules():
     """Python caches imported modules for the life of the process — without
     this, a norm-implementer edit to mechanisms/*.py or phases/*.py on disk
@@ -443,12 +555,18 @@ def run_cycle(round_number):
             )
             (ROOT / "norm.txt").write_text(norm_text)
             print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
-            run_norm_implementer(round_number)
-            compile_errors = norm_implementation_compile_errors()
-            if compile_errors:
-                discard_norm_implementation(round_number, compile_errors)
+            if not run_norm_implementer(round_number):
+                discard_norm_implementation(
+                    round_number, ["norm-implementer run itself failed or timed out — see logs/model_calls.jsonl"]
+                )
             else:
-                commit_norm_implementation(round_number, winning_proposal)
+                compile_errors = norm_implementation_compile_errors()
+                if compile_errors:
+                    discard_norm_implementation(round_number, compile_errors)
+                else:
+                    commit_hash = commit_norm_implementation(round_number, winning_proposal)
+                    if commit_hash:
+                        refresh_knowledge_graph(round_number)
 
     update_plots(state)
 

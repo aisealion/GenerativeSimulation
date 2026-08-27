@@ -46,11 +46,31 @@ fi
 # credentials, nothing beyond this optional telemetry ping — and every
 # hypothesis tried here (restricted network, NFS+SQLite locking, a daemon/
 # file-watcher, non-interactive/no-TTY invocation) has been individually
-# ruled out by direct reproduction. CODEGRAPH_NO_DAEMON kept set regardless
-# — cheap, and rules out the daemon path even though it didn't turn out to
-# be the cause on its own.
+# ruled out by direct reproduction. Telemetry off for the same "don't ship
+# anything unnecessary off this cluster" reasoning as everywhere else here.
 export CODEGRAPH_TELEMETRY=0
-export CODEGRAPH_NO_DAEMON=1
+#
+# CODEGRAPH_NO_DAEMON removed (2026-08-27) — trying CodeGraph's actual
+# standard/intended design: opencode.jsonc's `codegraph serve --mcp` runs a
+# background file-watcher that keeps the index live on its own, so the
+# norm-implementer's codegraph_explore/impact/callers MCP tool calls are
+# always current without anyone explicitly re-running init/sync per round
+# (that manual per-round refresh — see .opencode/agent/norm-implementer.md
+# PHASE 2 — was itself only ever a workaround for not trusting this path).
+# Deliberately not the same thing as the original incident: that was
+# specifically `codegraph sync` invoked as a one-shot CLI command outside
+# the daemon's own control (its docs describe sync as normally
+# daemon-triggered, not meant to be run directly) — the daemon *itself* was
+# separately tested and cleared by direct reproduction (see above), it was
+# only ever left off out of low-cost caution, not because it was the
+# confirmed cause. Still, this is a real, not-fully-eliminated risk in the
+# specific repeated-across-many-rounds production context that standalone
+# reproduction never exercised — engine/simulate.py's run_norm_implementer()
+# was hardened the same day to catch a hung/failed opencode invocation and
+# discard that round rather than crash the whole multi-round run, so a
+# recurrence here costs one round, not the rest of the job. Re-add
+# `export CODEGRAPH_NO_DAEMON=1` above to revert to the previous
+# manual-refresh-only behavior if this turns out to still be the cause.
 
 # .codegraph/ is a local, per-checkout index — never committed to git (see
 # .gitignore) — so it doesn't exist yet on a fresh clone of this repo, which
@@ -296,7 +316,12 @@ export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
 # means opencode dispatching a real subagent per batch of files across the
 # whole repo — genuine LLM time on the same GPU the fisher/norm-implementer
 # calls already share, not something every ordinary run should pay for.
-# Set BUILD_KNOWLEDGE_GRAPH=1 to opt in.
+# Set BUILD_KNOWLEDGE_GRAPH=1 to opt in. This is only the ONE-TIME initial
+# build; engine/simulate.py's refresh_knowledge_graph() does the ongoing
+# per-round incremental refresh after that, reading this same env var —
+# without it, the graph built here would just go stale round after round
+# as norms/*.py changes, same problem CodeGraph had before its own
+# per-round refresh got added to PHASE 2 above.
 #
 # Skills are installed for opencode the same way codegraph is above
 # (install-if-missing, from the tool's own official installer) — but unlike
