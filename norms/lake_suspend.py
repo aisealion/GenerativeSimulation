@@ -7,16 +7,21 @@ class LakeSuspendNorm(Norm):
     type_name = "lake_suspend"
 
     def is_eligible(self, context, agent_id):
-        """If lake stock is below 10 kg and reserve balance is under 15 kg,
-        prohibit fishing for all agents.
-        """
-        if context.stock_before < 8.0:
+        """Suspend fishing if the communal reserve holds less than 50 % of total biomass (stock + reserve)."""
+        reserve_state = context.norm_state("reserve")
+        reserve_balance = reserve_state.get("balance_kg", 0.0)
+        total_biomass = context.stock_before + reserve_balance
+        # Minimum reserve is half of total biomass.
+        if reserve_balance < 0.5 * total_biomass:
             return False
         return True
 
     def describe(self, context, agent_id):
         if context.stock_before < 10.0:
             reserve_state = context.norm_state("reserve")
-            if reserve_state.get("balance_kg", 0.0) < 15.0:
-                return "Fishing is currently suspended due to low lake stock; the community reserve must reach at least 15 kg before fishing resumes."
+            reserve_balance = reserve_state.get("balance_kg", 0.0)
+            total_biomass = context.stock_before + reserve_balance
+            min_reserve = 0.5 * total_biomass
+            if reserve_balance < min_reserve:
+                return f"Fishing is suspended; reserve must retain at least {int(min_reserve)} kg (50% of total biomass) before fishing resumes."
         return None
