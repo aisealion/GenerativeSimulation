@@ -217,7 +217,13 @@ def run_norm_implementer(round_number):
         "accordingly, following your standing instructions."
     )
     cmd = ["opencode", "run", "--agent", "norm-implementer", "--format", "json"]
-    model = os.environ.get("OPENCODE_MODEL")
+    # NORM_IMPLEMENTER_MODEL takes precedence over OPENCODE_MODEL: the
+    # latter is shared with the Understand-Anything build-agent calls below
+    # and in refresh_knowledge_graph() (a different opencode agent, "build")
+    # — kept separate so routing the norm-implementer to a different model
+    # doesn't silently redirect those too. Falls back to OPENCODE_MODEL for
+    # anyone who hasn't set the new var.
+    model = os.environ.get("NORM_IMPLEMENTER_MODEL") or os.environ.get("OPENCODE_MODEL")
     if model:
         cmd += ["--model", model]
     cmd.append(message)

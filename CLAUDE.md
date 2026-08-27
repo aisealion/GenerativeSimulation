@@ -1242,3 +1242,54 @@ network call, a write to `$HOME`, a `git push` to a remote) has no
 suspenders at all. Not verified end-to-end against a real `opencode run`
 — same standing caveat as every other permission-schema claim in this
 file.
+
+### Norm-implementer routed to Kimi-K2.5 via LiteLLM on Aoraki, decoupled from OPENCODE_MODEL (2026-08-28)
+
+By request, for the next Aoraki run: the norm-implementer's opencode
+invocation now goes to `litellm/Kimi-K2.5` over the Otago LiteLLM proxy
+instead of the local Ollama `gpt-oss:120b` model. The fisher agent is
+unchanged — still `FISHER_MODEL=ollama/gpt-oss:20b`, the local model, per
+the same request ("only for norm implementer").
+
+The one subtlety worth recording: `OPENCODE_MODEL` was never only the
+norm-implementer's model — `hpc_ollama_entrypoint.sh`'s one-time
+Understand-Anything build and `engine/simulate.py`'s
+`refresh_knowledge_graph()` (both `opencode run --agent build`, a
+*different* opencode agent) also read it, and neither was mentioned in
+the request. Repointing `OPENCODE_MODEL` itself to Kimi would have
+silently moved those too. Fixed by decoupling: a new
+`NORM_IMPLEMENTER_MODEL` env var, checked first in
+`run_norm_implementer()` (`engine/simulate.py`) with `OPENCODE_MODEL` kept
+as the fallback for anyone who hasn't set the new var — `hpc_ollama_entrypoint.sh`
+now exports both, `NORM_IMPLEMENTER_MODEL=litellm/Kimi-K2.5` and
+`OPENCODE_MODEL=ollama/${OLLAMA_120B_CTX_MODEL_ID}` unchanged, so
+Understand-Anything's build-agent calls keep using the local 120b model
+exactly as before. Verified the three-way fallback logic directly
+(both set → new var wins; only `OPENCODE_MODEL` set → old behavior
+preserved; neither set → `None`, same as before this change).
+
+This also changes the GPU-sharing picture the surrounding comments used
+to describe: previously `gpt-oss:120b` (norm-implementer) and
+`gpt-oss:20b` (fisher) shared the one GPU every round, with Ollama
+swapping between them. Now the norm-implementer's call leaves the GPU
+entirely (it's a network call to the Otago proxy) — only the fisher's 20b
+and, when `BUILD_KNOWLEDGE_GRAPH=1`, the build agent's 120b share it, and
+those two don't run concurrently either. Traded for a new hard
+dependency that didn't exist before: `LITELLM_API_KEY` must be present in
+the job's environment, and the compute node needs real network egress to
+`llm.uod.otago.ac.nz` for every single round's norm-implementer call, not
+just an optional one-time build step. `hpc_ollama_entrypoint.sh` now
+fails the job immediately (before any round runs) if `LITELLM_API_KEY`
+isn't set, rather than letting the first norm-implementer call fail deep
+into round 1 — `sbatch` propagates the submitting shell's environment by
+default, so exporting the key before `sbatch run_simulation.slurm` is
+enough; no change needed to how the fisher's own `litellm/*` path already
+gets its key today. Network egress from an Aoraki compute node to the
+Otago LiteLLM proxy was already confirmed working during the earlier
+CodeGraph "restricted network" investigation (ruled out as a cause), so
+this isn't a new open question — just a dependency that's now load-bearing
+every round instead of never actually exercised.
+
+Not yet verified end-to-end on a real Aoraki job — same standing caveat
+as every other Aoraki-specific claim in this file without a completed run
+behind it.

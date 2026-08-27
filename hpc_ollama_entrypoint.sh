@@ -293,21 +293,47 @@ fi
 echo "litellm/pydantic/pydantic-core verified working inside ${FISHERY_VENV}."
 
 mkdir -p logs
-# OPENCODE_MODEL still drives the norm-implementer (still an opencode agent,
-# gets the bigger 120b model — one heavier code-editing call per round).
-# FISHER_MODEL drives the fisher's direct litellm calls (gets the smaller,
-# faster 20b model — up to agent_count x 3 calls per round). Different
-# models now, not just different env vars pointing at the same one.
+# FISHER_MODEL drives the fisher's direct litellm calls — stays the local
+# Ollama 20b model (up to agent_count x 3 calls per round, so it needs to
+# be the fast/local one).
 #
-# Both models live on the same GPU, and gpt-oss:120b alone can already use
-# most of an H100's 80GB VRAM at this context length — Ollama likely can't
-# keep both loaded simultaneously, so expect it to swap models in and out
-# between the fisher's calls and the once-per-round norm-implementer call
-# (at most one swap each way per round, since all fisher calls happen
-# before the norm-implementer's). That's added per-round latency, not a
-# correctness issue, but factor it into --time and MAX_ROUNDS sizing.
+# NORM_IMPLEMENTER_MODEL routes the norm-implementer's opencode invocation
+# specifically (engine/simulate.py's run_norm_implementer() checks this
+# var before falling back to OPENCODE_MODEL) — by request, this is now
+# litellm/Kimi-K2.5 over the Otago LiteLLM proxy, not a local Ollama model.
+# Deliberately a *separate* var from OPENCODE_MODEL rather than repointing
+# OPENCODE_MODEL itself: OPENCODE_MODEL is also what the Understand-Anything
+# build-agent calls use (the one-time initial build below, plus
+# engine/simulate.py's refresh_knowledge_graph() after any round that
+# commits a norm, both gated on BUILD_KNOWLEDGE_GRAPH=1) — those should
+# keep using the local 120b model regardless of what the norm-implementer
+# itself is routed to, since the user only asked to move the
+# norm-implementer.
+#
+# Practical effect: the norm-implementer's once-per-round call no longer
+# competes with the fisher for the same GPU/VRAM at all (only the fisher's
+# 20b and, when BUILD_KNOWLEDGE_GRAPH=1, the build agent's 120b share it
+# now — and those two don't run concurrently either, so the "Ollama swaps
+# models" latency concern this comment used to describe mostly goes away
+# for an ordinary run). The new cost is a hard dependency on
+# LITELLM_API_KEY and real network egress from this compute node to
+# llm.uod.otago.ac.nz for every single round's norm-implementer call —
+# both already confirmed working from Aoraki compute nodes during the
+# CodeGraph investigation (see CLAUDE.md), so not a new risk, just a new
+# per-round dependency that didn't exist when everything ran on local
+# Ollama.
+export NORM_IMPLEMENTER_MODEL="litellm/Kimi-K2.5"
 export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
+
+if [ -z "${LITELLM_API_KEY:-}" ]; then
+  echo "NORM_IMPLEMENTER_MODEL=litellm/Kimi-K2.5 but LITELLM_API_KEY isn't set in" >&2
+  echo "this job's environment — every round's norm-implementer call would fail." >&2
+  echo "sbatch propagates the submitting shell's environment by default, so" >&2
+  echo "export LITELLM_API_KEY before running sbatch, or pass it explicitly:" >&2
+  echo "  sbatch --export=ALL,LITELLM_API_KEY=... run_simulation.slurm" >&2
+  exit 1
+fi
 
 # Understand-Anything: a semantic ("what is this for") complement to
 # CodeGraph's structural ("what calls what") index — see CLAUDE.md's

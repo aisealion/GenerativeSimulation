@@ -1,10 +1,16 @@
 #!/bin/bash
 #
-# Runs the fishery simulation on Aoraki (University of Otago HPC) via
-# Ollama, split across two models: the fisher agent runs on gpt-oss:20b,
-# the norm-implementer (opencode) agent runs on gpt-oss:120b — see
-# hpc_ollama_entrypoint.sh for how OPENCODE_MODEL/FISHER_MODEL get set to
-# route each. Submit from the repo root: sbatch run_simulation.slurm
+# Runs the fishery simulation on Aoraki (University of Otago HPC). The
+# fisher agent runs on the local Ollama gpt-oss:20b model (FISHER_MODEL);
+# the norm-implementer (opencode) agent now runs on litellm/Kimi-K2.5 over
+# the Otago LiteLLM proxy (NORM_IMPLEMENTER_MODEL), not a local model — see
+# hpc_ollama_entrypoint.sh for where those get set, and its LITELLM_API_KEY
+# check right above them (must be in this job's environment; sbatch
+# propagates the submitting shell's env by default). The local Ollama
+# gpt-oss:120b model (OPENCODE_MODEL) is still built and used, but only for
+# the optional Understand-Anything knowledge-graph build/refresh
+# (BUILD_KNOWLEDGE_GRAPH=1) — not for the norm-implementer anymore. Submit
+# from the repo root: sbatch run_simulation.slurm
 #
 # Structure follows Otago's own ollama-batch-example.slurm: the container
 # takes ONE command string as its argument and runs it via its internal
