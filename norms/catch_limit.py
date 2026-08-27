@@ -34,9 +34,14 @@ class CatchLimitNorm(Norm):
         # 3. Flat kilogram limit, if configured.
         if "limit_kg" in self.params:
             return self.params["limit_kg"]
-        # Default per‑trip ceiling per policy: 10% of current stock, capped at 1 kg
-        default_limit = min(0.1 * context.stock_before, 1.0)
-        return default_limit
+        # 4. Policy defaults apply only if enabled via params.
+        if self.params.get("policy_defaults"):
+            agent_info = getattr(context, "agents", {}).get(agent_id, {})
+            name = agent_info.get("name", "").lower()
+            if name == "solo":
+                return min(0.5 * context.stock_before, 6.0)
+            else:
+                return min(0.3 * context.stock_before, 3.0)
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)

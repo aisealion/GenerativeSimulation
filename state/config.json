@@ -4,7 +4,7 @@
   "history_window_rounds": 5,
   "norms": [
     {"type": "lake_suspend", "id": "lake_suspend"},
-    {"type": "catch_limit", "id": "catch_limit"},
+    {"type": "catch_limit", "id": "catch_limit", "policy_defaults": true},
     {"type": "community_cap", "id": "community_cap"},
     {"type": "keep", "id": "keep"},
     {"type": "reserve", "id": "reserve"}
