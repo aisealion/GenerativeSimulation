@@ -57,25 +57,22 @@ class ReserveNorm(Norm):
         return True
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
-        """Deposit 0.5% of the kept catch into the communal reserve (if lake stock >=5kg).
-        If the reserve balance falls below 5kg, the fisher must contribute a flat 0.5kg per trip
-        until the reserve reaches at least 5kg. The reserve caps at 120kg.
+        """Deposit the surplus above the mandatory 1.0 kg keep into the communal reserve.
+        The keep is capped at 1.0 kg regardless of the catch; any amount above that
+        is deposited. The reserve balance is capped at 120 kg. Withdrawal logic for
+        low‑catchers (shortfall_threshold_kg) remains unchanged.
         """
         state = self._balance_state(context)
-        stock = context.stock_before
-        # Determine deposit amount per policy (0.5% of kept kg) when stock >=5kg
-        deposit = 0.0
-        if stock >= 5:
-            deposit = min(proposed_kg * 0.005, proposed_kg)
-        # Apply deposit (cannot exceed proposed keep)
-        deposit = min(deposit, proposed_kg)
+        # Determine deposit: amount above 1.0 kg keep, but not exceeding the proposed keep
+        surplus = max(0.0, proposed_kg - 1.0)
+        deposit = surplus
         # Update reserve balance with deposit, respecting cap
         balance = state.get("balance_kg", 0.0) + deposit
         if balance > 120.0:
             balance = 120.0
         state["balance_kg"] = balance
-        # Compute kept kg after deposit
-        kept = max(0.0, proposed_kg - deposit)
+        # Kept kg after deposit is at most 1.0 kg (or the full proposed if less)
+        kept = min(proposed_kg, 1.0)
         # Handle shortfall threshold withdrawal (unchanged logic)
         shortfall_thresh = self.params.get("shortfall_threshold_kg")
         max_withdraw = self.params.get("max_withdrawal_kg")
@@ -86,19 +83,12 @@ class ReserveNorm(Norm):
             if withdraw > 0:
                 kept += withdraw
                 state["balance_kg"] -= withdraw
-        # Enforce minimum reserve balance rule
+        # Build note about deposit and any withdrawal
         note_parts = []
         if deposit > 0:
             note_parts.append(f"You deposited {deposit:.3f}kg into the communal reserve.")
-        # If reserve is below 5kg after deposit/withdrawal, require contribution
-        if state["balance_kg"] < 5.0:
-            # Contribute flat 0.5kg (or as much as needed to reach 5kg)
-            contribution = min(0.5, 5.0 - state["balance_kg"])
-            state["balance_kg"] += contribution
-            note_parts.append(f"You contributed {contribution:.3f}kg to meet the minimum reserve requirement.")
-        # Withdrawal note already handled below
-        if shortfall_thresh is not None and kept > proposed_kg - deposit:
-            note_parts.append(f"You withdrew {kept - (proposed_kg - deposit):.3f}kg from the reserve.")
+        if shortfall_thresh is not None and kept > min(proposed_kg, 1.0):
+            note_parts.append(f"You withdrew {kept - min(proposed_kg, 1.0):.3f}kg from the reserve.")
         note = " ".join(note_parts) if note_parts else None
         return NormDecision.adjust(kept_kg=kept, note=note)
 
