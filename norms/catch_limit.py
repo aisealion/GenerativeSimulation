@@ -22,17 +22,17 @@ class CatchLimitNorm(Norm):
     type_name = "catch_limit"
 
     def _limit_for(self, context, agent_id):
-        # New policy: limit is based on current stock per the following tiers
+        # Updated policy:
+        # - Fishing only allowed if lake biomass ≥12 kg.
+        # - Each fisher may take up to 2 kg per trip.
+        #   * 1 kg is guaranteed subsistence.
+        #   * The second kilogram is optional and limited by 5 % of the current stock.
         stock = context.stock_before
-        if stock < 6:
-            # Suspension: no allowance
+        if stock < 12:
             return 0.0
-        if stock >= 12:
-            return 1.0
-        if stock >= 9:
-            return 0.8
-        # stock between 6 and 9 (inclusive lower bound 6)
-        return 0.5
+        # Optional portion cannot exceed 5 % of stock, capped at 1 kg
+        optional_limit = min(1.0, 0.05 * stock)
+        return 1.0 + optional_limit
 
     def describe(self, context, agent_id):
         limit = self._limit_for(context, agent_id)

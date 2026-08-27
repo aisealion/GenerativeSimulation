@@ -71,13 +71,14 @@ class ReserveNorm(Norm):
         note_parts = []
         if deposit > 0:
             note_parts.append(f"You deposited {deposit:.3f}kg into the communal reserve.")
-        # If reserve is still below the required minimum, take an extra 0.5 kg from the fisher's keep
-        extra_contribution = 0.0
-        MIN_RESERVE = 5.0
+        # Ensure reserve stays at least 15 % of lake stock after deposit
+        MIN_RESERVE = 0.15 * context.stock_before
         if balance < MIN_RESERVE:
-            # Determine how much can be taken from the fisher's keep (cannot exceed what they have left after the standard deposit)
-            available_for_extra = max(0.0, raw_kg - deposit)
-            extra_contribution = min(0.5, available_for_extra)
+            # Take extra from fisher's keep to meet minimum reserve
+            needed = MIN_RESERVE - balance
+            # Cannot take more than what fisher has left after deposit
+            available = max(0.0, raw_kg - deposit)
+            extra_contribution = min(needed, available)
             balance += extra_contribution
             note_parts.append(f"You added an extra {extra_contribution:.3f}kg to meet the reserve minimum.")
         # Store updated balance
