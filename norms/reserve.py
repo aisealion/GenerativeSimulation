@@ -48,11 +48,11 @@ class ReserveNorm(Norm):
     def is_eligible(self, context, agent_id):
         """Fisher is eligible only if the community reserve meets the minimum.
 
-        The policy requires the reserve to hold at least 20 kg at all times. If the
+        The policy requires the reserve to hold at least 25 kg at all times. If the
         balance is below that threshold the fisher must wait until it is restored.
         """
         state = self._balance_state(context)
-        min_reserve = self.params.get("min_reserve_kg", 20.0)
+        min_reserve = self.params.get("min_reserve_kg", 25.0)
         return state.get("balance_kg", 0.0) >= min_reserve
 
     def evaluate(self, context, agent_id, raw_kg, proposed_kg):
@@ -60,7 +60,7 @@ class ReserveNorm(Norm):
 
         * ``deposit_pct`` – fraction of the kept catch that must be deposited
           (default 0.05 for 5 %). Rounded to the nearest 0.1 kg.
-        * ``min_reserve_kg`` – absolute minimum reserve weight (default 20 kg).
+        * ``min_reserve_kg`` – absolute minimum reserve weight (default 25 kg).
         """
         state = self._balance_state(context)
 
