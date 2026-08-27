@@ -14,7 +14,7 @@ from engine.norms.base import Norm, NormDecision
 
 
 class ExcessPoolNorm(Norm):
-    type_name = "excess_pool"
+    type_name = None
 
     def _pool_state(self, context):
         # Persistent state for the pool balance
