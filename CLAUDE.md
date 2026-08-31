@@ -1425,3 +1425,66 @@ it reports "missing" cleanly instead of crashing.
 
 Not yet re-verified against a real Aoraki job — this fixes what round 1's
 actual transcript showed, but no job has run against the fixed script yet.
+
+### Neo4j on Aoraki: nested Apptainer confirmed dead, switched to a portable binary (2026-08-28)
+
+The same real job's own SLURM output settled the biggest open question
+from the previous Neo4j entry: `"ENABLE_NEO4J_MEMORY=1 but no 'apptainer'
+binary is reachable inside this container"` — the `apptainer` binary
+genuinely isn't present inside `ollama_shellenv.sif`. Not a fluke to
+retry; a structural fact about that image. Nested container orchestration
+was a dead end there, so this abandons that mechanism entirely rather
+than trying to work around it.
+
+Replaced with a portable-binary approach in `hpc_ollama_entrypoint.sh`,
+matching how Ollama itself already runs inside this same container: a
+plain background process, not a nested container.
+
+- Checks for `java` (Neo4j 5.x needs 17+) — skips cleanly if missing,
+  same degradation shape as every other check in this file. **Not
+  confirmed present inside `ollama_shellenv.sif`** — this is the real new
+  open question this approach introduces, replacing the "is apptainer
+  reachable" question the previous approach had.
+- Downloads `https://dist.neo4j.org/neo4j-community-5.26.0-unix.tar.gz`
+  once, extracts it directly into `NEO4J_HOME` on persistent storage
+  (`/projects/sciences/computing/cranefield_lab/magha601/neo4j/neo4j-home`)
+  — the whole distribution lives there, not just data/logs, so no
+  `neo4j.conf` edits are needed to redirect directories; `bin/neo4j`
+  already resolves everything relative to `NEO4J_HOME`. Version chosen to
+  match the 5.26.x line already exercised locally (via the `fishery-neo4j`
+  Docker container, `neo4j:5` → 5.26.27) against this same
+  `engine/memory/client.py`.
+- Same password-persistence reasoning as the Apptainer attempt (a fixed
+  password file alongside the data), but the mechanism differs:
+  `neo4j-admin dbms set-initial-password` only works once, before the
+  store has ever started — guarded with a separate `.initialized` marker
+  file rather than depending on `neo4j-admin`'s own error behavior on a
+  repeat call against an already-initialized store.
+- `bin/neo4j stop` (ignoring failure) runs both before `start` (clears a
+  stale PID file from a previous killed job, which would otherwise make
+  `start` refuse to run) and in a `trap ... EXIT` cleanup function after a
+  successful start.
+- Same health-check-before-exporting-NEO4J_URI logic as before, unchanged
+  (`/dev/tcp` against `127.0.0.1:7687`, 60×2s).
+
+**What's actually verified vs. still assumed**, to be precise rather than
+repeat the same "confirmed working" language a second time on a second
+unverified mechanism: the download URL itself was checked directly
+(`curl -I`, HTTP 200, correct `content-type: application/x-tar`, 158MB —
+matches the real file, not a redirect/error page). The `trap`-based
+cleanup-function mechanism was verified standalone under `set -euo
+pipefail`. The full download+extract+`--strip-components=1`+start+stop
+lifecycle was **not** verified end-to-end locally — this machine has no
+Java runtime at all (`java -version` → "Unable to locate a Java
+Runtime"), and a full 158MB download over this sandbox's network was slow
+enough (~110KB/s observed) that completing it just to check the tarball's
+internal directory-naming convention wasn't worth the time; `--strip-components=1`
+assumes the tarball's contents sit under one top-level
+`neo4j-community-5.26.0/` directory, which is Neo4j's long-standing,
+unchanged packaging convention but wasn't directly confirmed against
+*this exact* file. So: more of this specific mechanism rests on "known
+convention, not directly checked" than the previous entries in this file
+typically do — flagged explicitly rather than glossed over. Whether
+`java`, egress to `dist.neo4j.org`, and the extraction actually work
+together on a real Aoraki node remains open until an actual
+`ENABLE_NEO4J_MEMORY=1` job runs against this version of the script.

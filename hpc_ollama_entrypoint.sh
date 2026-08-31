@@ -345,48 +345,70 @@ fi
 # job-startup latency, not something every ordinary run should pay for
 # unverified).
 #
-# Genuinely more speculative than every other Aoraki fix in this file: this
-# starts a *second* Apptainer instance (Neo4j) concurrently with the
-# ollama_shellenv.sif container this whole script is already running
-# inside, from a nested `apptainer` invocation — untested whether the
-# `apptainer` binary is even reachable from inside that container at all.
-# Every step below degrades gracefully on failure (leaves NEO4J_URI unset,
-# exactly today's behavior) rather than failing the job, for exactly that
-# reason.
+# 2026-08-28: switched from a nested-Apptainer-instance approach to a
+# portable binary run as a plain background process instead — a real job
+# confirmed the `apptainer` binary simply isn't reachable inside
+# ollama_shellenv.sif at all, so nested container orchestration was a dead
+# end on this specific image, not something worth retrying. This mirrors
+# how Ollama itself already runs inside this same container: a plain
+# server process, not a nested container. Real new dependency this
+# approach introduces: Java 17+ must be reachable inside the container
+# (Neo4j 5.x's requirement) — unconfirmed as of this writing, checked at
+# runtime below and skipped gracefully if missing, same degradation
+# philosophy as everywhere else in this file.
 if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
-  if ! command -v apptainer >/dev/null 2>&1; then
-    echo "ENABLE_NEO4J_MEMORY=1 but no 'apptainer' binary is reachable inside" >&2
-    echo "this container — can't start a nested Neo4j instance. Continuing" >&2
-    echo "without the memory layer (NEO4J_URI stays unset)." >&2
+  if ! command -v java >/dev/null 2>&1; then
+    echo "ENABLE_NEO4J_MEMORY=1 but no 'java' binary is reachable inside this" >&2
+    echo "container — Neo4j 5.x needs Java 17+. Continuing without the memory" >&2
+    echo "layer (NEO4J_URI stays unset)." >&2
   else
-    # Persistent storage, same convention as OLLAMA_MODELS above: the .sif
-    # image and the graph's own data directory both survive across job
-    # resubmissions, so only the very first run pays for the Docker Hub
-    # pull, and the graph accumulates across runs rather than starting
-    # empty every time.
+    # Persistent storage, same convention as OLLAMA_MODELS above: the
+    # extracted Neo4j installation and its data both survive across job
+    # resubmissions, so only the very first run pays for the download, and
+    # the graph accumulates across runs rather than starting empty every
+    # time. The whole distribution (not just data/logs) lives under
+    # NEO4J_HOME so no neo4j.conf edits are needed to redirect directories
+    # — bin/neo4j already reads everything relative to NEO4J_HOME.
     NEO4J_STORE_DIR="/projects/sciences/computing/cranefield_lab/magha601/neo4j"
-    NEO4J_SIF="$NEO4J_STORE_DIR/neo4j.sif"
-    NEO4J_DATA_DIR="$NEO4J_STORE_DIR/data"
-    NEO4J_LOGS_DIR="$NEO4J_STORE_DIR/logs"
+    NEO4J_HOME="$NEO4J_STORE_DIR/neo4j-home"
     NEO4J_PASSWORD_FILE="$NEO4J_STORE_DIR/password"
-    mkdir -p "$NEO4J_DATA_DIR" "$NEO4J_LOGS_DIR"
+    NEO4J_INIT_MARKER="$NEO4J_STORE_DIR/.initialized"
+    mkdir -p "$NEO4J_STORE_DIR"
 
-    if [ ! -f "$NEO4J_SIF" ]; then
-      echo "Neo4j image not found at $NEO4J_SIF — pulling docker://neo4j:5 (one-time;"
-      echo "needs Docker Hub egress from this compute node, unconfirmed as of this"
-      echo "writing — different from the llm.uod.otago.ac.nz egress already"
-      echo "confirmed elsewhere, see CLAUDE.md)."
-      apptainer pull "$NEO4J_SIF" docker://neo4j:5 || true
+    # Version chosen to match the 5.26.x line already exercised locally
+    # against this same engine/memory/client.py (Graphiti's bolt driver) —
+    # not the newest release, a known-compatible one.
+    NEO4J_TARBALL_URL="https://dist.neo4j.org/neo4j-community-5.26.0-unix.tar.gz"
+    if [ ! -x "$NEO4J_HOME/bin/neo4j" ]; then
+      echo "Neo4j not found at $NEO4J_HOME — downloading $NEO4J_TARBALL_URL"
+      echo "(one-time; needs egress to dist.neo4j.org from this compute node,"
+      echo "unconfirmed as of this writing — a different dependency from both"
+      echo "llm.uod.otago.ac.nz and Docker Hub, see CLAUDE.md)."
+      NEO4J_DOWNLOAD_DIR="$NEO4J_STORE_DIR/download"
+      mkdir -p "$NEO4J_DOWNLOAD_DIR"
+      if curl -fsSL "$NEO4J_TARBALL_URL" -o "$NEO4J_DOWNLOAD_DIR/neo4j.tar.gz"; then
+        rm -rf "$NEO4J_HOME"
+        mkdir -p "$NEO4J_HOME"
+        # --strip-components=1: the tarball's own top-level directory
+        # (neo4j-community-5.26.0) becomes NEO4J_HOME's contents directly.
+        tar -xzf "$NEO4J_DOWNLOAD_DIR/neo4j.tar.gz" -C "$NEO4J_HOME" --strip-components=1 || rm -rf "$NEO4J_HOME"
+      else
+        echo "Failed to download Neo4j from $NEO4J_TARBALL_URL — continuing" >&2
+        echo "without the memory layer (NEO4J_URI stays unset)." >&2
+      fi
+      rm -rf "$NEO4J_DOWNLOAD_DIR"
     fi
 
-    if [ ! -f "$NEO4J_SIF" ]; then
-      echo "Neo4j image still missing after the pull attempt — continuing without" >&2
-      echo "the memory layer (NEO4J_URI stays unset)." >&2
+    if [ ! -x "$NEO4J_HOME/bin/neo4j" ]; then
+      echo "Neo4j still not found at $NEO4J_HOME/bin/neo4j after the download" >&2
+      echo "attempt — continuing without the memory layer (NEO4J_URI stays unset)." >&2
     else
-      # Neo4j requires the SAME password on every restart against an
-      # existing data directory (the password is set into the DB itself on
-      # first init, not re-readable from NEO4J_AUTH alone) — persist it
-      # alongside the data directory rather than regenerating one per job.
+      # Same password-persistence reasoning as before: the password is set
+      # into the store itself on first init and must match on every later
+      # restart against the same (persistent) data. set-initial-password
+      # only works before the store has ever started once, so guard it
+      # with our own marker rather than depending on neo4j-admin's own
+      # error behavior on a repeat call against an already-initialized store.
       if [ -f "$NEO4J_PASSWORD_FILE" ]; then
         NEO4J_PW="$(cat "$NEO4J_PASSWORD_FILE")"
       else
@@ -395,47 +417,54 @@ if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
         chmod 600 "$NEO4J_PASSWORD_FILE"
       fi
 
-      # Stop any leftover instance from a previous killed/crashed job before
-      # starting fresh — apptainer instance start fails if the name's
-      # already in use.
-      apptainer instance stop neo4j-fishery >/dev/null 2>&1 || true
-      echo "Starting Neo4j as a nested apptainer instance..."
-      if apptainer instance start \
-        --bind "$NEO4J_DATA_DIR:/data" \
-        --bind "$NEO4J_LOGS_DIR:/logs" \
-        --env NEO4J_AUTH="neo4j/${NEO4J_PW}" \
-        "$NEO4J_SIF" neo4j-fishery; then
-
-        neo4j_ready=0
-        for _ in $(seq 1 60); do
-          if (exec 3<>/dev/tcp/127.0.0.1/7687) 2>/dev/null; then
-            exec 3<&- 3>&- 2>/dev/null || true
-            neo4j_ready=1
-            break
-          fi
-          sleep 2
-        done
-
-        if [ "$neo4j_ready" = "1" ]; then
-          export NEO4J_URI="bolt://localhost:7687"
-          export NEO4J_USER="neo4j"
-          export NEO4J_PASSWORD="$NEO4J_PW"
-          echo "Neo4j reachable at $NEO4J_URI — memory layer enabled for this run."
-          # Stop the instance when this script exits, success or failure —
-          # SLURM would eventually clean up the job's cgroup regardless, but
-          # an explicit stop avoids a stale instance blocking the next job's
-          # `apptainer instance start neo4j-fishery` if it lands on the same
-          # node before that cleanup happens.
-          trap 'apptainer instance stop neo4j-fishery >/dev/null 2>&1 || true' EXIT
+      if [ ! -f "$NEO4J_INIT_MARKER" ]; then
+        if NEO4J_HOME="$NEO4J_HOME" "$NEO4J_HOME/bin/neo4j-admin" dbms set-initial-password "$NEO4J_PW"; then
+          touch "$NEO4J_INIT_MARKER"
         else
-          echo "Neo4j instance started but 127.0.0.1:7687 never became reachable" >&2
-          echo "within 120s — continuing without the memory layer (NEO4J_URI stays" >&2
-          echo "unset)." >&2
-          apptainer instance stop neo4j-fishery >/dev/null 2>&1 || true
+          echo "neo4j-admin dbms set-initial-password failed — continuing without" >&2
+          echo "the memory layer (NEO4J_URI stays unset)." >&2
         fi
-      else
-        echo "apptainer instance start failed — continuing without the memory" >&2
-        echo "layer (NEO4J_URI stays unset)." >&2
+      fi
+
+      if [ -f "$NEO4J_INIT_MARKER" ]; then
+        # Stop any leftover process from a previous killed/crashed job
+        # first — bin/neo4j start refuses to start if a stale PID file
+        # from an unclean shutdown makes it think an instance is already
+        # running.
+        NEO4J_HOME="$NEO4J_HOME" "$NEO4J_HOME/bin/neo4j" stop >/dev/null 2>&1 || true
+        echo "Starting Neo4j (portable binary, no container)..."
+        if NEO4J_HOME="$NEO4J_HOME" "$NEO4J_HOME/bin/neo4j" start; then
+          neo4j_ready=0
+          for _ in $(seq 1 60); do
+            if (exec 3<>/dev/tcp/127.0.0.1/7687) 2>/dev/null; then
+              exec 3<&- 3>&- 2>/dev/null || true
+              neo4j_ready=1
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$neo4j_ready" = "1" ]; then
+            export NEO4J_URI="bolt://localhost:7687"
+            export NEO4J_USER="neo4j"
+            export NEO4J_PASSWORD="$NEO4J_PW"
+            echo "Neo4j reachable at $NEO4J_URI — memory layer enabled for this run."
+            # Stop it when this script exits, success or failure — SLURM
+            # would eventually clean up the job's process group regardless,
+            # but an explicit stop avoids leaving a stale PID file for the
+            # next job's own 'bin/neo4j start' to trip over.
+            _stop_neo4j() { NEO4J_HOME="$NEO4J_HOME" "$NEO4J_HOME/bin/neo4j" stop >/dev/null 2>&1 || true; }
+            trap _stop_neo4j EXIT
+          else
+            echo "Neo4j process started but 127.0.0.1:7687 never became reachable" >&2
+            echo "within 120s — continuing without the memory layer (NEO4J_URI" >&2
+            echo "stays unset)." >&2
+            NEO4J_HOME="$NEO4J_HOME" "$NEO4J_HOME/bin/neo4j" stop >/dev/null 2>&1 || true
+          fi
+        else
+          echo "'neo4j start' failed — continuing without the memory layer" >&2
+          echo "(NEO4J_URI stays unset)." >&2
+        fi
       fi
     fi
   fi
