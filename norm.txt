@@ -1,0 +1,3 @@
+Policy: Each fisherman may keep up to 10 kg of fish per trip; any catch beyond 10 kg must be released back into the lake.
+
+Operationalization: All catch amounts are written on the community ledger at the end of each trip. If a fisher exceeds the 10 kg limit, they must immediately release the excess fish and mark it as ‘released’ on the ledger. Failure to record or to release excess fish results in a temporary fishing ban for the next trip. A rotating overseer checks the ledger weekly and issues the ban if necessary.
