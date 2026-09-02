@@ -1,0 +1,3 @@
+Policy: Everyone may fish freely, keep all catch, but must maintain a personal reserve of at least 5kg to ensure sustainability.
+
+Operationalization: Each fisher records their catch and updates their reserve balance after each trip. If a fisher’s reserve falls below 5kg, they are prohibited from fishing until their reserve is replenished. The lake level is updated after every trip, and no communal pooling or sharing is required. Violations of the reserve rule result in temporary fishing ban until compliance.
