@@ -77,3 +77,17 @@ If a genuinely new *shape* of constraint is needed — nothing above fits,
 even with different parameters — add a new `norms/{name}.py` file
 subclassing `Norm` with a unique `type_name`; it's picked up automatically
 by `engine/norms/registry.py`'s auto-discovery, no registry edit required.
+
+## How a norm gets verified before it's committed
+
+The norm-implementer writes a formal requirement list to
+`state/norm_specs/round_{N}.md` *before* touching any code (its own PHASE
+1), classifying each requirement's clarity and resolving anything
+ambiguous or incomplete via a short dialogue with the fisher who proposed
+the rule. Once code exists, a separate `norm-evaluator` subagent — with no
+access to `norms/` or `prompts/`, only to its own `tests/norm_evaluation/`
+— writes and runs independent tests against that spec and classifies each
+requirement as compliant, an implementation error, or a remaining spec gap.
+See `.opencode/agent/norm-evaluator.md` for the full contract, and
+`CLAUDE.md`'s "Norm-evaluator" entry for why this is a second agent rather
+than another self-check inside the norm-implementer.

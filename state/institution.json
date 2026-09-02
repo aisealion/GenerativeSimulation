@@ -1,0 +1,12 @@
+{
+  "phases": {
+    "harvest": {"file": "phases/harvest.py", "protected": true},
+    "propose": {"file": "phases/propose.py", "protected": true},
+    "vote": {"file": "phases/vote.py", "protected": true},
+    "discuss": {"file": "phases/discuss.py", "protected": true}
+  },
+  "state": {
+    "fisher": ["effort", "harvested_kg", "payoff"],
+    "community": ["stock_kg"]
+  }
+}

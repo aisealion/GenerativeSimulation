@@ -37,10 +37,16 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # list) can never touch it.
     # norms/ replaced mechanisms/ + phases/ here (2026-08-27) — the
     # norm-implementer's per-norm enforcement logic now lives entirely in
-    # norms/*.py plugins; mechanisms/ and phases/ are no longer on its
-    # permission.edit allowlist at all (see .opencode/agent/
-    # norm-implementer.md), so a norm round no longer touches either.
+    # norms/*.py plugins; mechanisms/ is not on its permission.edit
+    # allowlist at all (see .opencode/agent/norm-implementer.md).
+    # phases/ came back (2026-09-01, "institutional transformation") but
+    # additive-only: a norm requiring a genuinely new agent decision may
+    # add a new phases/{name}.py file, never edit harvest.py/propose.py/
+    # vote.py. PROTECTED_PATHS below + norm_implementation_protected_path_violations()
+    # is the actual enforcement of that boundary — not this list, and not
+    # the permission.edit YAML (see PROTECTED_PATHS's own docstring).
     "norms",
+    "phases",
     "prompts",
     # Implementer-authored unit tests for its own mechanism/phase changes
     # (added 2026-08-26) — distinct from tests/regression/, which stays a
@@ -49,10 +55,33 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # one is caught by the same compile gate as everything else, rather
     # than silently sitting broken until the next round tries to run it.
     "tests/norm_checks",
+    # The norm-evaluator's own generated tests (added alongside PHASE 1's
+    # state/norm_specs/ requirement list) — same discard/commit treatment
+    # as tests/norm_checks/ and for the same reason: these tests reference
+    # this round's norms/*.py code directly, so they must not outlive a
+    # discard's revert of that code. The evaluator's actual verdict is
+    # preserved regardless, via log_call() in logs/model_calls.jsonl,
+    # which IS unconditionally committed (see ROUND_ARTIFACT_PATHS below) —
+    # so nothing forensic is lost even though the test files themselves
+    # are reverted on a discard.
+    "tests/norm_evaluation",
     "schedule.json",
     "state/config.json",
     "state/fluents.json",
     "state/fluents_schema.md",
+    # state/norm_specs is deliberately NOT here — see ROUND_ARTIFACT_PATHS
+    # below. Unlike tests/norm_evaluation above, a spec file never
+    # references code, so it never goes stale on a discard, and it's
+    # exactly the forensic record of what was analyzed even when a round
+    # gets discarded — putting it here would mean discard_norm_implementation()'s
+    # `git clean -fd` deletes it from disk before commit_round_artifacts()
+    # ever gets a chance to preserve it.
+    # state/institution.json IS here, unlike state/norm_specs above — it
+    # describes what phases currently exist in code (a "current phases"
+    # snapshot, not a historical record of what was required), so it must
+    # track phases/'s own reverted-on-discard state exactly, not survive
+    # independently of it.
+    "state/institution.json",
     # engine/simulate.py itself is now editable by the norm-implementer
     # (was previously denied — see CLAUDE.md for why that changed and the
     # residual risk). It has to be listed here for two reasons: so
@@ -63,6 +92,31 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # pre-commit syntax check, since it derives its file list from this
     # same list.
     "engine/simulate.py",
+]
+
+# Everything a norm must never touch, even now that phases/ is on
+# NORM_IMPLEMENTER_TRACKED_PATHS above for new-file additions — the fixed
+# physics, the per-agent harvest loop, and the base contracts every phase/
+# norm plugin builds on. This is a real git-diff check
+# (norm_implementation_protected_path_violations(), below), not just the
+# permission.edit YAML: this file already has a standing, documented
+# uncertainty about whether opencode's "*": deny + specific allow actually
+# behaves as "last match wins" on the installed version (see CLAUDE.md) —
+# a deterministic git diff against HEAD doesn't depend on that being true.
+PROTECTED_PATHS = [
+    "phases/harvest.py",
+    "phases/propose.py",
+    "phases/vote.py",
+    # A pre-existing, currently-unimplemented stub (raises NotImplementedError,
+    # gated permanently off in schedule.json) — not created by any
+    # norm-implementer round, so the same "never edit an existing phase
+    # file, only add new ones" rule covers it too, implemented or not.
+    "phases/discuss.py",
+    "engine/phase_base.py",
+    "engine/norms",
+    "engine/physics.py",
+    "mechanisms/roles.py",
+    "mechanisms/stock_check.py",
 ]
 
 HOLDS_AT_RE = re.compile(r"holdsAt\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)")
@@ -179,13 +233,13 @@ def parse_opencode_jsonl(stdout):
     return tool_calls, final_text or stdout
 
 
-def extract_norm_implementer_report(text):
-    """Pulls the trailing fenced ```json block (Step 6 of both
-    norm-implementer specs) out of its final response. Takes the last
-    match, in case the report text quotes other JSON earlier; returns
-    None on no-match or a malformed block rather than raising — a report
-    parse failure shouldn't be able to break a round any more than a
-    missing tool-call count can."""
+def extract_json_report(text):
+    """Pulls the trailing fenced ```json block out of an opencode agent's
+    final response — the closing-report convention both norm-implementer.md
+    and norm-evaluator.md specs use. Takes the last match, in case the
+    report text quotes other JSON earlier; returns None on no-match or a
+    malformed block rather than raising — a report parse failure shouldn't
+    be able to break a round any more than a missing tool-call count can."""
     matches = re.findall(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
     if not matches:
         return None
@@ -195,7 +249,7 @@ def extract_norm_implementer_report(text):
         return None
 
 
-def run_norm_implementer(round_number):
+def run_norm_implementer(round_number, extra_message=None):
     """Returns True on a completed (returncode 0) run, False on anything
     else — a timeout, a crash, a non-zero exit. Used to raise
     unconditionally: a failed norm-implementer run ended the whole
@@ -212,7 +266,7 @@ def run_norm_implementer(round_number):
     another chance to be implemented later, instead of losing the rest of
     the run to one bad round."""
     print("\n--- invoking norm-implementer ---")
-    message = (
+    message = extra_message or (
         "norm.txt has been updated for this round. Read it and implement "
         "accordingly, following your standing instructions."
     )
@@ -254,7 +308,7 @@ def run_norm_implementer(round_number):
 
     duration_s = time.monotonic() - start
     tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
-    report = extract_norm_implementer_report(final_text)
+    report = extract_json_report(final_text)
 
     log_call(
         call="norm_implementer",
@@ -280,6 +334,77 @@ def run_norm_implementer(round_number):
         print(result.stderr, file=sys.stderr)
         return False
     return True
+
+
+def run_norm_evaluator(round_number, extra_message=None):
+    """Mirrors run_norm_implementer()'s subprocess/timeout/logging shape
+    exactly, just against a different agent and report shape. Returns the
+    parsed {"round", "verdicts", "all_compliant"} report on a completed run
+    with a parseable trailing json block, or None on any failure (timeout,
+    non-zero exit, unparseable report) — treated by the caller exactly like
+    a norm-implementer failure: discard, don't crash the rest of the run."""
+    print("\n--- invoking norm-evaluator ---")
+    message = extra_message or (
+        f"Round {round_number}'s norm-implementer changes are ready to check. Read "
+        f"state/norm_specs/round_{round_number}.md and the diff, write and run your own "
+        "tests, and report your verdicts following your standing instructions."
+    )
+    cmd = ["opencode", "run", "--agent", "norm-evaluator", "--format", "json"]
+    # Same NORM_IMPLEMENTER_MODEL-or-OPENCODE_MODEL fallback as
+    # run_norm_implementer() — deliberately not a separate env var, since
+    # this agent is part of the same implement/verify pipeline and there's
+    # no reason so far to route it to a different model.
+    model = os.environ.get("NORM_IMPLEMENTER_MODEL") or os.environ.get("OPENCODE_MODEL")
+    if model:
+        cmd += ["--model", model]
+    cmd.append(message)
+
+    start = time.monotonic()
+    try:
+        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=1800)
+    except subprocess.TimeoutExpired:
+        duration_s = time.monotonic() - start
+        print(f"Round {round_number}: norm-evaluator didn't finish within 1800s — "
+              f"treating this evaluation as failed, not crashing the run.", file=sys.stderr)
+        log_call(
+            call="norm_evaluator", agent_id=None, round=round_number, phase=None,
+            model=model, duration_s=round(duration_s, 3), returncode=None,
+            prompt=message, raw_response=None, parsed_response=None,
+            tool_call_count=None, report=None, error="timeout after 1800s",
+        )
+        return None
+
+    duration_s = time.monotonic() - start
+    tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
+    report = extract_json_report(final_text)
+
+    log_call(
+        call="norm_evaluator",
+        agent_id=None,
+        round=round_number,
+        phase=None,
+        model=model,
+        duration_s=round(duration_s, 3),
+        returncode=result.returncode,
+        prompt=message,
+        raw_response=result.stdout,
+        parsed_response=None,
+        tool_call_count=tool_call_count,
+        report=report,
+        error=None if result.returncode == 0 else result.stderr.strip(),
+    )
+
+    print(final_text)
+    if result.returncode != 0:
+        print(f"Round {round_number}: norm-evaluator exited with code {result.returncode} — "
+              f"treating this evaluation as failed, not crashing the run.", file=sys.stderr)
+        print(result.stderr, file=sys.stderr)
+        return None
+    if report is None or "verdicts" not in report:
+        print(f"Round {round_number}: norm-evaluator's report couldn't be parsed — "
+              f"treating this evaluation as failed.", file=sys.stderr)
+        return None
+    return report
 
 
 def norm_already_committed(round_number):
@@ -415,6 +540,28 @@ def norm_implementation_runtime_errors():
         "        }})\n"
         "    except Exception as exc:\n"
         "        errors.append(f'{type_name}: {type(exc).__name__}: {exc}')\n"
+        "\n"
+        "import importlib, os\n"
+        "from engine.phase_base import Phase\n"
+        "protected_phase_names = {'harvest', 'propose', 'vote', 'discuss'}\n"
+        "schedule = json.loads(open('schedule.json').read())\n"
+        "for py_file in sorted(os.listdir('phases')):\n"
+        "    if not py_file.endswith('.py') or py_file == '__init__.py':\n"
+        "        continue\n"
+        "    stem = py_file[:-3]\n"
+        "    if stem in protected_phase_names:\n"
+        "        continue\n"
+        "    try:\n"
+        "        module = importlib.import_module(f'phases.{stem}')\n"
+        "        phase = getattr(module, 'PHASE', None)\n"
+        "        if not isinstance(phase, Phase):\n"
+        "            raise TypeError(f'phases.{stem} has no module-level PHASE instance of engine.phase_base.Phase')\n"
+        "        if phase.name != stem:\n"
+        "            raise ValueError(f'phases.{stem}.PHASE.name is {phase.name!r}, must match the filename stem {stem!r}')\n"
+        "        if stem not in schedule:\n"
+        "            raise ValueError(f'phases.{stem} exists but has no schedule.json entry')\n"
+        "    except Exception as exc:\n"
+        "        errors.append(f'phases/{py_file}: {type(exc).__name__}: {exc}')\n"
         "if errors:\n"
         "    print('\\n'.join(errors))\n"
         "    sys.exit(1)\n"
@@ -428,8 +575,68 @@ def norm_implementation_runtime_errors():
     )
     if check.returncode != 0:
         detail = check.stdout.strip() or check.stderr.strip()
-        return f"Harvest runtime check (active config + every registered norm type):\n{detail}"
+        return (
+            "Harvest runtime check (active config + every registered norm type + "
+            f"every new phases/*.py file's structural validity):\n{detail}"
+        )
     return None
+
+
+def norm_implementation_protected_path_violations():
+    """Hard-fail if the norm-implementer touched anything in PROTECTED_PATHS
+    this round — the actual enforcement of "additive-only" institutional
+    change (new phases/*.py files are fine; editing harvest.py/propose.py/
+    vote.py/engine/norms/etc. is not), independent of whatever opencode's
+    own permission.edit YAML does or doesn't actually block. `git diff
+    --name-only` against HEAD catches both a modification to a tracked
+    protected file and (via the directory entries in PROTECTED_PATHS) a new
+    file dropped inside a protected directory."""
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "HEAD", "--"] + PROTECTED_PATHS,
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    )
+    touched = result.stdout.strip()
+    if not touched:
+        return []
+    return [f"norm-implementer touched protected path(s), never allowed:\n{touched}"]
+
+
+def norm_implementation_institution_errors():
+    """Drift check between state/institution.json and reality, mirroring
+    the existing norm-type-registry check's spirit: a config can be
+    syntactically valid and still describe something that doesn't exist.
+    Checked both directions — a phase on disk with no institution.json
+    entry is exactly as much a lie as an institution.json entry with no
+    real file, and either one means state/institution.json can no longer
+    be trusted as "the current institution" for next round's PHASE 1."""
+    institution_path = ROOT / "state" / "institution.json"
+    if not institution_path.is_file():
+        return ["state/institution.json is missing"]
+    try:
+        institution = json.loads(institution_path.read_text())
+    except json.JSONDecodeError:
+        return []  # already reported by norm_implementation_compile_errors()'s generic JSON check
+
+    schedule = json.loads((ROOT / "schedule.json").read_text())
+    protected_phase_names = {"harvest", "propose", "vote", "discuss"}
+    on_disk = {
+        p.stem for p in (ROOT / "phases").glob("*.py")
+        if p.stem != "__init__" and p.stem not in protected_phase_names
+    }
+    declared = {
+        name for name, entry in institution.get("phases", {}).items()
+        if not entry.get("protected")
+    }
+
+    errors = []
+    for name in sorted(on_disk - declared):
+        errors.append(f"phases/{name}.py exists but has no state/institution.json entry")
+    for name in sorted(declared - on_disk):
+        errors.append(f"state/institution.json lists phase {name!r} but phases/{name}.py doesn't exist")
+    for name in sorted(declared & on_disk):
+        if name not in schedule:
+            errors.append(f"state/institution.json lists phase {name!r} but schedule.json has no entry for it")
+    return errors
 
 
 def discard_norm_implementation(round_number, errors):
@@ -515,12 +722,102 @@ def commit_norm_implementation(round_number, winning_proposal):
     return commit_hash
 
 
+MAX_NORM_REPAIR_ATTEMPTS = 2
+
+
+def implement_and_evaluate_norm(round_number, winning_proposal):
+    """The full per-round norm pipeline: implement -> compile/runtime-check
+    -> independent evaluation -> repair-or-commit. Replaces what used to be
+    a flat implement-then-compile-check-then-commit sequence inline in
+    run_cycle() — now a loop, because a norm-evaluator finding (an
+    IMPLEMENTATION_ERROR or a SPEC_GAP) can send the norm-implementer back
+    for another attempt within the same round, bounded by
+    MAX_NORM_REPAIR_ATTEMPTS so one stubborn round can't run forever.
+    Returns True iff a commit actually happened (the caller then refreshes
+    the knowledge graph); False means a discard already happened and was
+    logged — same "this round's mechanics stay as they were" contract
+    every other failure path in this file already has."""
+    if not run_norm_implementer(round_number):
+        discard_norm_implementation(
+            round_number, ["norm-implementer run itself failed or timed out — see logs/model_calls.jsonl"]
+        )
+        return False
+
+    for attempt in range(1, MAX_NORM_REPAIR_ATTEMPTS + 2):
+        # protected-path check first and unconditionally: touching
+        # PROTECTED_PATHS is disqualifying on its own, regardless of
+        # whether the rest of the round would otherwise compile/pass —
+        # never let a compile pass mask an out-of-bounds edit.
+        compile_errors = norm_implementation_protected_path_violations()
+        compile_errors += norm_implementation_compile_errors()
+        compile_errors += norm_implementation_institution_errors()
+        if not compile_errors:
+            runtime_error = norm_implementation_runtime_errors()
+            if runtime_error:
+                compile_errors = [runtime_error]
+        if compile_errors:
+            discard_norm_implementation(round_number, compile_errors)
+            return False
+
+        evaluation = run_norm_evaluator(round_number)
+        if evaluation is None:
+            discard_norm_implementation(
+                round_number, ["norm-evaluator run itself failed or timed out — see logs/model_calls.jsonl"]
+            )
+            return False
+
+        if evaluation.get("all_compliant"):
+            commit_hash = commit_norm_implementation(round_number, winning_proposal)
+            if commit_hash:
+                refresh_knowledge_graph(round_number)
+            return bool(commit_hash)
+
+        failing = [
+            v for v in evaluation.get("verdicts", [])
+            if v.get("verdict") not in ("COMPLIANT", "NOT_TESTABLE")
+        ]
+        if attempt > MAX_NORM_REPAIR_ATTEMPTS:
+            discard_norm_implementation(
+                round_number,
+                [f"norm-evaluator found unresolved requirement(s) after {MAX_NORM_REPAIR_ATTEMPTS} "
+                 f"repair attempt(s):\n{json.dumps(failing, indent=2)}"],
+            )
+            return False
+
+        print(f"\nRound {round_number}: norm-evaluator found {len(failing)} unresolved requirement(s) "
+              f"— sending back to norm-implementer (repair attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}).")
+        repair_message = (
+            f"Round {round_number}'s evaluator found these unresolved requirements:\n\n"
+            f"{json.dumps(failing, indent=2)}\n\n"
+            "For any IMPLEMENTATION_ERROR above, the specification is correct as written — fix the "
+            f"implementation. For any SPEC_GAP, redo that requirement's clarification in "
+            f"state/norm_specs/round_{round_number}.md (ask a sharper question than last time), then "
+            "adjust the implementation for whatever the resolution changes. Follow your standing "
+            "instructions for handling a repair re-invocation."
+        )
+        if not run_norm_implementer(round_number, extra_message=repair_message):
+            discard_norm_implementation(
+                round_number,
+                ["norm-implementer repair run itself failed or timed out — see logs/model_calls.jsonl"],
+            )
+            return False
+
+    return False  # unreachable — the loop above always returns first
+
+
 ROUND_ARTIFACT_PATHS = [
     "logs",
     "norm.txt",
     "plots",
     "state/runtime.json",
     "state/agents.json",
+    # The norm-implementer's PHASE 1 requirement list — always preserved,
+    # same forensic reasoning as logs/norm.txt above: it's what the
+    # norm-evaluator judged the round against, and it's still useful
+    # evidence of what was analyzed even when the round's actual code gets
+    # discarded (see the comment on NORM_IMPLEMENTER_TRACKED_PATHS for why
+    # it's deliberately not on that list instead).
+    "state/norm_specs",
 ]
 
 
@@ -779,22 +1076,7 @@ def run_cycle(round_number):
             )
             (ROOT / "norm.txt").write_text(norm_text)
             print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
-            if not run_norm_implementer(round_number):
-                discard_norm_implementation(
-                    round_number, ["norm-implementer run itself failed or timed out — see logs/model_calls.jsonl"]
-                )
-            else:
-                compile_errors = norm_implementation_compile_errors()
-                if not compile_errors:
-                    runtime_error = norm_implementation_runtime_errors()
-                    if runtime_error:
-                        compile_errors = [runtime_error]
-                if compile_errors:
-                    discard_norm_implementation(round_number, compile_errors)
-                else:
-                    commit_hash = commit_norm_implementation(round_number, winning_proposal)
-                    if commit_hash:
-                        refresh_knowledge_graph(round_number)
+            implement_and_evaluate_norm(round_number, winning_proposal)
 
     update_plots(state)
     commit_round_artifacts(round_number)

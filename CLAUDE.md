@@ -1488,3 +1488,272 @@ typically do — flagged explicitly rather than glossed over. Whether
 `java`, egress to `dist.neo4j.org`, and the extraction actually work
 together on a real Aoraki node remains open until an actual
 `ENABLE_NEO4J_MEMORY=1` job runs against this version of the script.
+
+## Norm-evaluator: independent verification of the norm-implementer's code (added 2026-09-01)
+
+Every safety net on the norm-implementer's own output up to this point —
+`py_compile`, the norm-type/JSON checks, the orchestrator's generic
+harvest smoke test, even `tests/norm_checks/` — either only catches a
+crash/syntax error, or (for `tests/norm_checks/`) is written by the same
+agent that wrote the code it's testing. Nothing independently checked that
+an implementation actually does what the adopted norm says. This adds a
+second, separately-scoped agent, `norm-evaluator`, plus a spec-first step
+inside the norm-implementer's own PHASE 1, closing that gap — modeled on
+the Norm Operationalisation Refinement design requested for this project's
+research (formal requirements as ground truth, a PASS/FAIL verdict that
+distinguishes a coding error from a genuine gap in the norm, a bounded
+repair loop before falling back to discard), adapted to this project's
+existing constraint that the whole simulation runs unattended (SLURM
+batch, no TTY, no human present mid-round) — so the "norm authority" that
+resolves an ambiguity can't be a human waiting on a prompt; it has to be
+something already inside the loop.
+
+**Where the ground truth comes from, and why it isn't a third, independent
+agent.** The originally-considered design had a wholly separate
+interpretation agent write the spec, walled off from the coding agent
+entirely, so the coding agent could never retroactively define the
+target it's judged against. By request, this instead has the
+norm-implementer write its own spec — but as an explicit, structured PHASE
+1 step, committed to `state/norm_specs/round_{N}.md` *before* PHASE 4
+touches any code. That ordering is what actually does the protective work
+a separate agent would have: by the time `norms/*.py` gets edited, the
+spec is already frozen and about to be tested by a second agent that
+cannot itself edit `norms/`/`prompts/`/`state/config.json`. It's a weaker
+guarantee than full agent separation (nothing technically stops the
+norm-implementer from writing a spec that already anticipates its own
+implementation, and the enforcement is prompt-level — "the spec is frozen
+once PHASE 4 starts" — not a technical lock, same posture as every other
+`permission.edit` claim already in this file), but it avoids running a
+third opencode subprocess per round, and it's what was actually asked for.
+
+**The four-way clarity classification, and why ambiguity resolution is a
+fisher dialogue, not a human prompt.** PHASE 1 now classifies each
+requirement as `CLEAR`, `AMBIGUOUS` (the rule speaks to this but supports
+more than one reading), `INCOMPLETE` (the rule doesn't address this at
+all), or `TECHNICALLY_UNREALISABLE` (the rule is completely clear, but the
+simulation has no model of the underlying concept — e.g. "10% of total
+community catch" when nothing aggregates a community-wide total before
+individual catches settle). This distinction matters because only the
+first two are something *more conversation* can fix — a
+`TECHNICALLY_UNREALISABLE` requirement needs a human to widen the
+norm-implementer's own scope (routed exactly like today's out-of-scope
+"nothing fits" case), not another question. For `AMBIGUOUS`/`INCOMPLETE`,
+new `engine/clarify_norm.py` (`python3 -m engine.clarify_norm --round N
+--question "..."`) lets the norm-implementer ask the specific fisher who
+proposed the winning rule, via the same `engine.llm_agents.call_fisher_agent()`
+path every other fisher call already uses (a new `prompts/phases/clarify.md`
+template, same fourth-wall rules as every other file in that directory) —
+capped at 5 exchanges total per round, by instruction, not by the script
+itself (the script is stateless — one question in, one answer out; the
+budget is enforced the same way the norm-implementer's whole
+step-budget-discipline already is, prompt-level, not technical). Every
+clarify call rides the existing `log_call()`/`logs/model_calls.jsonl` path
+(`call="fisher", phase="clarify"`) — no new log file needed to review the
+question/answer history after the fact. The fisher answers only what the
+rule *means*, never approves or dictates code — enforced by instruction
+("never ask the proposer to approve or dictate code"), matching the
+constraint that a clarification produces a question, never lets an agent
+silently write itself a new rule.
+
+**The evaluator's own four-way verdict, one layer later.** `norm-evaluator`
+(`.opencode/agent/norm-evaluator.md` + `.claude/agents/norm-evaluator.md`,
+same paired-copy convention as norm-implementer) reads `norm.txt` +
+`state/norm_specs/round_{N}.md` + the norm-implementer's diff, writes one
+test per requirement under `tests/norm_evaluation/round_{N}/` (same
+`phases.harvest.PHASE.run(state)` harness convention `tests/norm_checks/`
+and `tests/norms/` already use), runs them, and classifies each
+requirement `COMPLIANT`, `IMPLEMENTATION_ERROR` (spec is clear, code is
+wrong), `SPEC_GAP` (writing the test exposed a scenario even the resolved
+spec doesn't pin down — a question, never a proposed answer, mirroring the
+fisher-dialogue constraint above), or `NOT_TESTABLE` (can't be exercised
+through the current harness at all). Deliberately **not** given the
+norm-implementer's now-wide-open bash (see "Norm-implementer bash fully
+opened" above): `permission.edit` allows only `tests/norm_evaluation/*`,
+`permission.bash` is `"*": deny` plus a scoped allowlist (`py_compile`,
+`pytest`, read-only `git status`/`diff`/`log`, `codegraph`, `grep`) — the
+exact shape norm-implementer's own bash had before it was opened up. The
+asymmetry is deliberate, not an oversight: this agent's entire purpose is
+to be a check the coding agent can't route around, so the tradeoff that
+favored opening norm-implementer's bash (verification-before-commit
+already catches what prevention used to) cuts the other way for the
+agent that *is* that verification.
+
+**Orchestrator wiring**: `engine/simulate.py` replaces what used to be a
+flat implement → compile-check → commit sequence with
+`implement_and_evaluate_norm()` — a loop, bounded by
+`MAX_NORM_REPAIR_ATTEMPTS = 2`: implement, compile/runtime-check (both
+unchanged), evaluate; if `all_compliant`, commit (as before) and refresh
+the knowledge graph; otherwise re-invoke the norm-implementer with the
+evaluator's specific failing verdicts (both agents share the same
+`extract_json_report()` — generalized from what was
+`extract_norm_implementer_report()` — trailing-fenced-```json-block
+convention) and loop. Still failing after the budget, `discard_norm_implementation()`
+runs exactly as it always has, with the evaluator's final verdict folded
+into the logged discard reason so a `SPEC_GAP` is visibly distinguishable
+from an `IMPLEMENTATION_ERROR` in `logs/model_calls.jsonl` afterward — the
+same forensic-durability principle behind every other discard-reason
+change in this file. `run_norm_evaluator()` mirrors `run_norm_implementer()`'s
+subprocess/timeout/logging shape exactly, including the same
+`NORM_IMPLEMENTER_MODEL`-or-`OPENCODE_MODEL` fallback (deliberately not
+its own env var — no reason yet to route it to a different model than the
+implementer it's paired with).
+
+**Two path-list placements worth being explicit about, since they're easy
+to get backwards**: `tests/norm_evaluation` was added to
+`NORM_IMPLEMENTER_TRACKED_PATHS` (committed on success, reverted on
+discard) because its tests reference that round's `norms/*.py` code
+directly and must not outlive a revert of that code. `state/norm_specs`
+was added to `ROUND_ARTIFACT_PATHS` instead (always committed,
+unconditionally, same treatment as `logs/`/`norm.txt`) — deliberately
+*not* `NORM_IMPLEMENTER_TRACKED_PATHS`, because a spec file never
+references code, never goes stale, and is exactly the forensic record of
+what was analyzed even when a round's actual implementation gets
+discarded; putting it on the tracked-paths list would mean
+`discard_norm_implementation()`'s `git clean -fd` deletes it before
+`commit_round_artifacts()` ever gets a chance to preserve it.
+
+**Not verified end-to-end** — same standing caveat as every other
+opencode-agent claim in this file without a real run behind it, and more
+so here than most: no real `opencode run --agent norm-evaluator`
+invocation, no real fisher clarification dialogue, and no real repair
+cycle have been exercised with live model credentials. What *is* verified
+locally: `python3 -m py_compile` on every changed/new `.py` file;
+`pytest tests/regression/ tests/norms/` (65 tests, all still passing,
+confirming nothing existing regressed); and a standalone monkeypatched
+test of `implement_and_evaluate_norm()`'s control flow (first-try-compliant
+commits once with no repairs; one `IMPLEMENTATION_ERROR` then compliant
+takes exactly one repair; persistent failure discards after exactly
+`1 + MAX_NORM_REPAIR_ATTEMPTS` implementer/evaluator calls; an initial
+`run_norm_implementer()` failure discards immediately without ever
+invoking the evaluator) plus `extract_json_report()`'s parsing and
+`engine.clarify_norm`'s winning-proposer lookup, all against fabricated
+state rather than a real run. The actual judgment quality — whether the
+norm-implementer's own clarity self-assessment is any good, whether the
+evaluator's tests actually probe the right boundaries, whether 5
+clarification exchanges is the right budget — is a research question this
+change makes possible to study, not one it answers by existing.
+
+## Institutional transformation: the norm-implementer can now add phases, not just norms/*.py plugins (added 2026-09-01)
+
+Until now, every per-agent constraint had to route through a `Norm`
+plugin hooked into `phases/harvest.py`'s existing loop — a norm requiring
+a genuinely new institutional behavior (a fisher reporting their catch, a
+second fisher verifying it) had no way to be operationalized at all;
+PHASE 3 just told the norm-implementer to stop and report it as
+out-of-scope. This closes that gap by letting the norm-implementer add
+brand-new phase files, while keeping intact the exact safety property
+that motivated locking `phases/` down in the first place (the historical
+bug pattern from free-form `phases/harvest.py` rewrites, documented
+earlier in this file, under "Pluggable norm architecture").
+
+**The Decision Granularity Rule** is the one rule that governs this, and
+it's now stated verbatim in both norm-implementer specs: a **phase** is
+the atomic unit of agent decision-making (one `call_fisher_agent()` call
+per phase, per round). Deterministic state transitions, calculations, and
+enforcement consequences must never create a new phase — those still
+route through `norms/*.py`, exactly as before. A norm requiring a
+genuinely new autonomous agent decision that no existing phase hosts now
+gets a new phase — but the change is strictly **additive**: `phases/harvest.py`,
+`phases/propose.py`, `phases/vote.py`, and `phases/discuss.py` (a
+pre-existing, currently-unimplemented stub discovered while building this
+— `raises NotImplementedError`, permanently gated off in `schedule.json`,
+predates any norm-implementer round — treated the same as the other three
+precisely because "already exists on disk" is the bright line here, not
+"currently does something") remain permanently off-limits. A new
+institutional behavior is always a new file alongside these four, never
+an edit to them.
+
+**Why this maps naturally onto existing machinery, not a new one.**
+`engine/simulate.py`'s `run_cycle()` was already schedule-driven — it
+dynamically imports `phases.<name>` per `schedule.json` entry, so wiring
+in a new phase has never actually required an `engine/simulate.py` edit;
+the only thing blocking it was the norm-implementer's own
+`permission.edit` allowlist and PHASE 3's routing. `evaluate_gate()`
+already supports `"holdsAt(fluent)"` gating, so a new phase can be turned
+on/off via the exact same fluent primitives (`mechanisms.roles.set_fact()`/
+`end_fact()`) every norm already uses for facts and roles — no new gating
+mechanism was needed either. What's actually new is one file
+(`state/institution.json`) and two new orchestrator checks.
+
+**`state/institution.json`** — JSON, not YAML (as originally proposed) —
+every other state file in this project is JSON, and adding a YAML parser
+would be a new runtime dependency `hpc_ollama_entrypoint.sh`'s minimal
+venv doesn't currently install, for no benefit over JSON here. Seeded once
+by hand, listing all four protected phases plus a light `"state"` section;
+the norm-implementer updates it in PHASE 4 whenever it adds a phase or new
+state field. It's the "current institution" PHASE 1 now reads instead of
+re-deriving structure from a repo-wide grep every round, and (see below)
+the thing a drift check keeps honest against reality.
+
+**Why the actual enforcement is a `git diff`, not the permission YAML.**
+`permission.edit` gets `"phases/*": allow"` plus explicit
+`"phases/harvest.py": deny"` (and the other three) as overrides — but this
+file already has a standing, documented uncertainty about whether
+opencode's `"*": deny` + specific `allow`/`deny` overrides really behaves
+as "last match wins" on the installed version (see the "Pluggable norm
+architecture" entry's own open question). Given that, the YAML is
+defense-in-depth/documentation of intent, not the relied-upon mechanism.
+The real enforcement is new `norm_implementation_protected_path_violations()`
+in `engine/simulate.py`: a plain `git diff --name-only HEAD -- <PROTECTED_PATHS>`
+before every commit attempt, in `implement_and_evaluate_norm()`'s loop
+alongside the existing compile-check — deterministic Python+git, no
+dependency on opencode's permission semantics holding. Verified directly:
+appending a comment to `phases/vote.py` and running the check catches it
+immediately; reverting makes it clean again.
+
+**The drift check.** New `norm_implementation_institution_errors()`
+mirrors the existing norm-type-registry check's spirit (a config can be
+syntactically valid and still describe something that doesn't exist):
+every non-protected `phases/*.py` file on disk needs a matching
+`state/institution.json` entry and a `schedule.json` key, and vice versa
+in both directions. `state/institution.json`'s own JSON validity is
+already covered for free by `norm_implementation_compile_errors()`'s
+existing generic `.json`-file loop, once it's added to
+`NORM_IMPLEMENTER_TRACKED_PATHS`.
+
+**The runtime check is structural-only for new phases, deliberately not
+functional.** `norm_implementation_runtime_errors()` already ran a
+functional smoke test against `phases.harvest.PHASE.run()` and every
+registered norm type; extending that same functional approach to an
+arbitrary new phase isn't safe, because a generic harness can't know what
+shape of `call_fisher_agent()` response a new phase expects (harvest wants
+`effort`, vote wants `vote`, a `report_catch` phase might want
+`reported_kg`) — a wrong guess would produce a false-positive discard of
+an otherwise-correct round. So the generic check for any `phases/*.py`
+file outside the four protected ones is **import + structural validity
+only**: it imports cleanly, exposes a module-level `PHASE` that's a real
+`Phase` instance, `PHASE.name` matches the filename stem, and a matching
+`schedule.json` entry exists. Functional correctness for a new phase is
+left entirely to two things that actually know the requirement: the
+norm-implementer's own `tests/norm_checks/` test (now required to call
+that phase's own `PHASE.run()`, covering both a compliant and a
+non-compliance path) and the norm-evaluator's own Level 2 check, below.
+
+**Two-level verdicts in `norm-evaluator`.** For any requirement whose
+`owner` is a new phase, PHASE 4's classification now goes through Level 1
+(structural — does the phase exist, import, and get registered — the same
+three checks the orchestrator's own generic runtime check makes, just
+independently re-verified) before Level 2 (functional — does invoking it
+actually produce correct behavior, on both the compliant and
+non-compliance paths). A test that passes at Level 2 without Level 1
+holding doesn't count as `COMPLIANT` — it would mean the evaluator built a
+fabricated `state` by hand that never actually proves the real round loop
+would reach the phase at all.
+
+**Not verified end-to-end** — same standing caveat as the previous
+change, more so here: no real norm-implementer round has actually
+invented and wired in a new phase file against live model credentials.
+What is verified locally, directly against the real repo state (not just
+fabricated fixtures): `norm_implementation_protected_path_violations()`
+catches a real, deliberately-introduced touch to `phases/vote.py` and
+clears once reverted; `norm_implementation_runtime_errors()`'s new
+structural check correctly rejects a hand-written phase file missing its
+`schedule.json` entry, then a version missing its module-level `PHASE`
+instance, and accepts a well-formed one once both are present;
+`norm_implementation_institution_errors()` correctly flagged the
+pre-existing `phases/discuss.py` gap the moment it was introduced into
+this checking logic, which is exactly how the `phases/discuss.py` stub
+was discovered and added to the protected list in the first place — real
+evidence the drift check catches what it's meant to, not just a
+hypothetical. `pytest tests/regression/ tests/norms/` (65 tests) and the
+previous change's own control-flow test all still pass unchanged.
