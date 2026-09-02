@@ -1908,3 +1908,52 @@ far is the *permanent* failure mode from the round 1 run, which no amount
 of retrying would have fixed (the file it was looking for genuinely never
 existed under that name), and that specific case still correctly falls
 through to a clean discard after its retries are exhausted.
+
+## The host JVM "exists" but doesn't "work": a real RHEL container gotcha, and a matching gap in the java check (2026-09-02)
+
+A real job's `slurm.err` gave the actual root cause behind the host-JVM
+approach's own standing "not verified end-to-end" caveat: `neo4j-admin
+dbms set-initial-password` crashed with `java.lang.NoClassDefFoundError:
+Could not initialize class sun.security.jca.Providers`, caused by
+`java.lang.InternalError: Error loading java.security file`. This is a
+well-documented RHEL OpenJDK container issue, not a random flake: RHEL's
+`java.security` is patched to `include
+/etc/crypto-policies/back-ends/java.config`, and that directory was never
+bound into the container — `run_simulation.slurm` only bound
+`/usr/lib/jvm`. `run_simulation.slurm` now conditionally adds `--bind
+/etc/crypto-policies` alongside `/usr/lib/jvm` (same existence-checked
+pattern, evaluated on the actual compute node at job runtime).
+
+**The more important fix is in `hpc_ollama_entrypoint.sh` itself, not just
+the bind**: every java-detection check there was `command -v java`, which
+only confirms a binary exists on PATH — exactly the gap that let this
+broken host JVM through, since it passes that check cleanly and only
+fails on an actual invocation. Replaced with a `_java_works()` helper
+(`command -v java && java -version`, both required) used at every
+decision point: after finding the host JVM, after the portable-JRE
+download, and for the final "did anything work" check. A host JVM that
+exists but doesn't run now correctly falls through to the portable
+Eclipse Temurin JRE download (which isn't RHEL-patched this way, so
+shouldn't hit the same failure) instead of being trusted just because it
+was found. Verified directly: a fabricated `java` binary that exists,
+is executable, and always exits 1 on `-version` is correctly rejected by
+`_java_works()` while the old `command -v java` check alone would have
+wrongly accepted it — reproducing the exact real failure shape, not just
+reasoning about it.
+
+## Making mid-run `/understand` refreshes visible without a separate log lookup (2026-09-02)
+
+`refresh_knowledge_graph()` (`engine/simulate.py`) — the per-round
+incremental knowledge-graph update, gated on `BUILD_KNOWLEDGE_GRAPH=1` —
+previously only printed anything on failure, and even then just a short
+error string, never the model's own final response. A mid-run `slurm.err`
+review (the same one that surfaced the Java issue above) had no way to
+positively confirm a refresh had actually succeeded on any given round
+short of separately grepping `logs/model_calls.jsonl`, and no way to see
+*why* a failure happened beyond the one-line error summary — unlike
+`run_norm_implementer()`/`run_norm_evaluator()`, which already
+`print(final_text)` unconditionally. Now prints a clear one-line OK
+message (tool-call count, duration) on success, and the full
+`final_text` alongside the failure reason on failure — brought to the
+same visibility standard the other two opencode-agent calls already had,
+not a new pattern.

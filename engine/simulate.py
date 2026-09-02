@@ -1029,9 +1029,22 @@ def refresh_knowledge_graph(round_number):
     error = None if result.returncode == 0 else result.stderr.strip()
     if error is None and not knowledge_graph_matches_head():
         error = "opencode exited 0 but the graph's stored commit hash didn't advance to HEAD — likely a silent no-op"
+    # Always print something, success or failure — previously this only
+    # printed on failure, so a mid-run slurm log had no way to positively
+    # confirm a refresh actually worked short of grepping
+    # logs/model_calls.jsonl separately; and even the failure message never
+    # showed the model's own final response, only a short error string,
+    # making it hard to tell WHY without a second manual lookup. Both
+    # unlike run_norm_implementer()/run_norm_evaluator(), which already
+    # print(final_text) unconditionally — this brings the refresh call to
+    # the same standard.
     if error:
-        print(f"Round {round_number}: knowledge graph refresh failed ({error}) — continuing "
-              f"with the graph as it was.", file=sys.stderr)
+        print(f"Round {round_number}: knowledge graph refresh FAILED ({error}) — continuing "
+              f"with the graph as it was; norm-implementer's own staleness check will flag "
+              f"this. Model's final response:\n{final_text}", file=sys.stderr)
+    else:
+        print(f"Round {round_number}: knowledge graph refresh OK ({tool_call_count} tool calls, "
+              f"{duration_s:.1f}s) — graph now matches HEAD.")
     log_call(
         call="knowledge_graph_refresh", agent_id=None, round=round_number, phase=None,
         model=model, duration_s=round(duration_s, 3), returncode=result.returncode,

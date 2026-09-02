@@ -357,21 +357,38 @@ fi
 # actually be missing ("no 'java' binary is reachable inside this
 # container"), not just unconfirmed as this comment previously said.
 if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
-  if ! command -v java >/dev/null 2>&1; then
+  # A `java` binary existing and being executable on PATH is not enough to
+  # trust it — confirmed on a real job: the host JVM found below passes
+  # `command -v java` cleanly but crashes on every real invocation with
+  # "Error loading java.security file" / NoClassDefFoundError in
+  # sun.security.jca.Providers. This is a well-known RHEL OpenJDK
+  # container gotcha, not a random flake: RHEL's java.security patches in
+  # `include /etc/crypto-policies/back-ends/java.config`, which isn't
+  # visible inside a container unless that directory is bound in too
+  # (run_simulation.slurm now does, alongside /usr/lib/jvm) — but rather
+  # than depend on that bind alone, every java candidate here is verified
+  # to actually RUN (`java -version`, not just exist) before being
+  # trusted; one that exists but doesn't work falls through to the next
+  # candidate exactly like a missing one would.
+  _java_works() {
+    command -v java >/dev/null 2>&1 && java -version >/dev/null 2>&1
+  }
+
+  if ! _java_works; then
     # First choice: the host's own JVM, exposed into the container via
     # run_simulation.slurm's --bind /usr/lib/jvm (added 2026-09-02 once a
     # real login-node check found java-17-openjdk-17.0.20.0.8-1.2.el9_8.x86_64
     # already installed there as a plain OS package — no JAVA_HOME/module
-    # involved). No network needed if this is present. Glob rather than a
-    # hardcoded version string, since that exact package version will
-    # change under a routine OS update outside this project's control —
-    # matches java-17-openjdk* specifically first (this project only needs
-    # 17+, and that's the confirmed real package name pattern), then any
-    # JVM under /usr/lib/jvm as a looser second attempt. Left as literal,
-    # non-matching glob text (not an error) if /usr/lib/jvm doesn't exist
-    # on whatever node this job actually lands on — the `-x` test below
-    # just says no on a literal unexpanded pattern, same as any other
-    # missing path.
+    # involved). No network needed if this is present and actually works.
+    # Glob rather than a hardcoded version string, since that exact
+    # package version will change under a routine OS update outside this
+    # project's control — matches java-17-openjdk* specifically first
+    # (this project only needs 17+, and that's the confirmed real package
+    # name pattern), then any JVM under /usr/lib/jvm as a looser second
+    # attempt. Left as literal, non-matching glob text (not an error) if
+    # /usr/lib/jvm doesn't exist on whatever node this job actually lands
+    # on — the `-x` test below just says no on a literal unexpanded
+    # pattern, same as any other missing path.
     HOST_JVM_JAVA=""
     for candidate in /usr/lib/jvm/java-17-openjdk*/bin/java /usr/lib/jvm/*/bin/java; do
       if [ -x "$candidate" ]; then
@@ -383,18 +400,29 @@ if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
       JAVA_HOME="$(dirname "$(dirname "$HOST_JVM_JAVA")")"
       export JAVA_HOME
       export PATH="$JAVA_HOME/bin:$PATH"
-      echo "Found a host JVM via the /usr/lib/jvm bind mount: $JAVA_HOME"
+      if _java_works; then
+        echo "Found a working host JVM via the /usr/lib/jvm bind mount: $JAVA_HOME"
+      else
+        echo "Found a host JVM at $JAVA_HOME but 'java -version' fails there —" >&2
+        echo "likely the RHEL crypto-policies container gotcha (missing" >&2
+        echo "/etc/crypto-policies inside the container). Falling back to the" >&2
+        echo "portable JRE download instead of trusting this one." >&2
+        unset JAVA_HOME
+      fi
     fi
   fi
 
-  if ! command -v java >/dev/null 2>&1; then
-    # Fallback: no host JVM found (bind missing, or this compute node's
-    # /usr/lib/jvm doesn't match the login node's). Same portable-binary
-    # philosophy as Neo4j's own download a few lines down: no system
-    # install, no root, download+extract+PATH, cached under persistent
-    # storage so only the first run ever pays for it.
-    # Eclipse Temurin's JRE (not the full JDK — Neo4j only runs on it,
-    # never compiles anything) satisfies the same Java 17+ requirement.
+  if ! _java_works; then
+    # Fallback: no working host JVM found (bind missing, this compute
+    # node's /usr/lib/jvm doesn't match the login node's, or the host JVM
+    # exists but doesn't actually run in this container). Same
+    # portable-binary philosophy as Neo4j's own download a few lines down:
+    # no system install, no root, download+extract+PATH, cached under
+    # persistent storage so only the first run ever pays for it. Eclipse
+    # Temurin's JRE (not the full JDK — Neo4j only runs on it, never
+    # compiles anything) satisfies the same Java 17+ requirement, and
+    # isn't RHEL-patched to depend on /etc/crypto-policies the way the
+    # host JVM above is, so it shouldn't hit the same failure.
     # URL verified directly (not just assumed): `curl -fsSL` follows
     # Adoptium's own 307->302 redirect chain to a real GitHub release
     # asset (HTTP 200, 46.6MB, application/octet-stream — not an error
@@ -406,8 +434,9 @@ if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
     JAVA_HOME="$JDK_STORE_DIR/jdk-home"
     mkdir -p "$JDK_STORE_DIR"
     if [ ! -x "$JAVA_HOME/bin/java" ]; then
-      echo "No 'java' binary in this container and none cached at $JAVA_HOME —"
-      echo "downloading a portable Eclipse Temurin JRE 17 (Neo4j 5.x's minimum)."
+      echo "No working 'java' binary in this container and none cached at" >&2
+      echo "$JAVA_HOME — downloading a portable Eclipse Temurin JRE 17" >&2
+      echo "(Neo4j 5.x's minimum)."
       JDK_TARBALL_URL="https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jre/hotspot/normal/eclipse"
       JDK_DOWNLOAD_DIR="$JDK_STORE_DIR/download"
       mkdir -p "$JDK_DOWNLOAD_DIR"
@@ -426,15 +455,23 @@ if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
     if [ -x "$JAVA_HOME/bin/java" ]; then
       export JAVA_HOME
       export PATH="$JAVA_HOME/bin:$PATH"
-      echo "Portable JRE ready at $JAVA_HOME."
+      if _java_works; then
+        echo "Portable JRE ready and verified working at $JAVA_HOME."
+      else
+        echo "Portable JRE downloaded to $JAVA_HOME but 'java -version' still" >&2
+        echo "fails there — something is wrong with this specific build, not" >&2
+        echo "just a missing container path. Continuing without the memory" >&2
+        echo "layer." >&2
+        unset JAVA_HOME
+      fi
     fi
   fi
 
-  if ! command -v java >/dev/null 2>&1; then
-    echo "ENABLE_NEO4J_MEMORY=1 but no 'java' binary is reachable inside this" >&2
-    echo "container, and the portable-JRE fetch above didn't produce a usable" >&2
-    echo "one either — Neo4j 5.x needs Java 17+. Continuing without the memory" >&2
-    echo "layer (NEO4J_URI stays unset)." >&2
+  if ! _java_works; then
+    echo "ENABLE_NEO4J_MEMORY=1 but no WORKING java could be found or set up" >&2
+    echo "(host JVM missing or broken, portable JRE fetch failed too) —" >&2
+    echo "Neo4j 5.x needs Java 17+. Continuing without the memory layer" >&2
+    echo "(NEO4J_URI stays unset)." >&2
   else
     # Persistent storage, same convention as OLLAMA_MODELS above: the
     # extracted Neo4j installation and its data both survive across job

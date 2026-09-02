@@ -111,6 +111,20 @@ IMAGE_PATH="/opt/apptainer_img/ollama_shellenv.sif"
 APPTAINER_BINDS=(--bind /mnt --bind /projects)
 if [ -d /usr/lib/jvm ]; then
   APPTAINER_BINDS+=(--bind /usr/lib/jvm)
+  # A real job confirmed the host JVM alone isn't enough: it crashed on
+  # every invocation with "Error loading java.security file" /
+  # NoClassDefFoundError in sun.security.jca.Providers — the well-known
+  # RHEL OpenJDK container gotcha. RHEL's java.security patches in
+  # `include /etc/crypto-policies/back-ends/java.config`, and without this
+  # directory bound in, the JVM can't resolve that include at all.
+  # hpc_ollama_entrypoint.sh's own java-detection now also verifies `java
+  # -version` actually succeeds (not just that the binary exists) and
+  # falls back to the portable JRE download if not, so this bind is a real
+  # fix attempt, not the only safety net — but worth doing directly since
+  # the actual cause is now identified, not just worked around.
+  if [ -d /etc/crypto-policies ]; then
+    APPTAINER_BINDS+=(--bind /etc/crypto-policies)
+  fi
 fi
 
 apptainer run --nv "${APPTAINER_BINDS[@]}" "$IMAGE_PATH" \
