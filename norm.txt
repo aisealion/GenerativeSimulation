@@ -1,0 +1,3 @@
+Policy: No fisher may take more than 8 kg per trip and the lake must retain at least 30 % of its current biomass after each round
+
+Operationalization: Each evening the crew records each person’s haul on a shared ledger; the community sums the total catch and subtracts it from the lake’s known stock. If anyone exceeds the 8 kg limit, that fisher must return the surplus to the lake and is barred from fishing for the next round. If the remaining biomass falls below 30 % of the current stock, the community imposes a temporary moratorium and revises the quotas before fishing resumes.
