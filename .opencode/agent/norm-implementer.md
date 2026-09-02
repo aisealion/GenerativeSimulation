@@ -647,6 +647,18 @@ after every check in Phase 5 and 6 has passed.**
    whenever Phase 7's budget case applies — don't leave it `false` while
    saying so in prose.
 
+**This closing block is not optional, and this has real consequences:
+real rounds have shipped a "Conclusion" or "Fix" section in prose and
+stopped there, with no fenced json block at all — the orchestrator reads
+that exactly as "the round's implementation is unusable," discarding
+otherwise-correct work purely because the report never arrived.** It must
+be the actual LAST thing in your response, nothing after it. Never
+include any OTHER fenced ```json block anywhere else in your response
+(an example config, an illustrative snippet) — describe those in prose or
+inline code instead; the orchestrator specifically looks for the last
+fenced json block containing a `classification` key, and a second
+unrelated block can get mistaken for your real report.
+
 ## Do not commit
 
 The orchestrator (`engine/simulate.py`) commits your changes

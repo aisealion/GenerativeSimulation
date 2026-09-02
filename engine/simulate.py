@@ -233,20 +233,36 @@ def parse_opencode_jsonl(stdout):
     return tool_calls, final_text or stdout
 
 
-def extract_json_report(text):
+def extract_json_report(text, required_keys=()):
     """Pulls the trailing fenced ```json block out of an opencode agent's
     final response — the closing-report convention both norm-implementer.md
-    and norm-evaluator.md specs use. Takes the last match, in case the
-    report text quotes other JSON earlier; returns None on no-match or a
-    malformed block rather than raising — a report parse failure shouldn't
-    be able to break a round any more than a missing tool-call count can."""
+    and norm-evaluator.md specs use. Schema-aware: scans matches from the
+    END backwards and returns the first one that both parses as JSON and
+    (when required_keys is given) is a dict containing every one of them —
+    not just whichever fenced block happens to be textually last. This
+    matters for a real, confirmed failure mode: a norm-evaluator response
+    that includes a suggested-fix example (e.g. "here's what
+    state/config.json should contain") as its own fenced ```json block,
+    written AFTER (or instead of) its actual closing report — blindly
+    taking the last match picked up that unrelated example and silently
+    misreported it as the evaluator's real verdict, hiding a legitimate
+    finding behind a wrong parse rather than surfacing it. Returns None if
+    no match qualifies — same "no report" contract as before, just more
+    discriminating about what counts as one; a parse failure or a
+    generically-missing report still can't raise and break a round."""
     matches = re.findall(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if not matches:
-        return None
-    try:
-        return json.loads(matches[-1])
-    except json.JSONDecodeError:
-        return None
+    required_keys = set(required_keys)
+    for candidate in reversed(matches):
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        if required_keys and not required_keys.issubset(parsed.keys()):
+            continue
+        return parsed
+    return None
 
 
 def run_norm_implementer(round_number, extra_message=None):
@@ -322,7 +338,7 @@ def run_norm_implementer(round_number, extra_message=None):
 
     duration_s = time.monotonic() - start
     tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
-    report = extract_json_report(final_text)
+    report = extract_json_report(final_text, required_keys={"classification"})
 
     log_call(
         call="norm_implementer",
@@ -390,7 +406,7 @@ def run_norm_evaluator(round_number, extra_message=None):
 
     duration_s = time.monotonic() - start
     tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
-    report = extract_json_report(final_text)
+    report = extract_json_report(final_text, required_keys={"verdicts", "all_compliant"})
 
     log_call(
         call="norm_evaluator",
@@ -414,7 +430,7 @@ def run_norm_evaluator(round_number, extra_message=None):
               f"treating this evaluation as failed, not crashing the run.", file=sys.stderr)
         print(result.stderr, file=sys.stderr)
         return None
-    if report is None or "verdicts" not in report:
+    if report is None:
         print(f"Round {round_number}: norm-evaluator's report couldn't be parsed — "
               f"treating this evaluation as failed.", file=sys.stderr)
         return None

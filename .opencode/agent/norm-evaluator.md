@@ -202,6 +202,34 @@ on real `schedule.json` gating):
    `COMPLIANT` or `NOT_TESTABLE`. This is the field the orchestrator reads
    to decide whether to commit or trigger a repair attempt — get it right.
 
+**This closing block is not optional, and this rule has real
+consequences: real runs have shown this step skipped, which the
+orchestrator can only read as "the evaluator itself failed" — discarding
+an otherwise-fine round, or losing a real finding, purely because the
+report never arrived in the expected shape.**
+
+- It must be the actual LAST thing in your response — nothing after it,
+  not even a closing sentence. The orchestrator scans your response for
+  fenced ```json blocks and specifically needs one containing `verdicts`
+  and `all_compliant`; if your last such block is something else, your
+  real report is invisible to it even if you wrote it correctly earlier.
+- Never include any OTHER fenced ```json block anywhere in your response
+  — not an example of what a fixed `state/config.json` should contain,
+  not a code snippet, nothing. If you want to show what a corrected value
+  should look like, describe it in prose or inline code (`` `like this` ``),
+  never as its own ```` ```json ```` block. A second such block, even one
+  clearly meant as illustrative, is exactly what has caused a real
+  evaluator's genuine, correct finding to be silently discarded as "the
+  evaluator failed" — the orchestrator has no way to tell your example
+  apart from your actual report by content alone.
+- A confident, fully-compliant conclusion is not an exception: even when
+  every requirement is `COMPLIANT` and you're about to write something
+  like "APPROVED" or a plain-language summary, that prose is never a
+  substitute for the block — always follow it immediately with the
+  closing ```json report, with `all_compliant: true`. Stopping at a prose
+  conclusion, however clear, produces exactly the same "evaluator failed"
+  outcome as never having evaluated anything at all.
+
 ## Do not commit
 
 Same as the norm-implementer: the orchestrator commits your test files
