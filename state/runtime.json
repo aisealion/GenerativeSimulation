@@ -1,6 +1,6 @@
 {
-  "round": 3,
-  "stock_kg": 111.80555734834624,
+  "round": 4,
+  "stock_kg": 81.21737364510814,
   "rounds": [
     {
       "round": 1,
@@ -586,19 +586,98 @@
       },
       "winner_index": 6,
       "winning_proposer": "agent_5"
+    },
+    {
+      "round": 4,
+      "phase": "harvest",
+      "stock_kg_before": 111.80555734834624,
+      "agents": {
+        "agent_0": {
+          "effort": 0.6,
+          "harvested_kg": 3.3541667204503876,
+          "reasoning": "I\u2019ll aim for moderate effort, about 0.6, to haul in roughly 4\u202fkg \u2013 enough to keep myself fed and leave plenty for the community and future.",
+          "note": null,
+          "participated": true
+        },
+        "agent_1": {
+          "effort": 0.5,
+          "harvested_kg": 2.7951389337086563,
+          "reasoning": "I want to keep my reserves and the lake healthy, so I\u2019ll fish at moderate effort, catching enough to stay above my 1kg daily need without overexploiting the current 112kg.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.7,
+          "harvested_kg": 3.9131945071921184,
+          "reasoning": "I\u2019ll put in moderate effort so I catch around 3kg, keeping the lake\u2019s biomass high enough for future trips and respecting the community\u2019s 4% per\u2011trip rule.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 0.5,
+          "harvested_kg": 2.7951389337086563,
+          "reasoning": "I\u2019ll take a moderate effort to secure enough for my needs while leaving room for the lake to recover and for the community.",
+          "note": null,
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 0.4,
+          "harvested_kg": 2.236111146966925,
+          "reasoning": "I\u2019ll keep fishing moderate so the lake stays healthy and I can still restock.",
+          "note": null,
+          "participated": true
+        },
+        "agent_5": {
+          "effort": 1.0,
+          "harvested_kg": 5.590277867417313,
+          "reasoning": "Going hard will give me my biggest haul and keep the lake healthy enough for future trips.",
+          "note": null,
+          "participated": true
+        },
+        "agent_6": {
+          "effort": 1.0,
+          "harvested_kg": 5.590277867417313,
+          "reasoning": "With 112kg available, full effort nets me around 8kg, comfortably above my 1kg need and keeps the lake above the 100kg threshold, so I\u2019ll go out hard.",
+          "note": null,
+          "participated": true
+        },
+        "agent_7": {
+          "effort": 1.0,
+          "harvested_kg": 5.590277867417313,
+          "reasoning": "I'll go out at full effort to take the maximum 15% of the lake\u2019s current stock (about 16.8kg), keeping my reserves healthy while obeying the community rule.",
+          "note": null,
+          "participated": true
+        },
+        "agent_8": {
+          "effort": 0.9,
+          "harvested_kg": 5.031250080675581,
+          "reasoning": "I need to keep my reserves from falling below zero and stay within the 12\u2011kg cap set by the community, so I\u2019ll push hard but stay below the limit.",
+          "note": null,
+          "participated": true
+        },
+        "agent_9": {
+          "effort": 0.8,
+          "harvested_kg": 4.47222229393385,
+          "reasoning": "I\u2019ll put in a high effort to gather enough for my reserves while leaving the lake healthy for future trips.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_after_harvest": 70.43750112945813,
+      "stock_kg_after_regrowth": 81.21737364510814
     }
   ],
   "payoff": {
-    "agent_0": 15.76367831709473,
-    "agent_1": 7.743237966911273,
-    "agent_2": 10.356692908547364,
-    "agent_3": 15.93618343382255,
-    "agent_4": 8.793530466911275,
-    "agent_5": 30.233826167278185,
-    "agent_6": 30.233826167278185,
-    "agent_7": 24.982363667278186,
-    "agent_8": 27.187645933822548,
-    "agent_9": 28.687645933822548
+    "agent_0": 18.117845037545116,
+    "agent_1": 9.53837690061993,
+    "agent_2": 13.269887415739483,
+    "agent_3": 17.731322367531206,
+    "agent_4": 10.0296416138782,
+    "agent_5": 34.824104034695495,
+    "agent_6": 34.824104034695495,
+    "agent_7": 29.5726415346955,
+    "agent_8": 31.218896014498128,
+    "agent_9": 32.1598682277564
   },
   "dead_agents": []
 }
