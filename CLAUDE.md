@@ -1957,3 +1957,50 @@ message (tool-call count, duration) on success, and the full
 `final_text` alongside the failure reason on failure — brought to the
 same visibility standard the other two opencode-agent calls already had,
 not a new pattern.
+
+## `parse_opencode_jsonl()` was silently discarding real reports on long sessions (2026-09-02)
+
+The actual reason round 1's norm-evaluator kept exhausting its new retry
+budget: not a transient failure at all, and not a formatting problem the
+strengthened prompts could fix, but a genuine bug in how the orchestrator
+reconstructs the model's response. `opencode run --format json`'s JSONL
+event stream on a long session — the real round 1 evaluator run was
+~500KB of raw stdout — contains **multiple separate `text` events with
+different `messageID`s**, interleaved with tool calls: distinct assistant
+turns across the session (8 and 20 of them, on the two attempts actually
+observed), not one message streamed incrementally. `parse_opencode_jsonl()`
+kept only the *last* one — a real diagnostic run confirmed the closing
+report (with its required fenced ```json block) was written in an earlier
+message, and the literal last thing the model said that session was an
+unrelated short wrap-up paragraph ("Final Verdict: ... APPROVED...") with
+no json block at all. Every one of this project's earlier "the evaluator
+just isn't following the format" diagnoses (the strengthened PHASE 5
+instructions, the schema-aware `extract_json_report()`) were real,
+worthwhile fixes for a real problem, but none of them could have helped
+here — the report was almost certainly written *correctly*, then thrown
+away before ever reaching the parser.
+
+Fixed by grouping `text` events by `messageID` (last-one-wins *within* a
+message, in case opencode ever does stream one message incrementally) and
+joining every distinct message's text together, in the order first seen,
+rather than keeping only whichever happened to be temporally last. This
+also benefits `run_norm_implementer()`'s own report extraction, which
+shares this same function — plausibly the same root cause behind some of
+that agent's own earlier unparseable-report rounds, not a separate
+coincidence.
+
+**Diagnosed from real data, not assumed**: a short diagnostic script run
+directly against the real `logs/model_calls.jsonl` on Aoraki (rather than
+guessing from a local reproduction) confirmed, for both of round 1's
+evaluator attempts: zero per-line JSON parse errors (ruling out a
+malformed-line theory), 8 and 20 distinct `text` events respectively, and
+`final_text` ending in exactly the "APPROVED, no json block" shape this
+entry describes. The fix itself was then verified two ways: a synthetic
+reproduction of that exact shape (an earlier message with a real report,
+a later message without one) confirms the report is now correctly
+recovered from the earlier message; a second synthetic case confirms
+multiple `text` events sharing one `messageID` still correctly collapse
+to the last one rather than get concatenated (which would just duplicate
+content, not reconstruct it). Not yet re-verified against a fresh real
+Aoraki round — the diagnosis came from inspecting already-logged data, not
+from an evaluator run against this fix.

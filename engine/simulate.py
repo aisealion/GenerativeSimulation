@@ -206,16 +206,35 @@ def write_fact_memory_events(state, round_number):
 
 def parse_opencode_jsonl(stdout):
     """Parses `opencode run --format json`'s JSONL event stream: counts
-    completed tool_use events (per-round tool-call telemetry) and keeps
-    the last text event's content as the model's final response (where the
-    Step 6 report lives). Documented opencode behavior, not empirically
-    verified against the installed 1.18.14 build — no model credentials
-    available to exercise a real run while writing this. Degrades
-    gracefully on any parse failure (falls back to a zero count and the
-    raw stdout) rather than raising, so a schema mismatch here costs
-    telemetry, not the round itself."""
+    completed tool_use events (per-round tool-call telemetry) and
+    reconstructs the model's full final response from every `text` event.
+
+    A real long norm-evaluator run (round 1, ~500KB of raw stdout, 20
+    separate `text` events across a single session) exposed a real bug in
+    the previous "keep only the last text event" approach: a long agent
+    session naturally spans multiple distinct assistant messages
+    (different `messageID`s) interleaved with tool calls — e.g. a
+    substantive message containing the actual closing report, followed by
+    a short unrelated wrap-up message on a later turn. Keeping only the
+    very last one silently discarded the report every time it wasn't the
+    literal final thing the model ever said, which is exactly the
+    "evaluator produced no parseable verdict" failure this was traced to.
+
+    Groups by `messageID` (multiple `text` events sharing one messageID —
+    if opencode ever streams a single message incrementally — collapse to
+    that message's last/most-complete one, the same "last wins" logic as
+    before, just scoped per-message instead of across the whole session)
+    then joins each distinct message's text in the order first seen, so
+    nothing from an earlier assistant turn is lost just because a later
+    turn added more text afterward. Still opencode's documented event
+    schema, not empirically re-verified against the installed 1.18.14
+    build beyond what this one real failure already confirmed (real
+    `messageID`-scoped `text` events, real multi-message sessions).
+    Degrades gracefully on any parse failure (falls back to a zero count
+    and the raw stdout) rather than raising, same as before — a schema
+    mismatch here costs telemetry, not the round itself."""
     tool_calls = 0
-    final_text = None
+    texts_by_message = {}
     try:
         for line in stdout.splitlines():
             line = line.strip()
@@ -225,11 +244,13 @@ def parse_opencode_jsonl(stdout):
             if event.get("type") == "tool_use":
                 tool_calls += 1
             elif event.get("type") == "text":
-                text = event.get("part", {}).get("text")
+                part = event.get("part", {})
+                text = part.get("text")
                 if text:
-                    final_text = text
+                    texts_by_message[part.get("messageID")] = text
     except (json.JSONDecodeError, AttributeError):
         return 0, stdout
+    final_text = "\n\n".join(texts_by_message.values())
     return tool_calls, final_text or stdout
 
 
