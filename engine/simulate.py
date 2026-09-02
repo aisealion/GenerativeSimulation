@@ -757,6 +757,18 @@ def commit_norm_implementation(round_number, winning_proposal):
 
 
 MAX_NORM_REPAIR_ATTEMPTS = 2
+# Separate from MAX_NORM_REPAIR_ATTEMPTS above on purpose: that constant
+# bounds how many times the *implementation* gets sent back for a real
+# finding (IMPLEMENTATION_ERROR/SPEC_GAP) — a judgment about the code.
+# MAX_EVALUATOR_ATTEMPTS instead bounds retrying the *evaluator process
+# itself* when it fails to produce any verdict at all (timeout, crash, an
+# unparseable report) — that failure says nothing about whether the code
+# was actually right, so it shouldn't cost the implementer a repair
+# attempt or discard an otherwise-correct round. Kept small (opencode
+# subprocess runs are expensive, unlike the fisher's own MAX_ATTEMPTS=3
+# retry for a single litellm call) — same conservative-bound reasoning as
+# MAX_NORM_REPAIR_ATTEMPTS.
+MAX_EVALUATOR_ATTEMPTS = 2
 
 
 def implement_and_evaluate_norm(round_number, winning_proposal):
@@ -766,11 +778,15 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     run_cycle() — now a loop, because a norm-evaluator finding (an
     IMPLEMENTATION_ERROR or a SPEC_GAP) can send the norm-implementer back
     for another attempt within the same round, bounded by
-    MAX_NORM_REPAIR_ATTEMPTS so one stubborn round can't run forever.
-    Returns True iff a commit actually happened (the caller then refreshes
-    the knowledge graph); False means a discard already happened and was
-    logged — same "this round's mechanics stay as they were" contract
-    every other failure path in this file already has."""
+    MAX_NORM_REPAIR_ATTEMPTS so one stubborn round can't run forever. A
+    separate, smaller retry (MAX_EVALUATOR_ATTEMPTS) covers the evaluator
+    process itself failing to produce any verdict at all — that's not a
+    finding about the code, so it doesn't consume a repair attempt or
+    discard the round on its own; only genuinely exhausting the evaluator
+    retries does. Returns True iff a commit actually happened (the caller
+    then refreshes the knowledge graph); False means a discard already
+    happened and was logged — same "this round's mechanics stay as they
+    were" contract every other failure path in this file already has."""
     if not run_norm_implementer(round_number):
         discard_norm_implementation(
             round_number, ["norm-implementer run itself failed or timed out — see logs/model_calls.jsonl"]
@@ -793,10 +809,20 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             discard_norm_implementation(round_number, compile_errors)
             return False
 
-        evaluation = run_norm_evaluator(round_number)
+        evaluation = None
+        for eval_attempt in range(1, MAX_EVALUATOR_ATTEMPTS + 1):
+            evaluation = run_norm_evaluator(round_number)
+            if evaluation is not None:
+                break
+            print(f"Round {round_number}: norm-evaluator itself produced no usable verdict "
+                  f"(attempt {eval_attempt}/{MAX_EVALUATOR_ATTEMPTS}) — retrying the evaluator, "
+                  f"not the implementation, since this doesn't say anything about whether the "
+                  f"code is actually correct.")
         if evaluation is None:
             discard_norm_implementation(
-                round_number, ["norm-evaluator run itself failed or timed out — see logs/model_calls.jsonl"]
+                round_number,
+                [f"norm-evaluator failed to produce a parseable verdict after "
+                 f"{MAX_EVALUATOR_ATTEMPTS} attempts — see logs/model_calls.jsonl"],
             )
             return False
 

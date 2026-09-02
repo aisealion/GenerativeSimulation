@@ -1844,3 +1844,67 @@ from inside a real `apptainer run` of `ollama_shellenv.sif` — same
 standing caveat as everything else in this section, now with a
 network-free path to check first before ever reaching the part that
 still needs it.
+
+## Two real bugs from an actual Aoraki round 1, and separating evaluator retries from implementer repairs (2026-09-02)
+
+A real round 1 run (`sim/run-20260902-163631`) surfaced a genuine failure
+chain, not a hypothetical one: `run_norm_implementer()`'s default
+invocation message never stated the round number at all, so the model
+guessed and wrote `state/norm_specs/round_4.md` during actual round 1.
+`run_norm_evaluator()`'s message, by contrast, already correctly stated
+the round number (from the orchestrator's own authoritative counter) and
+went looking for `round_1.md` — found nothing, and never produced a
+parseable trailing json report. That got treated as an evaluator failure,
+which then tried to discard the round — and crashed the entire multi-round
+`simulate.py` process: `git checkout -- <paths>` fails **atomically**
+(reverting nothing at all, confirmed directly, not assumed) the instant
+even one pathspec doesn't exist in HEAD yet, which is exactly what a
+brand-new path like `tests/norm_evaluation` looks like on a branch that
+predates its first commit. Fixed both: the round number is now stated
+explicitly in the norm-implementer's default message (matching what the
+evaluator's message already did), and `discard_norm_implementation()`
+only passes `git checkout` the subset of `NORM_IMPLEMENTER_TRACKED_PATHS`
+that actually exist in HEAD (`git clean -fd`, run separately, already
+handled a brand-new untracked path correctly on its own and needed no
+change).
+
+**A related design gap, raised directly during a review of this same
+discard path**: even after the crash fix, an evaluator failure
+(`run_norm_evaluator()` returning `None` — a timeout, a crashed
+subprocess, an unparseable report) was still treated as an immediate,
+unconditional discard of the whole round, same severity as a real
+`IMPLEMENTATION_ERROR`/`SPEC_GAP` finding. That conflates two genuinely
+different failure domains: a finding about the code (which should send
+the implementer back for a bounded number of repairs,
+`MAX_NORM_REPAIR_ATTEMPTS`) versus the evaluator process itself failing to
+produce a verdict at all (which says nothing about whether the code was
+actually correct, and shouldn't cost the implementer a repair attempt or
+discard an otherwise-good round). Fixed with a second, separate bound,
+`MAX_EVALUATOR_ATTEMPTS = 2`: `run_norm_evaluator()` is now retried on its
+own, with the same message, up to that many times before falling through
+to discard — mirroring the same transient-failure-gets-retried pattern
+`call_fisher_agent()` already uses (`MAX_ATTEMPTS = 3`) for a single
+litellm call, just with a smaller bound since an opencode subprocess run
+is far more expensive than one completion call. Deliberately kept as its
+own counter rather than folded into `MAX_NORM_REPAIR_ATTEMPTS`: a
+successful evaluator retry must not count against — or be confused with —
+the implementer's own repair budget.
+
+Verified locally (no real opencode/LLM call, same as every other control-flow
+claim in this section): a standalone monkeypatched test confirmed
+`discard_norm_implementation()`'s atomic-checkout-failure fix against a
+real git repo reproducing the exact failure (a tracked file plus a
+never-committed directory, mixed in one `git checkout --` call — fails
+without the fix, succeeds and correctly reverts/cleans with it); and two
+new control-flow cases on `implement_and_evaluate_norm()`: an evaluator
+that fails once then succeeds commits normally with the implementer
+invoked only once (no repair burned), and an evaluator that fails on
+every attempt discards after exactly `MAX_EVALUATOR_ATTEMPTS` evaluator
+calls, again with the implementer invoked only once. `pytest
+tests/regression/ tests/norms/` still passes unchanged. Not verified: the
+real chain this was built to fix (a genuinely transient evaluator
+timeout on Aoraki actually recovering on retry) — the only evidence so
+far is the *permanent* failure mode from the round 1 run, which no amount
+of retrying would have fixed (the file it was looking for genuinely never
+existed under that name), and that specific case still correctly falls
+through to a clean discard after its retries are exhausted.
