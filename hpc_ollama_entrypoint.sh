@@ -353,13 +353,87 @@ fi
 # how Ollama itself already runs inside this same container: a plain
 # server process, not a nested container. Real new dependency this
 # approach introduces: Java 17+ must be reachable inside the container
-# (Neo4j 5.x's requirement) — unconfirmed as of this writing, checked at
-# runtime below and skipped gracefully if missing, same degradation
-# philosophy as everywhere else in this file.
+# (Neo4j 5.x's requirement) — confirmed 2026-09-02, on a real job, to
+# actually be missing ("no 'java' binary is reachable inside this
+# container"), not just unconfirmed as this comment previously said.
 if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
   if ! command -v java >/dev/null 2>&1; then
+    # First choice: the host's own JVM, exposed into the container via
+    # run_simulation.slurm's --bind /usr/lib/jvm (added 2026-09-02 once a
+    # real login-node check found java-17-openjdk-17.0.20.0.8-1.2.el9_8.x86_64
+    # already installed there as a plain OS package — no JAVA_HOME/module
+    # involved). No network needed if this is present. Glob rather than a
+    # hardcoded version string, since that exact package version will
+    # change under a routine OS update outside this project's control —
+    # matches java-17-openjdk* specifically first (this project only needs
+    # 17+, and that's the confirmed real package name pattern), then any
+    # JVM under /usr/lib/jvm as a looser second attempt. Left as literal,
+    # non-matching glob text (not an error) if /usr/lib/jvm doesn't exist
+    # on whatever node this job actually lands on — the `-x` test below
+    # just says no on a literal unexpanded pattern, same as any other
+    # missing path.
+    HOST_JVM_JAVA=""
+    for candidate in /usr/lib/jvm/java-17-openjdk*/bin/java /usr/lib/jvm/*/bin/java; do
+      if [ -x "$candidate" ]; then
+        HOST_JVM_JAVA="$candidate"
+        break
+      fi
+    done
+    if [ -n "$HOST_JVM_JAVA" ]; then
+      JAVA_HOME="$(dirname "$(dirname "$HOST_JVM_JAVA")")"
+      export JAVA_HOME
+      export PATH="$JAVA_HOME/bin:$PATH"
+      echo "Found a host JVM via the /usr/lib/jvm bind mount: $JAVA_HOME"
+    fi
+  fi
+
+  if ! command -v java >/dev/null 2>&1; then
+    # Fallback: no host JVM found (bind missing, or this compute node's
+    # /usr/lib/jvm doesn't match the login node's). Same portable-binary
+    # philosophy as Neo4j's own download a few lines down: no system
+    # install, no root, download+extract+PATH, cached under persistent
+    # storage so only the first run ever pays for it.
+    # Eclipse Temurin's JRE (not the full JDK — Neo4j only runs on it,
+    # never compiles anything) satisfies the same Java 17+ requirement.
+    # URL verified directly (not just assumed): `curl -fsSL` follows
+    # Adoptium's own 307->302 redirect chain to a real GitHub release
+    # asset (HTTP 200, 46.6MB, application/octet-stream — not an error
+    # page), and the tarball's one top-level directory
+    # (jdk-17.0.20.1+1-jre/) confirmed to contain bin/java directly, so
+    # --strip-components=1 lands it at $JAVA_HOME/bin/java exactly like
+    # NEO4J_HOME's own extraction does below.
+    JDK_STORE_DIR="/projects/sciences/computing/cranefield_lab/magha601/jdk"
+    JAVA_HOME="$JDK_STORE_DIR/jdk-home"
+    mkdir -p "$JDK_STORE_DIR"
+    if [ ! -x "$JAVA_HOME/bin/java" ]; then
+      echo "No 'java' binary in this container and none cached at $JAVA_HOME —"
+      echo "downloading a portable Eclipse Temurin JRE 17 (Neo4j 5.x's minimum)."
+      JDK_TARBALL_URL="https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jre/hotspot/normal/eclipse"
+      JDK_DOWNLOAD_DIR="$JDK_STORE_DIR/download"
+      mkdir -p "$JDK_DOWNLOAD_DIR"
+      if curl -fsSL "$JDK_TARBALL_URL" -o "$JDK_DOWNLOAD_DIR/jre.tar.gz"; then
+        rm -rf "$JAVA_HOME"
+        mkdir -p "$JAVA_HOME"
+        tar -xzf "$JDK_DOWNLOAD_DIR/jre.tar.gz" -C "$JAVA_HOME" --strip-components=1 || rm -rf "$JAVA_HOME"
+      else
+        echo "Failed to download a portable JRE from $JDK_TARBALL_URL (egress to" >&2
+        echo "api.adoptium.net/github release assets from this compute node is" >&2
+        echo "unconfirmed) — continuing without the memory layer (NEO4J_URI stays" >&2
+        echo "unset)." >&2
+      fi
+      rm -rf "$JDK_DOWNLOAD_DIR"
+    fi
+    if [ -x "$JAVA_HOME/bin/java" ]; then
+      export JAVA_HOME
+      export PATH="$JAVA_HOME/bin:$PATH"
+      echo "Portable JRE ready at $JAVA_HOME."
+    fi
+  fi
+
+  if ! command -v java >/dev/null 2>&1; then
     echo "ENABLE_NEO4J_MEMORY=1 but no 'java' binary is reachable inside this" >&2
-    echo "container — Neo4j 5.x needs Java 17+. Continuing without the memory" >&2
+    echo "container, and the portable-JRE fetch above didn't produce a usable" >&2
+    echo "one either — Neo4j 5.x needs Java 17+. Continuing without the memory" >&2
     echo "layer (NEO4J_URI stays unset)." >&2
   else
     # Persistent storage, same convention as OLLAMA_MODELS above: the

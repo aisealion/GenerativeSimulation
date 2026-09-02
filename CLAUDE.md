@@ -1757,3 +1757,90 @@ was discovered and added to the protected list in the first place — real
 evidence the drift check catches what it's meant to, not just a
 hypothetical. `pytest tests/regression/ tests/norms/` (65 tests) and the
 previous change's own control-flow test all still pass unchanged.
+
+## Neo4j on Aoraki: the missing-`java` case, actually fixed (2026-09-02)
+
+A real job confirmed the exact open question the previous Neo4j entry
+flagged as unresolved: `"ENABLE_NEO4J_MEMORY=1 but no 'java' binary is
+reachable inside this container"` — `ollama_shellenv.sif` has no Java
+runtime at all, so every attempt to start the portable-binary Neo4j
+described in that entry was silently no-opping at the very first check.
+
+Fixed the same way the previous entry's own Neo4j binary itself was
+fixed — a portable download, not a system package: `hpc_ollama_entrypoint.sh`
+now fetches a portable Eclipse Temurin JRE 17 (Neo4j 5.x's minimum) from
+Adoptium's own binary API the moment `command -v java` fails, extracts it
+to persistent storage (`/projects/sciences/computing/cranefield_lab/magha601/jdk/jdk-home`,
+same convention as `NEO4J_HOME`/`OLLAMA_MODELS` — only the first run ever
+pays for the ~47MB download), and prepends its `bin/` to `PATH` (also
+exporting `JAVA_HOME`, since Neo4j's own launcher script checks that
+first). Falls through to the existing graceful "continue without the
+memory layer" message if the download fails or still doesn't produce a
+working `java` — same degradation shape as every other optional piece in
+this script.
+
+**Actually verified this time, not just reasoned about** — the gap this
+whole section exists to close: `curl -fsSL
+https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jre/hotspot/normal/eclipse`
+was run for real, confirmed to follow Adoptium's 307→302 redirect chain to
+a genuine GitHub release asset (HTTP 200, 46,640,574 bytes,
+`application/octet-stream` — not an error page), and the downloaded
+tarball's contents were inspected directly (`tar -tzf`): one top-level
+directory (`jdk-17.0.20.1+1-jre/`) containing `bin/java`, confirming
+`--strip-components=1` lands it at `$JAVA_HOME/bin/java` exactly as
+written. This is a meaningfully stronger verification bar than the
+previous Neo4j entry could reach for its own tarball download (that one
+only checked `curl -I` headers, not the actual archive contents, since a
+full download was too slow on that machine's network at the time) —
+worth normalizing as the standard whenever it's feasible, rather than
+settling for headers-only confirmation.
+
+Still not verified: whether this actually works end-to-end inside a real
+`apptainer run` of `ollama_shellenv.sif` on an Aoraki compute node —
+egress to `api.adoptium.net`/GitHub release asset hosts from that specific
+network path is a different question from egress already confirmed
+working to `llm.uod.otago.ac.nz` (CodeGraph investigation) and
+`dist.neo4j.org` (the previous Neo4j entry), and hasn't been tested from
+inside the container itself, only from this local dev sandbox.
+
+### A host JVM already exists — bind it in first, download only as fallback (2026-09-02)
+
+Checking the Aoraki login node directly (`readlink -f $(command -v java)`)
+found a real, already-installed JVM: `/usr/lib/jvm/java-17-openjdk-17.0.20.0.8-1.2.el9_8.x86_64`.
+`JAVA_HOME` is unset there, which rules out an environment-module install —
+it's a plain OS package via RHEL's `alternatives` system. This changes the
+preferred fix: reaching for a host binary that's already sitting on disk is
+strictly better than downloading a fresh one over the network every first
+run, *if* it's actually reachable from inside the container — which it
+wasn't, since `run_simulation.slurm`'s `apptainer run` only bound `/mnt`
+and `/projects`, not `/usr/lib/jvm`.
+
+`run_simulation.slurm` now conditionally adds `--bind /usr/lib/jvm` (only
+if that directory exists — checked at the point this script actually runs,
+which is on the allocated **compute** node, not the login node it was
+submitted from, since that's how `sbatch` execution works; this
+sidesteps ever having to assume compute and login nodes share the exact
+same OS image, by just checking the node that matters directly).
+`hpc_ollama_entrypoint.sh`'s Java detection now tries this bind-mounted
+host JVM first — globbing `/usr/lib/jvm/java-17-openjdk*/bin/java` then
+`/usr/lib/jvm/*/bin/java`, deliberately not hardcoding the exact version
+string (`...17.0.20.0.8-1.2.el9_8...`) since a routine OS package update
+on Aoraki would silently break an exact match — and only falls through to
+the portable-Eclipse-Temurin-JRE download (previous entry) if that finds
+nothing. Every degradation path from before is unchanged: no host JVM and
+a failed/unavailable download both still land on today's behavior (memory
+layer off, `NEO4J_URI` unset), never a hard failure.
+
+**Verified locally**: the glob-detection loop, under real `bash` semantics
+specifically (not this dev machine's default zsh, whose `nomatch` option
+errors on an unmatched glob where bash just leaves it as an inert literal
+string — caught by testing via `bash -c` explicitly rather than trusting
+the sandbox's interactive shell) — confirmed empty/no-crash against a
+real absent `/usr/lib/jvm`, and correct `JAVA_HOME` derivation
+(`dirname` twice, from `.../bin/java` up to the JVM root) against a
+fabricated directory tree shaped like the real one. **Not verified**:
+whether `--bind /usr/lib/jvm` actually succeeds and exposes a working JVM
+from inside a real `apptainer run` of `ollama_shellenv.sif` — same
+standing caveat as everything else in this section, now with a
+network-free path to check first before ever reaching the part that
+still needs it.

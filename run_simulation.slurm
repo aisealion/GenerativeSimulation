@@ -90,5 +90,28 @@ export ENABLE_NEO4J_MEMORY="${ENABLE_NEO4J_MEMORY:-0}"
 # internal shell; not separate argv entries (that's what the earlier version
 # of this script got wrong).
 IMAGE_PATH="/opt/apptainer_img/ollama_shellenv.sif"
-apptainer run --nv --bind /mnt --bind /projects "$IMAGE_PATH" \
+
+# Expose the host's system JVM into the container too (2026-09-02) — the
+# login node has one at /usr/lib/jvm/java-17-openjdk-17.0.20.0.8-1.2.el9_8.x86_64
+# (confirmed via `readlink -f $(command -v java)`; JAVA_HOME is unset there,
+# so it's a plain OS package via the RHEL alternatives system, not a module
+# load — nothing else needs to happen on the submitting shell's side for
+# this to work). ollama_shellenv.sif has no JVM of its own at all
+# (hpc_ollama_entrypoint.sh's Neo4j setup previously found "no 'java' binary
+# reachable inside this container" on a real job), and /usr/lib/jvm wasn't
+# bound in before this. This check runs on whatever node actually executes
+# this sbatch script (the allocated compute node, not the login node the
+# job was submitted from) — if that node's /usr/lib/jvm doesn't exist,
+# apptainer just doesn't get the extra --bind, and
+# hpc_ollama_entrypoint.sh's own portable-Eclipse-Temurin-JRE download
+# (checked first here, before the download) still exists as a fallback
+# either way. Whether a GPU compute node actually shares the login node's
+# /usr/lib/jvm contents is what this line resolves at runtime rather than
+# assumes up front.
+APPTAINER_BINDS=(--bind /mnt --bind /projects)
+if [ -d /usr/lib/jvm ]; then
+  APPTAINER_BINDS+=(--bind /usr/lib/jvm)
+fi
+
+apptainer run --nv "${APPTAINER_BINDS[@]}" "$IMAGE_PATH" \
   "bash $SLURM_SUBMIT_DIR/hpc_ollama_entrypoint.sh"
