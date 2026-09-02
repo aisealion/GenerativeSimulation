@@ -266,9 +266,23 @@ def run_norm_implementer(round_number, extra_message=None):
     another chance to be implemented later, instead of losing the rest of
     the run to one bad round."""
     print("\n--- invoking norm-implementer ---")
+    # round_number is the orchestrator's own authoritative counter
+    # (engine/simulate.py's run_cycle() argument) — stated explicitly here
+    # rather than left for the model to infer from file contents. A real
+    # run confirmed this matters: with no round number in this message, the
+    # norm-implementer wrote state/norm_specs/round_4.md during an actual
+    # round 1, and the norm-evaluator's own message (which DID already
+    # state the round number correctly) went looking for round_1.md,
+    # found nothing, and never produced a parseable report — one
+    # ambiguity here cascaded into a downstream failure that looked
+    # unrelated. `state/norm_specs/round_{round_number}.md` is stated as
+    # the exact filename PHASE 1 must write, matching run_norm_evaluator()'s
+    # already-correct message below verbatim.
     message = extra_message or (
-        "norm.txt has been updated for this round. Read it and implement "
-        "accordingly, following your standing instructions."
+        f"This is round {round_number}. norm.txt has been updated for this round. "
+        f"Read it and implement accordingly, following your standing instructions. "
+        f"Write your PHASE 1 specification to exactly state/norm_specs/round_{round_number}.md "
+        f"— use {round_number} for the round number, not a number inferred from any other file."
     )
     cmd = ["opencode", "run", "--agent", "norm-implementer", "--format", "json"]
     # NORM_IMPLEMENTER_MODEL takes precedence over OPENCODE_MODEL: the
@@ -672,10 +686,30 @@ def discard_norm_implementation(round_number, errors):
         error="\n\n".join(errors),
     )
 
-    subprocess.run(
-        ["git", "checkout", "--"] + NORM_IMPLEMENTER_TRACKED_PATHS,
-        cwd=ROOT, check=True, capture_output=True, text=True,
-    )
+    # `git checkout -- <paths>` fails ATOMICALLY (reverting nothing at all,
+    # not just skipping the bad entry) if even one pathspec doesn't exist in
+    # HEAD — confirmed directly, not assumed. A path that's new this
+    # session (tests/norm_evaluation, state/institution.json, when a branch
+    # predates their first-ever commit) is exactly this case: nothing to
+    # "check out" back to, since it was never committed. This crashed a
+    # real run: `subprocess.CalledProcessError` here, uncaught, took down
+    # the entire multi-round simulate.py process over one bad round — the
+    # opposite of every other discard path's "one bad round costs one
+    # round" contract. Fix: only pass `git checkout --` the paths that
+    # actually exist in HEAD; `git clean -fd` (next) already handles a
+    # brand-new untracked path correctly on its own and doesn't need this
+    # filtering.
+    existing_paths = [
+        p for p in NORM_IMPLEMENTER_TRACKED_PATHS
+        if subprocess.run(
+            ["git", "cat-file", "-e", f"HEAD:{p}"], cwd=ROOT, capture_output=True
+        ).returncode == 0
+    ]
+    if existing_paths:
+        subprocess.run(
+            ["git", "checkout", "--"] + existing_paths,
+            cwd=ROOT, check=True, capture_output=True, text=True,
+        )
     subprocess.run(
         ["git", "clean", "-fd", "--"] + NORM_IMPLEMENTER_TRACKED_PATHS,
         cwd=ROOT, check=True, capture_output=True, text=True,
