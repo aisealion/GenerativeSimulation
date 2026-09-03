@@ -1,3 +1,3 @@
-Policy: Each fisher may take up to 15kg per trip and the community's total catch per day must not exceed 100kg.
+Policy: No fisher may take more than 8% of the lake's current biomass per trip, and the lake must retain a minimum of 180kg at all times.
 
-Operationalization: Every fisher writes their catch on a communal ledger at the dock. A community steward checks the ledger each day; if a fisher's catch exceeds 15kg, the excess must be returned or the fisher forfeits that day's rights. If the total daily catch exceeds 100kg, the remaining fishers must cease fishing that day. Non‑compliance results in a temporary fishing ban for the offending fisher.
+Operationalization: Each fisher records their catch weight in a shared logbook by 6pm the same day. The community reviews the log weekly, ensuring no one exceeded the 8% limit and that the lake's total remains above 180kg. Violations incur a community fee equal to the excess weight and, if repeated, a one‑trip suspension. The rule is re‑evaluated every quarter.
