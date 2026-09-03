@@ -2235,3 +2235,77 @@ are accordingly back to being a live, accepted limitation rather than
 something routed around — UA on Aoraki should be expected to no-op or
 fail some real fraction of the time until that model's own reliability
 improves or a cheaper stronger option becomes available.
+
+### Compile/validation errors now get a repair attempt too, not an instant discard (2026-09-03)
+
+A real report ("the evaluator doesn't seem to work at all — no log for
+it") turned out to have a simpler explanation than a broken evaluator: a
+compile/validation error discarded the round *before it ever reached the
+evaluator at all* — no `norm_evaluator` log entry exists for a round that
+never got that far, which looks identical to "the evaluator silently
+didn't run" from the outside. The deeper issue: `implement_and_evaluate_norm()`
+already had a whole repair-retry mechanism (`MAX_NORM_REPAIR_ATTEMPTS`,
+built for evaluator findings) sitting right next to a `compile_errors`
+check that discarded unconditionally on its very first occurrence — even
+a trivial one-line syntax typo threw away the entire round instantly,
+with the norm-implementer never even shown what it got wrong.
+
+Fixed by request ("give opencode the ability to at least compile after
+change so it can check it myself"): a compile/validation error
+(`norm_implementation_compile_errors()`, `norm_implementation_institution_errors()`,
+or the runtime smoke-test) now gets the exact same bounded repair
+treatment an evaluator finding already got — re-invoke the
+norm-implementer with the specific error text and an instruction to fix
+exactly that and re-run its own `py_compile`/`pytest` validation itself,
+sharing the same `MAX_NORM_REPAIR_ATTEMPTS` budget, before falling back to
+today's discard once attempts are exhausted. `norm_implementation_protected_path_violations()`
+deliberately stayed a hard, immediate, non-retryable discard — split out
+of the same `compile_errors` list it used to share, since touching a
+protected path isn't a bug to repair, it's a boundary violation that
+shouldn't get a second attempt at working around it.
+
+Verified with three targeted scenarios against fabricated state (no real
+opencode/LLM calls): a compile error followed by a clean repair commits
+after exactly one repair, with the evaluator called only once, after the
+code was actually clean; a persistent compile error discards after
+exactly `1 + MAX_NORM_REPAIR_ATTEMPTS` implementer calls with the
+evaluator *never* invoked at all (confirmed by making
+`norm_implementation_compile_errors()`'s mock raise if ever called after
+a protected-path violation, and separately confirming zero evaluator
+calls for the persistent-compile-error case); a protected-path violation
+discards immediately with exactly one implementer call and zero retries.
+Not yet verified against a real Aoraki round — same standing caveat as
+every other repair-loop change in this file.
+
+### Why the norm-implementer's own PHASE 5 test never catches a missing-param crash (2026-09-03)
+
+The `sustenance_reserve` discard above (a real round) raised the obvious
+follow-up question: the norm-implementer is instructed to validate its
+own work before finishing — why didn't it catch this itself? The answer
+isn't a process failure, it's a structural blind spot: PHASE 5's own test
+is built from the round's *actual* config values (`max_kg=4,
+sustenance_kg=1`, real numbers) exercised through `phases.harvest.PHASE.run(state)`
+— a test built that way can never trigger `self.params.get("sustenance_kg")`
+returning `None`, because the implementer has no reason to deliberately
+misconfigure the norm it just wrote. The orchestrator's own generic smoke
+test is what actually catches this, precisely because it instantiates
+*every registered norm type*, not just today's, with `params={}` — a
+scenario the norm-implementer's own test-writing process has no path to
+exercising on its own.
+
+Fixed with explicit instruction, not a mechanism change: both
+norm-implementer specs now state directly that every `self.params.get(key)`
+call must carry a default (`self.params.get(key, <default>)`, never a bare
+`.get(key)`), name the orchestrator's empty-params smoke test as the exact
+reason why, and quote the real `TypeError` this round hit as concrete
+evidence rather than a hypothetical. PHASE 6 (SELF-REVIEW) gained a
+matching mechanical check: grep any new/changed `norms/*.py` file for
+`.params.get(` and confirm every match has a second argument. This is
+prevention, not detection — complementary to, not a replacement for, the
+compile/runtime repair-retry loop documented just above: that loop gives
+a norm with this bug a chance to be *fixed* once caught; this change is
+aimed at not needing that chance in the first place. Not yet verified
+against a real round — the same standing caveat as every other
+norm-implementer instruction change in this file: a prompt-level
+instruction is not a technical guarantee, and this one hasn't been
+exercised against live model credentials yet.

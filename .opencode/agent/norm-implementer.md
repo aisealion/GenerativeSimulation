@@ -235,6 +235,23 @@ per-round tally, e.g.). A norm instance is rebuilt fresh every round —
 never rely on `self.<anything>` surviving between rounds; only
 `context.norm_state()` does.
 
+**Every `self.params.get(key)` call must provide a default — never a bare
+`.get(key)` with no second argument.** The orchestrator smoke-tests *every
+registered norm type*, not just the ones your round's config activates,
+by instantiating each one with `params={}` (empty) and calling all six
+hooks — this is intentional, and it means your norm's code must survive
+being asked to run with none of its own config values set, not just the
+values you happened to configure this round. A real round confirmed why
+this matters: a norm read `self.params.get("sustenance_kg")` (no
+default), got `None` back under that generic empty-params smoke test, and
+crashed with `TypeError: '<' not supported between instances of
+'NoneType' and 'float'` the moment it reached an arithmetic/comparison
+op — discarding an otherwise-correct implementation. Your own PHASE 5
+test, built from your own real config values, can never catch this class
+of bug (you'd have to deliberately misconfigure your own norm to trigger
+it) — the fix has to be in the code itself: `self.params.get(key,
+<sensible_default>)`, always, for every param your norm reads.
+
 `state["config"]["norms"]` is a list, and **order is the enforcement
 order** — see `norms/README.md`'s `reserve`-after-`catch_limit` example.
 When adding a parameter to an existing norm's config entry, or adding a
@@ -549,6 +566,11 @@ place to patch a bug that actually belongs in a norm plugin's own logic.
   hook override this norm didn't target still present, unmodified,
   reachable? This is what catches a rewrite that compiles cleanly but
   silently drops something.
+- Grep any new/changed `norms/*.py` file for `.params.get(` and confirm
+  every match has a second argument (a default). A bare `.get(key)` will
+  return `None` under the orchestrator's generic empty-params smoke test
+  and crash your norm the moment that `None` reaches any arithmetic or
+  comparison — the exact failure mode a real round already hit.
 - Grep any new `prompts/` file for internal names/code terms (fourth-wall).
 - Confirm role/fact fluent exclusivity still holds, `schedule.json` gates
   are fluent-based (never a hardcoded round number), and every touched

@@ -887,20 +887,29 @@ MAX_EVALUATOR_ATTEMPTS = 2
 
 def implement_and_evaluate_norm(round_number, winning_proposal):
     """The full per-round norm pipeline: implement -> compile/runtime-check
-    -> independent evaluation -> repair-or-commit. Replaces what used to be
-    a flat implement-then-compile-check-then-commit sequence inline in
-    run_cycle() — now a loop, because a norm-evaluator finding (an
-    IMPLEMENTATION_ERROR or a SPEC_GAP) can send the norm-implementer back
-    for another attempt within the same round, bounded by
-    MAX_NORM_REPAIR_ATTEMPTS so one stubborn round can't run forever. A
-    separate, smaller retry (MAX_EVALUATOR_ATTEMPTS) covers the evaluator
-    process itself failing to produce any verdict at all — that's not a
-    finding about the code, so it doesn't consume a repair attempt or
-    discard the round on its own; only genuinely exhausting the evaluator
-    retries does. Returns True iff a commit actually happened (the caller
-    then refreshes the knowledge graph); False means a discard already
-    happened and was logged — same "this round's mechanics stay as they
-    were" contract every other failure path in this file already has."""
+    (with its own bounded repair retry) -> independent evaluation ->
+    repair-or-commit. Replaces what used to be a flat
+    implement-then-compile-check-then-commit sequence inline in
+    run_cycle() — now a loop, because both a compile/validation error AND
+    a norm-evaluator finding (an IMPLEMENTATION_ERROR or a SPEC_GAP) can
+    send the norm-implementer back for another attempt within the same
+    round, sharing one MAX_NORM_REPAIR_ATTEMPTS budget so one stubborn
+    round can't run forever. Compile-error retry was added after a real
+    round confirmed a gap: a compile/validation failure used to discard
+    unconditionally on its very first occurrence, with zero chance for the
+    norm-implementer to see the actual error and fix it — even a trivial
+    one-line syntax typo threw away the whole round instantly, and the
+    round never even reached the evaluator (which is why a discarded round
+    can show no norm_evaluator log entry at all — not the evaluator
+    failing to run, the round never getting that far). A separate,
+    smaller retry (MAX_EVALUATOR_ATTEMPTS) covers the evaluator process
+    itself failing to produce any verdict at all — that's not a finding
+    about the code, so it doesn't consume a repair attempt or discard the
+    round on its own; only genuinely exhausting the evaluator retries
+    does. Returns True iff a commit actually happened (the caller then
+    refreshes the knowledge graph); False means a discard already happened
+    and was logged — same "this round's mechanics stay as they were"
+    contract every other failure path in this file already has."""
     if not run_norm_implementer(round_number):
         discard_norm_implementation(
             round_number, ["norm-implementer run itself failed or timed out — see logs/model_calls.jsonl"]
@@ -908,20 +917,44 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         return False
 
     for attempt in range(1, MAX_NORM_REPAIR_ATTEMPTS + 2):
-        # protected-path check first and unconditionally: touching
-        # PROTECTED_PATHS is disqualifying on its own, regardless of
-        # whether the rest of the round would otherwise compile/pass —
-        # never let a compile pass mask an out-of-bounds edit.
-        compile_errors = norm_implementation_protected_path_violations()
-        compile_errors += norm_implementation_compile_errors()
+        # Protected-path violations are a hard, non-retryable discard —
+        # unlike an ordinary compile error, touching PROTECTED_PATHS isn't
+        # a bug to repair, it's disqualifying on its own regardless of
+        # whether the rest of the round would otherwise pass.
+        protected_violations = norm_implementation_protected_path_violations()
+        if protected_violations:
+            discard_norm_implementation(round_number, protected_violations)
+            return False
+
+        compile_errors = norm_implementation_compile_errors()
         compile_errors += norm_implementation_institution_errors()
         if not compile_errors:
             runtime_error = norm_implementation_runtime_errors()
             if runtime_error:
                 compile_errors = [runtime_error]
         if compile_errors:
-            discard_norm_implementation(round_number, compile_errors)
-            return False
+            if attempt > MAX_NORM_REPAIR_ATTEMPTS:
+                discard_norm_implementation(round_number, compile_errors)
+                return False
+            print(f"\nRound {round_number}: norm-implementer's changes have compile/validation "
+                  f"errors — sending back for repair (attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}), "
+                  f"instead of discarding on the first occurrence.")
+            repair_message = (
+                f"Round {round_number}'s implementation has compile/validation errors that must "
+                f"be fixed before it can even be evaluated:\n\n{chr(10).join(compile_errors)}\n\n"
+                "Fix exactly these errors, then re-run your own PHASE 5 validation "
+                "(python3 -m py_compile on every file you touched, plus pytest tests/regression/ "
+                "and tests/norm_checks/) yourself before finishing — don't rely on this message "
+                "alone to catch the next issue. Don't change anything else about your "
+                "implementation beyond what's needed to fix these specific errors."
+            )
+            if not run_norm_implementer(round_number, extra_message=repair_message):
+                discard_norm_implementation(
+                    round_number,
+                    ["norm-implementer repair run itself failed or timed out — see logs/model_calls.jsonl"],
+                )
+                return False
+            continue
 
         evaluation = None
         evaluator_message = None
