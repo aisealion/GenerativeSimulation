@@ -179,11 +179,21 @@ on real `schedule.json` gating):
 
 ## PHASE 5 — REPORT
 
-1. One line per requirement: verdict + one-sentence reason.
-2. For every `SPEC_GAP`: the exact clarifying question, phrased so a human
-   or the norm-implementer's own follow-up dialogue could act on it
-   directly — not a restatement of "this is unclear."
-3. Close with a single fenced ```json block:
+**The fenced ```json block below is the report. The orchestrator parses
+only that block — nothing else in your response is machine-read.** Real
+runs have repeatedly produced a long, well-reasoned markdown write-up
+(tables, a per-requirement "Assessment" section, a final recommendation)
+and then simply never emitted the block at all — every one of those runs
+was treated as a complete failure and the round was discarded, regardless
+of how good the analysis was. Prose alone, however thorough, is not a
+report.
+
+1. **Write the fenced ```json block FIRST — your very first output, not
+   your last.** This is not a style preference: if you write it last and
+   run out of room, budget, or attention partway through a long prose
+   write-up, the round fails anyway. A short block written immediately,
+   before any explanation, can't be crowded out by anything that comes
+   after it.
    ```json
    {
      "round": 12,
@@ -197,6 +207,14 @@ on real `schedule.json` gating):
    `all_compliant` is `true` iff every requirement's verdict is
    `COMPLIANT` or `NOT_TESTABLE`. This is the field the orchestrator reads
    to decide whether to commit or trigger a repair attempt — get it right.
+2. After the block, keep any explanation short: one line per requirement
+   (verdict + one-sentence reason) is enough. For every `SPEC_GAP`, add
+   the exact clarifying question, phrased so a human or the
+   norm-implementer's own follow-up dialogue could act on it directly —
+   not a restatement of "this is unclear." Skip markdown tables, emoji
+   status markers, and a multi-paragraph "Assessment" per requirement —
+   none of that changes the outcome, and every real run that produced one
+   also skipped the block that actually matters.
 
 **This closing block is not optional, and this rule has real
 consequences: real runs have shown this step skipped, which the

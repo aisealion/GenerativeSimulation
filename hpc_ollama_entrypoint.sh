@@ -357,21 +357,36 @@ fi
 # actually be missing ("no 'java' binary is reachable inside this
 # container"), not just unconfirmed as this comment previously said.
 if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
-  # A `java` binary existing and being executable on PATH is not enough to
-  # trust it — confirmed on a real job: the host JVM found below passes
-  # `command -v java` cleanly but crashes on every real invocation with
+  # A `java` binary existing, being executable, AND passing `java -version`
+  # is STILL not enough to trust it — confirmed on a second real job,
+  # after the java-version check below was already added: the exact same
   # "Error loading java.security file" / NoClassDefFoundError in
-  # sun.security.jca.Providers. This is a well-known RHEL OpenJDK
-  # container gotcha, not a random flake: RHEL's java.security patches in
-  # `include /etc/crypto-policies/back-ends/java.config`, which isn't
-  # visible inside a container unless that directory is bound in too
-  # (run_simulation.slurm now does, alongside /usr/lib/jvm) — but rather
-  # than depend on that bind alone, every java candidate here is verified
-  # to actually RUN (`java -version`, not just exist) before being
-  # trusted; one that exists but doesn't work falls through to the next
-  # candidate exactly like a missing one would.
+  # sun.security.jca.Providers crash recurred in neo4j-admin, on a JVM that
+  # had already passed `_java_works()`'s `java -version` check moments
+  # earlier. Root cause of *that*: `-version` is a trivial JVM-internal
+  # operation that never loads a signed jar or does a KeyStore/Provider
+  # lookup, so it never actually exercises `Security.initialize()` reading
+  # java.security's `include /etc/crypto-policies/back-ends/java.config`
+  # (the actual RHEL-container gotcha, still real, still what run_simulation.slurm's
+  # `--bind /etc/crypto-policies` is for) — it was testing the wrong thing
+  # entirely, not almost-but-not-quite the right thing. `neo4j-admin`
+  # crashes because verifying its own jars' signatures *does* trigger that
+  # path. `keytool -list` against a bogus keystore triggers the identical
+  # provider-lookup path (KeyStore.getInstance() always needs one) even
+  # though the keystore itself doesn't exist — so a real security-init
+  # crash and a benign "keystore not found" failure are distinguishable by
+  # matching the actual crash signature in keytool's own stderr, not by
+  # exit code alone (both fail non-zero).
   _java_works() {
-    command -v java >/dev/null 2>&1 && java -version >/dev/null 2>&1
+    command -v java >/dev/null 2>&1 || return 1
+    java -version >/dev/null 2>&1 || return 1
+    command -v keytool >/dev/null 2>&1 || return 1
+    local keytool_out
+    keytool_out=$(keytool -list -keystore /nonexistent-keystore -storepass x 2>&1) || true
+    if echo "$keytool_out" | grep -qiE "Error loading java\.security|NoClassDefFoundError|ExceptionInInitializerError"; then
+      return 1
+    fi
+    return 0
   }
 
   if ! _java_works; then

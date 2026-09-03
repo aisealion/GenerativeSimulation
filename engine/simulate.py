@@ -859,14 +859,35 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             return False
 
         evaluation = None
+        evaluator_message = None
         for eval_attempt in range(1, MAX_EVALUATOR_ATTEMPTS + 1):
-            evaluation = run_norm_evaluator(round_number)
+            evaluation = run_norm_evaluator(round_number, extra_message=evaluator_message)
             if evaluation is not None:
                 break
             print(f"Round {round_number}: norm-evaluator itself produced no usable verdict "
                   f"(attempt {eval_attempt}/{MAX_EVALUATOR_ATTEMPTS}) — retrying the evaluator, "
                   f"not the implementation, since this doesn't say anything about whether the "
                   f"code is actually correct.")
+            # Real evaluator failures observed on live runs: a long,
+            # thorough markdown write-up (tables, per-requirement
+            # "Assessment" sections) that simply never included the
+            # required closing ```json block at all — not a crash, not a
+            # truncation, the model just didn't produce it. Retrying with
+            # the exact same initial message reliably reproduces the exact
+            # same failure (confirmed: two consecutive real attempts both
+            # failed identically this way). Make the retry message actually
+            # different — short, and specifically about the one thing that
+            # was missing — rather than hoping a second identical attempt
+            # behaves differently by chance.
+            evaluator_message = (
+                f"Your previous response for round {round_number} didn't include the required "
+                "closing fenced ```json block — only that block is machine-read, so the round "
+                "was treated as a failure regardless of any analysis you wrote. Do the "
+                "evaluation again, but this time write the ```json block FIRST, as your very "
+                "first output, before any prose. Keep any explanation after it short — a "
+                "one-line verdict and reason per requirement is enough; skip tables, emoji "
+                "status markers, and a multi-paragraph assessment per requirement."
+            )
         if evaluation is None:
             discard_norm_implementation(
                 round_number,

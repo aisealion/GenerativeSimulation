@@ -2004,3 +2004,94 @@ to the last one rather than get concatenated (which would just duplicate
 content, not reconstruct it). Not yet re-verified against a fresh real
 Aoraki round — the diagnosis came from inspecting already-logged data, not
 from an evaluator run against this fix.
+
+### `java -version` wasn't actually testing the thing that breaks (2026-09-03)
+
+The exact same `neo4j-admin` crash (`NoClassDefFoundError:
+sun.security.jca.Providers` / `Error loading java.security file`) recurred
+on a second real job, after `_java_works()` (the fix from the previous
+entry) had already been added and was supposedly gating this. The bug
+wasn't in the bind (`run_simulation.slurm`'s `--bind /etc/crypto-policies`)
+or the fallback logic — it was that `java -version` never actually
+exercises the code path that's broken. `-version` is a trivial
+JVM-internal operation: it doesn't load a signed jar or do a
+`KeyStore`/`Provider` lookup, so it never touches
+`Security.initialize()` reading `java.security`'s `include
+/etc/crypto-policies/back-ends/java.config` line — the actual thing that
+crashes. `neo4j-admin` crashes because verifying its own jars' signatures
+*does* trigger that path. So the smoke test was passing on a JVM whose
+security subsystem was still broken — not almost-right, testing the wrong
+thing entirely.
+
+Fixed by using `keytool -list` against a deliberately-nonexistent keystore
+path instead: `KeyStore.getInstance()` always needs a provider lookup, so
+it hits the identical `Security.initialize()` path even though the
+keystore file itself will never be found. That means it fails either way —
+the distinguishing signal is *how* it fails, matched against the actual
+crash signature (`Error loading java\.security`, `NoClassDefFoundError`,
+`ExceptionInInitializerError`) in its stderr, not exit code alone. A real
+security-init crash and a benign "keystore not found" failure are both
+non-zero exit; only the former contains that text. Verified directly
+(not just reasoned about): fed both a synthetic copy of the real observed
+crash output and a synthetic benign keytool "file not found" message
+through the same grep pattern — the former is correctly flagged broken,
+the latter correctly isn't.
+
+Since `_java_works()` is the one shared helper gating every decision point
+(the initial check, host-JVM verification, portable-JRE-download
+verification, and the final check before Neo4j setup runs), strengthening
+it once automatically applies everywhere — no other call site needed to
+change. This also means the fix is self-healing regardless of whatever
+the actual remaining gap in the `/etc/crypto-policies` bind turns out to
+be (a symlink chain into `/usr/share/crypto-policies/` not yet bound,
+possibly, unconfirmed) — even if the host JVM is still broken for a reason
+this project hasn't isolated yet, it now gets correctly detected and
+skipped in favor of the portable Eclipse Temurin JRE (which doesn't carry
+RHEL's crypto-policies patch at all, so shouldn't hit this class of
+failure regardless). Not yet verified against a fresh real Aoraki job —
+same standing caveat as the very first Neo4j entry in this file.
+
+### The norm-evaluator was never emitting the closing json block at all — a fourth, distinct cause (2026-09-03)
+
+A real round 1, on code already past every prior report-parsing fix
+(schema-aware extraction, message-grouping), still failed with
+"norm-evaluator failed to produce a parseable verdict after 2 attempts."
+Pulled the actual two `norm_evaluator` log entries directly rather than
+guessing further: both `returncode: 0`, both `error: None`, both
+`report: None`, both sessions ended with `"reason":"stop"` (a natural
+completion, not a step-budget cutoff). Both raw responses were huge
+(151KB and 181KB) — genuinely thorough, well-reasoned markdown write-ups
+with per-requirement tables, emoji verdict markers, and a final
+recommendation — and **neither one ever contained a fenced ```json block
+at all**, anywhere in the entire response. This is a different failure
+from every earlier one: not a crash, not a timeout, not a competing
+json block winning over the real one — the model simply never produced
+the structured output the whole pipeline depends on, having apparently
+decided its prose analysis alone constituted a complete answer.
+
+Compounding this: the evaluator retry loop
+(`MAX_EVALUATOR_ATTEMPTS`, `implement_and_evaluate_norm()`) called
+`run_norm_evaluator(round_number)` identically on both attempts — no
+`extra_message`, nothing different about the second try — so of course
+attempt 2 failed exactly the same way attempt 1 did; nothing told the
+model what was actually missing.
+
+Two-part fix. First, PHASE 5 in both `norm-evaluator.md` specs now leads
+with "the json block IS the report, everything else is optional" and
+requires writing it **first** — before any prose, not after — specifically
+so a long write-up can't crowd it out regardless of budget or attention;
+the prose that follows is now explicitly capped to one line per
+requirement, with tables/emoji/multi-paragraph assessments called out by
+name as things to skip (real evidence: every run that produced one of
+those also skipped the block that mattered). Second,
+`implement_and_evaluate_norm()`'s evaluator retry now passes a real
+`extra_message` on the second attempt — short, specific about the one
+thing that was missing, and re-stating the write-json-first instruction —
+instead of blindly re-running the identical initial prompt and hoping for
+a different outcome by chance.
+
+Not yet verified against a fresh real Aoraki round — same standing
+caveat as everything else in this file without a completed run behind it,
+though this one is unusually well-evidenced going in: the fix targets the
+exact, directly-observed failure mode from two independent real attempts,
+not a hypothesis.
