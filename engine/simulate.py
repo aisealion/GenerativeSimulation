@@ -669,17 +669,47 @@ def norm_implementation_runtime_errors():
     return None
 
 
+def _phases_protected_as_of_head():
+    """Every phase file state/institution.json listed as of HEAD — i.e.
+    before this round's norm-implementer touched anything. Dynamically
+    extends the static PROTECTED_PATHS list below: "additive only, never
+    edit a phase once it exists" was always meant to apply to every phase
+    any round has ever created, not just the original four (see the
+    Decision Granularity Rule's own wording in both norm-implementer.md
+    files) — but PROTECTED_PATHS is a fixed list written before any round
+    had created anything, so on its own it could never actually cover a
+    phase a later round added. Reading institution.json from HEAD (not the
+    working tree, which may already reflect this round's own edits) is
+    what makes "before this round" precise. Returns [] gracefully if
+    institution.json doesn't exist yet at HEAD or fails to parse — the
+    static list still applies either way, this is purely additive."""
+    result = subprocess.run(
+        ["git", "show", "HEAD:state/institution.json"],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return []
+    try:
+        institution = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
+    return [entry["file"] for entry in institution.get("phases", {}).values() if "file" in entry]
+
+
 def norm_implementation_protected_path_violations():
     """Hard-fail if the norm-implementer touched anything in PROTECTED_PATHS
-    this round — the actual enforcement of "additive-only" institutional
-    change (new phases/*.py files are fine; editing harvest.py/propose.py/
-    vote.py/engine/norms/etc. is not), independent of whatever opencode's
+    (or a phase any earlier round already created — see
+    _phases_protected_as_of_head()) this round — the actual enforcement of
+    "additive-only" institutional change (new phases/*.py files are fine;
+    editing harvest.py/propose.py/vote.py/engine/norms/etc., or any
+    already-existing phase, is not), independent of whatever opencode's
     own permission.edit YAML does or doesn't actually block. `git diff
     --name-only` against HEAD catches both a modification to a tracked
     protected file and (via the directory entries in PROTECTED_PATHS) a new
     file dropped inside a protected directory."""
+    protected = PROTECTED_PATHS + _phases_protected_as_of_head()
     result = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD", "--"] + PROTECTED_PATHS,
+        ["git", "diff", "--name-only", "HEAD", "--"] + protected,
         cwd=ROOT, capture_output=True, text=True, check=True,
     )
     touched = result.stdout.strip()

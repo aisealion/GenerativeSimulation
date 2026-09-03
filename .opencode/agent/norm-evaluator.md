@@ -127,15 +127,23 @@ the running code.
   model, say), don't force a test — write down why in one line; this
   becomes a `NOT_TESTABLE` verdict, not a skipped requirement.
 - For a requirement whose `owner` is a new phase (an `add_phases` entry in
-  the spec's `institutional_changes`): first confirm the structural side —
-  `phases/{name}.py` exists, imports, is registered in `schedule.json` and
-  `state/institution.json` — before writing anything functional. Then
-  write a test exercising `phases.{name}.PHASE.run(state)` covering *both*
-  the compliant path (the actor makes the decision the norm calls for) and
-  a non-compliance path where the requirement implies one (the actor
-  doesn't — is that detectable as a violation, per the spec's
-  `enforcement` field?). A structural requirement's test is incomplete if
-  it only ever exercises the happy path.
+  the spec's `institutional_changes`, added 2026-09-04 as a full phase
+  *design*, not just a name — `purpose`, `actor`, `decision_or_action`,
+  `inputs`, `output`, `state_changes`, `after`, `frequency`, `gate`,
+  `enforcement`, `interaction`, `verification`): first confirm the
+  structural side — `phases/{name}.py` exists, imports, is registered in
+  `schedule.json` and `state/institution.json` — before writing anything
+  functional. Then write a test exercising `phases.{name}.PHASE.run(state)`
+  covering *both* the compliant path (the actor makes the decision the
+  norm calls for, using exactly the `inputs`/`output` the design specifies
+  — a test that fabricates different inputs than the design actually
+  claims to use isn't testing the real requirement) and a non-compliance
+  path where the requirement implies one (the actor doesn't — is that
+  detectable as a violation, per the `enforcement` field?). If
+  `interaction` is non-null, the test must actually involve a second
+  fabricated agent the way the design describes, not just the one actor in
+  isolation. A structural requirement's test is incomplete if it only ever
+  exercises the happy path.
 
 ## PHASE 3 — RUN
 

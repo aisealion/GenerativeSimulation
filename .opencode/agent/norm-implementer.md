@@ -60,19 +60,28 @@ norm-specific logic of any kind and is not on your allowlist.
 **Decision Granularity Rule** (added 2026-09-01 — this is the one rule
 that governs whether a norm needs more than `norms/`): a **phase** is the
 atomic unit of agent decision-making in this simulation — one
-`call_fisher_agent()` call per phase, per round. Deterministic state
-transitions, calculations, and enforcement consequences must NOT create a
-new phase — they belong in `norms/*.py`, exactly as above. But if
-implementing a norm requires an agent to make a decision that cannot be
+`call_fisher_agent()` call per phase, per round. "Decision" here means any
+institutional act an agent performs, not only a deliberative judgment
+call — reporting, inspecting another agent's record, voting on a
+sanction, choosing whether to close something are all fair game, exactly
+as much as a cap/effort choice is. Deterministic state transitions,
+calculations, and enforcement consequences must NOT create a new phase —
+they belong in `norms/*.py`, exactly as above. But if implementing a norm
+requires an agent to make a decision/act in a way that cannot be
 expressed within an existing phase (harvest/propose/vote each already
 make exactly one), a new phase is required, and you're now allowed to add
 one (see PHASE 3 below) — **never default "new norm → new phase"**; check
 whether it's actually a `catch_constraint`/`graduated_sanction`/state-only
-change first. This is strictly additive: `phases/harvest.py`,
-`phases/propose.py`, `phases/vote.py`, and `phases/discuss.py` (a
+change first. This is strictly additive, and permanently: `phases/harvest.py`,
+`phases/propose.py`, `phases/vote.py`, `phases/discuss.py` (a
 pre-existing, currently-unimplemented stub — not yours either, implemented
-or not) remain permanently off-limits. A new institutional behavior is
-always a new file alongside them, never an edit to them — this is enforced
+or not), **and every phase file any round has ever added since** are
+equally off-limits to editing once they exist — "additive only" doesn't
+loosen after the first new phase is created; a second round's norm needing
+something a first round's new phase almost-but-not-quite provides still
+gets its own new phase, never an edit to the first one. A new
+institutional behavior is always a new file alongside every phase that
+already exists, never an edit to any of them — this is enforced
 both by the permission denies above and by a hard orchestrator check
 (`norm_implementation_protected_path_violations()` in
 `engine/simulate.py`) that discards the round outright if any of them were
@@ -266,16 +275,32 @@ what's already there.
   institution: what phases exist, which are protected, what state each
   already tracks).
 - For each distinct rule fragment, reason explicitly about institutional
-  requirements before picking a shape: what decision(s) does this norm
-  require, who makes each one, and does an existing phase already provide
-  that decision opportunity? Apply the Decision Granularity Rule above —
-  a decision an existing phase can't host needs a new phase; anything
-  deterministic (a calculation, a consequence, a bookkeeping write) does
-  not, no matter how novel-sounding the rule is. This reasoning is what
-  decides whether a fragment is shape 6 below or one of shapes 1–5 — don't
-  let a fragment's surface novelty pull you toward `new_phase` before
-  checking whether it's actually just a `catch_constraint`,
-  `graduated_sanction`, or a state-only addition to an existing hook.
+  requirements before picking a shape, in this fixed order (added
+  2026-09-04 — a routing tree, not just a question, specifically so a
+  fragment's surface novelty never pulls you toward `new_phase` before
+  ruling out the cheaper routes):
+  1. **Is this fully deterministic?** — a calculation, a consequence, a
+     bookkeeping write, no new agent judgment involved. → route through
+     `norms/*.py` (shape 1/2 below), no matter how novel-sounding the rule
+     is. This covers most rules.
+  2. **Does an existing phase's own `call_fisher_agent()` call already
+     collect the decision this fragment needs**, even if nothing currently
+     enforces it? → still routes through `norms/*.py`, reading that
+     existing output — no phase change of any kind, new or edited.
+  3. **Neither of the above** — the norm genuinely requires a new agent
+     decision (or institutional *action*: reporting, inspecting, voting,
+     choosing to close something — see the Decision Granularity Rule's
+     own broadened wording above) that no existing phase hosts → shape 6,
+     `new_phase`.
+  Existing phases are never edited to reach outcome 1 or 2 — not the four
+  originally-protected ones, and not a phase any *earlier round* created
+  either; every phase, once it exists, is exactly as off-limits to further
+  edits as `phases/harvest.py` itself (enforced technically, not just by
+  this instruction — see `_phases_protected_as_of_head()` in
+  `engine/simulate.py`). A norm that would need to modify an *existing*
+  phase's own decision — not just add a new one alongside it — routes to
+  "stop and report, needs a human," same as touching any other protected
+  file always has.
 - For each distinct rule fragment, classify into exactly one of these
   shapes — don't invent a new one unless none fit:
   1. `catch_constraint` — a cap, quota, reserve, or eligibility rule on
@@ -303,13 +328,15 @@ what's already there.
      round-level cap, or "replenish if over X% of stock," is usually just
      a `catch_constraint` with a community-wide (not per-agent) scope, not
      a genuinely separate `periodic_check` shape.
-  6. `new_phase(name, actor, decision, after)` — the rule requires a
-     genuinely new agent decision (per the Decision Granularity Rule
-     above) that no existing phase hosts. **Implementable now** (see
-     PHASE 3 for the recipe) — this is no longer a stop-and-report case by
-     default. `actor` is who decides (`fisher`, or a specific role);
-     `decision` is what they're deciding, in one phrase; `after` is which
-     existing phase (or new phase) it follows this round.
+  6. `new_phase(name, actor, decision_or_action, after)` — the rule
+     requires a genuinely new agent decision or institutional action (per
+     the Decision Granularity Rule above) that no existing phase hosts.
+     **Implementable now** (see PHASE 3 for the full design step + recipe)
+     — this is no longer a stop-and-report case by default. `actor` is who
+     acts (`fisher`, or a specific role); `decision_or_action` is what
+     they're deciding or doing, in one phrase — not always a deliberative
+     choice; `after` is the immediate predecessor phase it follows this
+     round, not merely "somewhere after."
 - If a fragment needs a new `fluent_name`, check `state/fluents_schema.md`
   first; reuse an existing name for an existing concept.
 - For each fragment, write one or more **testable requirements** (`R1`,
@@ -355,16 +382,20 @@ what's already there.
 - Write `state/norm_specs/round_{N}.md`: the round's Policy/
   Operationalization text, then the requirement list (id, text, clarity,
   and any question/answer that resolved it), then — only for any fragment
-  routed to shape 6 — an `institutional_changes` block: `add_phases`
-  (name, actor, decision, after, gate — the fluent the new phase's
-  `schedule.json` entry will be gated on), `add_state` (which existing
-  group, e.g. `fisher`/`community`, gets a new field), `constraints` and
-  `enforcement` in plain sentences. Close with a fenced ```json block with
-  all of the above machine-readable (a `norm-evaluator` subagent reads
-  this file next, after your implementation exists). **Write this file
-  before PHASE 4 touches any code** — it is the fixed target your
-  implementation gets judged against, not something to adjust afterward to
-  match whatever you end up building.
+  routed to shape 6 — an `institutional_changes` block. `add_phases` is a
+  full phase *design*, not just a name — see PHASE 3's "design the phase"
+  step below for what each field means: `name`, `actor`, `purpose`,
+  `decision_or_action`, `inputs`, `output`, `state_changes`, `after`,
+  `frequency`, `gate`, `enforcement`, `interaction`, `verification`.
+  `add_state` (any state field beyond what a phase entry's own
+  `state_changes` already lists — e.g. a new `norms/*.py`-tracked field a
+  parametric fragment needs) and `constraints` round out the block, in
+  plain sentences. Close with a fenced ```json block with all of the
+  above machine-readable (a `norm-evaluator` subagent reads this file
+  next, after your implementation exists). **Write this file before PHASE
+  4 touches any code** — it is the fixed target your implementation gets
+  judged against, not something to adjust afterward to match whatever you
+  end up building.
 - Output a table: `rule fragment | shape | parameters | owner |
   verification`. `owner` = the exact file/function the behavior will live
   in (an existing `norms/*.py` file + its `type_name`, a new
@@ -449,7 +480,48 @@ Route each fragment:
   `graduated_sanction` fragment (route it same as above); the
   timing/logging portion is not implemented, and your report must say so
   explicitly.
-- **`new_phase`**: implementable, additive only. The recipe:
+- **`new_phase`**: implementable, additive only. **Design the phase before
+  writing any file** (added 2026-09-04 — a name/actor/decision triple
+  alone tells you nothing about what the phase's `run()` should actually
+  do; skipping straight to code from that little is how a phase ends up
+  half-specifying its own norm). Write this into
+  `state/norm_specs/round_{N}.md`'s `institutional_changes.add_phases`
+  entry:
+  - `name`, `actor` — as in the shape-6 classification.
+  - `purpose` — the normative decision this phase introduces, one sentence.
+  - `decision_or_action` — exactly what the actor is deciding or doing —
+    a verb, not just "decide": report, inspect, vote, choose.
+  - `inputs` — what information/state is available to the actor when the
+    phase runs (their own `harvested_kg`, another agent's already-reported
+    figure, etc.) — this is what `prompt_fields()` will need to expose.
+  - `output` — the observable field(s) the actor's `call_fisher_agent()`
+    response produces.
+  - `state_changes` — which existing group (`fisher`/`community`) gets a
+    new field, and what it's called.
+  - `after` — the **immediate predecessor** in this round's phase
+    sequence, not merely "somewhere after." If a later round needs to
+    insert a phase *between* two that already exist (a `verification`
+    phase between an existing `report` and `vote`, say), that's purely a
+    `schedule.json` key-ordering change — the ordering lives in
+    `schedule.json`, never in any phase's own file, so inserting between
+    two existing phases never requires editing either of them.
+  - `frequency` — once per round, unless the norm genuinely means
+    something the simulation can actually express (there is no
+    within-round trip/day granularity — see PHASE 1's `reporting_obligation`
+    guidance for the same limit already documented elsewhere).
+  - `gate` — the fluent this phase's `schedule.json` entry will be gated
+    on.
+  - `enforcement` — what happens if the actor doesn't do it, or does it
+    wrong. This is what the norm-evaluator's non-compliance test actually
+    checks — an empty or vague answer here means that test can't be
+    written meaningfully.
+  - `interaction` — `null` unless the decision genuinely involves another
+    agent (a second fisher verifying a report, say); if so, name who and
+    how they're selected.
+  - `verification` — the test that will confirm this phase works, on both
+    the compliant and non-compliant path.
+
+  Only once this is written, implement:
   1. New `phases/{name}.py`: `from engine.phase_base import Phase`,
      subclass it (`name = "{name}"`, matching both the filename stem and
      the `schedule.json` key you'll add), implement `run(self, state)`
@@ -461,24 +533,25 @@ Route each fragment:
      pre-seed it in `state/runtime.json` yourself.
   2. New `prompts/phases/{name}.md`, same convention as every other file
      in that directory (fourth-wall rules apply).
-  3. A `schedule.json` entry, inserted at the position in the file
-     matching where this phase should actually run in the round sequence.
-     Gate it on a fluent (`"holdsAt(some_fluent)"`), not `"true"`, unless
-     the norm genuinely means "every round from now on regardless" — set
-     that fluent via `mechanisms.roles.set_fact()` (community-held) so a
-     later norm can retire the phase via `end_fact()` without deleting the
-     file.
+  3. A `schedule.json` entry, inserted immediately after the `after` phase
+     you designed above. Gate it on a fluent (`"holdsAt(some_fluent)"`),
+     not `"true"`, unless the norm genuinely means "every round from now
+     on regardless" — set that fluent via `mechanisms.roles.set_fact()`
+     (community-held) so a later norm can retire the phase via
+     `end_fact()` without deleting the file.
   4. Update `state/institution.json`: add `"{name}": {"file":
      "phases/{name}.py", "protected": false, "gate": "<same gate string
      as the schedule.json entry>"}`, and any new state fields under
      `"state"`.
   5. A `tests/norm_checks/` test that calls the new phase's own
      `PHASE.run(state)` against a minimal fabricated state (see PHASE 5) —
-     required for this shape, not optional.
-  `phases/harvest.py`/`propose.py`/`vote.py`/`discuss.py` themselves are
-  never touched by this — if a rule needs to change one of *those*
-  specifically rather than add alongside them, that's still "stop and
-  report, needs a human," same as always.
+     required for this shape, not optional, covering both the compliant
+     and non-compliant (`enforcement`) path you designed above.
+  `phases/harvest.py`/`propose.py`/`vote.py`/`discuss.py`, and every phase
+  any earlier round has already added, are never touched by this — if a
+  rule needs to change one of *those* specifically rather than add
+  alongside them, that's still "stop and report, needs a human," same as
+  always.
 - List invariants that must still hold after the change: one open fluent
   record per exclusive `(fluent, args)`; `state/runtime.json` untouched;
   nothing under `norms/`/`prompts/` reads `norm.txt` directly; fourth-wall

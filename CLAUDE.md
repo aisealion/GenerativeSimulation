@@ -2436,3 +2436,58 @@ the way removing these four just did. `pytest tests/regression/ tests/norms/`
 now passes 33/33 (down from 65 — the 32 difference is entirely the four
 deleted plugin-specific test files, each with several tests of its own;
 no coverage of the *engine* itself was lost).
+
+## New-phase design step, and a real protection gap it surfaced (2026-09-04)
+
+By request: the `new_phase` shape's recipe (added 2026-09-01, "institutional
+transformation") went straight from a bare `name/actor/decision/after`
+tuple to a file-creation checklist — nothing made the norm-implementer
+actually specify what the phase's `run()` should *do* before writing it.
+Both `norm-implementer.md` specs now require a full phase **design**,
+written into `state/norm_specs/round_{N}.md`'s `institutional_changes.add_phases`
+entry before any file exists: `purpose`, `actor`, `decision_or_action`
+(broadened from `decision` — reporting, inspecting, voting, choosing to
+close something are all fair game, not only a deliberative judgment call),
+`inputs`, `output`, `state_changes`, `after` (now explicitly the
+*immediate predecessor*, not "somewhere after"), `frequency`, `gate`,
+`enforcement`, `interaction` (non-null only when a second agent is
+genuinely involved), `verification`. PHASE 1's institutional-requirements
+reasoning also became an explicit three-step routing tree (fully
+deterministic → `norms/*.py`; an existing phase already collects the
+decision → still `norms/*.py`, reading that output; neither → `new_phase`)
+instead of a single question, specifically so a fragment's novelty can't
+pull the routing toward `new_phase` before the cheaper routes are ruled
+out. `norm-evaluator.md` was updated to build its fabricated test state
+from the same `inputs`/`output`/`interaction` fields, so its test actually
+exercises what the design claims rather than a guessed shape.
+
+**One piece of the requested design deliberately not adopted**: a proposed
+middle routing tier ("can an existing phase host this decision → add/modify
+an action within it") would have meant editing a phase once it already
+exists — exactly the property "additive only" was built to prevent.
+Documented explicitly rather than silently dropped: the routing tree's
+middle tier stays "an existing phase already *collects* the decision,
+enforced through `norms/*.py`," never "edit the phase to add to it."
+
+**A real, previously-unnoticed gap surfaced while writing this up**: the
+Decision Granularity Rule's own text already claimed every phase, once
+created — not just the original four — is permanently off-limits to
+editing. `PROTECTED_PATHS` in `engine/simulate.py`, though, was a static
+list written before any round had ever created a new phase — it could
+never actually have covered one. A second round editing a first round's
+own `phases/report_catch.py`, say, would have compiled cleanly, passed
+every existing check, and committed — the exact failure class "additive
+only" exists to prevent, just one round later than the four originally-
+protected files. Fixed with `_phases_protected_as_of_head()`: reads
+`state/institution.json` as it stood at HEAD (before this round's own
+edits) and adds every phase file it lists to the protected set for this
+round's check — dynamic, not hand-maintained, so it never needs updating
+as more phases accumulate across a long run. Verified end-to-end in an
+isolated temp clone (never touching this repo's own history): committed a
+fabricated "earlier round" that added `phases/report_catch.py` and
+registered it in `institution.json`, then confirmed a simulated "later
+round" touching that file is correctly caught and blocked — cleaned up
+completely afterward. `pytest tests/regression/ tests/norms/` (33 tests)
+unaffected. Not yet verified against a real multi-round Aoraki run — same
+standing caveat as every other institutional-transformation claim in this
+file.
