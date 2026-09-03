@@ -4,9 +4,20 @@ Every per-agent constraint on harvesting — a cap, a reserve, a ban — is a
 plugin here, not code inlined into `phases/harvest.py`. `phases/harvest.py`
 implements *how harvesting happens* (physics); a norm implements *a
 constraint around it*. A new adopted norm becomes either a config change
-activating an existing plugin, or a new small plugin file — never a rewrite
-of `phases/harvest.py` itself, which no longer contains any norm-specific
-logic at all.
+activating an *already-created* plugin from an earlier round, or a new
+small plugin file — never a rewrite of `phases/harvest.py` itself, which
+no longer contains any norm-specific logic at all.
+
+**This directory ships empty of plugins by design** — no seed/example
+`Norm` implementations, on purpose (removed 2026-09-04; see CLAUDE.md).
+Round 1 must always operationalize its adopted norm from scratch: a
+pre-built cap/reserve/ban plugin sitting here from the start would let the
+norm-implementer just tune parameters on an already-correct
+implementation instead of actually writing one, which defeats the point
+of studying whether it can. A later round's plugin stays here and becomes
+legitimately reusable via config alone by a subsequent round with a
+similar-shaped norm — that reuse path is real and intended, it just never
+starts pre-populated.
 
 ## How it's wired together
 
@@ -23,7 +34,7 @@ alive agent:
 3. `norm_engine.apply(context, agent_id, raw_kg)` threads that raw catch
    through every active norm's `evaluate()`, **in the order they appear in
    `state["config"]["norms"]`** — each norm sees what the previous one
-   already decided. Order matters: see the `reserve` example below.
+   already decided. Order matters: see the worked example below.
 
 A norm can also contribute an agent-facing sentence via `describe()`
 (joined into the harvest prompt's `{constraints_line}`), and can hold
@@ -38,45 +49,42 @@ See `engine/norms/base.py`'s `Norm` class for the full hook contract
 its docstrings are the actual spec for what each hook does and when it's
 called.
 
-## Norm types available today
-
-- **`catch_limit`** — a flat or percentage-of-stock per-trip kg ceiling,
-  with an optional per-agent override.
-- **`reserve`** — a shared reserve that banks whatever an earlier norm in
-  the list trimmed off an agent's catch, and lets a low-catcher withdraw
-  from it.
-- **`violation_ban`** — a multi-trip fishing ban triggered by a matching
-  sanction from another norm in the chain.
-- **`community_cap`** — a round-level cap (or "replenish if over X%")
-  independent of any one agent's own limit.
-
-## Worked example
+## Worked example (hypothetical — illustrates the pattern, not a real plugin)
 
 A norm like "each fisher may keep up to 12kg per trip; anything beyond
 that goes into a shared reserve; a fisher who brings in less than 5kg may
 draw up to 4kg from the reserve to top up; two violations of the cap in a
-row means a two-trip ban" is pure configuration — no new plugin file
-needed:
+row means a two-trip ban" would, if these three plugin *shapes* already
+existed from an earlier round, become pure configuration — no new plugin
+file needed for a round that just wants different numbers on an
+already-existing shape:
 
 ```json
 {
   "norms": [
-    {"type": "catch_limit", "limit_kg": 12},
-    {"type": "reserve", "shortfall_threshold_kg": 5, "max_withdrawal_kg": 4},
-    {"type": "violation_ban", "trigger_sanction": "over_cap", "trips": 2}
+    {"type": "example_cap", "limit_kg": 12},
+    {"type": "example_reserve", "shortfall_threshold_kg": 5, "max_withdrawal_kg": 4},
+    {"type": "example_ban", "trigger_sanction": "over_cap", "trips": 2}
   ]
 }
 ```
 
-Note the order: `reserve` comes *after* `catch_limit` specifically because
-it deposits whatever the previous norm in the chain already trimmed off
-(`raw_kg - proposed_kg`) — reversing the order would mean `reserve` runs
-before there's anything to deposit, and the reserve would never grow.
+Note the order: a reserve-shaped plugin must come *after* a cap-shaped one
+specifically because it deposits whatever the previous norm in the chain
+already trimmed off (`raw_kg - proposed_kg`) — reversing the order would
+mean it runs before there's anything to deposit, and the reserve would
+never grow. This ordering rule is general — it applies to any two plugins
+in a deposit/withdraw relationship, not specifically to plugins named
+`example_cap`/`example_reserve` (which don't exist; name your own
+descriptively for what they actually do).
 
-If a genuinely new *shape* of constraint is needed — nothing above fits,
-even with different parameters — add a new `norms/{name}.py` file
+Since nothing exists here by default (see above), the very first norm any
+round adopts is always genuinely new: add a `norms/{name}.py` file
 subclassing `Norm` with a unique `type_name`; it's picked up automatically
 by `engine/norms/registry.py`'s auto-discovery, no registry edit required.
+A *later* round whose norm matches an *already-created* plugin's shape,
+just with different numbers, can then configure it directly instead of
+writing another one.
 
 ## How a norm gets verified before it's committed
 

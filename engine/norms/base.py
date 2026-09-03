@@ -36,9 +36,9 @@ class NormDecision:
     @classmethod
     def violation(cls, kept_kg, sanction=None, note=None):
         """A punitive reduction — over a cap, over a community allowance,
-        etc. sanction is an opaque string other norms can key off (see
-        norms/violation_ban.py's trigger_sanction) — not interpreted by the
-        engine itself."""
+        etc. sanction is an opaque string another norm plugin can key its
+        own escalating-consequence logic off (a ban that triggers after N
+        matching sanctions, say) — not interpreted by the engine itself."""
         return cls(kept_kg=kept_kg, sanction=sanction, note=note, violated=True)
 
     @classmethod

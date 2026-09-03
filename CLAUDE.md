@@ -2377,3 +2377,62 @@ yet verified against a real round with live model credentials — the
 whole point of this change is a format simple enough that it shouldn't
 need another round of "here's the next shape it produced instead," but
 that's a claim only a real run can actually settle.
+
+## Removed the four seed norm plugins — norms/ ships empty by design (2026-09-04)
+
+By request: `norms/catch_limit.py`, `community_cap.py`, `reserve.py`, and
+`violation_ban.py` — the four "seed" plugins every earlier entry in this
+file describes as shipping with the project — are gone. Confirmed first,
+not assumed: `git log --merges -- norms/` showed no `sim/run-*` branch
+content had ever actually been merged into this branch's `norms/`
+(the concern that prompted checking); the seed files were simply
+committed as part of the original architecture itself, exactly as every
+prior entry already said. Removed anyway, for a different, better reason
+than "these shouldn't be here": **a pre-built, already-correct
+implementation for the most common norm shapes (a flat cap, a shared
+reserve, a graduated ban, a community-wide cap) undermines the entire
+point of studying whether an LLM can actually operationalize a norm from
+scratch** — round 1 of every past run could reach for `catch_limit.py`
+and just tune a number, never actually writing a `Norm` subclass at all.
+Every prior mention of these four in this file (the "Pluggable norm
+architecture" entry that introduced them, and every entry referencing
+them since) is left as-written per this file's own accumulate-don't-edit
+convention — read them as describing what used to ship, not current state.
+
+`norms/README.md`'s "Norm types available today" section is gone
+entirely (nothing ships today, by design — the new opening paragraph
+says so directly); its "Worked example" is now explicitly hypothetical,
+using placeholder type names (`example_cap`/`example_reserve`/
+`example_ban`) instead of real files, since the actual enforcement-order
+lesson (a reserve-shaped norm after any cap-shaped norm it draws from)
+is general and doesn't need a real file to illustrate. Both
+`norm-implementer.md` copies had every reference to the four real type
+names — as a worked example, as illustrative language in the hook
+contract and PHASE 1/3/6 routing guidance, and in the closing JSON
+report's own example — reworded to describe the same concepts
+(cap/reserve/ban shapes, enforcement ordering, sanction-keying) without
+naming files that no longer exist. `phases/harvest.py`, `engine/llm_agents.py`,
+and `engine/norms/base.py` (all off-limits/human-owned, but still worth
+keeping accurate) had the same kind of stale specific-file references in
+their own docstrings generalized the same way.
+
+Test fallout, handled directly rather than left broken: `tests/norms/test_catch_limit.py`,
+`test_community_cap.py`, `test_reserve.py`, `test_violation_ban.py`
+deleted outright (nothing left to test). `tests/norms/test_registry.py`
+and two tests in `test_harvest_phase_baseline.py`
+(`test_a_configured_norm_actually_constrains_the_result`,
+`test_ineligible_agent_skips_the_llm_call_entirely`) used `catch_limit`/
+`violation_ban` as a convenient *stand-in* for testing generic engine
+mechanics (`load_norms()`'s instance-building/key-dedup logic; `config["norms"]`
+actually being consulted; `is_eligible()` gating skipping the LLM call) —
+rewritten to define and register a throwaway fake `Norm` subclass via
+`monkeypatch.setattr(registry, "NORM_TYPES", {...})` instead, the same
+pattern `test_engine_composition.py`/`test_engine_eligibility.py`/
+`test_engine_round_end.py` already used for exactly this reason (testing
+the engine, not any specific plugin). This is a strictly better fix than
+it looks — these tests no longer depend on any specific file existing in
+`norms/` at all, so a future norms/ change can't accidentally break them
+the way removing these four just did. `pytest tests/regression/ tests/norms/`
+now passes 33/33 (down from 65 — the 32 difference is entirely the four
+deleted plugin-specific test files, each with several tests of its own;
+no coverage of the *engine* itself was lost).

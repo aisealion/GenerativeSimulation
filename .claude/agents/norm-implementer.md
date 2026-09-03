@@ -124,7 +124,7 @@ boundaries below, just without a technical backstop if it doesn't.
   below.
 - `state/config.json` — yours. `"norms"`: a list of
   `{"type": ..., "id"?: ..., ...params}` objects — order matters (see
-  `norms/README.md`'s reserve-after-catch_limit example). Also
+  `norms/README.md`'s worked example). Also
   tunable non-norm caps/thresholds/intervals if any exist. Not physics
   rates (those are fixed, in `engine/physics.py`).
 - `state/runtime.json` — simulation-owned, **read-only for you.** Never
@@ -212,9 +212,10 @@ A `norms/{name}.py` file defines exactly one `Norm` subclass with a unique
   `raw_kg`, for the first norm). Return `NormDecision.allow(kept_kg)` (no
   opinion), `.adjust(kept_kg, note=...)` (a non-punitive change, e.g. a
   reserve top-up), `.violation(kept_kg, sanction=..., note=...)` (a
-  punitive reduction — `sanction` is an opaque string another norm, e.g.
-  `violation_ban`, can key its own `trigger_sanction` off), or
-  `.reject(reason=...)` (nothing kept at all).
+  punitive reduction — `sanction` is an opaque string another norm plugin
+  can key its own escalating-consequence logic off, e.g. a ban that
+  triggers after N matching sanctions), or `.reject(reason=...)` (nothing
+  kept at all).
 - `on_agent_settled(self, context, agent_id, decision, harvested_kg)` —
   once per agent, after every active norm's `evaluate()` has run and the
   final chained decision is settled. For side effects tied to the agent's
@@ -250,8 +251,9 @@ it) — the fix has to be in the code itself: `self.params.get(key,
 <sensible_default>)`, always, for every param your norm reads.
 
 `state["config"]["norms"]` is a list, and **order is the enforcement
-order** — see `norms/README.md`'s `reserve`-after-`catch_limit` example.
-When adding a parameter to an existing norm's config entry, or adding a
+order** — see `norms/README.md`'s worked example (a reserve-shaped norm
+must come after a cap-shaped norm, since it deposits what the cap
+trimmed). When adding a parameter to an existing norm's config entry, or adding a
 new entry, think about where in the list it needs to sit relative to
 what's already there.
 
@@ -294,9 +296,10 @@ what's already there.
      inventing a time mechanism that doesn't exist.
   5. `periodic_check(metric, interval_rounds, comparator, threshold)` — a
      recurring audit unrelated to any specific trip's catch. Only
-     genuinely fits if it's not better read as a `catch_constraint`
-     (e.g. `community_cap`'s rolling/pct-of-stock forms already cover
-     most "check X against a threshold every round" shapes).
+     genuinely fits if it's not better read as a `catch_constraint` — a
+     round-level cap, or "replenish if over X% of stock," is usually just
+     a `catch_constraint` with a community-wide (not per-agent) scope, not
+     a genuinely separate `periodic_check` shape.
   6. `new_phase(name, actor, decision, after)` — the rule requires a
      genuinely new agent decision (per the Decision Granularity Rule
      above) that no existing phase hosts. **Implementable now** (see
@@ -423,8 +426,9 @@ Route each fragment:
   **parametric** — write only `state["config"]["norms"]` (and
   `state/fluents.json` if a role/fact is also involved). Touch nothing
   under `norms/`. Double-check enforcement order if inserting a new entry
-  relative to existing ones (`reserve` after any cap, a `violation_ban`'s
-  `trigger_sanction` matching an existing cap norm's `sanction` string).
+  relative to existing ones (a reserve-shaped norm after any cap-shaped
+  norm it draws from, a ban-shaped norm's own trigger sanction string
+  matching what an earlier norm in the list actually emits).
 - **`catch_constraint`/`graduated_sanction`, no existing type fits**:
   **structural** — new `norms/{name}.py`, one `Norm` subclass, a
   descriptive unique `type_name`. State in plain language the general
@@ -574,9 +578,9 @@ actually belongs in a norm plugin's own logic.
   `norms/*.py` file's `describe()` reflects its current parameters, not a
   value this round's own change just superseded.
 - Confirm `state["config"]["norms"]`'s order still makes sense for every
-  active norm (a `reserve` after its cap, a `violation_ban`'s
-  `trigger_sanction` matching a real `sanction` string some earlier norm
-  in the list actually emits).
+  active norm (a reserve-shaped norm after its cap, a ban-shaped norm's
+  own trigger sanction string matching a real `sanction` string some
+  earlier norm in the list actually emits).
 - `git diff --name-only` and confirm it touches nothing under
   `phases/harvest.py`, `phases/propose.py`, `phases/vote.py`,
   `phases/discuss.py`, `engine/phase_base.py`, `engine/norms/`,
@@ -635,8 +639,8 @@ after every check in Phase 5 and 6 has passed.**
    {
      "spec_path": "state/norm_specs/round_12.md",
      "classification": [
-       {"rule": "...", "shape": "catch_constraint", "parametric": true,
-        "owner": "norms/catch_limit.py (catch_limit)",
+       {"rule": "...", "shape": "catch_constraint", "parametric": false,
+        "owner": "norms/example_cap.py (example_cap)",
         "verification": "tests/norm_checks/test_round_12_cap.py",
         "requirements": [{"id": "R1", "clarity": "CLEAR"}]}
      ],

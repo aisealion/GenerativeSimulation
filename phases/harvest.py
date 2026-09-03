@@ -33,8 +33,8 @@ class HarvestPhase(Phase):
         for tests/norms/ that may want to preview a single agent's prompt
         in isolation). Builds its own fresh context/engine, so a norm whose
         describe() depends on this-round scratch already mutated by earlier
-        agents (community_cap) won't reflect that here — only run()'s own
-        shared context does."""
+        agents (a community-wide running tally, say) won't reflect that
+        here — only run()'s own shared context does."""
         context = HarvestContext.from_state(state)
         norm_engine = NormEngine.from_config(state["config"])
         norm_engine.start_round(context)

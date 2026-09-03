@@ -161,7 +161,7 @@ def _harvest_shortfall_clause(mine_record, entry):
     so re-running it on the agent's own recorded effort against that
     round's starting stock gives what their effort alone would have
     produced with nothing else in play. If the agent wasn't even asked that
-    round (a live ban — norms/violation_ban.py's is_eligible() hook, not
+    round (a live ban, via some norm's own is_eligible() hook — not
     something inferable from numbers alone), "participated": False is set
     explicitly by phases/harvest.py; anything else defaults to
     participated.
