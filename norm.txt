@@ -1,0 +1,3 @@
+Policy: No fisher may catch more than 10% of the lake’s current biomass in a single trip (minimum 1kg).
+
+Operationalization: Before each trip, a fisher calculates 10% of the lake’s current weight, rounds down to the nearest kg, and sets that as their personal quota. They record the catch and report weekly to the community. If a fisher exceeds the quota, they must return the excess and receive a warning; repeat violations result in a temporary fishing ban.
