@@ -44,5 +44,8 @@ class ViolationBanNorm(Norm):
 
     def on_agent_settled(self, context, agent_id, decision, harvested_kg):
         trigger = self.params.get("trigger_sanction")
-        if trigger and decision.sanction == trigger:
-            self._ban_state(context, agent_id)["trips_remaining"] = self.params.get("trips", 1)
+        if trigger:
+            # Support both single sanction string and list of sanctions
+            triggers = trigger if isinstance(trigger, list) else [trigger]
+            if decision.sanction in triggers:
+                self._ban_state(context, agent_id)["trips_remaining"] = self.params.get("trips", 1)
