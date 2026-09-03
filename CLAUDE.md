@@ -2491,3 +2491,35 @@ completely afterward. `pytest tests/regression/ tests/norms/` (33 tests)
 unaffected. Not yet verified against a real multi-round Aoraki run — same
 standing caveat as every other institutional-transformation claim in this
 file.
+
+## Norm-implementer/evaluator back on the local model — Kimi-K2.5 quota exhausted (2026-09-04)
+
+By request: `NORM_IMPLEMENTER_MODEL` (`hpc_ollama_entrypoint.sh`) is
+`ollama/${OLLAMA_120B_CTX_MODEL_ID}` again, not `litellm/Kimi-K2.5`. Same
+reasoning that already reverted `UNDERSTAND_MODEL` back to local the day
+before (see that entry) has now hit the norm-implementer/evaluator path
+directly, not just as a risk: a paid-model dependency for every single
+round's calls turned out to be a real, hit-in-practice cost. This
+reintroduces the GPU-contention picture `NORM_IMPLEMENTER_MODEL` was
+originally split out to get away from (`d32e028`) — the 120b calls share
+the one allocated GPU with the fisher's own 20b calls again, via Ollama's
+model-swapping — but that's added per-round latency, not a hard failure
+the way an exhausted quota is.
+
+Also fixed in the same pass, a real correctness gap this change exposed:
+the `LITELLM_API_KEY` presence check right after these exports used to be
+unconditional — it would `exit 1` the entire job before round 1 ever ran
+if that key wasn't set, regardless of whether anything in the run actually
+needed it. That was fine when every run always routed through litellm; now
+that the default is back to a local model needing no key at all, an
+unconditional check would have blocked an otherwise-working local-model
+run over a credential it never uses. Now gated on `case
+"$NORM_IMPLEMENTER_MODEL" in litellm/*)` — generic pattern match, not a
+hardcoded "Kimi-K2.5" string, so it stays correct if this gets pointed at
+a different litellm-hosted model later without anyone remembering to
+update this check too.
+
+To revert once quota allows: change the one `export
+NORM_IMPLEMENTER_MODEL=...` line back to `litellm/Kimi-K2.5` (or another
+`litellm/*` model) — the `LITELLM_API_KEY` check picks that back up
+automatically, no second edit needed.

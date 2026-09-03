@@ -298,9 +298,19 @@ mkdir -p logs
 # be the fast/local one).
 #
 # NORM_IMPLEMENTER_MODEL routes the norm-implementer's (and norm-evaluator's
-# — it shares this same fallback) opencode invocations specifically — by
-# request, litellm/Kimi-K2.5 over the Otago LiteLLM proxy, not a local
-# Ollama model.
+# — it shares this same fallback) opencode invocations specifically.
+# Was litellm/Kimi-K2.5 over the Otago LiteLLM proxy; switched back to the
+# local gpt-oss-120b model 2026-09-04, by request, after the Kimi-K2.5
+# quota was exhausted — a paid-model dependency for every single round's
+# norm-implementer/evaluator calls turned out to be a real, hit-in-practice
+# cost, not just a theoretical one. Trades back to the GPU-contention
+# picture this same var was originally introduced to get away from (the
+# norm-implementer/evaluator's 120b calls now share the one allocated GPU
+# with the fisher's own 20b calls again, via Ollama's own model-swapping —
+# see the per-round latency note near OLLAMA_NUM_CTX above), but that's a
+# latency cost, not a hard failure the way an exhausted quota is. Revert to
+# litellm/Kimi-K2.5 (or another litellm/* model) here once quota allows,
+# if the reliability difference matters enough to pay for again.
 #
 # UNDERSTAND_MODEL was briefly routed to Kimi-K2.5 too (2026-09-03, same
 # day) after the local gpt-oss-120b model running the UA build-agent calls
@@ -317,18 +327,30 @@ mkdir -p logs
 # model via OPENCODE_MODEL directly; the two known failure modes above are
 # accepted as a live, unresolved limitation of running UA unattended on
 # that model rather than paid over.
-export NORM_IMPLEMENTER_MODEL="litellm/Kimi-K2.5"
+export NORM_IMPLEMENTER_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
 
-if [ -z "${LITELLM_API_KEY:-}" ]; then
-  echo "NORM_IMPLEMENTER_MODEL=litellm/Kimi-K2.5 but LITELLM_API_KEY isn't set in" >&2
-  echo "this job's environment — every round's norm-implementer call would fail." >&2
-  echo "sbatch propagates the submitting shell's environment by default, so" >&2
-  echo "export LITELLM_API_KEY before running sbatch, or pass it explicitly:" >&2
-  echo "  sbatch --export=ALL,LITELLM_API_KEY=... run_simulation.slurm" >&2
-  exit 1
-fi
+# Only actually required when NORM_IMPLEMENTER_MODEL (above) is routed
+# through the Otago LiteLLM proxy — matched generically (litellm/*) rather
+# than hardcoding "Kimi-K2.5" so this check stays correct regardless of
+# which litellm-hosted model it's pointed at later. A hard requirement
+# here made sense when every run always needed it; it doesn't anymore now
+# that the default is back to a local model needing no key at all — this
+# used to unconditionally exit 1 even when nothing in the run actually
+# depended on LITELLM_API_KEY.
+case "$NORM_IMPLEMENTER_MODEL" in
+  litellm/*)
+    if [ -z "${LITELLM_API_KEY:-}" ]; then
+      echo "NORM_IMPLEMENTER_MODEL=$NORM_IMPLEMENTER_MODEL but LITELLM_API_KEY isn't" >&2
+      echo "set in this job's environment — every round's norm-implementer call" >&2
+      echo "would fail. sbatch propagates the submitting shell's environment by" >&2
+      echo "default, so export LITELLM_API_KEY before running sbatch, or pass it" >&2
+      echo "explicitly: sbatch --export=ALL,LITELLM_API_KEY=... run_simulation.slurm" >&2
+      exit 1
+    fi
+    ;;
+esac
 
 # Neo4j / Graphiti memory layer (engine/memory/) — previously "local-only
 # infra, never deployed on Aoraki" (see CLAUDE.md), by design: nothing here
