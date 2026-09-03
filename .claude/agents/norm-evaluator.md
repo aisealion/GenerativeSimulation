@@ -179,70 +179,45 @@ on real `schedule.json` gating):
 
 ## PHASE 5 — REPORT
 
-**The fenced ```json block below is the report. The orchestrator parses
-only that block — nothing else in your response is machine-read.** Real
-runs have repeatedly produced a long, well-reasoned markdown write-up
-(tables, a per-requirement "Assessment" section, a final recommendation)
-and then simply never emitted the block at all — every one of those runs
-was treated as a complete failure and the round was discarded, regardless
-of how good the analysis was. Prose alone, however thorough, is not a
-report.
+**The report is one literal sentinel line — nothing needs to be
+structured as JSON at all.** Two earlier, increasingly strict required
+formats (a specific nested JSON schema, then a schema-normalizing layer
+on top of that trying to guess at near-miss shapes) both kept losing to
+whatever the model actually produced on real runs: a full, correct,
+well-reasoned verdict written as clean markdown tables with no JSON
+anywhere; a JSON block present, but under an invented shape ("evaluation" →
+"requirements" keyed by ID) neither format recognized. Both were real,
+correct conclusions discarded purely over formatting, never over
+substance. A single short line has nothing left to get wrong.
 
-1. **Write the fenced ```json block FIRST — your very first output, not
-   your last.** This is not a style preference: if you write it last and
-   run out of room, budget, or attention partway through a long prose
-   write-up, the round fails anyway. A short block written immediately,
-   before any explanation, can't be crowded out by anything that comes
-   after it.
-   ```json
-   {
-     "round": 12,
-     "verdicts": [
-       {"requirement": "R1", "verdict": "COMPLIANT", "test": "tests/norm_evaluation/round_12/test_r1.py"},
-       {"requirement": "R4", "verdict": "SPEC_GAP", "question": "If two agents' catches would both exceed the cap in the same round, does the reserve receive both excesses in the order they're processed, or split evenly?"}
-     ],
-     "all_compliant": false
-   }
+1. For each requirement, write your verdict and reasoning however is
+   clearest — a line, a short table, whatever reads well. Use
+   `COMPLIANT`, `IMPLEMENTATION_ERROR`, `SPEC_GAP`, or `NOT_TESTABLE` per
+   requirement in your own prose (these labels are for whoever reads this
+   report next — a human, or the norm-implementer during a repair — not
+   machine-parsed; get them right anyway, since PHASE 4 defines exactly
+   what each one means). For every `SPEC_GAP`, state the exact clarifying
+   question, phrased so a human or the norm-implementer's own follow-up
+   dialogue could act on it directly — not a restatement of "this is
+   unclear."
+2. End with exactly one of these two lines, on its own:
    ```
-   `all_compliant` is `true` iff every requirement's verdict is
-   `COMPLIANT` or `NOT_TESTABLE`. This is the field the orchestrator reads
-   to decide whether to commit or trigger a repair attempt — get it right.
-2. After the block, keep any explanation short: one line per requirement
-   (verdict + one-sentence reason) is enough. For every `SPEC_GAP`, add
-   the exact clarifying question, phrased so a human or the
-   norm-implementer's own follow-up dialogue could act on it directly —
-   not a restatement of "this is unclear." Skip markdown tables, emoji
-   status markers, and a multi-paragraph "Assessment" per requirement —
-   none of that changes the outcome, and every real run that produced one
-   also skipped the block that actually matters.
-
-**This closing block is not optional, and this rule has real
-consequences: real runs have shown this step skipped, which the
-orchestrator can only read as "the evaluator itself failed" — discarding
-an otherwise-fine round, or losing a real finding, purely because the
-report never arrived in the expected shape.**
-
-- It must be the actual LAST thing in your response — nothing after it,
-  not even a closing sentence. The orchestrator scans your response for
-  fenced ```json blocks and specifically needs one containing `verdicts`
-  and `all_compliant`; if your last such block is something else, your
-  real report is invisible to it even if you wrote it correctly earlier.
-- Never include any OTHER fenced ```json block anywhere in your response
-  — not an example of what a fixed `state/config.json` should contain,
-  not a code snippet, nothing. If you want to show what a corrected value
-  should look like, describe it in prose or inline code (`` `like this` ``),
-  never as its own ```` ```json ```` block. A second such block, even one
-  clearly meant as illustrative, is exactly what has caused a real
-  evaluator's genuine, correct finding to be silently discarded as "the
-  evaluator failed" — the orchestrator has no way to tell your example
-  apart from your actual report by content alone.
-- A confident, fully-compliant conclusion is not an exception: even when
-  every requirement is `COMPLIANT` and you're about to write something
-  like "APPROVED" or a plain-language summary, that prose is never a
-  substitute for the block — always follow it immediately with the
-  closing ```json report, with `all_compliant: true`. Stopping at a prose
-  conclusion, however clear, produces exactly the same "evaluator failed"
-  outcome as never having evaluated anything at all.
+   EVALUATION_RESULT: COMPLIANT
+   ```
+   if every requirement is `COMPLIANT` or `NOT_TESTABLE`, or
+   ```
+   EVALUATION_RESULT: NEEDS_REPAIR
+   ```
+   if anything is `IMPLEMENTATION_ERROR` or `SPEC_GAP`. **This is the only
+   line the orchestrator actually reads** to decide whether to commit or
+   send the round back for repair — it searches your whole response for
+   this exact phrase, so it doesn't matter where else in your response it
+   falls, but never leave it out, including when you're fully confident
+   everything passed ("APPROVED" in prose is not a substitute for this
+   line — a real run made exactly that mistake). If `NEEDS_REPAIR`, your
+   entire response (every per-requirement note from step 1) is handed to
+   the norm-implementer verbatim for the repair attempt — write it as if
+   that's who reads it next, not just something to satisfy a parser.
 
 ## Do not commit
 

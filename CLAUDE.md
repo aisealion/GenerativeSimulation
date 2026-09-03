@@ -2309,3 +2309,71 @@ against a real round — the same standing caveat as every other
 norm-implementer instruction change in this file: a prompt-level
 instruction is not a technical guarantee, and this one hasn't been
 exercised against live model credentials yet.
+
+## Replaced the evaluator's required JSON schema with a single sentinel line (2026-09-03)
+
+Two real rounds, back to back, exposed the actual limit of the whole
+"require the evaluator to close with a specific JSON shape" approach —
+not a bug to patch, a structural mismatch between what was being asked
+for and what the model reliably produces. Round A: a long, correct,
+carefully-reasoned PASS verdict — markdown tables, ✅ marks, "**Overall:
+APPROVED FOR COMMIT** ✅" — with no fenced ```json block anywhere at all.
+Round B (already showing the effect of an earlier fix that tried
+requiring the block *first*, before prose): a ```json block genuinely
+present, but under the model's own invented shape
+(`{"evaluation": {"overall": "PASS", "requirements": {"R1": {...}}}}` —
+`requirements` keyed by ID, not the specified list of `{"requirement",
+"verdict"}` items) that even the schema-normalizing fallback added after
+Round A didn't recognize (its own shape-guessing logic only handled a
+*list* of requirement items, not a dict keyed by ID). Both were the model
+reaching a real, correct conclusion and simply not reproducing whichever
+exact nested structure was being asked for that time — two increasingly
+elaborate parsing layers in a row lost to the next shape variation, not
+because either fix was wrong, but because the underlying ask (reproduce
+this exact object shape, verbatim, every time) wasn't a place with room
+to keep hardening.
+
+**Fix, by explicit request**: stop requiring JSON structure at all.
+`extract_json_report()`+`_normalize_evaluator_report()` (the two-layer
+schema/near-miss-guessing approach) are gone entirely, replaced by
+`extract_evaluation_result()` — a single regex for a literal line,
+`EVALUATION_RESULT: COMPLIANT` or `EVALUATION_RESULT: NEEDS_REPAIR`,
+found anywhere in the response (last match wins, case-insensitive). The
+evaluator still does the same per-requirement analysis and writes it
+however reads clearest (tables, prose, whatever) — that detail is no
+longer machine-parsed at all, only logged and, on a `NEEDS_REPAIR`,
+handed to the norm-implementer **verbatim** as the repair prompt (real
+runs already write this prose clearly enough for another model to read
+and act on directly — the orchestrator doesn't need to re-structure it
+first). `run_norm_evaluator()`'s return contract is now `{"result":
+"COMPLIANT" | "NEEDS_REPAIR", "text": final_text}` or `None`.
+
+This trades away the structured, machine-checkable
+`{"requirement": "R4", "verdict": "SPEC_GAP", "question": "..."}` shape —
+a real loss for later automated analysis of *why* rounds needed repair,
+since that's now only recoverable by reading `logs/model_calls.jsonl`'s
+free-text `raw_response`/`prompt` fields by hand or with a second LLM
+pass, not `json.loads()`. Deliberately accepted anyway: a verdict the
+orchestrator can't reliably extract at all has zero value regardless of
+how richly structured its intended shape was — reliability came first.
+
+`run_norm_evaluator()`'s own transient-failure retry (`MAX_EVALUATOR_ATTEMPTS`)
+is unchanged in shape, just simplified in what it's retrying for and what
+it says on retry — the corrective message now asks for the one missing
+line, not a missing/misshapen JSON block.
+
+Verified: 16 monkeypatched control-flow tests (no real opencode/LLM
+calls) — first-try-COMPLIANT commits once; one NEEDS_REPAIR then
+COMPLIANT takes exactly one repair; persistent NEEDS_REPAIR discards
+after exactly `1 + MAX_NORM_REPAIR_ATTEMPTS` calls; a compile error then
+a clean repair invokes the evaluator only once, after the code actually
+compiles; `extract_evaluation_result()` correctly finds the sentinel
+inside Round A's real markdown-table shape and ignores Round B's real
+invented-json shape entirely (doesn't even try to parse it), returns
+`None` when the line is genuinely absent, and takes the last
+case-insensitive match when more than one appears. `pytest
+tests/regression/ tests/norms/` (65 tests) still passes unchanged. Not
+yet verified against a real round with live model credentials — the
+whole point of this change is a format simple enough that it shouldn't
+need another round of "here's the next shape it produced instead," but
+that's a claim only a real run can actually settle.

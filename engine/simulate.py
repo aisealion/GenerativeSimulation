@@ -286,60 +286,34 @@ def extract_json_report(text, required_keys=()):
     return None
 
 
-_EVALUATOR_VERDICT_ALIASES = {
-    "PASS": "COMPLIANT", "PASSED": "COMPLIANT", "COMPLIANT": "COMPLIANT",
-    "FAIL": "IMPLEMENTATION_ERROR", "FAILED": "IMPLEMENTATION_ERROR",
-    "IMPLEMENTATION_ERROR": "IMPLEMENTATION_ERROR",
-    "SPEC_GAP": "SPEC_GAP", "AMBIGUOUS": "SPEC_GAP",
-    "NOT_TESTABLE": "NOT_TESTABLE", "SKIP": "NOT_TESTABLE", "SKIPPED": "NOT_TESTABLE",
-}
+EVALUATION_RESULT_RE = re.compile(r"EVALUATION_RESULT:\s*(COMPLIANT|NEEDS_REPAIR)\b", re.IGNORECASE)
 
 
-def _normalize_evaluator_report(report):
-    """Coerces a near-miss evaluator report into the canonical
-    {"verdicts": [...], "all_compliant": bool} shape instead of requiring
-    the model to reproduce the exact key names every time — confirmed
-    necessary on a real round: PHASE 5's "write the json block first"
-    instruction worked (the block was there, in the right place), but the
-    model used its own natural schema ("requirements"/"id"/"status"/
-    "PASS"/"FAIL") instead of the one actually specified
-    ("verdicts"/"requirement"/"verdict"/COMPLIANT). Accepts "requirement"
-    or "id", "verdict" or "status" (mapped through
-    _EVALUATOR_VERDICT_ALIASES — "FAIL" maps to IMPLEMENTATION_ERROR, not
-    SPEC_GAP, since a bare fail/pass status carries no clarifying question
-    the way a real SPEC_GAP must). Computes all_compliant if the model
-    omitted it. Returns None if the shape is too far off to make sense of
-    at all (no list of per-requirement items) — still fails closed, just
-    recognizes more of what a real report actually looks like in
-    practice."""
-    if not isinstance(report, dict):
+def extract_evaluation_result(text):
+    """Finds the norm-evaluator's sentinel line
+    (`EVALUATION_RESULT: COMPLIANT` or `EVALUATION_RESULT: NEEDS_REPAIR`)
+    anywhere in its response. Replaces two earlier, increasingly
+    complicated attempts at requiring/coercing a specific nested JSON
+    shape (`extract_json_report(..., required_keys={"verdicts", ...})`,
+    then a `_normalize_evaluator_report()` schema-guessing layer on top of
+    that) — both were real, reasoned fixes for real observed failures, and
+    both kept losing to the next shape the model actually produced: one
+    real round wrote a full, correct, well-reasoned PASS verdict as clean
+    markdown tables with no json block at all; another wrote a json block,
+    but under its own invented schema (`{"evaluation": {"requirements":
+    {...}}}`, requirements keyed by ID rather than a list of items) that
+    the normalizer's own list-shape assumption didn't cover either. A
+    single literal sentinel line is far more robust to whatever
+    prose/table/heading structure the model wraps around its actual
+    reasoning — it only has to get one short, unambiguous line right, not
+    reproduce a multi-level object shape byte-for-byte. Takes the LAST
+    match (in case an earlier draft or example mentions the phrase) and
+    normalizes to uppercase; returns None if the line never appears at
+    all."""
+    matches = EVALUATION_RESULT_RE.findall(text)
+    if not matches:
         return None
-    items = report.get("verdicts")
-    if not isinstance(items, list):
-        items = report.get("requirements")
-    if not isinstance(items, list):
-        return None
-
-    normalized = []
-    for item in items:
-        if not isinstance(item, dict):
-            return None
-        requirement = item.get("requirement", item.get("id"))
-        verdict_raw = item.get("verdict", item.get("status"))
-        if requirement is None or verdict_raw is None:
-            return None
-        verdict = _EVALUATOR_VERDICT_ALIASES.get(str(verdict_raw).upper(), str(verdict_raw).upper())
-        entry = {"requirement": requirement, "verdict": verdict}
-        for passthrough_key in ("question", "test", "reason"):
-            if passthrough_key in item:
-                entry[passthrough_key] = item[passthrough_key]
-        normalized.append(entry)
-
-    all_compliant = report.get("all_compliant")
-    if all_compliant is None:
-        all_compliant = all(e["verdict"] in ("COMPLIANT", "NOT_TESTABLE") for e in normalized)
-
-    return {"round": report.get("round"), "verdicts": normalized, "all_compliant": bool(all_compliant)}
+    return matches[-1].upper()
 
 
 def run_norm_implementer(round_number, extra_message=None):
@@ -445,11 +419,13 @@ def run_norm_implementer(round_number, extra_message=None):
 
 def run_norm_evaluator(round_number, extra_message=None):
     """Mirrors run_norm_implementer()'s subprocess/timeout/logging shape
-    exactly, just against a different agent and report shape. Returns the
-    parsed {"round", "verdicts", "all_compliant"} report on a completed run
-    with a parseable trailing json block, or None on any failure (timeout,
-    non-zero exit, unparseable report) — treated by the caller exactly like
-    a norm-implementer failure: discard, don't crash the rest of the run."""
+    exactly, just against a different agent. Returns
+    {"result": "COMPLIANT" | "NEEDS_REPAIR", "text": final_text} on a
+    completed run whose response contains the sentinel line (see
+    extract_evaluation_result()), or None on any failure (timeout,
+    non-zero exit, no sentinel line found at all) — treated by the caller
+    exactly like a norm-implementer failure: discard, don't crash the rest
+    of the run."""
     print("\n--- invoking norm-evaluator ---")
     message = extra_message or (
         f"Round {round_number}'s norm-implementer changes are ready to check. Read "
@@ -483,16 +459,7 @@ def run_norm_evaluator(round_number, extra_message=None):
 
     duration_s = time.monotonic() - start
     tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
-    report = extract_json_report(final_text, required_keys={"verdicts", "all_compliant"})
-    if report is None:
-        # Confirmed on a real round: a well-placed json block using the
-        # model's own natural schema ("requirements" instead of
-        # "verdicts") rather than the one actually specified. Still
-        # schema-discriminating (won't grab an unrelated example block) —
-        # just recognizing a second known real shape, not accepting any
-        # arbitrary json in the response.
-        report = extract_json_report(final_text, required_keys={"requirements"})
-    report = _normalize_evaluator_report(report)
+    verdict = extract_evaluation_result(final_text)
 
     log_call(
         call="norm_evaluator",
@@ -506,7 +473,11 @@ def run_norm_evaluator(round_number, extra_message=None):
         raw_response=result.stdout,
         parsed_response=None,
         tool_call_count=tool_call_count,
-        report=report,
+        # Not the full response text (that's already in raw_response/
+        # final_text via parse_opencode_jsonl) — just the one-word decision
+        # actually extracted, so a log scan can see the outcome without
+        # re-parsing.
+        report={"result": verdict} if verdict else None,
         error=None if result.returncode == 0 else result.stderr.strip(),
     )
 
@@ -516,11 +487,11 @@ def run_norm_evaluator(round_number, extra_message=None):
               f"treating this evaluation as failed, not crashing the run.", file=sys.stderr)
         print(result.stderr, file=sys.stderr)
         return None
-    if report is None:
-        print(f"Round {round_number}: norm-evaluator's report couldn't be parsed — "
-              f"treating this evaluation as failed.", file=sys.stderr)
+    if verdict is None:
+        print(f"Round {round_number}: norm-evaluator's response never contained an "
+              f"EVALUATION_RESULT: line — treating this evaluation as failed.", file=sys.stderr)
         return None
-    return report
+    return {"result": verdict, "text": final_text}
 
 
 def norm_already_committed(round_number):
@@ -966,25 +937,26 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                   f"(attempt {eval_attempt}/{MAX_EVALUATOR_ATTEMPTS}) — retrying the evaluator, "
                   f"not the implementation, since this doesn't say anything about whether the "
                   f"code is actually correct.")
-            # Real evaluator failures observed on live runs: a long,
-            # thorough markdown write-up (tables, per-requirement
-            # "Assessment" sections) that simply never included the
-            # required closing ```json block at all — not a crash, not a
-            # truncation, the model just didn't produce it. Retrying with
-            # the exact same initial message reliably reproduces the exact
-            # same failure (confirmed: two consecutive real attempts both
-            # failed identically this way). Make the retry message actually
-            # different — short, and specifically about the one thing that
-            # was missing — rather than hoping a second identical attempt
-            # behaves differently by chance.
+            # Real evaluator failures observed on live runs, across two
+            # different increasingly-strict required formats (a nested
+            # json schema, then a schema-normalizing fallback on top of
+            # that): a long, well-reasoned, CORRECT verdict written as
+            # clean markdown tables with no json block at all; a json
+            # block present but under the model's own invented shape. Both
+            # were the model reaching a real conclusion and just not
+            # reproducing whatever exact structure was asked for — not a
+            # crash, not truncation. Replaced entirely with a single
+            # literal sentinel line (EVALUATION_RESULT: COMPLIANT /
+            # NEEDS_REPAIR) specifically because it doesn't depend on the
+            # model reproducing any multi-level structure, only one short
+            # unambiguous line — the retry message here just asks for that
+            # one line, wherever it wants to put it.
             evaluator_message = (
-                f"Your previous response for round {round_number} didn't include the required "
-                "closing fenced ```json block — only that block is machine-read, so the round "
-                "was treated as a failure regardless of any analysis you wrote. Do the "
-                "evaluation again, but this time write the ```json block FIRST, as your very "
-                "first output, before any prose. Keep any explanation after it short — a "
-                "one-line verdict and reason per requirement is enough; skip tables, emoji "
-                "status markers, and a multi-paragraph assessment per requirement."
+                f"Your previous response for round {round_number} never included the required "
+                "sentinel line (EVALUATION_RESULT: COMPLIANT or EVALUATION_RESULT: NEEDS_REPAIR) "
+                "— only that exact line is machine-read, so the round was treated as a failure "
+                "regardless of any analysis you wrote. Do the evaluation again, and make sure "
+                "that line appears somewhere in your response, in exactly that form."
             )
         if evaluation is None:
             discard_norm_implementation(
@@ -994,34 +966,39 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             )
             return False
 
-        if evaluation.get("all_compliant"):
+        if evaluation["result"] == "COMPLIANT":
             commit_hash = commit_norm_implementation(round_number, winning_proposal)
             if commit_hash:
                 refresh_knowledge_graph(round_number)
             return bool(commit_hash)
 
-        failing = [
-            v for v in evaluation.get("verdicts", [])
-            if v.get("verdict") not in ("COMPLIANT", "NOT_TESTABLE")
-        ]
+        # No more structured per-requirement verdict list (that was exactly
+        # the part the model couldn't reliably reproduce) — the repair
+        # message instead hands the norm-implementer the evaluator's own
+        # full response text, which real evaluator runs already write as
+        # clear, well-organized prose (tables, per-requirement reasoning)
+        # even when it fails to hit the exact required json shape. The
+        # model reading its own kind of report back is a better bet than
+        # the orchestrator trying to re-structure it first.
         if attempt > MAX_NORM_REPAIR_ATTEMPTS:
             discard_norm_implementation(
                 round_number,
-                [f"norm-evaluator found unresolved requirement(s) after {MAX_NORM_REPAIR_ATTEMPTS} "
-                 f"repair attempt(s):\n{json.dumps(failing, indent=2)}"],
+                [f"norm-evaluator returned NEEDS_REPAIR after {MAX_NORM_REPAIR_ATTEMPTS} repair "
+                 f"attempt(s). Evaluator's final report:\n\n{evaluation['text']}"],
             )
             return False
 
-        print(f"\nRound {round_number}: norm-evaluator found {len(failing)} unresolved requirement(s) "
-              f"— sending back to norm-implementer (repair attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}).")
+        print(f"\nRound {round_number}: norm-evaluator returned NEEDS_REPAIR — sending back to "
+              f"norm-implementer (repair attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}).")
         repair_message = (
-            f"Round {round_number}'s evaluator found these unresolved requirements:\n\n"
-            f"{json.dumps(failing, indent=2)}\n\n"
-            "For any IMPLEMENTATION_ERROR above, the specification is correct as written — fix the "
-            f"implementation. For any SPEC_GAP, redo that requirement's clarification in "
-            f"state/norm_specs/round_{round_number}.md (ask a sharper question than last time), then "
-            "adjust the implementation for whatever the resolution changes. Follow your standing "
-            "instructions for handling a repair re-invocation."
+            f"Round {round_number}'s evaluator found problems — read its full report below "
+            "carefully and fix exactly what it identifies. If it's a code/implementation "
+            "problem, fix the implementation. If it's a genuine gap in the specification (an "
+            f"ambiguity the evaluator's own tests exposed), redo that requirement's "
+            f"clarification in state/norm_specs/round_{round_number}.md (ask a sharper question "
+            "than last time), then adjust the implementation for whatever the resolution "
+            "changes. Follow your standing instructions for handling a repair re-invocation.\n\n"
+            f"--- Evaluator's report ---\n{evaluation['text']}\n--- end of report ---"
         )
         if not run_norm_implementer(round_number, extra_message=repair_message):
             discard_norm_implementation(
