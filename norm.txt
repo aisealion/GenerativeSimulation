@@ -1,0 +1,3 @@
+Policy: Each fisher may take up to 15kg per trip and the community's total catch per day must not exceed 100kg.
+
+Operationalization: Every fisher writes their catch on a communal ledger at the dock. A community steward checks the ledger each day; if a fisher's catch exceeds 15kg, the excess must be returned or the fisher forfeits that day's rights. If the total daily catch exceeds 100kg, the remaining fishers must cease fishing that day. Non‑compliance results in a temporary fishing ban for the offending fisher.
