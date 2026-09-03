@@ -297,31 +297,26 @@ mkdir -p logs
 # Ollama 20b model (up to agent_count x 3 calls per round, so it needs to
 # be the fast/local one).
 #
-# NORM_IMPLEMENTER_MODEL routes the norm-implementer's opencode invocation
-# specifically (engine/simulate.py's run_norm_implementer() checks this
-# var before falling back to OPENCODE_MODEL) — by request, this is now
-# litellm/Kimi-K2.5 over the Otago LiteLLM proxy, not a local Ollama model.
-# Deliberately a *separate* var from OPENCODE_MODEL rather than repointing
-# OPENCODE_MODEL itself: OPENCODE_MODEL is also what the Understand-Anything
-# build-agent calls use (the one-time initial build below, plus
-# engine/simulate.py's refresh_knowledge_graph() after any round that
-# commits a norm, both gated on BUILD_KNOWLEDGE_GRAPH=1) — those should
-# keep using the local 120b model regardless of what the norm-implementer
-# itself is routed to, since the user only asked to move the
-# norm-implementer.
+# NORM_IMPLEMENTER_MODEL routes the norm-implementer's (and norm-evaluator's
+# — it shares this same fallback) opencode invocations specifically — by
+# request, litellm/Kimi-K2.5 over the Otago LiteLLM proxy, not a local
+# Ollama model.
 #
-# Practical effect: the norm-implementer's once-per-round call no longer
-# competes with the fisher for the same GPU/VRAM at all (only the fisher's
-# 20b and, when BUILD_KNOWLEDGE_GRAPH=1, the build agent's 120b share it
-# now — and those two don't run concurrently either, so the "Ollama swaps
-# models" latency concern this comment used to describe mostly goes away
-# for an ordinary run). The new cost is a hard dependency on
-# LITELLM_API_KEY and real network egress from this compute node to
-# llm.uod.otago.ac.nz for every single round's norm-implementer call —
-# both already confirmed working from Aoraki compute nodes during the
-# CodeGraph investigation (see CLAUDE.md), so not a new risk, just a new
-# per-round dependency that didn't exist when everything ran on local
-# Ollama.
+# UNDERSTAND_MODEL was briefly routed to Kimi-K2.5 too (2026-09-03, same
+# day) after the local gpt-oss-120b model running the UA build-agent calls
+# failed twice for reliability reasons (a silently-denied
+# external_directory permission; then, per a real job's
+# logs/understand-anything-build.log, hallucinating a nonexistent tool
+# name and stopping to ask a clarifying question despite being told not
+# to). Reverted the same day, by request: Kimi-K2.5 is a paid model over
+# the Otago LiteLLM proxy, and UA's calls are large/expensive enough
+# (understand-anything-build.log's own transcripts run well past 100K
+# characters) that routing them there risked exceeding quota — a real,
+# concrete cost that outweighs the reliability gain for this specific,
+# already-opt-in feature. UA is back on the local, free gpt-oss-120b
+# model via OPENCODE_MODEL directly; the two known failure modes above are
+# accepted as a live, unresolved limitation of running UA unattended on
+# that model rather than paid over.
 export NORM_IMPLEMENTER_MODEL="litellm/Kimi-K2.5"
 export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
@@ -489,17 +484,34 @@ if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
     echo "(NEO4J_URI stays unset)." >&2
   else
     # Persistent storage, same convention as OLLAMA_MODELS above: the
-    # extracted Neo4j installation and its data both survive across job
-    # resubmissions, so only the very first run pays for the download, and
-    # the graph accumulates across runs rather than starting empty every
-    # time. The whole distribution (not just data/logs) lives under
-    # NEO4J_HOME so no neo4j.conf edits are needed to redirect directories
-    # — bin/neo4j already reads everything relative to NEO4J_HOME.
+    # extracted Neo4j *distribution* (the binaries, not the data) survives
+    # across job resubmissions, so only the very first job ever run pays
+    # for the download. The *data* is deliberately NOT shared the same
+    # way (changed 2026-09-03, by request) — a new sbatch submission is "a
+    # new run" and should never see an unrelated earlier run's accumulated
+    # graph, so NEO4J_JOB_DATA_DIR below is scoped per $SLURM_JOB_ID (a
+    # fresh, empty one every job) rather than the previous single
+    # shared-forever data directory. Nothing is ever deleted by this — an
+    # old job's data directory just sits on disk under its own job-ID
+    # folder, unread by a later job, not wiped. The one real tradeoff:
+    # a simulation *resumed* via a brand-new `sbatch` (not the same
+    # allocation) picks up state/runtime.json's round progress fine (that's
+    # a git-tracked file, unrelated to any of this) but starts the Neo4j
+    # memory layer over empty rather than continuing it — chosen
+    # deliberately, since "don't reuse an unrelated old run's data" was the
+    # explicit ask, and losing memory continuity across a resumed
+    # multi-submission run is a smaller cost than that.
     NEO4J_STORE_DIR="/projects/sciences/computing/cranefield_lab/magha601/neo4j"
     NEO4J_HOME="$NEO4J_STORE_DIR/neo4j-home"
-    NEO4J_PASSWORD_FILE="$NEO4J_STORE_DIR/password"
-    NEO4J_INIT_MARKER="$NEO4J_STORE_DIR/.initialized"
-    mkdir -p "$NEO4J_STORE_DIR"
+    # bin/neo4j resolves `data` (and everything else) relative to
+    # NEO4J_HOME by default — no neo4j.conf edit needed, just replace
+    # NEO4J_HOME/data with a symlink to this job's own directory before
+    # ever starting Neo4j (see below, right before neo4j-admin runs).
+    NEO4J_JOB_ID="${SLURM_JOB_ID:-manual-$(date +%Y%m%d-%H%M%S)}"
+    NEO4J_JOB_DATA_DIR="$NEO4J_STORE_DIR/data-by-job/$NEO4J_JOB_ID"
+    NEO4J_PASSWORD_FILE="$NEO4J_JOB_DATA_DIR/password"
+    NEO4J_INIT_MARKER="$NEO4J_JOB_DATA_DIR/.initialized"
+    mkdir -p "$NEO4J_STORE_DIR" "$NEO4J_JOB_DATA_DIR"
 
     # Version chosen to match the 5.26.x line already exercised locally
     # against this same engine/memory/client.py (Graphiti's bolt driver) —
@@ -529,12 +541,27 @@ if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
       echo "Neo4j still not found at $NEO4J_HOME/bin/neo4j after the download" >&2
       echo "attempt — continuing without the memory layer (NEO4J_URI stays unset)." >&2
     else
-      # Same password-persistence reasoning as before: the password is set
-      # into the store itself on first init and must match on every later
-      # restart against the same (persistent) data. set-initial-password
-      # only works before the store has ever started once, so guard it
-      # with our own marker rather than depending on neo4j-admin's own
-      # error behavior on a repeat call against an already-initialized store.
+      # Point the shared distribution's data directory at THIS job's own
+      # fresh, empty directory before anything (neo4j-admin included) ever
+      # reads or writes it. Always reset the symlink rather than checking
+      # whether it's already correct — cheap, and correct regardless of
+      # whether NEO4J_HOME/data is currently a real directory (a fresh
+      # extraction's own shipped skeleton, replaced here exactly once per
+      # distribution download) or a symlink left over from an earlier job
+      # that happened to reuse this same compute node.
+      rm -rf "$NEO4J_HOME/data"
+      ln -s "$NEO4J_JOB_DATA_DIR" "$NEO4J_HOME/data"
+
+      # Same password-persistence reasoning as before, just scoped to this
+      # job's own data directory now instead of the old shared-forever
+      # one: the password is set into the store itself on first init and
+      # must match on every later restart against the same data — within
+      # a single job, "later restart" means neo4j getting stopped/started
+      # again inside the SAME job, not a different sbatch submission.
+      # set-initial-password only works before the store has ever started
+      # once, so guard it with our own marker rather than depending on
+      # neo4j-admin's own error behavior on a repeat call against an
+      # already-initialized store.
       if [ -f "$NEO4J_PASSWORD_FILE" ]; then
         NEO4J_PW="$(cat "$NEO4J_PASSWORD_FILE")"
       else
@@ -700,8 +727,13 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   # what actually makes this scriptable via the same `opencode run`
   # subprocess pattern engine/simulate.py already uses for the
   # norm-implementer, not a fundamentally different mechanism.
-  # --model reuses OPENCODE_MODEL (the 120b variant) rather than pulling or
-  # configuring a third model just for this.
+  # --model reuses OPENCODE_MODEL (the local 120b variant) rather than
+  # pulling or configuring a third model just for this — a brief attempt
+  # to route this to Kimi-K2.5 instead (2026-09-03, same day) was reverted
+  # the same day: paid-model quota cost for UA's large, expensive calls
+  # outweighs the reliability gain for this already-opt-in feature. See
+  # NORM_IMPLEMENTER_MODEL/OPENCODE_MODEL's own comment above for the two
+  # known real failure modes this local model still has, unaddressed.
   #
   # --command understand, not a natural-language "Run /understand ..."
   # message: a real run on gpt-oss-120b confirmed the smaller local model

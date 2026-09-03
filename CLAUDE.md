@@ -2095,3 +2095,143 @@ caveat as everything else in this file without a completed run behind it,
 though this one is unusually well-evidenced going in: the fix targets the
 exact, directly-observed failure mode from two independent real attempts,
 not a hypothesis.
+
+### A second, different evaluator schema-drift found the same day — and a general fix this time (2026-09-03)
+
+The "write json first" fix above worked exactly as intended on the very
+next real round: the model produced a well-placed fenced ```json block
+immediately, before any prose. But it used its own natural schema —
+`{"requirements": [{"id": "R1", "status": "FAIL", ...}]}` — instead of the
+one actually specified (`{"verdicts": [{"requirement": "R1", "verdict":
+"IMPLEMENTATION_ERROR", ...}]}`). `extract_json_report()`'s
+`required_keys={"verdicts", "all_compliant"}` correctly rejected it as
+not matching, so the round still failed — a different bug from the
+missing-block one, but the same underlying lesson: prompting alone,
+across independent model calls, isn't reliable enough to guarantee exact
+key-name compliance, no matter how explicit the instructions are.
+
+This time the fix isn't another prompt tweak — it's a normalization layer
+in the orchestrator. New `_normalize_evaluator_report()` in
+`engine/simulate.py` accepts the observed alternate shape (`"requirements"`
+for `"verdicts"`, `"id"` for `"requirement"`, `"status"` for `"verdict"`,
+`"PASS"`/`"FAIL"` mapped through `_EVALUATOR_VERDICT_ALIASES` to
+`COMPLIANT`/`IMPLEMENTATION_ERROR`) and computes `all_compliant` if the
+model omitted it. `run_norm_evaluator()` tries the strict schema first,
+then the known alternate (`required_keys={"requirements"}`) before giving
+up — still schema-discriminating (won't grab an unrelated example json
+block from elsewhere in the response, the original reason
+`extract_json_report()` needed `required_keys` at all), just recognizing
+a second real shape instead of exactly one. `"FAIL"` maps to
+`IMPLEMENTATION_ERROR`, deliberately not `SPEC_GAP` — a bare pass/fail
+status carries no clarifying question, and a real `SPEC_GAP` must have
+one, so treating an unqualified failure as an implementation error (the
+more actionable, repairable classification) is the safer default.
+
+Verified directly against the actual real failure, not a synthetic
+approximation: reconstructed the exact response shape from that round's
+own logged `raw_response`, confirmed the strict extractor still (correctly)
+rejects it, the loose one finds it, and normalization produces exactly
+`{"verdicts": [{"requirement": "R1", "verdict": "IMPLEMENTATION_ERROR",
+...}, ...], "all_compliant": false}` — meaning this exact round, replayed
+against the fix, would now trigger a repair attempt (fix the missing
+`math.floor()` the evaluator actually found) instead of a discard.
+
+### Fresh Neo4j database per SLURM job, not one shared forever (2026-09-03)
+
+By request: every prior Neo4j entry in this file described the shared,
+persistent-forever database as a deliberate design choice ("the graph
+accumulates across runs rather than starting empty every time") — but in
+practice this meant every new `sbatch` submission silently inherited
+every unrelated earlier run's accumulated data, which isn't what was
+wanted once actually observed happening.
+
+Split what was one `NEO4J_STORE_DIR` into two concerns: the extracted
+Neo4j *distribution* (binaries) still lives at a fixed, shared,
+cached-forever path (`NEO4J_HOME` — no reason to re-download ~150-200MB
+every job), but the *data* directory is now `NEO4J_JOB_DATA_DIR`, scoped
+by `$SLURM_JOB_ID` (falling back to a timestamp for a non-SLURM manual
+run) under `$NEO4J_STORE_DIR/data-by-job/<job-id>` — a fresh, empty one
+every job, never shared. `NEO4J_HOME/data` (where `bin/neo4j` looks by
+default, no `neo4j.conf` edit needed) is now always reset to a fresh
+symlink pointing at that job's own directory before `neo4j-admin` or
+`neo4j start` ever touch it — chosen over Neo4j's own
+`server.directories.data`-style env-var config override specifically to
+avoid depending on syntax that couldn't be verified against a real
+instance from here; a symlink swap is plain filesystem behavior, testable
+directly. `NEO4J_PASSWORD_FILE`/`NEO4J_INIT_MARKER` moved inside the
+per-job directory too, since each fresh data directory needs its own
+`set-initial-password` (only valid once per store) — this actually
+simplifies the marker's own meaning: "once per job" instead of "once
+ever, track it globally."
+
+Deliberately never deletes anything: an old job's data directory just
+sits on disk under its own job-ID folder, unread by a later job — not
+wiped. The real tradeoff, named explicitly: a simulation resumed via a
+genuinely new `sbatch` (not the same allocation) still resumes its round
+progress correctly (`state/runtime.json` is a git-tracked file, unrelated
+to any of this), but the Neo4j memory layer starts over empty rather than
+continuing — accepted deliberately, since "don't reuse an unrelated old
+run's data" was the explicit ask, and this is a smaller cost than that.
+
+Verified directly (not just reasoned about): simulated both real
+scenarios locally with plain `ln -s`/`readlink -f` — a fresh distribution
+extraction's own real `data/` directory correctly gets replaced by a
+symlink to a new job's directory, and a *leftover symlink from a
+different earlier job* (the same compute node reused across job
+allocations) gets correctly re-pointed to the new job's directory without
+disturbing the old job's data, which remains present and readable at its
+own path afterward. Not yet verified: an actual `neo4j-admin`/`neo4j
+start` invocation against a symlinked data directory on a real compute
+node — same standing caveat as every other Neo4j mechanic in this file.
+
+### Understand-Anything moved off the local model too (2026-09-03)
+
+A real job's `logs/understand-anything-build.log` (committed as a round
+artifact, so directly readable rather than needing to be pasted) showed
+the `build` agent — on local `gpt-oss-120b` — calling a tool named `exec`,
+which doesn't exist (opencode's real tool list has no such tool, only
+`bash`), then giving up and asking a clarifying question ("full analysis
+or incremental? any custom flags?") despite the prompt's explicit "do not
+wait for further input," and stopping there — session exited 0, no error,
+just no actual work done. This is the second distinct reliability failure
+this exact call has had (the first was a silently-denied
+`external_directory` permission on its own self-repair attempt, fixed
+earlier with `--auto`) — both traceable to the same root cause
+`NORM_IMPLEMENTER_MODEL` was originally created to fix for the
+norm-implementer: a smaller local model doesn't reliably follow
+unattended-mode instructions.
+
+By request: new `UNDERSTAND_MODEL` env var (`hpc_ollama_entrypoint.sh`,
+default `litellm/Kimi-K2.5`, same Otago LiteLLM proxy norm-implementer/
+evaluator already use), read by both the one-time initial build (that
+script's own `opencode run --agent build` call) and
+`engine/simulate.py`'s `refresh_knowledge_graph()` (falls back to
+`OPENCODE_MODEL` for anyone who hasn't set the new var, same pattern
+`NORM_IMPLEMENTER_MODEL` already established). Deliberately its own var,
+not a repoint of `OPENCODE_MODEL` — nothing else on Aoraki actually reads
+`OPENCODE_MODEL` any more (both opencode-invoking Python functions check
+`NORM_IMPLEMENTER_MODEL` first, and it's always set here), but keeping
+`UNDERSTAND_MODEL` separate means a future local-model UA experiment
+doesn't require touching norm-implementer's own routing to try it.
+Practical effect: the fisher's own 20b model is now the only thing left
+using local Ollama on an ordinary run — everything else is a network call
+to the Otago proxy. Not yet verified against a real job — same standing
+caveat as every UA claim in this file without one behind it, though the
+underlying reasoning (stronger model, less likely to hallucinate a tool
+name or ignore an unattended-mode instruction) already has direct
+precedent in what fixed the identical problem class for the
+norm-implementer.
+
+**Reverted the same day, by request**: Kimi-K2.5 is a paid model over the
+Otago LiteLLM proxy, and UA's own transcripts run well past 100K
+characters per call — real quota-exceeding risk that outweighs the
+reliability gain for what's already an opt-in feature most runs don't
+even enable. `UNDERSTAND_MODEL` removed entirely from both
+`hpc_ollama_entrypoint.sh` and `engine/simulate.py`'s
+`refresh_knowledge_graph()`; both are back on `OPENCODE_MODEL` (local
+`gpt-oss-120b`) directly. The two failure modes documented just above
+(hallucinated `exec` tool call, ignoring the unattended-mode instruction)
+are accordingly back to being a live, accepted limitation rather than
+something routed around — UA on Aoraki should be expected to no-op or
+fail some real fraction of the time until that model's own reliability
+improves or a cheaper stronger option becomes available.

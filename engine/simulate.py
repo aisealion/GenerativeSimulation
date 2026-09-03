@@ -286,6 +286,62 @@ def extract_json_report(text, required_keys=()):
     return None
 
 
+_EVALUATOR_VERDICT_ALIASES = {
+    "PASS": "COMPLIANT", "PASSED": "COMPLIANT", "COMPLIANT": "COMPLIANT",
+    "FAIL": "IMPLEMENTATION_ERROR", "FAILED": "IMPLEMENTATION_ERROR",
+    "IMPLEMENTATION_ERROR": "IMPLEMENTATION_ERROR",
+    "SPEC_GAP": "SPEC_GAP", "AMBIGUOUS": "SPEC_GAP",
+    "NOT_TESTABLE": "NOT_TESTABLE", "SKIP": "NOT_TESTABLE", "SKIPPED": "NOT_TESTABLE",
+}
+
+
+def _normalize_evaluator_report(report):
+    """Coerces a near-miss evaluator report into the canonical
+    {"verdicts": [...], "all_compliant": bool} shape instead of requiring
+    the model to reproduce the exact key names every time — confirmed
+    necessary on a real round: PHASE 5's "write the json block first"
+    instruction worked (the block was there, in the right place), but the
+    model used its own natural schema ("requirements"/"id"/"status"/
+    "PASS"/"FAIL") instead of the one actually specified
+    ("verdicts"/"requirement"/"verdict"/COMPLIANT). Accepts "requirement"
+    or "id", "verdict" or "status" (mapped through
+    _EVALUATOR_VERDICT_ALIASES — "FAIL" maps to IMPLEMENTATION_ERROR, not
+    SPEC_GAP, since a bare fail/pass status carries no clarifying question
+    the way a real SPEC_GAP must). Computes all_compliant if the model
+    omitted it. Returns None if the shape is too far off to make sense of
+    at all (no list of per-requirement items) — still fails closed, just
+    recognizes more of what a real report actually looks like in
+    practice."""
+    if not isinstance(report, dict):
+        return None
+    items = report.get("verdicts")
+    if not isinstance(items, list):
+        items = report.get("requirements")
+    if not isinstance(items, list):
+        return None
+
+    normalized = []
+    for item in items:
+        if not isinstance(item, dict):
+            return None
+        requirement = item.get("requirement", item.get("id"))
+        verdict_raw = item.get("verdict", item.get("status"))
+        if requirement is None or verdict_raw is None:
+            return None
+        verdict = _EVALUATOR_VERDICT_ALIASES.get(str(verdict_raw).upper(), str(verdict_raw).upper())
+        entry = {"requirement": requirement, "verdict": verdict}
+        for passthrough_key in ("question", "test", "reason"):
+            if passthrough_key in item:
+                entry[passthrough_key] = item[passthrough_key]
+        normalized.append(entry)
+
+    all_compliant = report.get("all_compliant")
+    if all_compliant is None:
+        all_compliant = all(e["verdict"] in ("COMPLIANT", "NOT_TESTABLE") for e in normalized)
+
+    return {"round": report.get("round"), "verdicts": normalized, "all_compliant": bool(all_compliant)}
+
+
 def run_norm_implementer(round_number, extra_message=None):
     """Returns True on a completed (returncode 0) run, False on anything
     else — a timeout, a crash, a non-zero exit. Used to raise
@@ -428,6 +484,15 @@ def run_norm_evaluator(round_number, extra_message=None):
     duration_s = time.monotonic() - start
     tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
     report = extract_json_report(final_text, required_keys={"verdicts", "all_compliant"})
+    if report is None:
+        # Confirmed on a real round: a well-placed json block using the
+        # model's own natural schema ("requirements" instead of
+        # "verdicts") rather than the one actually specified. Still
+        # schema-discriminating (won't grab an unrelated example block) —
+        # just recognizing a second known real shape, not accepting any
+        # arbitrary json in the response.
+        report = extract_json_report(final_text, required_keys={"requirements"})
+    report = _normalize_evaluator_report(report)
 
     log_call(
         call="norm_evaluator",
@@ -1053,6 +1118,16 @@ def refresh_knowledge_graph(round_number):
     # project directory — headless, no one to answer, so it silently
     # auto-denies the pnpm build step without this (see CLAUDE.md).
     cmd = ["opencode", "run", "--agent", "build", "--format", "json", "--auto"]
+    # A same-day 2026-09-03 attempt routed this to Kimi-K2.5 (litellm)
+    # instead, after this local model confirmed unreliable twice for
+    # unattended build-agent use — reverted the same day, by request:
+    # Kimi-K2.5 is a paid model and UA's calls are large/expensive enough
+    # to risk exceeding quota, which outweighs the reliability gain for
+    # this already-opt-in feature. Back on OPENCODE_MODEL directly; the
+    # two known failure modes (a hallucinated tool name, ignoring the
+    # unattended-mode instruction — see hpc_ollama_entrypoint.sh's own
+    # UNDERSTAND_MODEL comment) are an accepted, unresolved limitation of
+    # this model rather than something routed around.
     model = os.environ.get("OPENCODE_MODEL")
     if model:
         cmd += ["--model", model]
