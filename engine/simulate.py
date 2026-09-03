@@ -699,9 +699,21 @@ def discard_norm_implementation(round_number, errors):
     hasn't run yet, so nothing from this round has been committed —
     `git checkout --` reverts modified tracked files back to HEAD, `git
     clean -fd` removes any newly-created untracked files/dirs (a new phase
-    file for a new_phase norm, say) that checkout alone wouldn't touch."""
-    print(f"\nRound {round_number}: norm-implementer's changes don't compile — discarding", file=sys.stderr)
-    print("them and continuing with the previous round's mechanics unchanged:", file=sys.stderr)
+    file for a new_phase norm, say) that checkout alone wouldn't touch.
+
+    The `errors` list is the actual reason, and it's deliberately not
+    limited to compile errors: implement_and_evaluate_norm() calls this for
+    five genuinely different situations (a real py_compile/syntax failure,
+    a PROTECTED_PATHS violation, an institution.json drift mismatch, the
+    norm-implementer or norm-evaluator process itself failing/timing out,
+    or the evaluator finding real unresolved IMPLEMENTATION_ERROR/SPEC_GAP
+    findings after repair attempts run out) — the printed header used to
+    hardcode "changes don't compile" regardless of which one actually
+    happened, which was actively misleading for the other four and caused
+    real confusion reading a real round's logs. Say what's actually true
+    instead: the round got discarded, for whatever `errors` says."""
+    print(f"\nRound {round_number}: discarding this round's norm-implementer changes —", file=sys.stderr)
+    print("continuing with the previous round's mechanics unchanged. Reason(s):", file=sys.stderr)
     for error in errors:
         print(f"  {error}", file=sys.stderr)
 
