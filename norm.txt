@@ -1,0 +1,3 @@
+Policy: Each fisher may take a maximum of 10kg per trip; any catch beyond the minimum 1kg needed for survival must be deposited into a community safety reserve.
+
+Operationalization: We will track each trip in a shared ledger; at the end of each fishing session, each fisher records their catch. If a fisher exceeds the 10kg limit, the excess is automatically added to the reserve. The reserve is used to support any fisher whose reserves drop below 3kg. The community will meet weekly to review the reserve balance and adjust quotas if needed. Violations of the quota will result in a temporary suspension of fishing privileges until the fisher compensates the reserve.
