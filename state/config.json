@@ -3,7 +3,7 @@
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
   "norms": [
-    {"type": "deficit_penalty", "penalty_rate": 0.10},
-    {"type": "daily_collective_limit", "daily_limit_kg": 200, "individual_cap_kg": 15}
+    {"type": "weekly_audit", "audit_frequency_rounds": 7, "audit_sample_rate": 0.30, "sanction_duration_rounds": 1},
+    {"type": "dynamic_individual_cap", "standard_cap_kg": 15, "emergency_cap_kg": 10, "emergency_threshold_kg": 20}
   ]
 }
