@@ -1,3 +1,3 @@
-Policy: Each fisher may take no more than 15 kg per trip; any catch beyond that must be returned to the lake immediately.
+Policy: Each fisher may take no more than 15 kg of fish per trip; any catch beyond that must be returned to the lake immediately, and each fisher must keep at least 1 kg for self sustenance.
 
-Operationalization: All fishers record their catch on a shared ledger each day. If a fisher exceeds 15 kg, the excess must be placed back into the lake or a communal tank by 8 pm that day. The community will conduct a random audit once a week; those who fail to return excess will lose fishing rights for one trip. If lake reserves fall below 20 kg, the maximum per trip is lowered to 10 kg until reserves recover.
+Operationalization: Every fisher records their catch in a shared logbook. If a fisher’s haul exceeds 15 kg, the excess is immediately returned to the lake and the fisher must pay a penalty of 1 kg to a communal pool. The community meets monthly to review lake stock, and if the stock falls below 100 kg, the limit automatically drops to 10 kg until stock recovers. Violations are penalized by reducing the next trip’s limit by 5 kg.
