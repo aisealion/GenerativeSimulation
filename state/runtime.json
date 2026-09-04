@@ -1,6 +1,6 @@
 {
-  "round": 5,
-  "stock_kg": 81.14781867158673,
+  "round": 6,
+  "stock_kg": 65.10032486605907,
   "rounds": [
     {
       "round": 1,
@@ -820,19 +820,180 @@
       },
       "winner_index": 4,
       "winning_proposer": "agent_5"
+    },
+    {
+      "round": 6,
+      "phase": "harvest",
+      "stock_kg_before": 81.14781867158673,
+      "agents": {
+        "agent_1": {
+          "effort": 0.3,
+          "harvested_kg": 1.217217280073801,
+          "reasoning": "I\u2019ll keep the effort low\u2014just enough to meet my 1\u202fkg self\u2011sustenance target\u2014while honoring the 3\u202f% rule and leaving plenty of fish for the lake\u2019s future.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.4,
+          "harvested_kg": 1.622956373431735,
+          "reasoning": "I\u2019ll go out with moderate effort to keep enough fish for future and the community, while still feeding myself. A lower effort keeps the lake healthy and aligns with our long\u2011term sustainability goals.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 1.0,
+          "harvested_kg": 4.057390933579337,
+          "reasoning": "I\u2019ll go all out today\u2014catch the full 8\u202fkg allowed, keep 1\u202fkg for survival, deposit 60\u202f% of the surplus into the reserve, and help build the safety pool for the community.",
+          "note": null,
+          "participated": true
+        },
+        "agent_5": {
+          "effort": 1.0,
+          "harvested_kg": 4.057390933579337,
+          "reasoning": "I need to keep fishing at full effort to ensure I stay profitable; the lake still has 81kg so I can grab my max 12kg.",
+          "note": null,
+          "participated": true
+        },
+        "agent_6": {
+          "effort": 0.7,
+          "harvested_kg": 2.840173653505536,
+          "reasoning": "I\u2019ll cast out hard enough to keep my reserves healthy but not drain the lake; with a 0.7 effort I expect to haul about 8\u202fkg, deposit 1\u202fkg, and net 7\u202fkg for a steady 38\u202fkg reserve.",
+          "note": null,
+          "participated": true
+        },
+        "agent_7": {
+          "effort": 1.0,
+          "harvested_kg": 4.057390933579337,
+          "reasoning": "I push full effort, I can take up to 6kg under the 25% rule and my reserves are fine, so I\u2019ll aim for that to keep myself fed.",
+          "note": null,
+          "participated": true
+        },
+        "agent_8": {
+          "effort": 1.0,
+          "harvested_kg": 4.057390933579337,
+          "reasoning": "I\u2019m going full effort to haul in the 15kg I\u2019m allowed\u2014just enough to feed myself and keep my reserves safe while respecting the 35% rule on lake stock.",
+          "note": null,
+          "participated": true
+        },
+        "agent_9": {
+          "effort": 0.8,
+          "harvested_kg": 3.24591274686347,
+          "reasoning": "I\u2019ll go out with high effort, aiming for about 10\u201112kg. That keeps my reserves safe, satisfies my 1kg need, and leaves the lake enough for tomorrow\u2019s haul.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_after_harvest": 55.99199488339484,
+      "stock_kg_after_regrowth": 65.10032486605907
+    },
+    {
+      "round": 6,
+      "phase": "propose",
+      "proposals": {
+        "agent_1": {
+          "policy": "No fisher may take more than 3% of the lake\u2019s current stock on any trip, and the community must keep at least 35% of the lake\u2019s current stock in reserve at all times.",
+          "operationalization": "At the start of each trip, the fisher calculates 3% of the current lake stock and may not exceed this amount. All catches are logged in a shared ledger that is reviewed each month at the community meeting. The 35% reserve is maintained by designating a protected zone that cannot be fished. If a fisher exceeds their limit, their fishing rights are suspended for the next season and the excess fish must be returned to the lake; repeated violations trigger a community\u2011based fine and loss of voting power in future rule\u2011making.",
+          "reasoning": "This balances my need to sustain myself with the long\u2011term health of the lake, ensuring enough fish remain for reproduction and future generations. The 3% cap prevents sudden large removals, while the 35% reserve keeps a core population safe from over\u2011exploitation."
+        },
+        "agent_2": {
+          "policy": "No fisher may take more than 4% of the lake\u2019s current stock per trip, and the lake must retain at least 85% of its total fish weight at all times.",
+          "operationalization": "After each trip, every fisher records the weight of fish taken and the lake\u2019s stock before the trip on a shared ledger. The community leader reviews the ledger at the end of each day, ensuring that no individual\u2019s catch exceeds 4% of that day\u2019s stock and that the total catch of all fishers does not exceed 15% of the stock (i.e., the lake retains at least 85%). If a fisher or the community exceeds the limits, the excess catch must be returned to the lake by releasing fish or discarding. The violator forfeits his next trip and must contribute a small repair fee to community maintenance. If the lake\u2019s stock falls below 60\u202fkg, all fishing stops for one week and a recovery plan is enacted. The rule is reviewed quarterly by the community.",
+          "reasoning": "I want to keep the lake healthy so future trips can continue, but also make sure each of us can still eat. 4% limits big individual grabs, while 85% retention guarantees the lake keeps enough fish to recover. The ledger and quick penalties keep everyone honest and make sure we stick to the plan."
+        },
+        "agent_3": {
+          "policy": "Each fisher may take up to 10% of the lake\u2019s current fish stock per trip, capped at 8 kg. After keeping 1 kg for survival, the remaining catch is split 50% to the fisher and 50% to a community safety reserve, which must always hold at least 12% of the lake\u2019s current stock.",
+          "operationalization": "Every trip, a fisher calculates 10% of the lake stock at the start of the trip and takes the lesser of that or 8 kg, ensuring 1 kg remains for themselves. The surplus beyond 1 kg is divided: they keep 50% and deposit the other 50% into the reserve. The reserve is monitored weekly; if it falls below 12% of the lake, the next trip\u2019s reserve contribution is increased by an additional 5% of the catch. If a fisher fails to deposit the required amount, their next trip is barred until the reserve target is met. All catches and reserve balances are recorded in a shared ledger.",
+          "reasoning": "I want a rule that protects our survival, limits over\u2011fishing, and keeps the reserve strong enough for future storms. 10% of the lake each trip scales with the lake\u2019s health, and the 8 kg cap stops anyone from depleting the stock. Splitting the surplus keeps individual income while filling the reserve. The reserve threshold guarantees enough fish to rebuild if the lake dips, and the enforcement keeps everyone honest. This balances my need to survive, the community\u2019s prosperity, and the lake\u2019s sustainability."
+        },
+        "agent_5": {
+          "policy": "No fisher may take more than 10\u202fkg per trip, and each must keep at least 1\u202fkg for personal sustenance; any surplus must be returned to the lake immediately.",
+          "operationalization": "At the start of each trip a fisher will note the total weight they plan to haul. After landing, they separate 1\u202fkg for themselves and, if the remainder exceeds 9\u202fkg, they return the excess to a designated communal pool at the dock. The pool will be monitored weekly; when it reaches 20\u202fkg, the community can grant an extra 2\u202fkg allowance per fisher for that week. If a fisher fails to return surplus or keep 1\u202fkg, they must give 1\u202fkg to the pool on their next trip.",
+          "reasoning": "I want to keep the lake sustainable and make sure everyone has enough to eat, while still allowing me to fish profitably. The 10\u202fkg cap prevents over\u2011harvesting, the 1\u202fkg reserve ensures my food needs, and the communal pool keeps things fair and enforces the rule."
+        },
+        "agent_6": {
+          "policy": "Each fisher may take up to 10kg per trip, and must deposit 1kg of that catch into a communal lake reserve each trip.",
+          "operationalization": "Every time a fisher leaves the shore, they record their catch weight on a communal log and set aside 1kg into the shared reserve container. The reserve is checked monthly; if it falls below 30kg, all fished fish per trip is temporarily limited to 8kg until the reserve reaches 30kg again. Any fisher who fails to deposit 1kg will have their next trip's allowance reduced by 2kg, and if the violation persists, the community may temporarily ban that fisher from fishing for a week. The reserve is replenished by those who catch more than their share and by communal restocking efforts if needed.",
+          "reasoning": "I want to keep the lake productive while still getting a fair amount of fish for myself and my family. 10kg per trip is generous but not too high, and the 1kg deposit keeps a safety net so the lake never drops below a healthy reserve.  The enforcement rules keep us honest and make sure we all stick to the agreement.  This way we can keep fishing for our future without depleting the lake. "
+        },
+        "agent_7": {
+          "policy": "Daily catch from the lake may not exceed 20% of its current stock, and no individual may catch more than 5kg per day.",
+          "operationalization": "At the start of each fishing day the community will measure the lake\u2019s stock (e.g., via a communal gauge). Each fisher will write their intended catch in the communal logbook. The sum of all written catches must not exceed 20% of the measured stock. Each fisher\u2019s entry may not exceed 5kg; any amount above 5kg must be released immediately. If a fisher\u2019s actual catch would push the total above 20% or exceed their 5kg quota, they must adjust by releasing the excess. Should a fisher ignore the rule, the other fishers will publicly record the violation, demand release of excess, and impose a temporary catch\u2011cap of 0kg for the next two days. Compliance will be monitored by a rotating \u201clake steward\u201d who checks catch lists and lake stock at the end of each day.",
+          "reasoning": "I need enough fish each trip to survive, but we must keep the lake from collapsing. A 20% daily limit protects the stock while still allowing us to catch up to 5kg. The 5kg cap stops a few people from overfishing, keeping the lake balanced. The logbook and steward create accountability and discourage selfish grabs. This rule keeps the lake healthy for future trips and ensures I can keep fishing without depleting the resource."
+        },
+        "agent_8": {
+          "policy": "Each fisher may take up to 12kg per trip, and the lake must retain at least 35% of its current stock after each trip.",
+          "operationalization": "After every trip, each fisher records their catch on a shared ledger that is checked by a rotating committee of two fishers. The committee compares the recorded catch to the lake\u2019s stock estimate (obtained from a community survey once per month). If the lake\u2019s remaining stock falls below 35% after a catch, the fisher who exceeded the threshold must return 50% of the excess catch to the community pool and is barred from fishing for the next two rounds. All fishers must abide by the 12kg per trip limit, verified by the committee before the trip starts.",
+          "reasoning": "I need a steady stream of fish to keep my reserves from falling below zero; 12kg per trip gives me plenty while still leaving enough fish in the lake. The 35% rule protects the lake from collapse, which would kill all of us. By having a community ledger and penalties, we keep the rule enforceable without heavy bureaucracy. This way we all survive, and the lake remains a resource for future rounds."
+        },
+        "agent_9": {
+          "policy": "Each fisher may keep up to 18\u202fkg per trip; the lake\u2019s total harvest per day cannot exceed 220\u202fkg. Any excess from a fisher\u2019s haul or from the daily total is returned to a community pool.",
+          "operationalization": "At the end of each trip, every fisher records their haul on the shared ledger and deposits any surplus over 18\u202fkg into the pool. If the combined daily harvest reaches 220\u202fkg, any subsequent fish caught that day are automatically returned to the pool. The community council audits the ledger monthly; a fisher who fails to comply must forfeit 5\u202fkg of their next trip\u2019s catch.",
+          "reasoning": "This keeps the lake healthy while allowing me to harvest more per trip and ensures I meet my 1\u202fkg food requirement. The higher cap gives me a better return on my effort, and the enforcement protects against overfishing and ensures the rule is respected."
+        }
+      }
+    },
+    {
+      "round": 6,
+      "phase": "vote",
+      "votes": {
+        "agent_1": {
+          "vote": 2,
+          "reasoning": "I prioritize the lake's long\u2011term health. Proposal\u00a02 caps each trip at 4% and, more importantly, limits the community to 15% of the stock each day, ensuring an 85% reserve. The safety rule of stopping fishing when the stock dips below 60\u202fkg gives a clear safety net. This balances my need to catch enough to survive (about\u00a01\u202fkg per trip) while protecting the lake from over\u2011exploitation. The stricter community cap is more sustainable than a 3% per\u2011fisher rule alone, so I choose proposal\u00a02."
+        },
+        "agent_2": {
+          "vote": 2,
+          "reasoning": "I choose the second policy because it keeps the lake healthy while still allowing me to survive. With 4% of the current stock each trip, I can catch about 3\u202fkg when the lake is at 81\u202fkg \u2013 enough to leave 1\u202fkg for my own food and still keep a surplus for the reserve. The rule also requires the lake to retain at least 85\u202f% of its fish, so we always leave a large majority of the population untouched, giving the fish ample time to reproduce. The combined total catch limit of 15\u202f% keeps the whole community from depleting the lake in a single day. This strikes a balance between my need to feed myself and the long\u2011term sustainability the community values, and it is easier to monitor and enforce than some of the more complex proposals."
+        },
+        "agent_3": {
+          "vote": 3,
+          "reasoning": "I need at least 1 kg each trip to survive, and I want to keep a fair share of the lake\u2019s bounty while also helping the community build a reserve that will keep the fish healthy. Policy\u202f3 lets me take up to 8\u202fkg (10% of the lake, capped) and, after keeping my 1\u202fkg, splits the rest 50\u201150 into the reserve. That gives me about 3\u00bd\u202fkg of personal catch per trip, which is enough for my own needs and still contributes significantly to the safety reserve. The reserve must hold at least 12% of the current stock, so the lake\u2019s fish population stays protected. This balance between personal livelihood and communal sustainability is what I\u2019ll support."
+        },
+        "agent_5": {
+          "vote": 8,
+          "reasoning": "I want to keep as much as possible to sustain myself and keep my reserves high. Proposal 8 lets me haul up to 18\u202fkg per trip with no need to return fish or deposit, and the daily lake cap of 220\u202fkg is far above the lake\u2019s 81\u202fkg. This maximizes my personal catch while keeping within community rules."
+        },
+        "agent_6": {
+          "vote": 8,
+          "reasoning": "As a fisher I need to maximize my catch to keep the family fed and keep my reserves healthy. Policy 8 lets me keep up to 18kg per trip, the highest allowance of any rule, and the daily cap of 220kg is far above our lake\u2019s 81kg, so it won\u2019t restrict me. I\u2019ll still keep some in the pool if the daily total ever climbs too high, but that\u2019s a small risk for the big benefit."
+        },
+        "agent_7": {
+          "vote": 8,
+          "reasoning": "I need to bring home enough to keep myself fed and to survive, and the lake is only 81kg now. The only rule that lets me take a big haul is #8 \u2013 up to 18kg per trip and the daily total cap is 220kg, which is higher than the whole lake, so it won't bite. The others cut me down to a few kilos or force me to give most back. Voting #8 keeps the fish for us while still letting the community pool take what\u2019s extra. That\u2019s the only one that actually lets me stay alive and stay in the fishery."
+        },
+        "agent_8": {
+          "vote": 7,
+          "reasoning": "I vote for policy 7 because it lets me take a generous 12 kg per trip while ensuring the lake never drops below 35% of its stock, keeping a steady supply for my future trips."
+        },
+        "agent_9": {
+          "vote": 8,
+          "reasoning": "I want to keep as many fish as possible each trip to feed myself and earn a living. Policy 8 lets me haul up to 18\u202fkg per trip and only requires that the lake\u2019s daily harvest stay under 220\u202fkg, which is far above our current stock of 81\u202fkg. This means I can keep 18\u202fkg without triggering any return or penalty, and I will still leave more than 35\u202f% of the lake in reserve, so I won\u2019t risk a ban. The rule is simple and gives me the most flexibility while keeping the lake healthy enough for future trips."
+        }
+      },
+      "tally": {
+        "1": 0,
+        "2": 2,
+        "3": 1,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 1,
+        "8": 4
+      },
+      "winner_index": 8,
+      "winning_proposer": "agent_9"
     }
   ],
   "payoff": {
     "agent_0": -0.85,
-    "agent_1": 16.58172820510346,
-    "agent_2": 25.796219415120184,
-    "agent_3": 21.6846733855191,
+    "agent_1": 16.79894548517726,
+    "agent_2": 26.419175788551918,
+    "agent_3": 24.74206431909844,
     "agent_4": -0.25,
-    "agent_5": 39.18482657100577,
-    "agent_6": 31.116949801600732,
-    "agent_7": 29.88052515548174,
-    "agent_8": 34.546780627607376,
-    "agent_9": 42.93482657100577
+    "agent_5": 42.242217504585106,
+    "agent_6": 32.95712345510627,
+    "agent_7": 32.937916089061076,
+    "agent_8": 37.60417156118671,
+    "agent_9": 45.18073931786924
   },
   "dead_agents": [
     "agent_0",
@@ -1004,6 +1165,91 @@
           "returned": 0.0,
           "penalty": 0.0,
           "violated": false
+        }
+      ]
+    },
+    "sustenance_cap_with_obligation": {
+      "weekly_review_occurred": false,
+      "ledger": [
+        {
+          "round": 6,
+          "agent_id": "agent_1",
+          "raw_catch": 1.217217280073801,
+          "obligation_deducted": 0.0,
+          "kept": 1.217217280073801,
+          "returned_to_lake": 0.0,
+          "obligation_accrued": 0.0,
+          "violation": false
+        },
+        {
+          "round": 6,
+          "agent_id": "agent_2",
+          "raw_catch": 1.622956373431735,
+          "obligation_deducted": 0.0,
+          "kept": 1.622956373431735,
+          "returned_to_lake": 0.0,
+          "obligation_accrued": 0.0,
+          "violation": false
+        },
+        {
+          "round": 6,
+          "agent_id": "agent_3",
+          "raw_catch": 4.057390933579337,
+          "obligation_deducted": 0.0,
+          "kept": 4.057390933579337,
+          "returned_to_lake": 0.0,
+          "obligation_accrued": 0.0,
+          "violation": false
+        },
+        {
+          "round": 6,
+          "agent_id": "agent_5",
+          "raw_catch": 4.057390933579337,
+          "obligation_deducted": 0.0,
+          "kept": 4.057390933579337,
+          "returned_to_lake": 0.0,
+          "obligation_accrued": 0.0,
+          "violation": false
+        },
+        {
+          "round": 6,
+          "agent_id": "agent_6",
+          "raw_catch": 2.840173653505536,
+          "obligation_deducted": 0.0,
+          "kept": 2.840173653505536,
+          "returned_to_lake": 0.0,
+          "obligation_accrued": 0.0,
+          "violation": false
+        },
+        {
+          "round": 6,
+          "agent_id": "agent_7",
+          "raw_catch": 4.057390933579337,
+          "obligation_deducted": 0.0,
+          "kept": 4.057390933579337,
+          "returned_to_lake": 0.0,
+          "obligation_accrued": 0.0,
+          "violation": false
+        },
+        {
+          "round": 6,
+          "agent_id": "agent_8",
+          "raw_catch": 4.057390933579337,
+          "obligation_deducted": 0.0,
+          "kept": 4.057390933579337,
+          "returned_to_lake": 0.0,
+          "obligation_accrued": 0.0,
+          "violation": false
+        },
+        {
+          "round": 6,
+          "agent_id": "agent_9",
+          "raw_catch": 3.24591274686347,
+          "obligation_deducted": 0.0,
+          "kept": 3.24591274686347,
+          "returned_to_lake": 0.0,
+          "obligation_accrued": 0.0,
+          "violation": false
         }
       ]
     }
