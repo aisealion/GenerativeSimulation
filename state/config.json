@@ -3,6 +3,6 @@
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
   "norms": [
-    {"type": "sustenance_cap_with_obligation", "cap_kg": 12, "min_keep_kg": 1, "obligation_trips": 2, "auto_deduction_rate": 0.10, "review_frequency_rounds": 7}
+    {"type": "collective_limit_with_audit", "individual_cap_kg": 18, "daily_limit_kg": 220, "audit_frequency_rounds": 30, "forfeiture_amount_kg": 5}
   ]
 }
