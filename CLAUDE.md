@@ -2523,3 +2523,238 @@ To revert once quota allows: change the one `export
 NORM_IMPLEMENTER_MODEL=...` line back to `litellm/Kimi-K2.5` (or another
 `litellm/*` model) — the `LITELLM_API_KEY` check picks that back up
 automatically, no second edit needed.
+
+## Critique agent: every proposal gets refined before the vote, not just after (2026-09-05)
+
+By request, closing a gap in the norm pipeline's own timeline: every
+existing mechanism that makes a norm more implementable
+(`engine.clarify_norm`'s dialogue, the norm-evaluator's `SPEC_GAP`
+question) ran *after* a norm had already won a vote — nothing ever helped
+make a proposal better *before* the community committed to one. New
+`phases/critique.py` runs between `propose` and `vote` (added to
+`schedule.json`, always on): every alive agent's proposal independently
+goes through a bounded critique-then-revise loop (`MAX_CRITIQUE_EXCHANGES
+= 5`) before anyone votes on anything.
+
+**The critical boundary, enforced only by prompt (same posture as every
+other behavioral constraint in this file)**: the critique agent
+(`engine.llm_agents.call_critique_agent`, `CRITIQUE_SYSTEM_PROMPT`) may
+only ask what the proposal leaves unspecified — who holds something, when
+it happens, how much, what happens on violation — and must never suggest
+an answer, propose a value, or recommend adding content the proposal
+doesn't already imply. This was the single most important design
+constraint requested: a critique agent that starts suggesting normative
+content ("you should also add a punishment for repeat violations") stops
+being a critic and starts being a co-author, which would quietly
+substitute the researcher's/model's own normative preferences for the
+community's — undermining the entire point of studying *emergent* norms.
+The prompt states this explicitly with a worked good/bad example pair,
+and the fisher who proposed the rule is the only one who ever actually
+answers a critique question or revises the proposal text — the critique
+agent's own words never become part of any proposal.
+
+**Deliberately a fixed, neutral role, not a fisher persona**: unlike
+`call_fisher_agent()`, `call_critique_agent()` renders no persona, no
+personality traits, no history, no notices — it has nothing to bring to a
+proposal except the question of whether it's specified enough to
+implement. It's a direct `litellm` call (same `FISHER_MODEL`, same
+retry/logging shape as `call_fisher_agent`) — not an opencode agent; it
+needs no file/bash access, so there was no reason to give it any.
+Stateless per call like every model call here — prior exchanges are
+reconstructed into genuine conversation turns (alternating
+assistant/user messages) each time, not summarized, so the model sees the
+actual back-and-forth rather than a paraphrase of it.
+
+**The proposer's own response** goes through the existing
+`call_fisher_agent()` path with a new `phase_name="critique_response"`
+and template (`prompts/phases/critique_response.md`) — the fisher answers
+in character and restates its policy/operationalization in full each
+time (revised if the answer changes anything, unchanged otherwise), so
+there's always a complete, self-contained proposal after every exchange,
+never a fragment to merge.
+
+**`phases/vote.py`'s own `_proposals()`** now prefers this round's
+`critique` record's refined proposals over `propose`'s raw ones, falling
+back to `propose` when no critique record exists for the round (an older
+schedule.json with critique gated off, or a round resumed from before
+this phase existed) — kept backward-compatible on purpose rather than
+assuming critique always ran.
+
+**Cost, named explicitly rather than glossed over**: with the "critique
+every proposal" scope (chosen over a cheaper narrowed-first-then-critique
+alternative, for fidelity to the design — nobody should vote on an
+unrefined proposal), this can add up to `agent_count` × up to
+`MAX_CRITIQUE_EXCHANGES` extra model-call pairs (one critique call, one
+fisher-response call, per exchange) every single round, on top of
+harvest+propose+vote. For the default `agent_count=10`, that's a
+potential ~2-3x increase in this round's total LLM call volume even
+though most proposals should resolve in far fewer than 5 exchanges once a
+model reliably says `SUFFICIENT` early — worth watching on a real run's
+wall-time before assuming this is free.
+
+**Protected like harvest/propose/vote/discuss, for the same reason**:
+`phases/critique.py` is fixed, human-owned simulation architecture, not
+something a norm round ever touches — added to `PROTECTED_PATHS` and both
+`protected_phase_names` sets in `engine/simulate.py`, `state/institution.json`,
+and every one of the (now nine) places both `norm-implementer.md` copies
+name the four originally-protected files, so the norm-implementer's own
+routing/self-review instructions stay accurate about what "additive only"
+actually protects.
+
+**New memory event type**: `proposal_refined` registered in both
+`engine/memory/write.py`'s `IMPORTANCE_BY_EVENT_TYPE` and
+`prompts/memory_phrasing.py`'s `_FRAMES` (the latter raises at import
+time if the two ever go out of sync — this is what that check is for) —
+low importance (3, same band as `proposal_made`), since being asked to
+clarify a proposal is a routine procedural event, not a sanction or
+violation.
+
+**Verified locally** (no real LLM calls): a dedicated
+`tests/regression/test_critique_phase.py` confirms an immediate
+`SUFFICIENT` verdict leaves a proposal completely unchanged and never
+even calls the fisher; one question followed by `SUFFICIENT` correctly
+applies exactly that revision, independently per proposal (a second
+proposal getting `SUFFICIENT` immediately isn't affected by the first
+one's back-and-forth); a critique agent that never says `SUFFICIENT` is
+correctly bounded at exactly `MAX_CRITIQUE_EXCHANGES` rather than looping
+forever; `vote.py`'s `_proposals()` correctly prefers a critique round's
+output when present and falls back to `propose`'s raw output when absent.
+`pytest tests/regression/ tests/norms/` (38 tests, 5 new) all pass. Not
+yet verified against a real multi-agent Aoraki round — same standing
+caveat as every other agent-call mechanism in this file without a live
+run behind it, and this one has never been exercised with real model
+output at all.
+
+### Explicit finalize step, so "the refined operationalization" isn't just whatever the last exchange happened to say (2026-09-05, same day)
+
+By request: the critique loop's original design treated the *last*
+exchange's own `revised_policy`/`revised_operationalization` as the final
+refined proposal — but that text was written as an answer to one specific
+question, not necessarily as a considered, complete final draft. Added a
+dedicated closing step: if any exchange happened at all,
+`phases/critique.py` makes one more `call_fisher_agent(..., "critique_finalize", ...)`
+call (`prompts/phases/critique_finalize.md`) — a summary of every
+question-and-answer from the round is handed back to the proposer, who
+states one deliberate final policy/operationalization incorporating the
+whole discussion. *That* response, not the last exchange's incidental
+revision, is what `refined_proposals[agent_id]` actually becomes, and
+what `vote.py` reads. Skipped entirely when a proposal was `SUFFICIENT`
+on the very first pass (nothing to finalize) — matches the existing
+"zero exchanges → completely unchanged" behavior exactly.
+
+Real cost, worth being explicit about: this adds one more model call per
+proposal that had at least one exchange (not every proposal, and not per
+exchange — once, at the end) — a modest addition to the per-round budget
+already named in the entry above, not a multiplier on it.
+
+Verified locally (no real LLM calls): updated both existing tests that
+exercise a proposal with at least one exchange to also confirm the
+finalize call actually happens exactly once, receives a
+`dialogue_summary` containing the real question text, and that its own
+response — not the last exchange's raw revision — is what ends up in
+`refined_proposals`. `pytest tests/regression/ tests/norms/` (38 tests)
+still passes.
+
+## Critique agent gains institution/roster context, and two-stage terminology made explicit (2026-09-06)
+
+By request: the critique agent (2026-09-05 entries above) previously saw
+only the proposal text in isolation — it couldn't tell whether "the
+deposit" would need a genuinely new mechanism or whether one already
+existed, or how many fishers a rule like "all fishers must..." would
+actually apply to. New `engine.llm_agents._critique_context()` builds a
+plain-language summary — alive fisher count (out of the total ever in the
+community), `state/institution.json`'s current phases and tracked state,
+`state/config.json`'s currently active norms, current lake stock — read
+fresh from disk on every `call_critique_agent()` call (same
+direct-disk-read convention `render_persona()` already uses for its own
+context, not passed in via a state dict). Not subject to `prompts/`'s
+fourth-wall rule — that applies to fisher-facing text only, and the
+critique agent is explicitly an out-of-character analytical role, same
+footing as the norm-implementer/evaluator, so plain internal names
+(`stock_kg`, phase names, norm `type` strings) are fine here.
+
+**The same boundary as the critique agent's core design gets restated
+for this specifically**: `CRITIQUE_SYSTEM_PROMPT` now explicitly says this
+context is for asking *sharper* questions ("there's no existing mechanism
+for holding a deposit — who would hold it?"), never for suggesting *which*
+existing mechanism to reuse or proposing a new one — pointing out a gap is
+its job; deciding what fills it, whether the answer is new or already
+exists, never is. Extending its own visibility into the codebase without
+also restating this would have been exactly the kind of change that could
+quietly turn a "critic" into a co-author.
+
+Verified directly against the real repo state (not a synthetic
+fixture): `_critique_context()` was run as-is and produced a correct,
+readable summary ("There are currently 10 fishers active in the community
+(out of 10 total ever in it)... Currently active community rules: none
+currently active..."), and separately verified to degrade gracefully
+(without crashing, and without needing the real file touched) when
+`state/institution.json` is absent — a real edge case the docstring
+claims to handle, checked rather than assumed. `pytest tests/regression/
+tests/norms/` (38 tests) unaffected, since every existing test
+monkeypatches `call_critique_agent` itself and never reaches this
+function's internals.
+
+**Two-stage terminology made explicit, separately** (the same request
+also re-raised several institution-agent design points — most of which
+turned out to already be built): both `norm-implementer.md` copies now
+name the two stages the agent already performs — **Institution Designer**
+(PHASE 1–3, ending in a frozen `state/norm_specs/round_{N}.md`) and **Code
+Implementer** (PHASE 4 onward, translating that already-frozen design into
+code) — explicitly, rather than leaving the split implicit across phase
+numbers. This is a naming change, not a structural one: the actual
+"decide the institution before writing code" ordering, the
+`institutional_changes.add_phases` design-spec schema (purpose, actor,
+decision_or_action, inputs, output, state_changes, after, frequency, gate,
+enforcement, interaction, verification), and the "operationalize, never
+author new normative content" boundary were already built in the
+2026-09-01, 2026-09-04, and 2026-09-05 entries above — re-checked against
+this request point by point rather than re-implemented, since they
+already matched what was being asked for.
+
+## Knowledge-graph refresh moved to before each Code Implementer call, not after commit (2026-09-06)
+
+By request: `refresh_knowledge_graph()` used to run only after a
+successful commit (`evaluation["result"] == "COMPLIANT"`), meaning it
+only ever kept the graph fresh for *some future* round's implementer
+call, never the one actually in progress. Worse, that "future round" could
+be much later than the very next norm-implementer invocation: `commit_round_artifacts()`
+commits every round regardless of whether a norm was even adopted, so
+real commits routinely land between a graph refresh and the next time a
+norm-implementer call actually reads the graph — "freshest right after my
+own last commit" was never the same guarantee as "fresh right now, when
+it's about to be used."
+
+`implement_and_evaluate_norm()` now calls `refresh_knowledge_graph(round_number)`
+immediately before **every** `run_norm_implementer()` call in the
+function — the initial one and both repair-retry call sites (a
+compile/validation-error repair, and an evaluator-`NEEDS_REPAIR` repair)
+— and no longer calls it after a commit at all. Still a no-op when
+`BUILD_KNOWLEDGE_GRAPH` isn't set to `1` (the function's own existing
+first line), so this adds no cost to an ordinary run that never opted
+into the feature.
+
+**One real, named uncertainty this introduces**: a repair-retry's own
+refresh call runs before anything from *this round* has been committed
+(discard/repair always happens pre-commit) — if `/understand`'s
+incremental mode is purely commit-hash-diffed, as its own docstring
+describes, that refresh has nothing new to find and is an effectively
+wasted (though harmless) subprocess call. Whether the underlying tool can
+also see uncommitted working-tree changes and benefit from a mid-round
+refresh anyway is genuinely unknown from here — same standing "configured
+per its documented behavior, not verified against a real run" caveat as
+every other Understand-Anything claim in this file. Implemented as
+requested (before every call, not just the first) rather than narrowed to
+"only before the initial call" on my own judgment, since the cost when
+it's a no-op is just one extra bounded subprocess call, not a correctness
+risk.
+
+Verified directly (no real opencode/LLM calls): monkeypatched every
+function `implement_and_evaluate_norm()` calls and confirmed the actual
+call order for two scenarios — a clean first-try compliant round
+(`refresh → implement → evaluate → commit`, refresh never called again
+after) and a `NEEDS_REPAIR`-then-compliant round (`refresh → implement →
+evaluate → refresh → implement → evaluate → commit`, confirming the
+repair attempt gets its own refresh first). `pytest tests/regression/
+tests/norms/` (38 tests) unaffected — none of them exercise
+`implement_and_evaluate_norm()`'s own internals.

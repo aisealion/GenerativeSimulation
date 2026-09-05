@@ -107,6 +107,10 @@ PROTECTED_PATHS = [
     "phases/harvest.py",
     "phases/propose.py",
     "phases/vote.py",
+    # Added 2026-09-05 alongside phases/propose.py/vote.py above — the
+    # critique-then-revise loop between propose and vote is exactly as
+    # fixed/human-owned as either of them, never a norm-implementer target.
+    "phases/critique.py",
     # A pre-existing, currently-unimplemented stub (raises NotImplementedError,
     # gated permanently off in schedule.json) — not created by any
     # norm-implementer round, so the same "never edit an existing phase
@@ -630,7 +634,7 @@ def norm_implementation_runtime_errors():
         "\n"
         "import importlib, os\n"
         "from engine.phase_base import Phase\n"
-        "protected_phase_names = {'harvest', 'propose', 'vote', 'discuss'}\n"
+        "protected_phase_names = {'harvest', 'propose', 'critique', 'vote', 'discuss'}\n"
         "schedule = json.loads(open('schedule.json').read())\n"
         "for py_file in sorted(os.listdir('phases')):\n"
         "    if not py_file.endswith('.py') or py_file == '__init__.py':\n"
@@ -735,7 +739,7 @@ def norm_implementation_institution_errors():
         return []  # already reported by norm_implementation_compile_errors()'s generic JSON check
 
     schedule = json.loads((ROOT / "schedule.json").read_text())
-    protected_phase_names = {"harvest", "propose", "vote", "discuss"}
+    protected_phase_names = {"harvest", "propose", "critique", "vote", "discuss"}
     on_disk = {
         p.stem for p in (ROOT / "phases").glob("*.py")
         if p.stem != "__init__" and p.stem not in protected_phase_names
@@ -907,10 +911,24 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     itself failing to produce any verdict at all — that's not a finding
     about the code, so it doesn't consume a repair attempt or discard the
     round on its own; only genuinely exhausting the evaluator retries
-    does. Returns True iff a commit actually happened (the caller then
-    refreshes the knowledge graph); False means a discard already happened
-    and was logged — same "this round's mechanics stay as they were"
-    contract every other failure path in this file already has."""
+    does. Returns True iff a commit actually happened; False means a
+    discard already happened and was logged — same "this round's
+    mechanics stay as they were" contract every other failure path in
+    this file already has.
+
+    The knowledge graph is refreshed immediately before every
+    run_norm_implementer() call in this function — including repair
+    retries — not after a successful commit (changed 2026-09-06, by
+    request). Refreshing only after a commit meant the graph could go
+    stale between that refresh and the next time a norm-implementer call
+    actually reads it: other commits land in between (commit_round_artifacts()
+    at the end of every round, regardless of whether a norm was even
+    adopted that round), so "freshest right after my own last commit" is
+    not the same guarantee as "fresh at the moment the implementer is
+    about to consult it." Refreshing right before each call gives that
+    guarantee directly, at the one point it actually matters, instead of
+    hoping an earlier refresh is still relevant."""
+    refresh_knowledge_graph(round_number)
     if not run_norm_implementer(round_number):
         discard_norm_implementation(
             round_number, ["norm-implementer run itself failed or timed out — see logs/model_calls.jsonl"]
@@ -949,6 +967,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 "alone to catch the next issue. Don't change anything else about your "
                 "implementation beyond what's needed to fix these specific errors."
             )
+            refresh_knowledge_graph(round_number)
             if not run_norm_implementer(round_number, extra_message=repair_message):
                 discard_norm_implementation(
                     round_number,
@@ -998,8 +1017,6 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
 
         if evaluation["result"] == "COMPLIANT":
             commit_hash = commit_norm_implementation(round_number, winning_proposal)
-            if commit_hash:
-                refresh_knowledge_graph(round_number)
             return bool(commit_hash)
 
         # No more structured per-requirement verdict list (that was exactly
@@ -1030,6 +1047,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             "changes. Follow your standing instructions for handling a repair re-invocation.\n\n"
             f"--- Evaluator's report ---\n{evaluation['text']}\n--- end of report ---"
         )
+        refresh_knowledge_graph(round_number)
         if not run_norm_implementer(round_number, extra_message=repair_message):
             discard_norm_implementation(
                 round_number,

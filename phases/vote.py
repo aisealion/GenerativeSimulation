@@ -1,4 +1,6 @@
-# Reads: state/config.json, state/fluents.json, state/runtime.json (proposals).
+# Reads: state/config.json, state/fluents.json, state/runtime.json
+# (proposals — this round's critique-refined ones when present, propose's
+# raw ones otherwise).
 # Writes: state/runtime.json (vote tallies), state/fluents.json (adopted rules).
 
 from engine.llm_agents import call_fisher_agent
@@ -13,12 +15,28 @@ class VotePhase(Phase):
         """Ordered (proposer_id, proposal) list, same order shown to every
         voter this round — built once so the numbering is consistent across
         all of them, and the tie-break below (max() over an in-order dict)
-        favors whichever proposal comes first in this same order."""
+        favors whichever proposal comes first in this same order.
+
+        Prefers this round's phases/critique.py output (the
+        critique-then-revise loop's final, possibly-revised text) over
+        propose's own raw proposals — falls back to propose's when no
+        critique round record exists for this round, so an older
+        schedule.json with critique gated off (or a round resumed from
+        before this phase existed) still works unchanged."""
         runtime = state["runtime"]
         agents = state["agents"]
-        last_propose = next(r for r in reversed(runtime["rounds"]) if r["phase"] == "propose")
+        round_number = state["round_number"]
+        critique_record = next(
+            (r for r in runtime["rounds"] if r["round"] == round_number and r["phase"] == "critique"),
+            None,
+        )
+        if critique_record is not None:
+            proposals_source = critique_record["proposals"]
+        else:
+            last_propose = next(r for r in reversed(runtime["rounds"]) if r["phase"] == "propose")
+            proposals_source = last_propose["proposals"]
         return [
-            (agent_id, last_propose["proposals"][agent_id])
+            (agent_id, proposals_source[agent_id])
             for agent_id in alive_agent_ids(agents, runtime)
         ]
 

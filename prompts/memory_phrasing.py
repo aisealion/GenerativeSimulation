@@ -20,6 +20,7 @@ _FRAMES = {
     "new_phase_activated": "At one point, how things are done around here changed: {text}",
     "vote_outcome": "The community decided: {text}",
     "proposal_made": "You once proposed: {text}",
+    "proposal_refined": "You once refined a rule you'd proposed after being asked about it: {text}",
     "routine_harvest": "{text}",
     "fact_initiated": "You remember: {text}",
     "fact_ended": "You remember it didn't last forever: {text}",

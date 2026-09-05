@@ -2,6 +2,7 @@
   "phases": {
     "harvest": {"file": "phases/harvest.py", "protected": true},
     "propose": {"file": "phases/propose.py", "protected": true},
+    "critique": {"file": "phases/critique.py", "protected": true},
     "vote": {"file": "phases/vote.py", "protected": true},
     "discuss": {"file": "phases/discuss.py", "protected": true}
   },

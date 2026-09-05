@@ -7,7 +7,7 @@ from pathlib import Path
 import litellm
 
 from engine.call_log import log_call
-from engine.physics import catch_from_effort, CONSUMPTION_KG
+from engine.physics import alive_agent_ids, catch_from_effort, CONSUMPTION_KG
 from mechanisms.roles import role_holder, visible_facts
 
 
@@ -311,6 +311,168 @@ def call_fisher_agent(agent_id, round_number, phase_name, **fields):
     raise RuntimeError(
         f"fisher agent call failed for agent={agent_id} phase={phase_name} after {MAX_ATTEMPTS} attempts: {last_error}"
     )
+
+
+CRITIQUE_SYSTEM_PROMPT = """You are an institutional-design critic reviewing a proposed community rule
+before it goes to a vote. Your ONLY job is to identify institutional
+details the proposal leaves unspecified — who holds something, when it
+happens, how much, what happens on violation, who decides. You are not a
+rule-maker: you must NEVER suggest what the answer should be, propose a
+specific value or mechanism, or recommend adding anything the proposal
+doesn't already imply. Ask only "what does this leave unanswered?" — never
+"you should also...".
+
+Good: "The proposal doesn't specify who holds the deposit."
+Good: "The proposal doesn't say when the deposit is returned."
+Bad: "You should make the deposit 5kg of fish." (this invents content —
+never do this)
+Bad: "You should also add a punishment for repeat violations." (this
+invents content — never do this)
+
+You'll also be told what institutional mechanisms already exist (phases,
+tracked state, active rules) and how many fishers are in the community.
+Use this only to ask sharper, more concrete questions — e.g. "there's no
+existing mechanism for holding a deposit — who would hold it?", or "the
+proposal says fishers must comply, but doesn't say whether that means all
+of the community's current fishers or just some" — never to suggest which
+existing mechanism should be reused, or to propose adding one yourself.
+Pointing out that something is missing is your job; deciding what fills
+the gap is never your job, whether the answer would be new or already
+exists.
+
+If the proposal is already clear enough to implement (every institutional
+detail a reasonable person would need is answered), say so — don't
+manufacture a question just to have one.
+
+Respond with ONLY this JSON object, nothing else:
+{"status": "SUFFICIENT"} if nothing important is missing, or
+{"status": "QUESTION", "question": "<one specific missing-detail question, in plain language>"}
+"""
+
+
+def _critique_context():
+    """Plain-language summary of the current institution and community
+    size, handed to the critique agent so its questions can reference what
+    actually exists (an existing phase, an existing tracked state field,
+    how many fishers there are) instead of guessing blind. Reads directly
+    from disk, the same convention render_persona() already uses for its
+    own context-gathering — the critique agent has no persona/state passed
+    to it any other way. Not subject to prompts/'s fourth-wall rule (that
+    applies to fisher-facing text only) — this agent is explicitly an
+    out-of-character analytical role, same footing as the norm-implementer/
+    evaluator, so plain internal names are fine here. Degrades gracefully
+    (empty-but-valid summary) if state/institution.json doesn't exist yet
+    rather than raising — this call must never be the reason a round fails."""
+    agents = json.loads((ROOT / "state" / "agents.json").read_text())
+    runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
+    config = json.loads((ROOT / "state" / "config.json").read_text())
+    institution_path = ROOT / "state" / "institution.json"
+    institution = json.loads(institution_path.read_text()) if institution_path.is_file() else {}
+
+    agent_ids = alive_agent_ids(agents, runtime)
+    phase_names = ", ".join(sorted(institution.get("phases", {}))) or "none recorded"
+    state_fields = institution.get("state", {})
+    state_summary = "; ".join(
+        f"{group}: {', '.join(fields)}" for group, fields in state_fields.items()
+    ) or "none recorded"
+    norms = config.get("norms", [])
+    norms_summary = ", ".join(n.get("type", "?") for n in norms) if norms else "none currently active"
+
+    return (
+        f"There are currently {len(agent_ids)} fishers active in the community "
+        f"(out of {len(agents)} total ever in it). Existing institutional phases "
+        f"(rounds of decision-making already in place): {phase_names}. State already "
+        f"tracked: {state_summary}. Currently active community rules: {norms_summary}. "
+        f"Current lake stock: {runtime.get('stock_kg', 'unknown')}kg."
+    )
+
+
+def call_critique_agent(policy, operationalization, history, round_number=None, proposer_id=None):
+    """Reviews one proposal for missing institutional specification before
+    it goes to a vote — a fixed, neutral role, deliberately with no fisher
+    persona/personality/history rendering, so it brings nothing to the
+    proposal except the question of whether it's specified enough to
+    implement. Barred from prescribing normative content by
+    CRITIQUE_SYSTEM_PROMPT — it identifies gaps, it never fills them; that
+    boundary is enforced only by the prompt, the same posture every other
+    behavioral constraint on a model call in this project already has.
+
+    Stateless per call, like every model call here — `history` (a list of
+    prior {"question", "answer", "revised_policy", "revised_operationalization"}
+    dicts from this same proposal's earlier exchanges) is reconstructed
+    into genuine conversation turns each call, not summarized, so the
+    model sees the actual back-and-forth rather than a paraphrase of it.
+    `round_number`/`proposer_id` are for logging only (call_call()'s own
+    round/agent_id columns) — the institution/roster context (see
+    _critique_context()) is read fresh from disk on every call rather than
+    passed in, so it reflects whatever a same-round earlier proposal's own
+    critique loop may have already changed (nothing currently does, but
+    reading fresh costs nothing and avoids relying on that staying true)."""
+    messages = [{"role": "system", "content": CRITIQUE_SYSTEM_PROMPT}]
+    messages.append({
+        "role": "user",
+        "content": (
+            f"Context: {_critique_context()}\n\n"
+            f"Proposed policy: {policy}\n"
+            f"Operationalization: {operationalization}\n\n"
+            "Review this proposal."
+        ),
+    })
+    for turn in history:
+        messages.append({
+            "role": "assistant",
+            "content": json.dumps({"status": "QUESTION", "question": turn["question"]}),
+        })
+        messages.append({
+            "role": "user",
+            "content": (
+                f"The proposer answered: {turn['answer']}\n"
+                f"Revised policy: {turn['revised_policy']}\n"
+                f"Revised operationalization: {turn['revised_operationalization']}"
+            ),
+        })
+
+    model_spec = os.environ.get("FISHER_MODEL", DEFAULT_FISHER_MODEL)
+    completion_kwargs = _resolve_completion_kwargs(model_spec)
+
+    last_error = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        start = time.monotonic()
+        raw_text = ""
+        parsed = None
+        error = None
+        try:
+            response = litellm.completion(messages=messages, timeout=180, **completion_kwargs)
+            raw_text = response.choices[0].message.content or ""
+            parsed = _parse_json_object(raw_text)
+        except Exception as exc:
+            error = str(exc)
+        duration_s = time.monotonic() - start
+
+        log_call(
+            call="critique",
+            agent_id=proposer_id,
+            round=round_number,
+            phase="critique",
+            model=model_spec,
+            attempt=attempt,
+            duration_s=round(duration_s, 3),
+            returncode=0 if error is None else 1,
+            prompt=messages[-1]["content"],
+            raw_response=raw_text,
+            parsed_response=parsed,
+            error=error,
+        )
+
+        if not error:
+            time.sleep(CALL_DELAY_S)
+            return parsed
+
+        last_error = error
+        print(f"  [critique/{proposer_id} attempt {attempt}/{MAX_ATTEMPTS} failed: {error} — retrying]")
+        time.sleep(CALL_DELAY_S)
+
+    raise RuntimeError(f"critique agent call failed for proposer={proposer_id} after {MAX_ATTEMPTS} attempts: {last_error}")
 
 
 def _parse_json_object(raw):

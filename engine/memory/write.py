@@ -24,6 +24,7 @@ IMPORTANCE_BY_EVENT_TYPE = {
     "new_phase_activated": 5,
     "vote_outcome": 6,
     "proposal_made": 3,
+    "proposal_refined": 3,
     "routine_harvest": 1,
     # Generic fallback for mechanisms.roles.set_fact()/end_fact() calls that
     # don't specify a more specific type above — same importance band as
