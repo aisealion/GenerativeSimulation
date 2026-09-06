@@ -14,7 +14,7 @@ class CapAndReserveNorm(Norm):
 
     type_name = "cap_and_reserve"
 
-    LIMIT_KG = 20.0
+    LIMIT_KG = 30.0
     BAN_KEY = "banned_until"
     RESERVE_KEY = "reserve_kg"
     BAN_DURATION = 1  # months (rounds)
