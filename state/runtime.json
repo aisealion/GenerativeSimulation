@@ -1,6 +1,6 @@
 {
-  "round": 4,
-  "stock_kg": 3.960736001416628,
+  "round": 5,
+  "stock_kg": -6.064046252731659,
   "rounds": [
     {
       "round": 1,
@@ -2066,6 +2066,78 @@
       },
       "winner_index": 3,
       "winning_proposer": "agent_2"
+    },
+    {
+      "round": 5,
+      "phase": "harvest",
+      "stock_kg_before": 3.960736001416628,
+      "agents": {
+        "agent_0": {
+          "effort": 0.0,
+          "harvested_kg": 1.0,
+          "reasoning": "I can't fish; the lake\u2019s stock is below 20\u202fkg and the community rule suspends fishing until it rises again.",
+          "note": null,
+          "participated": true
+        },
+        "agent_1": {
+          "effort": 0.2,
+          "harvested_kg": 1.0,
+          "reasoning": "The lake's biomass is barely 4\u202fkg and the community rule caps my keep to 0.5\u202fkg per trip; I\u2019ll fish lightly to avoid depleting what\u2019s left and rely on my reserves.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.0,
+          "harvested_kg": 1.0,
+          "reasoning": "The lake is at 4\u202fkg, below the 10\u202fkg threshold in our current rule; to preserve long\u2011term sustainability I stay home this round.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 0.25,
+          "harvested_kg": 1.0,
+          "reasoning": "I need 1\u202fkg to survive and the lake is only 4\u202fkg; a small effort will let me get the minimum without depleting it further.",
+          "note": null,
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 0.0,
+          "harvested_kg": 1.0,
+          "reasoning": "The lake holds only 4kg, and the current rule caps each fisher at 5% of that\u20140.2kg\u2014far below the 1kg needed to stay fed.  Staying home preserves the fragile stock and keeps the community\u2019s sustainability rules in force.",
+          "note": null,
+          "participated": true
+        },
+        "agent_5": {
+          "effort": 0.0,
+          "harvested_kg": 1.0,
+          "reasoning": "The lake\u2019s stock is only 4\u202fkg, below the 30\u202fkg threshold in Toa\u2019s accepted rule, so fishing is not permitted under the community agreement.",
+          "note": null,
+          "participated": true
+        },
+        "agent_6": {
+          "effort": 1.0,
+          "harvested_kg": 1.0,
+          "reasoning": "I\u2019ll go all\u2011out and grab as many of those few fish as I can before anyone else.",
+          "note": null,
+          "participated": true
+        },
+        "agent_8": {
+          "effort": 1.0,
+          "harvested_kg": 1.0,
+          "reasoning": "I need at least 1kg to survive and the lake is almost empty, so I\u2019ll go all out and take whatever fish I can find.",
+          "note": null,
+          "participated": true
+        },
+        "agent_9": {
+          "effort": 0.5,
+          "harvested_kg": 1.0,
+          "reasoning": "I need a kilogram to stay fed, but the lake is almost empty; a moderate effort lets me bring in one kilogram for myself and deposit the rest to help the community while keeping the lake from running dry.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_after_harvest": -5.0392639985833725,
+      "stock_kg_after_regrowth": -6.064046252731659
     }
   ],
   "payoff": {
@@ -2085,7 +2157,7 @@
   ],
   "norms": {
     "round2_quota": {
-      "reduction_factor": 0.9025
+      "reduction_factor": 0.8573749999999999
     }
   }
 }
