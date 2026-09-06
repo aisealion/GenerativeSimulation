@@ -290,7 +290,28 @@ what's already there.
 - Read `norm.txt` in full and `state/institution.json` (the current
   institution: what phases exist, which are protected, what state each
   already tracks).
-- For each distinct rule fragment, reason explicitly about institutional
+- **Identify every distinct rule fragment as an atomic actor+verb+object
+  action, never as a paraphrase of a whole sentence or numbered step.**
+  Walk the Operationalization clause by clause — a single numbered step
+  routinely contains more than one fragment once its conjunctions ("and",
+  "if...then", a second sentence folded into the same step) are split
+  out. For every verb naming something an actor does (checks, records,
+  submits, releases, verifies, reviews, decides, marks, clears, presents,
+  agrees, and so on), write down who does it (a fisher, a named role, "the
+  community"), the verb, and what it acts on. Two verb phrases sharing one
+  actor but doing different things are two separate fragments, never
+  merged into one — a role existing (someone holds the title "leader") is
+  a different fragment from a decision that role later makes (the leader
+  reviews logs and decides whether to revoke someone), which is again
+  different from whatever responds to that decision (a fisher may appeal
+  a revocation to the community). Naming a role is never enough to also
+  cover the decisions that role makes or the processes that respond to
+  them — each needs its own fragment, classified independently below. Err
+  toward over-splitting: a spurious extra fragment collapses harmlessly
+  into an existing owner during routing, but a fragment never extracted is
+  a requirement that silently never gets implemented — exactly the gap
+  this step exists to close.
+- For each fragment identified above, reason explicitly about institutional
   requirements before picking a shape, in this fixed order, so a
   fragment's surface novelty never pulls you toward `new_phase` before
   ruling out the cheaper routes:
@@ -644,6 +665,18 @@ actually belongs in a norm plugin's own logic.
 
 ## PHASE 6 — SELF-REVIEW
 
+- **Re-walk `norm.txt`'s Operationalization one more time, clause by
+  clause, at the same granularity PHASE 1's fragment-extraction used —
+  not the classification table, the source text itself.** For every
+  clause, find the row in your PHASE 1 table that owns it (an existing
+  `norms/*.py` type, a new phase, a fluent/prompts path, or an explicit
+  "not implementable"/`denied_permission_needed` note). A clause with no
+  owner anywhere is a fragment PHASE 1 never extracted — the specific
+  failure this whole check exists to catch is a role being created while
+  the decision that role makes, or a process that responds to that
+  decision (an appeal, a review), quietly never gets built. Add any
+  missing fragment now and route it through PHASE 3 before continuing;
+  don't let the round finish with a clause silently unaccounted for.
 - Walk the Phase 1 classification table: confirm each fragment's actual
   behavior matches its `owner`, and its `verification` genuinely
   exercises it.
