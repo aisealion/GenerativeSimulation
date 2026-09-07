@@ -1,9 +1,11 @@
-Policy: Each fisher may take up to 2 kg per trip, and the total weekly harvest must not exceed 40 % of the lake’s current stock, with a hard minimum of 4 kg remaining in the lake.
+Policy: Each fisher may take up to 25% of the lake’s current stock per trip, capped at 4 kg, and may not cumulatively take more than 70% of the lake’s stock at the start of each calendar month.
 
-Operationalization: 1. Before each trip the fisher presents a valid permit issued by the community council.
-2. The fisher records the exact weight of fish taken and signs the trip log.
-3. At the start of the week the council determines the lake’s current stock; 40 % of that amount is the cap for the entire week.
-4. At the end of the week the council sums all catches. If the total exceeds the cap, the fisher whose last trip produced the excess is identified.
-5. That fisher keeps the excess in a marked, sealed bag until the end of that trip, then deposits it immediately at the agreed return point.
-6. The council revokes that fisher’s permit for the following week, bars him from fishing for that week, and records the ban in the weekly ledger.
-7. All data (trip weights, weekly total, excess returned, banned fisher) is posted publicly on the dock board for verification.
+Operationalization: 1. By the 5th of every month each fisher records the number of trips they intend to make in the "Intended Trips" column of the shared ledger.
+2. The appointed lake steward conducts a "Monthly Stock Assessment" at the start of the month, samples the lake, calculates the total stock, and records the figure in the ledger.
+3. The steward calculates 70% of that stock to establish the community’s monthly catch ceiling.
+4. The monthly ceiling is divided equally among all fishers who declared trips that month; each fisher’s personal monthly target is the ceiling divided by the number of declared fishers.
+5. For each trip, a fisher logs the actual catch immediately in the ledger.
+6. At month’s end, the steward reviews total catches. If the cumulative catch exceeds the 70% ceiling, fishers who contributed to the excess are identified.
+7. Violators must either reduce their next month’s catch by 10% of the lake’s current stock and/or donate half of their next month’s catch to the community pot.
+8. Any violation triggers a community meeting within a day or two after the monthly stock assessment; the offending fisher’s future trips are suspended until they return to compliance, usually until the next monthly stock assessment.
+9. The ledger remains the single source of truth for stock, intended trips, actual catches, and enforcement decisions, ensuring transparency and fairness for all fishers.
