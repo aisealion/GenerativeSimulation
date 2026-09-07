@@ -1,0 +1,8 @@
+[0m
+> build · gpt-oss-120b-32768ctx
+[0m
+[0m$ [0mwhich understand
+(no output)
+[0m
+[0m→ [0mSkill "understand"
+We now have the understand skill loaded, which is a large pipeline to generate a knowledge graph. The user hasn't asked any specific request yet. We need to wait for user input. Possibly they will want to run "/understand" command. But no instruction yet. So we should ask what they need? However guidelines say avoid unnecessary prompts. Probably the user will ask something next. So we respond awaiting their request.What would you like to do with the project?
