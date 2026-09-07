@@ -1,0 +1,13 @@
+# Norm Specification – Round 2
+
+**Policy**
+Each fisher may take up to **4 kg** per trip: **1 kg** for personal sustenance and **3 kg** deposited into a community reserve. No fisher may exceed **30 %** of the lake’s current biomass in a month; the reserve is released only when total biomass falls below **200 kg**.
+
+**Operationalization**
+1. A five‑member community board is elected by secret ballot once per year; the board has authority to audit the communal log, enforce the quota, collect fees, and authorize reserve releases.
+2. On every trip, a fisher records total catch in the communal log and deposits **3 kg** of the catch into the dock’s reserve bin; **1 kg** is kept for sustenance.
+3. The board reviews the log weekly, tracks lake biomass, and if biomass falls below **200 kg**, authorizes release of fish from the reserve to help rebuild numbers.
+4. A fisher who skips the **3 kg** deposit or exceeds **4 kg** per trip is temporarily barred until they (a) return any excess catch to the reserve bin, (b) pay a **0.5 kg** fee to the reserve, and (c) sign a compliance pledge acknowledging the rules; the board verifies compliance and lifts the ban.
+5. Violations also incur the **0.5 kg** fee, which is added to the reserve.
+6. The board enforces the **30 %** monthly biomass cap by monitoring cumulative monthly catch and barring any fisher who exceeds the limit until they comply.
+7. All actions and decisions are recorded in the communal log for transparency and future review.
