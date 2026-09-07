@@ -1,6 +1,6 @@
 # HarvestContext: everything a Norm needs for one round, built exactly once
 # per round and shared by every hook call for that round (never rebuilt
-# mid-round — see phases/harvest.py's run(), which builds one and threads it
+# mid-round — see actions/harvest.py's run(), which builds one and threads it
 # through the whole agent loop).
 
 from dataclasses import dataclass, field

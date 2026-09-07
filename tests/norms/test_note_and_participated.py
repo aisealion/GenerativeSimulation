@@ -3,7 +3,7 @@ from engine.llm_agents import _harvest_shortfall_clause, render_history
 
 def _entry(agent_record, stock_kg_before=100.0, other_kg=5.0):
     return {
-        "round": 1, "phase": "harvest", "stock_kg_before": stock_kg_before,
+        "round": 1, "action": "harvest", "stock_kg_before": stock_kg_before,
         "stock_kg_after_regrowth": 95.0,
         "agents": {"agent_0": agent_record, "agent_1": {"harvested_kg": other_kg}},
     }
@@ -39,7 +39,7 @@ def test_no_shortfall_no_note_is_silent():
 def test_render_history_includes_the_note_via_round_record():
     runtime = {
         "rounds": [{
-            "round": 1, "phase": "harvest", "stock_kg_before": 100.0,
+            "round": 1, "action": "harvest", "stock_kg_before": 100.0,
             "stock_kg_after_regrowth": 95.0,
             "agents": {
                 "agent_0": {

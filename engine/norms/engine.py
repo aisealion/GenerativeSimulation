@@ -1,8 +1,8 @@
 # NormEngine: orchestrates every active Norm for one HarvestContext.
 # Constructed fresh each round from state["config"]["norms"] via
-# from_config(); phases/harvest.py owns exactly one NormEngine + one
+# from_config(); actions/harvest.py owns exactly one NormEngine + one
 # HarvestContext per round and threads both through the whole agent loop
-# (never one-per-agent — see phases/harvest.py).
+# (never one-per-agent — see actions/harvest.py).
 
 from engine.norms.base import NormDecision
 from engine.norms.registry import load_norms

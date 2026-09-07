@@ -61,7 +61,7 @@ def _load_fisher_system_prompt():
 FISHER_SYSTEM_PROMPT = _load_fisher_system_prompt()
 
 
-def render_persona(agent_id, round_number, phase_name):
+def render_persona(agent_id, round_number, action_name):
     agents = json.loads((ROOT / "state" / "agents.json").read_text())
     fluents = json.loads((ROOT / "state" / "fluents.json").read_text())
     runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
@@ -80,7 +80,7 @@ def render_persona(agent_id, round_number, phase_name):
         agent_id, round_number, runtime, agents, config.get("history_window_rounds", 5)
     )
     notices = render_notices(agent_id, round_number, fluents)
-    relevant_memories = render_relevant_memories(agent_id, phase_name, round_number)
+    relevant_memories = render_relevant_memories(agent_id, action_name, round_number)
 
     return persona_template.format(
         agent_name=agent["name"],
@@ -98,8 +98,8 @@ def render_survival_status(agent_id, runtime):
     """Fishing isn't just for profit — every fisher owes a fixed cost just
     to feed themselves each trip, tracked as a running balance that goes
     back to round 0, not reset each round. Ties directly to the mechanic in
-    phases/harvest.py: apply_consumption()/is_dead() decide the same
-    balance this renders. Deliberately repeated on every phase's prompt,
+    actions/harvest.py: apply_consumption()/is_dead() decide the same
+    balance this renders. Deliberately repeated on every action's prompt,
     not just harvest's, matching how Gupta et al.'s CPRAgent restates this
     same survival framing in every one of its own prompt templates
     (strategy/punishment/norm-update/vote), not only the harvest one."""
@@ -118,7 +118,7 @@ def render_notices(agent_id, round_number, fluents):
     concatenates the already-phrased `narration` text on each currently-
     active fluent visible_facts() returns, which the mechanism that wrote
     the fact authored at the moment it happened (mirroring how
-    phases/*.py's memory_writes() already hands the memory layer
+    actions/*.py's memory_writes() already hands the memory layer
     already-phrased text rather than raw fields)."""
     facts = visible_facts(fluents, agent_id, round_number)
     if not facts:
@@ -126,7 +126,7 @@ def render_notices(agent_id, round_number, fluents):
     return " ".join(fact["narration"] for fact in facts)
 
 
-def render_relevant_memories(agent_id, phase_name, round_number):
+def render_relevant_memories(agent_id, action_name, round_number):
     """Pre-fetched here, before the completion call — never exposed as a
     tool the fisher agent could call itself. The memory layer is optional,
     local-only infra for now (see write_memory_episodes() in simulate.py),
@@ -138,7 +138,7 @@ def render_relevant_memories(agent_id, phase_name, round_number):
         from engine.memory.query import retrieve_memories
         from prompts.memory_phrasing import phrase_memory
 
-        records = retrieve_memories(agent_id, phase_name, round_number)
+        records = retrieve_memories(agent_id, action_name, round_number)
         if not records:
             return "(nothing notable comes to mind)"
         return " ".join(phrase_memory(record) for record in records)
@@ -163,7 +163,7 @@ def _harvest_shortfall_clause(mine_record, entry):
     produced with nothing else in play. If the agent wasn't even asked that
     round (a live ban, via some norm's own is_eligible() hook — not
     something inferable from numbers alone), "participated": False is set
-    explicitly by phases/harvest.py; anything else defaults to
+    explicitly by actions/harvest.py; anything else defaults to
     participated.
     """
     if mine_record.get("participated") is False:
@@ -192,7 +192,7 @@ def render_history(agent_id, round_number, runtime, agents, window):
     lines = []
     for r in past_rounds:
         for entry in (e for e in runtime["rounds"] if e["round"] == r):
-            if entry["phase"] == "harvest":
+            if entry["action"] == "harvest":
                 mine_record = entry["agents"][agent_id]
                 mine = mine_record["harvested_kg"]
                 total_others = sum(
@@ -204,14 +204,14 @@ def render_history(agent_id, round_number, runtime, agents, window):
                     f"{entry['stock_kg_after_regrowth']:.0f}kg afterward."
                     f"{_harvest_shortfall_clause(mine_record, entry)}"
                 )
-            elif entry["phase"] == "propose":
+            elif entry["action"] == "propose":
                 mine = entry["proposals"][agent_id]["policy"]
                 num_others = len(entry["proposals"]) - 1
                 lines.append(
                     f'Round {r}: you proposed "{mine}", alongside {num_others} other proposal(s) '
                     f"from the rest of the community."
                 )
-            elif entry["phase"] == "vote":
+            elif entry["action"] == "vote":
                 winner_id = entry["winning_proposer"]
                 who = "your" if winner_id == agent_id else f"{agents[winner_id]['name']}'s"
                 tally = entry["tally"]
@@ -229,8 +229,8 @@ def render_history(agent_id, round_number, runtime, agents, window):
     return "Here's what's happened so far:\n" + "\n".join(f"- {line}" for line in lines)
 
 
-def render_phase(phase_name, **fields):
-    template = (ROOT / "prompts" / "phases" / f"{phase_name}.md").read_text()
+def render_action(action_name, **fields):
+    template = (ROOT / "prompts" / "actions" / f"{action_name}.md").read_text()
     return template.format(**fields).strip()
 
 
@@ -259,8 +259,8 @@ def _resolve_completion_kwargs(model_spec):
     )
 
 
-def call_fisher_agent(agent_id, round_number, phase_name, **fields):
-    prompt = render_persona(agent_id, round_number, phase_name) + "\n\n" + render_phase(phase_name, **fields)
+def call_fisher_agent(agent_id, round_number, action_name, **fields):
+    prompt = render_persona(agent_id, round_number, action_name) + "\n\n" + render_action(action_name, **fields)
     model_spec = os.environ.get("FISHER_MODEL", DEFAULT_FISHER_MODEL)
     completion_kwargs = _resolve_completion_kwargs(model_spec)
 
@@ -289,7 +289,7 @@ def call_fisher_agent(agent_id, round_number, phase_name, **fields):
             call="fisher",
             agent_id=agent_id,
             round=round_number,
-            phase=phase_name,
+            action=action_name,
             model=model_spec,
             attempt=attempt,
             duration_s=round(duration_s, 3),
@@ -305,11 +305,11 @@ def call_fisher_agent(agent_id, round_number, phase_name, **fields):
             return parsed
 
         last_error = error
-        print(f"  [{agent_id}/{phase_name} attempt {attempt}/{MAX_ATTEMPTS} failed: {error} — retrying]")
+        print(f"  [{agent_id}/{action_name} attempt {attempt}/{MAX_ATTEMPTS} failed: {error} — retrying]")
         time.sleep(CALL_DELAY_S)
 
     raise RuntimeError(
-        f"fisher agent call failed for agent={agent_id} phase={phase_name} after {MAX_ATTEMPTS} attempts: {last_error}"
+        f"fisher agent call failed for agent={agent_id} action={action_name} after {MAX_ATTEMPTS} attempts: {last_error}"
     )
 
 
@@ -329,7 +329,7 @@ never do this)
 Bad: "You should also add a punishment for repeat violations." (this
 invents content — never do this)
 
-You'll also be told what institutional mechanisms already exist (phases,
+You'll also be told what institutional mechanisms already exist (actions,
 tracked state, active rules) and how many fishers are in the community.
 Use this only to ask sharper, more concrete questions — e.g. "there's no
 existing mechanism for holding a deposit — who would hold it?", or "the
@@ -353,7 +353,7 @@ Respond with ONLY this JSON object, nothing else:
 def _critique_context():
     """Plain-language summary of the current institution and community
     size, handed to the critique agent so its questions can reference what
-    actually exists (an existing phase, an existing tracked state field,
+    actually exists (an existing action, an existing tracked state field,
     how many fishers there are) instead of guessing blind. Reads directly
     from disk, the same convention render_persona() already uses for its
     own context-gathering — the critique agent has no persona/state passed
@@ -370,7 +370,7 @@ def _critique_context():
     institution = json.loads(institution_path.read_text()) if institution_path.is_file() else {}
 
     agent_ids = alive_agent_ids(agents, runtime)
-    phase_names = ", ".join(sorted(institution.get("phases", {}))) or "none recorded"
+    action_names = ", ".join(sorted(institution.get("actions", {}))) or "none recorded"
     state_fields = institution.get("state", {})
     state_summary = "; ".join(
         f"{group}: {', '.join(fields)}" for group, fields in state_fields.items()
@@ -380,8 +380,8 @@ def _critique_context():
 
     return (
         f"There are currently {len(agent_ids)} fishers active in the community "
-        f"(out of {len(agents)} total ever in it). Existing institutional phases "
-        f"(rounds of decision-making already in place): {phase_names}. State already "
+        f"(out of {len(agents)} total ever in it). Existing institutional actions "
+        f"(rounds of decision-making already in place): {action_names}. State already "
         f"tracked: {state_summary}. Currently active community rules: {norms_summary}. "
         f"Current lake stock: {runtime.get('stock_kg', 'unknown')}kg."
     )
@@ -453,7 +453,7 @@ def call_critique_agent(policy, operationalization, history, round_number=None, 
             call="critique",
             agent_id=proposer_id,
             round=round_number,
-            phase="critique",
+            action="critique",
             model=model_spec,
             attempt=attempt,
             duration_s=round(duration_s, 3),

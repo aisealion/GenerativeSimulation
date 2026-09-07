@@ -22,7 +22,7 @@ def set_fact(
     "community" for a fact that isn't about one specific agent.
 
     `narration` is optional, already in-world-phrased plain language
-    (the same convention phases/*.py's memory_writes() already uses for its
+    (the same convention actions/*.py's memory_writes() already uses for its
     `text` field) describing this fact for whoever it's visible to. A
     record with no narration renders nowhere — it's plumbing only (this is
     how plain role_fluent records, like the "fisher" role every agent
@@ -127,12 +127,12 @@ def visible_facts(fluents, agent_id, round_number):
 def fact_memory_events(fluents, round_number):
     """Memory-episode specs for every fact newly opened or newly closed
     this exact round that carries narration — pure, no I/O (mirrors the
-    shape `phases/*.py`'s `memory_writes()` already returns:
+    shape `actions/*.py`'s `memory_writes()` already returns:
     `{event_type, text, agent_id, group_id}`). The caller
     (`engine/simulate.py`) turns these into actual `write_episode()` calls,
-    once per round after all of that round's phases have run — not once
-    per phase, since a fact set by an early phase would otherwise still
-    read as "newly opened" to a later phase's own call and get logged
+    once per round after all of that round's actions have run — not once
+    per action, since a fact set by an early action would otherwise still
+    read as "newly opened" to a later action's own call and get logged
     twice."""
     events = []
     for record in fluents:

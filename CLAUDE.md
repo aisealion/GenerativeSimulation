@@ -2758,3 +2758,224 @@ evaluate → refresh → implement → evaluate → commit`, confirming the
 repair attempt gets its own refresh first). `pytest tests/regression/
 tests/norms/` (38 tests) unaffected — none of them exercise
 `implement_and_evaluate_norm()`'s own internals.
+
+## Repo-wide rename: `phases/` → `actions/`, and the norm-implementer fully rewritten (2026-09-06)
+
+By explicit request: the word "phase" was overloaded in this codebase —
+it meant both the simulation's atomic institutional-decision unit
+(`phases/harvest.py`, the `Phase` base class, a round record's
+`"phase"` key) *and* got used informally in prose for "a step of a
+process" (the norm-implementer's own old `PHASE 1–7` instruction
+headers, this file's own narrative). That overload was making it harder
+to reason clearly about what a "new institutional decision unit" actually
+is, especially once the norm-implementer needed to reliably recognize
+when a norm's Operationalization calls for a genuinely new one (see the
+next section below — the two changes were requested together, for
+exactly this reason). Renamed the concept to **action** everywhere,
+repo-wide, and the physical directory along with it — not just the
+word in documentation.
+
+**What actually moved, mechanically:**
+
+- `phases/` → `actions/` (git `mv`, history preserved): `harvest.py`,
+  `propose.py`, `critique.py`, `vote.py`, `discuss.py` unchanged in
+  content shape, just relocated and internally renamed (see below).
+- `engine/phase_base.py` → `engine/action_base.py`: `class Phase` →
+  `class Action`.
+- `prompts/phases/` → `prompts/actions/` (all templates + its README).
+- Every action file's `class HarvestPhase(Phase)` etc. → `HarvestAction(Action)`
+  (and `ProposeAction`, `CritiqueAction`, `VoteAction`, `DiscussAction`);
+  the module-level `PHASE = HarvestPhase()` convention → `ACTION =
+  HarvestAction()`.
+- A round record's `"phase"` key (e.g. `{"round": 1, "phase": "harvest",
+  ...}`) → `"action"`, everywhere it's written (all five action files)
+  and everywhere it's read (`engine/simulate.py`'s `run_cycle()`,
+  `round_is_complete()`, `find_adopted_norm()`; `engine/llm_agents.py`'s
+  `render_history()`; `engine/clarify_norm.py`; `engine/monitoring.py`'s
+  `_harvest_rounds()`). `state/runtime.json` had no round records yet on
+  this branch (fresh round 0), so this was a schema change with nothing
+  to migrate — a checkout with real round history would need its
+  existing `"phase"` keys renamed by hand before resuming.
+- `state/institution.json`'s top-level `"phases"` key → `"actions"`
+  (entries' `"file"` values updated to `actions/*.py` accordingly).
+- `engine/simulate.py`: `PROTECTED_PATHS` entries, `_phases_protected_as_of_head()`
+  → `_actions_protected_as_of_head()` (reads `institution.get("actions",
+  ...)` now), `norm_implementation_institution_errors()`'s
+  `protected_phase_names` → `protected_action_names` and its `(ROOT /
+  "phases")` glob → `(ROOT / "actions")`, and the
+  `norm_implementation_runtime_errors()` fabricated-subprocess script
+  (imports `actions.harvest`, checks `ACTION`/`Action` instead of
+  `PHASE`/`Phase`, lists `os.listdir('actions')`).
+  `NORM_IMPLEMENTER_TRACKED_PATHS`'s `"phases"` entry → `"actions"`.
+- `engine/llm_agents.py`: every `phase_name` parameter (`render_persona()`,
+  `render_relevant_memories()`, `call_fisher_agent()`,
+  `call_critique_agent()`'s `_critique_context()`) → `action_name`;
+  `render_phase()` → `render_action()`, reading `prompts/actions/`;
+  the `phase=phase_name`/`phase="critique"` kwargs passed to `log_call()`
+  → `action=...`, for the same reason `state/institution.json`'s key
+  changed — a log record's field name is this project's own choice, not
+  an external contract, so it followed the same rename rather than being
+  left as a confusing leftover next to the new terminology.
+- `engine/memory/query.py`'s `PHASE_QUERY_TEMPLATES` →
+  `ACTION_QUERY_TEMPLATES` (and its `_retrieve()`/`retrieve_memories()`
+  `phase` parameter → `action_name`). `engine/memory/write.py`'s
+  `new_phase_activated` event type → `new_action_activated`, mirrored in
+  `prompts/memory_phrasing.py`'s `_FRAMES` (the two are checked against
+  each other at import time — see the original "Fluent narration and
+  visibility" entry above — so both had to change together or the module
+  would fail to import).
+- `mechanisms/roles.py`, `engine/norms/{base,context,engine}.py`,
+  `engine/physics.py`, `norms/README.md`, `state/fluents_schema.md`, and
+  the three READMEs under `prompts/actions/`/`tests/norm_checks/`/
+  `prompts/role_directives/` — every docstring/comment mention of
+  "phase"/`phases/` updated to "action"/`actions/` for accuracy, no
+  behavior change.
+- Test suite: `tests/norms/test_harvest_phase_baseline.py` →
+  `test_harvest_action_baseline.py`, `tests/regression/test_critique_phase.py`
+  → `test_critique_action.py` (both `git mv`'d, then their own
+  `phases.harvest`/`PHASE`/`"phase"` internals updated to match);
+  `tests/norms/test_note_and_participated.py` had its two hand-built
+  round-record fixtures' `"phase"` keys updated to `"action"`.
+- `hpc_ollama_entrypoint.sh` — every prose/comment reference to
+  `phases/*`/"3 phases"/"vote phase" updated to `actions/*`/"3
+  actions"/"vote action"; its handful of "PHASE 2" cross-references into
+  the norm-implementer's own instructions were reworded to describe the
+  step by name (its codebase-understanding/staleness-check step) instead
+  of a section number, since the norm-implementer's own numbering scheme
+  changed too (see below) — a stale literal "PHASE 2" would otherwise
+  point at the wrong thing in the rewritten file.
+
+**Deliberately left untouched, and why**: `/understand`'s own internal
+"Phase 0"/"Phase 7" terminology (a third-party skill's own pipeline
+stages, referenced a few places in `engine/simulate.py`'s
+`refresh_knowledge_graph()` docstring and `hpc_ollama_entrypoint.sh`) —
+that's Understand-Anything's own vocabulary for its own process, not this
+project's institutional-action concept, and renaming a reference to
+someone else's terminology would misdescribe it. `logs/model_calls.jsonl`
+— existing log lines already written under the old `phase=` field name
+are historical data, not touched retroactively (same posture as every
+other "this is a forensic record, not live config" file in this project);
+only future log writes use the new `action=` field name.
+
+**Verified, not just reasoned about**: `python3 -m py_compile` on every
+touched `.py` file; `pytest tests/regression/ tests/norms/` (38 tests,
+same count and same passes as before the rename — nothing here was
+expected to change test *behavior*, only names); and, directly against
+the real repo state (not a fabricated fixture), `engine.simulate`'s own
+three pre-commit safety checks — `norm_implementation_compile_errors()`,
+`norm_implementation_institution_errors()`, `norm_implementation_runtime_errors()`
+— all run clean against the renamed tree, confirming the fabricated-subprocess
+runtime check (which imports `actions.harvest` and inspects
+`ACTION`/`Action` by name, in a script string that can't be caught by
+grep alone) actually executes correctly post-rename, not just parses.
+Not verified: an actual `opencode run --agent norm-implementer` against
+a live norm.txt post-rename — same standing caveat as every other
+opencode-agent claim in this file without a completed real run behind it.
+
+## Norm-implementer instructions fully rewritten around a general
+## institutional-action-extraction method (2026-09-06, same day)
+
+By explicit request, prompted by a real observed failure: a norm whose
+Operationalization introduced a decision-making role (a community leader
+reviewing compliance logs and deciding whether to revoke someone's
+permission for the next day) *and* a response process to that role's
+decision (an appeal a punished party could bring to a community meeting)
+was implemented with the role created but neither the decision the role
+makes nor the appeal process ever built — the norm-implementer's old
+routing logic classified the whole passage as one coarse "role_fluent"
+fragment and never separately recognized the two decisions buried inside
+it as fragments of their own. The fix isn't specific to that example (it
+is deliberately never named in the rewritten file) — it's a general
+defect in how a fragment used to get identified in the first place: PHASE
+1 of the old file told the model to reason about "each distinct rule
+fragment" without ever defining how a fragment gets carved out of the
+source text, so a paragraph naming a role, the decision that role makes,
+and a process responding to that decision could all get read as one
+fragment purely because they shared a sentence or a paragraph.
+
+Both `norm-implementer.md` files (`.opencode/agent/`, `.claude/agents/`)
+were rewritten from scratch around this fix, restructured into 16
+numbered sections plus a closing "Core Principle" — replacing the
+previous `## PHASE 1 — SPECIFY` … `## PHASE 7 — REPAIR` structure
+entirely (this rename is also why every "PHASE N" cross-reference
+elsewhere in this file, and in `engine/simulate.py`/
+`hpc_ollama_entrypoint.sh`, now points at "Section N" or a step's name
+instead — see the rename entry directly above). The core addition, in
+Section 4 ("Determine the Required Institutional Changes"): **identify
+every distinct requirement as an atomic actor + verb + object action**,
+walking the Operationalization clause by clause rather than sentence or
+numbered-step by numbered-step — a numbered step routinely contains more
+than one requirement once its conjunctions are split out. The rule stated
+explicitly, generalized rather than tied to any one example: a role
+*existing* (someone holds a title) is a different requirement from a
+*decision* that role later makes, which is again different from whatever
+*responds* to that decision (an appeal, a second role's verification) —
+naming a role is never enough to also cover the decisions it makes or the
+processes that respond to them. Err toward over-splitting: a spurious
+extra requirement collapses harmlessly into an existing owner during
+routing, but a requirement never extracted silently never gets
+implemented at all.
+
+A matching completeness check was added to Section 16 (Final
+Self-Check): **re-walk `norm.txt`'s Operationalization one more time**,
+at the same clause granularity Section 4 used, and confirm every clause
+maps to a row in the requirement table (an existing `norms/*.py` owner, a
+new action, a fluent/prompt path, or an explicit not-implementable note)
+— a clause with no owner anywhere is exactly the failure this whole
+change exists to catch, caught one more time right before the round is
+declared done rather than only at extraction time.
+
+**The rewrite's structure was also explicitly requested**, separately
+from the extraction fix: the file now follows 16 sections modeled
+directly on a draft the user supplied (Understand the Existing System →
+Maintain an Institution Status → Apply the Decision Granularity Rule →
+Determine Required Changes → Institutional Design Must Precede Code →
+New Actions Require an Agent → Select an Appropriate Agent → Prompts Must
+Represent the Institution → Institutional Objects → Agents Must
+Experience Consequences → Do Not Invent Normative Content → Preserve Norm
+Emergence → Existing and New Actions → Integration → Verification →
+Final Self-Check), rather than the old file's own `PHASE 1–7` shape.
+Every mechanical requirement the old file enforced was preserved,
+folded into whichever of the 16 sections it now belongs under, rather
+than dropped for the sake of matching the new structure exactly: the
+`norms/*.py` six-hook contract and the `self.params.get(key, default)`
+rule (Repo map / Section 15/16), the four-way requirement clarity
+classification and `engine.clarify_norm` dialogue budget (Section 5), the
+dynamically-extended protected-action list (`_actions_protected_as_of_head()`,
+Section 13), the new-action file/prompt/schedule/institution recipe
+(Section 13), and the closing fenced ```json report block
+`run_norm_implementer()` still parses for its `classification` key
+(kept, with `phases_added` renamed to `actions_added` to match the
+directory rename above). The two-stage "Institution Designer" (Sections
+1–5) / "Code Implementer" (Sections 6 onward) framing from the
+2026-09-06 "Critique agent gains institution/roster context" entry above
+is restated explicitly at the top of the file, not re-derived — it was
+already the right shape for this rewrite, just needed carrying forward
+into the new structure.
+
+**Not done as part of this rewrite, deliberately**: `norm-evaluator.md`
+(both copies) was *not* restructured into the same 16-section shape —
+only its mechanical references to the renamed paths/symbols
+(`phases.harvest.PHASE.run` → `actions.harvest.ACTION.run`, `add_phases`
+→ a new action, its own `PHASE 1–5` step headers → `STEP 1–5` purely to
+avoid a stray, now-meaningless use of the word "phase" sitting next to
+the renamed concept) were updated, so it stays consistent with what
+`norm-implementer.md` and the actual codebase now say. Its own
+verification logic (the two-level structural/functional classification,
+the `EVALUATION_RESULT` sentinel handshake) was untouched, since none of
+it was implicated by either change.
+
+Verified: `pytest tests/regression/ tests/norms/` (38 tests) unaffected —
+neither rewrite touches simulation code, only agent instruction files;
+`python3 -c "import yaml; yaml.safe_load(...)"` confirms both
+`norm-implementer.md` and `norm-evaluator.md` opencode-copy frontmatter
+blocks still parse, and the `permission.edit` allowlist now names
+`actions/*` (with the five per-file denies renamed to match) rather than
+`phases/*`. Not verified: an actual `opencode run --agent norm-implementer`
+against a real multi-requirement norm exercising the new extraction
+method — same standing caveat as every other agent-instruction change in
+this file without a completed live run behind it; the extraction method
+is reasoned to generalize (it's stated with no reference to the specific
+role/decision/appeal example that motivated it), but only a real run
+against a genuinely multi-actor norm would confirm it actually changes
+model behavior rather than just reading better.

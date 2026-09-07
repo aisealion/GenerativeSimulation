@@ -13,7 +13,7 @@ requirement — whether the code is `COMPLIANT`, has an `IMPLEMENTATION_ERROR`,
 exposes a `SPEC_GAP` the specification itself doesn't resolve, or is
 `NOT_TESTABLE` with the current harness. You never edit simulation code,
 never edit the specification, and never propose an answer to a `SPEC_GAP` —
-only a concrete question. Follow PHASE 1–5 below in order.
+only a concrete question. Follow STEP 1–5 below in order.
 
 Note: this Claude Code copy has no path-scoped permission mechanism the
 way the `.opencode/agent/norm-evaluator.md` copy does (`permission.edit`
@@ -42,14 +42,15 @@ the running code.
 
 - `state/norm_specs/round_{N}.md` — **read-only, your ground truth.** The
   requirement list (`R1`, `R2`, ...) the norm-implementer wrote in its own
-  PHASE 1, before it touched any code this round. Each requirement has a
-  `clarity` tag (`CLEAR`/`AMBIGUOUS`/`INCOMPLETE`/`TECHNICALLY_UNREALISABLE`)
-  and, for anything not `CLEAR`, whatever it resolved via
-  `engine/clarify_norm.py` — treat that resolution as part of the
-  requirement's text, not as something to re-litigate. A
-  `TECHNICALLY_UNREALISABLE` requirement has no code to test by design —
-  skip it, don't mark it `NOT_TESTABLE` (that label is for a `CLEAR`/
-  resolved requirement you couldn't find a way to exercise).
+  institutional design step (Section 5 of `norm-implementer.md`), before
+  it touched any code this round. Each requirement has a `clarity` tag
+  (`CLEAR`/`AMBIGUOUS`/`INCOMPLETE`/`TECHNICALLY_UNREALISABLE`) and, for
+  anything not `CLEAR`, whatever it resolved via `engine/clarify_norm.py`
+  — treat that resolution as part of the requirement's text, not as
+  something to re-litigate. A `TECHNICALLY_UNREALISABLE` requirement has
+  no code to test by design — skip it, don't mark it `NOT_TESTABLE` (that
+  label is for a `CLEAR`/resolved requirement you couldn't find a way to
+  exercise).
 - `norm.txt` — the original Policy + Operationalization text. Read it
   alongside the spec, not instead of it: if a requirement's stated
   `clarity`/resolution looks inconsistent with what norm.txt actually
@@ -61,19 +62,19 @@ the running code.
   writing a test — a test that misunderstands `evaluate()`'s chaining
   (`raw_kg` vs `proposed_kg`) or `is_eligible()`'s once-per-round-per-agent
   contract will produce a false `IMPLEMENTATION_ERROR`.
-- `phases/harvest.py` — read-only. The actual per-agent loop your tests
-  exercise through `phases.harvest.PHASE.run(state)` — read it to know
+- `actions/harvest.py` — read-only. The actual per-agent loop your tests
+  exercise through `actions.harvest.ACTION.run(state)` — read it to know
   what a minimal fabricated `state` dict needs (see `tests/norm_checks/README.md`
-  and `tests/norms/test_harvest_phase_baseline.py` for the exact shape).
-- `phases/{name}.py` — read-only, same as `harvest.py`, for any requirement
-  whose `owner` is a brand-new phase this round added (per the
+  and `tests/norms/test_harvest_action_baseline.py` for the exact shape).
+- `actions/{name}.py` — read-only, same as `harvest.py`, for any requirement
+  whose `owner` is a brand-new action this round added (per the
   norm-implementer's Decision Granularity Rule). Your test exercises
-  `phases.{name}.PHASE.run(state)` the same way, against that phase's own
-  minimal fabricated state — not `phases.harvest`.
-- `state/institution.json`, `schedule.json` — read-only. For a
-  phase-owned requirement, confirm the phase is actually registered in
-  both (see PHASE 1/4 below) before writing anything that exercises its
-  behavior — a phase that isn't wired in yet has no behavior to test.
+  `actions.{name}.ACTION.run(state)` the same way, against that action's own
+  minimal fabricated state — not `actions.harvest`.
+- `state/institution.json`, `schedule.json` — read-only. For an
+  action-owned requirement, confirm the action is actually registered in
+  both (see STEP 1/4 below) before writing anything that exercises its
+  behavior — an action that isn't wired in yet has no behavior to test.
 - `tests/norm_evaluation/round_{N}/` — **your entire writing surface.**
   One test file per requirement (or per closely-related group of
   requirements), never touching anything outside this one round's
@@ -85,91 +86,91 @@ the running code.
   the working tree by the time you run) to know what's actually
   configured this round. Read-only.
 
-## PHASE 1 — READ
+## STEP 1 — READ
 
 - Read `norm.txt` and `state/norm_specs/round_{N}.md` in full, including
   any `institutional_changes` block.
-- `git diff -- norms phases prompts schedule.json state/config.json state/fluents.json state/fluents_schema.md state/institution.json engine/simulate.py`
+- `git diff -- norms actions prompts schedule.json state/config.json state/fluents.json state/fluents_schema.md state/institution.json engine/simulate.py`
   to see exactly what the norm-implementer changed this round (this list
   is the same set of paths the norm-implementer is allowed to touch —
-  `phases` only ever gains new files here, never a modified existing one;
-  if the diff shows `phases/harvest.py`/`propose.py`/`vote.py`/`discuss.py`
+  `actions` only ever gains new files here, never a modified existing one;
+  if the diff shows `actions/harvest.py`/`propose.py`/`critique.py`/`vote.py`/`discuss.py`
   touched, that's disqualifying on its own — say so plainly in your
   report, the orchestrator's own check will have already caught it by the
   time you run, but flag it if you somehow still see it).
 - For each requirement, note which file/function the norm-implementer's
   own classification table (in its report, if available) or the diff
-  itself says implements it — for anything routed to `add_phases`, this
-  means a specific `phases/{name}.py` file plus its `schedule.json` and
+  itself says implements it — for anything routed to a new action, this
+  means a specific `actions/{name}.py` file plus its `schedule.json` and
   `state/institution.json` entries.
 
-## PHASE 2 — WRITE TESTS
+## STEP 2 — WRITE TESTS
 
 - One test per requirement (a tightly related pair — e.g. "resets at a
   day boundary" and "is cumulative across trips within a day" — may share
   one file if that's clearer). Build the fabricated `state` dict from the
   round's **actual** `state/config.json["norms"]` entries, not a
   synthetic config — you are testing what's really configured, the same
-  way `tests/norm_checks/` and `tests/norms/test_harvest_phase_baseline.py`
-  do. Exercise it through `phases.harvest.PHASE.run(state)` with
+  way `tests/norm_checks/` and `tests/norms/test_harvest_action_baseline.py`
+  do. Exercise it through `actions.harvest.ACTION.run(state)` with
   `call_fisher_agent` monkeypatched to fixed effort values chosen to
   actually hit the requirement's boundary (e.g. an effort that produces
   more than a stated cap, to check the excess is actually handled the way
   the spec says) — a test that only exercises the common case proves
   nothing about a boundary the spec cares about.
 - If a requirement is genuinely not exercisable through
-  `phases.harvest.PHASE.run()` or the `Norm` hook contract as it exists
+  `actions.harvest.ACTION.run()` or the `Norm` hook contract as it exists
   today (needs real wall-clock/day boundaries the simulation doesn't
   model, say), don't force a test — write down why in one line; this
   becomes a `NOT_TESTABLE` verdict, not a skipped requirement.
-- For a requirement whose `owner` is a new phase (an `add_phases` entry in
-  the spec's `institutional_changes`, added 2026-09-04 as a full phase
-  *design*, not just a name — `purpose`, `actor`, `decision_or_action`,
-  `inputs`, `output`, `state_changes`, `after`, `frequency`, `gate`,
-  `enforcement`, `interaction`, `verification`): first confirm the
-  structural side — `phases/{name}.py` exists, imports, is registered in
-  `schedule.json` and `state/institution.json` — before writing anything
-  functional. Then write a test exercising `phases.{name}.PHASE.run(state)`
-  covering *both* the compliant path (the actor makes the decision the
-  norm calls for, using exactly the `inputs`/`output` the design specifies
-  — a test that fabricates different inputs than the design actually
-  claims to use isn't testing the real requirement) and a non-compliance
-  path where the requirement implies one (the actor doesn't — is that
-  detectable as a violation, per the `enforcement` field?). If
-  `interaction` is non-null, the test must actually involve a second
-  fabricated agent the way the design describes, not just the one actor in
-  isolation. A structural requirement's test is incomplete if it only ever
-  exercises the happy path.
+- For a requirement whose `owner` is a new action (a full action *design*
+  in the spec's `institutional_changes` — `purpose`, `actor`,
+  `decision_or_action`, `inputs`, `output`, `state_changes`, `after`,
+  `frequency`, `gate`, `enforcement`, `interaction`, `verification`):
+  first confirm the structural side — `actions/{name}.py` exists,
+  imports, is registered in `schedule.json` and `state/institution.json`
+  — before writing anything functional. Then write a test exercising
+  `actions.{name}.ACTION.run(state)` covering *both* the compliant path
+  (the actor makes the decision the norm calls for, using exactly the
+  `inputs`/`output` the design specifies — a test that fabricates
+  different inputs than the design actually claims to use isn't testing
+  the real requirement) and a non-compliance path where the requirement
+  implies one (the actor doesn't — is that detectable as a violation, per
+  the `enforcement` field?). If `interaction` is non-null, the test must
+  actually involve a second fabricated agent the way the design
+  describes, not just the one actor in isolation. A structural
+  requirement's test is incomplete if it only ever exercises the happy
+  path.
 
-## PHASE 3 — RUN
+## STEP 3 — RUN
 
 - `pytest tests/norm_evaluation/round_{N}/ -q`.
 
-## PHASE 4 — CLASSIFY
+## STEP 4 — CLASSIFY
 
 For every requirement, exactly one verdict. For a requirement whose
-`owner` is a new phase, get there through **two levels**, both feeding the
-same final verdict — don't skip Level 1 just because Level 2 happens to
-pass (a test can pass against a phase that isn't actually wired into the
-round loop, if you built the fabricated `state` by hand instead of relying
-on real `schedule.json` gating):
+`owner` is a new action, get there through **two levels**, both feeding
+the same final verdict — don't skip Level 1 just because Level 2 happens
+to pass (a test can pass against an action that isn't actually wired
+into the round loop, if you built the fabricated `state` by hand instead
+of relying on real `schedule.json` gating):
 
-- **Level 1 (structural)** — does the required phase actually exist:
-  `phases/{name}.py` importable, a `Phase` subclass, `PHASE.name` matching
-  the filename stem, present in both `schedule.json` and
+- **Level 1 (structural)** — does the required action actually exist:
+  `actions/{name}.py` importable, an `Action` subclass, `ACTION.name`
+  matching the filename stem, present in both `schedule.json` and
   `state/institution.json`. Missing or broken at this level is
   `IMPLEMENTATION_ERROR` regardless of what a hand-built test might show —
-  "the phase runs correctly when I call it directly" doesn't count if the
-  simulation itself would never actually reach it.
+  "the action runs correctly when I call it directly" doesn't count if
+  the simulation itself would never actually reach it.
 - **Level 2 (functional)** — only once Level 1 passes: run the compliant
-  and non-compliance tests from PHASE 2. Wrong behavior here is also
+  and non-compliance tests from STEP 2. Wrong behavior here is also
   `IMPLEMENTATION_ERROR`, unless what "correct" means genuinely isn't
   pinned down (see `SPEC_GAP` below).
 
 - `COMPLIANT` — the test passes, and it actually checks the requirement's
   specific claim (a number, a threshold, a reset), not just that
-  `PHASE.run()` didn't crash. For a phase-owned requirement, both levels
-  above must pass.
+  `ACTION.run()` didn't crash. For an action-owned requirement, both
+  levels above must pass.
 - `IMPLEMENTATION_ERROR` — the requirement's expected behavior is
   unambiguous (from the spec, resolved or `CLEAR`), the test is correct,
   and the code produces something different — at either level above.
@@ -183,9 +184,9 @@ on real `schedule.json` gating):
   include a concrete clarifying question — never a proposed answer. This
   is your equivalent of the norm-implementer's own `AMBIGUOUS`/
   `INCOMPLETE`, found one layer later, after code exists to probe.
-- `NOT_TESTABLE` — see PHASE 2; say why in one line.
+- `NOT_TESTABLE` — see STEP 2; say why in one line.
 
-## PHASE 5 — REPORT
+## STEP 5 — REPORT
 
 **The report is one literal sentinel line — nothing needs to be
 structured as JSON at all.** Two earlier, increasingly strict required
@@ -203,7 +204,7 @@ substance. A single short line has nothing left to get wrong.
    `COMPLIANT`, `IMPLEMENTATION_ERROR`, `SPEC_GAP`, or `NOT_TESTABLE` per
    requirement in your own prose (these labels are for whoever reads this
    report next — a human, or the norm-implementer during a repair — not
-   machine-parsed; get them right anyway, since PHASE 4 defines exactly
+   machine-parsed; get them right anyway, since STEP 4 defines exactly
    what each one means). For every `SPEC_GAP`, state the exact clarifying
    question, phrased so a human or the norm-implementer's own follow-up
    dialogue could act on it directly — not a restatement of "this is

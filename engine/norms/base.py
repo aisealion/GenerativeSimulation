@@ -67,7 +67,7 @@ class Norm(ABC):
         """False skips this agent's LLM call entirely this round (a live
         ban) — saves the cost/latency of asking someone who can't fish
         anyway. Called at most once per agent per round, from
-        phases/harvest.py's run() loop; side effects here (a ban countdown
+        actions/harvest.py's run() loop; side effects here (a ban countdown
         tick) are safe precisely because of that single call site."""
         return True
 
@@ -75,11 +75,11 @@ class Norm(ABC):
         """One already-in-world-phrased sentence describing whatever this
         norm currently has to say to this agent (a cap, a remaining
         allowance, a ban) — or None if it has nothing to say right now.
-        HarvestPhase joins every active norm's non-None describe() output,
+        HarvestAction joins every active norm's non-None describe() output,
         in state["config"]["norms"] order, into one constraints_line prompt
         field — the generic replacement for the old hardcoded cap_line: it
-        works for any combination of active norms without phases/harvest.py
-        or prompts/phases/harvest.md ever needing to know which are active."""
+        works for any combination of active norms without actions/harvest.py
+        or prompts/actions/harvest.md ever needing to know which are active."""
         return None
 
     def on_round_start(self, context):

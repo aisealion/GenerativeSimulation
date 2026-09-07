@@ -1,11 +1,11 @@
 # norms/
 
 Every per-agent constraint on harvesting — a cap, a reserve, a ban — is a
-plugin here, not code inlined into `phases/harvest.py`. `phases/harvest.py`
+plugin here, not code inlined into `actions/harvest.py`. `actions/harvest.py`
 implements *how harvesting happens* (physics); a norm implements *a
 constraint around it*. A new adopted norm becomes either a config change
 activating an *already-created* plugin from an earlier round, or a new
-small plugin file — never a rewrite of `phases/harvest.py` itself, which
+small plugin file — never a rewrite of `actions/harvest.py` itself, which
 no longer contains any norm-specific logic at all.
 
 **This directory ships empty of plugins by design** — no seed/example
@@ -21,7 +21,7 @@ starts pre-populated.
 
 ## How it's wired together
 
-Every round, `HarvestPhase.run()` builds one `HarvestContext`
+Every round, `HarvestAction.run()` builds one `HarvestContext`
 (`engine/norms/context.py`) and one `NormEngine`
 (`engine/norms/engine.py`) from `state["config"]["norms"]`, then for each
 alive agent:
@@ -89,8 +89,8 @@ writing another one.
 ## How a norm gets verified before it's committed
 
 The norm-implementer writes a formal requirement list to
-`state/norm_specs/round_{N}.md` *before* touching any code (its own PHASE
-1), classifying each requirement's clarity and resolving anything
+`state/norm_specs/round_{N}.md` *before* touching any code (its own
+institutional design step), classifying each requirement's clarity and resolving anything
 ambiguous or incomplete via a short dialogue with the fisher who proposed
 the rule. Once code exists, a separate `norm-evaluator` subagent — with no
 access to `norms/` or `prompts/`, only to its own `tests/norm_evaluation/`

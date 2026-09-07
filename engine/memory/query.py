@@ -14,7 +14,7 @@ matters since they get merged and deduplicated below.
 """
 from engine.memory.client import ensure_indices, graphiti, round_reference_time, run_async
 
-PHASE_QUERY_TEMPLATES = {
+ACTION_QUERY_TEMPLATES = {
     "harvest": [
         ("own_proposals", "proposals made by {agent}"),
         ("own_violations", "violations or missed obligations by {agent}"),
@@ -75,21 +75,21 @@ async def _search_importance(group_ids, as_of, limit):
     return [dict(r) for r in records]
 
 
-async def _retrieve(agent_id, phase, round_num, top_k_relevance, top_k_importance):
+async def _retrieve(agent_id, action_name, round_num, top_k_relevance, top_k_importance):
     await ensure_indices()
     group_ids = [agent_id, "community"]
     as_of = round_reference_time(round_num)
 
     results = []
-    for _label, template in PHASE_QUERY_TEMPLATES.get(phase, []):
+    for _label, template in ACTION_QUERY_TEMPLATES.get(action_name, []):
         query_text = template.format(agent=agent_id)
         results.extend(await _search_relevance(query_text, group_ids, as_of, top_k_relevance))
     results.extend(await _search_importance(group_ids, as_of, top_k_importance))
     return results
 
 
-def retrieve_memories(agent_id, phase, round_num, top_k_relevance=3, top_k_importance=2):
-    records = run_async(_retrieve(agent_id, phase, round_num, top_k_relevance, top_k_importance))
+def retrieve_memories(agent_id, action_name, round_num, top_k_relevance=3, top_k_importance=2):
+    records = run_async(_retrieve(agent_id, action_name, round_num, top_k_relevance, top_k_importance))
 
     seen = set()
     deduped = []

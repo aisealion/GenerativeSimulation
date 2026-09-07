@@ -3,13 +3,13 @@ regardless of what any norm asks for. Ported directly from Gupta et al.'s
 CPR-game codebase (Codes/Gupta/CPRG_fishing, branch origin/hiromu/llm-norm,
 ostrom3/Agent.py and Model.py), not this project's own design — a norm can
 change caps, deposits, bans, and schedules (all implementer-owned, in
-mechanisms/ and phases/), but the underlying catch equation, regrowth
+mechanisms/ and actions/), but the underlying catch equation, regrowth
 rate, and survival economics below are the fixed rules of the world those
 choices play out against, not something a community vote should be able
 to rewrite.
 
 Lives under engine/ specifically so it's outside the norm-implementer's
-permission.edit allowlist (mechanisms/*, phases/*, prompts/*, plus a few
+permission.edit allowlist (mechanisms/*, actions/*, prompts/*, plus a few
 named files) by construction, the same way engine/simulate.py and
 engine/llm_agents.py already are. The rate constants below live here for
 the same reason the equations do, not in state/config.json (which the
@@ -58,9 +58,9 @@ def is_dead(payoff):
 
 
 def alive_agent_ids(agents, runtime):
-    """The agent_id iteration order every phase should use, not
+    """The agent_id iteration order every action should use, not
     state["agents"] directly — excludes anyone in runtime["dead_agents"].
-    One shared helper so death exclusion can't be forgotten by a phase
-    rewrite the way a hand-rolled check per phase could be."""
+    One shared helper so death exclusion can't be forgotten by an action
+    rewrite the way a hand-rolled check per action could be."""
     dead = set(runtime.get("dead_agents", []))
     return [agent_id for agent_id in agents if agent_id not in dead]

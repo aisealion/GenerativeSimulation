@@ -1,5 +1,5 @@
-import phases.critique as critique_module
-import phases.vote as vote_module
+import actions.critique as critique_module
+import actions.vote as vote_module
 
 
 def _state_with_proposals(proposals, round_number=1):
@@ -9,7 +9,7 @@ def _state_with_proposals(proposals, round_number=1):
         "runtime": {
             "stock_kg": 300.0,
             "rounds": [
-                {"round": round_number, "phase": "propose", "proposals": proposals},
+                {"round": round_number, "action": "propose", "proposals": proposals},
             ],
         },
         "agents": {
@@ -32,7 +32,7 @@ def test_sufficient_on_first_pass_leaves_proposal_unchanged_and_never_calls_fish
     monkeypatch.setattr(critique_module, "call_fisher_agent", lambda *a, **k: fisher_calls.append(a) or {})
 
     state = _state_with_proposals(PROPOSALS)
-    record = critique_module.PHASE.run(state)
+    record = critique_module.ACTION.run(state)
 
     assert fisher_calls == []
     assert record["proposals"] == PROPOSALS
@@ -52,8 +52,8 @@ def test_one_question_then_sufficient_applies_the_finalized_revision(monkeypatch
 
     finalize_calls = []
 
-    def _fake_fisher(agent_id, round_number, phase_name, **fields):
-        if phase_name == "critique_response":
+    def _fake_fisher(agent_id, round_number, action_name, **fields):
+        if action_name == "critique_response":
             assert fields["question"] == "Who holds the deposit?"
             return {
                 "answer": "The community holds it.",
@@ -61,7 +61,7 @@ def test_one_question_then_sufficient_applies_the_finalized_revision(monkeypatch
                 "revised_operationalization": "15kg per trip; excess deposit held by the community (draft)",
                 "reasoning": "clarifying",
             }
-        assert phase_name == "critique_finalize"
+        assert action_name == "critique_finalize"
         finalize_calls.append((agent_id, fields))
         assert "Who holds the deposit?" in fields["dialogue_summary"]
         return {
@@ -74,7 +74,7 @@ def test_one_question_then_sufficient_applies_the_finalized_revision(monkeypatch
     monkeypatch.setattr(critique_module, "call_fisher_agent", _fake_fisher)
 
     state = _state_with_proposals(PROPOSALS)
-    record = critique_module.PHASE.run(state)
+    record = critique_module.ACTION.run(state)
 
     # Exactly one finalize call, for agent_0 only (agent_1 never had an
     # exchange, so nothing to finalize).
@@ -94,8 +94,8 @@ def test_loop_is_bounded_even_if_critique_never_says_sufficient(monkeypatch):
         call_count["n"] += 1
         return {"status": "QUESTION", "question": f"question #{len(history) + 1}"}
 
-    def _fake_fisher(agent_id, round_number, phase_name, **fields):
-        if phase_name == "critique_finalize":
+    def _fake_fisher(agent_id, round_number, action_name, **fields):
+        if action_name == "critique_finalize":
             finalize_calls["n"] += 1
             return {"policy": "cap catches (final)", "operationalization": "15kg per trip (final)"}
         return {
@@ -111,7 +111,7 @@ def test_loop_is_bounded_even_if_critique_never_says_sufficient(monkeypatch):
     # Only one alive agent for this test — trim the roster so we're only
     # counting agent_0's own exchange budget.
     state["agents"] = {"agent_0": {"name": "Kai", "personality_traits": ""}}
-    record = critique_module.PHASE.run(state)
+    record = critique_module.ACTION.run(state)
 
     assert call_count["n"] == critique_module.MAX_CRITIQUE_EXCHANGES
     assert len(record["dialogues"]["agent_0"]) == critique_module.MAX_CRITIQUE_EXCHANGES
@@ -128,10 +128,10 @@ def test_vote_prefers_critique_proposals_when_present_for_this_round():
         "agent_1": PROPOSALS["agent_1"],
     }
     state["runtime"]["rounds"].append(
-        {"round": 1, "phase": "critique", "proposals": refined, "dialogues": {}}
+        {"round": 1, "action": "critique", "proposals": refined, "dialogues": {}}
     )
 
-    proposals = vote_module.PHASE._proposals(state)
+    proposals = vote_module.ACTION._proposals(state)
 
     assert dict(proposals)["agent_0"]["policy"] == "cap catches, refined"
 
@@ -139,6 +139,6 @@ def test_vote_prefers_critique_proposals_when_present_for_this_round():
 def test_vote_falls_back_to_propose_when_no_critique_record_this_round():
     state = _state_with_proposals(PROPOSALS)
 
-    proposals = vote_module.PHASE._proposals(state)
+    proposals = vote_module.ACTION._proposals(state)
 
     assert dict(proposals) == PROPOSALS

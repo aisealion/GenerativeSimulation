@@ -1,10 +1,10 @@
 {
-  "phases": {
-    "harvest": {"file": "phases/harvest.py", "protected": true},
-    "propose": {"file": "phases/propose.py", "protected": true},
-    "critique": {"file": "phases/critique.py", "protected": true},
-    "vote": {"file": "phases/vote.py", "protected": true},
-    "discuss": {"file": "phases/discuss.py", "protected": true}
+  "actions": {
+    "harvest": {"file": "actions/harvest.py", "protected": true},
+    "propose": {"file": "actions/propose.py", "protected": true},
+    "critique": {"file": "actions/critique.py", "protected": true},
+    "vote": {"file": "actions/vote.py", "protected": true},
+    "discuss": {"file": "actions/discuss.py", "protected": true}
   },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],

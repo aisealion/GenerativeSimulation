@@ -66,7 +66,7 @@ def _read_call_log():
 
 
 def _harvest_rounds(runtime):
-    return [r for r in runtime["rounds"] if r["phase"] == "harvest"]
+    return [r for r in runtime["rounds"] if r["action"] == "harvest"]
 
 
 def _config_footer(config):

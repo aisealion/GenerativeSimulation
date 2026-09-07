@@ -17,7 +17,7 @@ _FRAMES = {
     "threshold_obligation_triggered": "At one point, {text}",
     "reporting_violation": "A little while back, {text}",
     "graduated_sanction_applied": "You once faced a real consequence for it: {text}",
-    "new_phase_activated": "At one point, how things are done around here changed: {text}",
+    "new_action_activated": "At one point, how things are done around here changed: {text}",
     "vote_outcome": "The community decided: {text}",
     "proposal_made": "You once proposed: {text}",
     "proposal_refined": "You once refined a rule you'd proposed after being asked about it: {text}",

@@ -1,14 +1,14 @@
 import pytest
 
 import engine.norms.registry as registry
-import phases.harvest as harvest_module
+import actions.harvest as harvest_module
 from engine.norms.base import Norm, NormDecision
 from engine.physics import apply_consumption, apply_regrowth, catch_from_effort
 
 EFFORTS = {"agent_0": 0.5, "agent_1": 0.2}
 
 
-def _fake_call_fisher_agent(agent_id, round_number, phase_name, **fields):
+def _fake_call_fisher_agent(agent_id, round_number, action_name, **fields):
     return {"effort": EFFORTS[agent_id], "reasoning": "test"}
 
 
@@ -26,7 +26,7 @@ def _state(norms_config=None):
 
 
 def test_baseline_empty_norms_matches_hand_computed_physics(monkeypatch):
-    """With config["norms"] == [], HarvestPhase.run() must be pure physics —
+    """With config["norms"] == [], HarvestAction.run() must be pure physics —
     no cap, ban, or reserve logic anywhere in its path. This is the
     deterministic proof that the norm-plugin refactor preserves the
     pre-refactor (effort_cap-only, and with no cap configured) baseline
@@ -34,7 +34,7 @@ def test_baseline_empty_norms_matches_hand_computed_physics(monkeypatch):
     monkeypatch.setattr(harvest_module, "call_fisher_agent", _fake_call_fisher_agent)
     state = _state()
 
-    record = harvest_module.PHASE.run(state)
+    record = harvest_module.ACTION.run(state)
 
     raw_0 = catch_from_effort(0.5, 300.0)
     raw_1 = catch_from_effort(0.2, 300.0)
@@ -58,7 +58,7 @@ def test_baseline_empty_norms_matches_hand_computed_physics(monkeypatch):
 def test_baseline_no_norm_state_key_created_when_norms_empty(monkeypatch):
     monkeypatch.setattr(harvest_module, "call_fisher_agent", _fake_call_fisher_agent)
     state = _state()
-    harvest_module.PHASE.run(state)
+    harvest_module.ACTION.run(state)
     assert "norms" not in state["runtime"]
 
 
@@ -92,7 +92,7 @@ def test_a_configured_norm_actually_constrains_the_result(monkeypatch):
     monkeypatch.setattr(registry, "NORM_TYPES", {"_fake_cap_for_test": _FakeCap})
     state = _state(norms_config=[{"type": "_fake_cap_for_test", "limit_kg": 1.0}])
 
-    record = harvest_module.PHASE.run(state)
+    record = harvest_module.ACTION.run(state)
 
     assert record["agents"]["agent_0"]["harvested_kg"] == pytest.approx(1.0)
     assert record["agents"]["agent_0"]["note"] is not None
@@ -104,7 +104,7 @@ def test_ineligible_agent_skips_the_llm_call_entirely(monkeypatch):
     call_fisher_agent — the whole point of the is_eligible() hook."""
     call_log = []
 
-    def _tracking_call(agent_id, round_number, phase_name, **fields):
+    def _tracking_call(agent_id, round_number, action_name, **fields):
         call_log.append(agent_id)
         return {"effort": EFFORTS[agent_id], "reasoning": "test"}
 
@@ -114,7 +114,7 @@ def test_ineligible_agent_skips_the_llm_call_entirely(monkeypatch):
     # Pre-seed agent_0 as already banned, as if a prior round's on_agent_settled() set it.
     state["runtime"].setdefault("norms", {}).setdefault("_fake_ban_for_test", {})["agent_0"] = True
 
-    record = harvest_module.PHASE.run(state)
+    record = harvest_module.ACTION.run(state)
 
     assert "agent_0" not in call_log
     assert "agent_1" in call_log

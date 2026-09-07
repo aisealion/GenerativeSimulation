@@ -55,8 +55,9 @@ export CODEGRAPH_TELEMETRY=0
 # background file-watcher that keeps the index live on its own, so the
 # norm-implementer's codegraph_explore/impact/callers MCP tool calls are
 # always current without anyone explicitly re-running init/sync per round
-# (that manual per-round refresh — see .opencode/agent/norm-implementer.md
-# PHASE 2 — was itself only ever a workaround for not trusting this path).
+# (that manual per-round refresh — see .opencode/agent/norm-implementer.md's
+# codebase-understanding step — was itself only ever a workaround for not
+# trusting this path).
 # Deliberately not the same thing as the original incident: that was
 # specifically `codegraph sync` invoked as a one-shot CLI command outside
 # the daemon's own control (its docs describe sync as normally
@@ -148,7 +149,7 @@ if [ "$ready" != true ]; then
 fi
 
 # Two different models for the two agent types: the fisher (many small,
-# fast decisions per round — 10 agents x 3 phases) runs on gpt-oss:20b;
+# fast decisions per round — 10 agents x 3 actions) runs on gpt-oss:20b;
 # the norm-implementer (one heavier code-editing call per round, via
 # opencode) runs on gpt-oss:120b. Both must already be present — same
 # never-auto-pull policy as before, just checked twice now.
@@ -172,7 +173,7 @@ done
 # "no JSON object found in agent response: ''" retries were actually
 # hitting, not a random transient hiccup — this repo's prompts grow every
 # round (history window, codegraph_explore output, and now a 10-agent
-# proposals list for the vote phase). Create an extended-context variant
+# proposals list for the vote action). Create an extended-context variant
 # of each model rather than relying on the 4096 default. Override
 # OLLAMA_NUM_CTX if 32768 isn't enough for either.
 OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-32768}"
@@ -657,7 +658,7 @@ fi
 # per-round incremental refresh after that, reading this same env var —
 # without it, the graph built here would just go stale round after round
 # as norms/*.py changes, same problem CodeGraph had before its own
-# per-round refresh got added to PHASE 2 above.
+# per-round refresh got added to the codebase-understanding step above.
 #
 # Skills are installed for opencode the same way codegraph is above
 # (install-if-missing, from the tool's own official installer) — but unlike
@@ -795,7 +796,7 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   #
   # Generous timeout, not a tight one: unverified how long a real run takes
   # here — if it's still stuck, fail this step loudly and continue without
-  # a graph (norm-implementer's PHASE 2 already treats a missing graph as
+  # a graph (norm-implementer's own staleness check already treats a missing graph as
   # non-blocking — falls back to CodeGraph + direct reading), exactly like
   # codegraph's own graceful-degradation pattern above, rather than eating
   # the rest of this job's wall time.
@@ -834,7 +835,7 @@ fi
 # Run through the venv's interpreter, not the container's bare python3 —
 # that's the whole point of building it above. engine/simulate.py itself
 # and everything it imports besides engine/llm_agents.py and
-# engine/monitoring.py (engine/call_log, mechanisms/*, phases/*) is
+# engine/monitoring.py (engine/call_log, mechanisms/*, actions/*) is
 # stdlib-only, so this venv (litellm/pydantic/python-dotenv/matplotlib,
 # no --system-site-packages) has everything the run needs; the opencode
 # subprocess call for the norm-implementer is an external binary,

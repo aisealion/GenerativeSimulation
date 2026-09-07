@@ -8,26 +8,26 @@
 # a fisher persona) may only identify missing institutional specification;
 # it must never prescribe a normative answer itself (see
 # CRITIQUE_SYSTEM_PROMPT). The proposing fisher answers in character via
-# the existing call_fisher_agent() path (phase_name="critique_response")
+# the existing call_fisher_agent() path (action_name="critique_response")
 # and may revise their own policy/operationalization in response — the
 # refined text, never the critique agent's own words, is what actually
 # changes the proposal. If any exchange happened at all, a final
-# phase_name="critique_finalize" call asks the proposer for one
+# action_name="critique_finalize" call asks the proposer for one
 # deliberate, complete restatement incorporating the whole discussion —
 # added 2026-09-05 so "the refined operationalization" is an explicit,
 # labeled step rather than just whatever the last in-the-moment exchange's
 # incidental revision happened to produce. vote.py's own _proposals()
-# prefers this phase's output over propose's raw one whenever both exist
+# prefers this action's output over propose's raw one whenever both exist
 # for the same round.
 
 from engine.llm_agents import call_critique_agent, call_fisher_agent
-from engine.phase_base import Phase
+from engine.action_base import Action
 from engine.physics import alive_agent_ids
 
 MAX_CRITIQUE_EXCHANGES = 5
 
 
-class CritiquePhase(Phase):
+class CritiqueAction(Action):
     name = "critique"
 
     def run(self, state):
@@ -36,7 +36,7 @@ class CritiquePhase(Phase):
         round_number = state["round_number"]
         agent_ids = alive_agent_ids(agents, runtime)
 
-        last_propose = next(r for r in reversed(runtime["rounds"]) if r["phase"] == "propose")
+        last_propose = next(r for r in reversed(runtime["rounds"]) if r["action"] == "propose")
 
         refined_proposals = {}
         dialogues = {}
@@ -108,7 +108,7 @@ class CritiquePhase(Phase):
 
         round_record = {
             "round": round_number,
-            "phase": "critique",
+            "action": "critique",
             "proposals": refined_proposals,
             "dialogues": dialogues,
         }
@@ -133,4 +133,4 @@ class CritiquePhase(Phase):
         ]
 
 
-PHASE = CritiquePhase()
+ACTION = CritiqueAction()

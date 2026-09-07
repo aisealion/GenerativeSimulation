@@ -30,7 +30,7 @@ COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 100
 NORM_IMPLEMENTER_TRACKED_PATHS = [
     # state/runtime.json is deliberately never on this list — it's
-    # simulation-owned (the implementer must never write it; see PHASE 1
+    # simulation-owned (the implementer must never write it; see Section 2
     # of both norm-implementer.md files) and it's what commit_round_artifacts()
     # further down commits separately, every round, unconditionally — kept
     # off this list so a discard's `git clean -fd` (scoped to exactly this
@@ -41,22 +41,27 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # allowlist at all (see .opencode/agent/norm-implementer.md).
     # phases/ came back (2026-09-01, "institutional transformation") but
     # additive-only: a norm requiring a genuinely new agent decision may
-    # add a new phases/{name}.py file, never edit harvest.py/propose.py/
-    # vote.py. PROTECTED_PATHS below + norm_implementation_protected_path_violations()
+    # add a new action file, never edit harvest.py/propose.py/vote.py.
+    # PROTECTED_PATHS below + norm_implementation_protected_path_violations()
     # is the actual enforcement of that boundary — not this list, and not
     # the permission.edit YAML (see PROTECTED_PATHS's own docstring).
+    # Renamed phases/ -> actions/ repo-wide (2026-09-06) — "phase" was an
+    # overloaded word (a simulation round's institutional unit vs. the
+    # informal notion of a project/instruction "phase"); "action" is now
+    # the only word this codebase uses for the former.
     "norms",
-    "phases",
+    "actions",
     "prompts",
-    # Implementer-authored unit tests for its own mechanism/phase changes
+    # Implementer-authored unit tests for its own mechanism/action changes
     # (added 2026-08-26) — distinct from tests/regression/, which stays a
     # human-owned fixed suite the implementer must never edit. Tracked here
     # so a new test file actually gets committed, and so a syntax error in
     # one is caught by the same compile gate as everything else, rather
     # than silently sitting broken until the next round tries to run it.
     "tests/norm_checks",
-    # The norm-evaluator's own generated tests (added alongside PHASE 1's
-    # state/norm_specs/ requirement list) — same discard/commit treatment
+    # The norm-evaluator's own generated tests (added alongside the
+    # institutional design step's state/norm_specs/ requirement list) —
+    # same discard/commit treatment
     # as tests/norm_checks/ and for the same reason: these tests reference
     # this round's norms/*.py code directly, so they must not outlive a
     # discard's revert of that code. The evaluator's actual verdict is
@@ -77,9 +82,9 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # `git clean -fd` deletes it from disk before commit_round_artifacts()
     # ever gets a chance to preserve it.
     # state/institution.json IS here, unlike state/norm_specs above — it
-    # describes what phases currently exist in code (a "current phases"
+    # describes what actions currently exist in code (a "current actions"
     # snapshot, not a historical record of what was required), so it must
-    # track phases/'s own reverted-on-discard state exactly, not survive
+    # track actions/'s own reverted-on-discard state exactly, not survive
     # independently of it.
     "state/institution.json",
     # engine/simulate.py itself is now editable by the norm-implementer
@@ -94,9 +99,9 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     "engine/simulate.py",
 ]
 
-# Everything a norm must never touch, even now that phases/ is on
+# Everything a norm must never touch, even now that actions/ is on
 # NORM_IMPLEMENTER_TRACKED_PATHS above for new-file additions — the fixed
-# physics, the per-agent harvest loop, and the base contracts every phase/
+# physics, the per-agent harvest loop, and the base contracts every action/
 # norm plugin builds on. This is a real git-diff check
 # (norm_implementation_protected_path_violations(), below), not just the
 # permission.edit YAML: this file already has a standing, documented
@@ -104,19 +109,19 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
 # behaves as "last match wins" on the installed version (see CLAUDE.md) —
 # a deterministic git diff against HEAD doesn't depend on that being true.
 PROTECTED_PATHS = [
-    "phases/harvest.py",
-    "phases/propose.py",
-    "phases/vote.py",
-    # Added 2026-09-05 alongside phases/propose.py/vote.py above — the
+    "actions/harvest.py",
+    "actions/propose.py",
+    "actions/vote.py",
+    # Added 2026-09-05 alongside actions/propose.py/vote.py above — the
     # critique-then-revise loop between propose and vote is exactly as
     # fixed/human-owned as either of them, never a norm-implementer target.
-    "phases/critique.py",
+    "actions/critique.py",
     # A pre-existing, currently-unimplemented stub (raises NotImplementedError,
     # gated permanently off in schedule.json) — not created by any
-    # norm-implementer round, so the same "never edit an existing phase
+    # norm-implementer round, so the same "never edit an existing action
     # file, only add new ones" rule covers it too, implemented or not.
-    "phases/discuss.py",
-    "engine/phase_base.py",
+    "actions/discuss.py",
+    "engine/action_base.py",
     "engine/norms",
     "engine/physics.py",
     "mechanisms/roles.py",
@@ -170,7 +175,7 @@ def save_fluents(state):
     (ROOT / "state" / "fluents.json").write_text(json.dumps(state["fluents"], indent=2) + "\n")
 
 
-def write_memory_episodes(phase, state, record, round_number):
+def write_memory_episodes(action, state, record, round_number):
     """The memory layer (Graphiti/Neo4j) is optional, local-only infra for
     now — it's never deployed on Aoraki, and a dev machine may not have it
     running either. Never let its absence, or any failure in it, block a
@@ -181,7 +186,7 @@ def write_memory_episodes(phase, state, record, round_number):
     try:
         from engine.memory.write import write_episode
 
-        for spec in phase.memory_writes(state, record):
+        for spec in action.memory_writes(state, record):
             write_episode(round_num=round_number, **spec)
     except Exception as exc:
         print(f"  [memory write skipped: {exc}]")
@@ -190,11 +195,11 @@ def write_memory_episodes(phase, state, record, round_number):
 def write_fact_memory_events(state, round_number):
     """Mirrors write_memory_episodes() above, but for fluent-sourced events
     (mechanisms.roles.set_fact()/end_fact() calls carrying narration) rather
-    than a phase's own memory_writes() hook. Called once per round, after
-    every phase for that round has finished — not per-phase like
+    than an action's own memory_writes() hook. Called once per round, after
+    every action for that round has finished — not per-action like
     write_memory_episodes() — because fact_memory_events() finds facts by
     initiated_round/terminated_round == round_number, and a fact set by an
-    early phase would still look "new" to a later phase's own call this
+    early action would still look "new" to a later action's own call this
     same round, double-writing it to memory."""
     if not os.environ.get("NEO4J_URI"):
         return
@@ -347,12 +352,13 @@ def run_norm_implementer(round_number, extra_message=None):
     # found nothing, and never produced a parseable report — one
     # ambiguity here cascaded into a downstream failure that looked
     # unrelated. `state/norm_specs/round_{round_number}.md` is stated as
-    # the exact filename PHASE 1 must write, matching run_norm_evaluator()'s
-    # already-correct message below verbatim.
+    # the exact filename the institutional design step must write, matching
+    # run_norm_evaluator()'s already-correct message below verbatim.
     message = extra_message or (
         f"This is round {round_number}. norm.txt has been updated for this round. "
         f"Read it and implement accordingly, following your standing instructions. "
-        f"Write your PHASE 1 specification to exactly state/norm_specs/round_{round_number}.md "
+        f"Write your institutional design specification to exactly "
+        f"state/norm_specs/round_{round_number}.md "
         f"— use {round_number} for the round number, not a number inferred from any other file."
     )
     cmd = ["opencode", "run", "--agent", "norm-implementer", "--format", "json"]
@@ -384,7 +390,7 @@ def run_norm_implementer(round_number, extra_message=None):
               f"treating this round's norm implementation as failed, not crashing the run.",
               file=sys.stderr)
         log_call(
-            call="norm_implementer", agent_id=None, round=round_number, phase=None,
+            call="norm_implementer", agent_id=None, round=round_number, action=None,
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
             tool_call_count=None, report=None, error="timeout after 3600s",
@@ -399,7 +405,7 @@ def run_norm_implementer(round_number, extra_message=None):
         call="norm_implementer",
         agent_id=None,
         round=round_number,
-        phase=None,
+        action=None,
         model=model,
         duration_s=round(duration_s, 3),
         returncode=result.returncode,
@@ -454,7 +460,7 @@ def run_norm_evaluator(round_number, extra_message=None):
         print(f"Round {round_number}: norm-evaluator didn't finish within 1800s — "
               f"treating this evaluation as failed, not crashing the run.", file=sys.stderr)
         log_call(
-            call="norm_evaluator", agent_id=None, round=round_number, phase=None,
+            call="norm_evaluator", agent_id=None, round=round_number, action=None,
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
             tool_call_count=None, report=None, error="timeout after 1800s",
@@ -469,7 +475,7 @@ def run_norm_evaluator(round_number, extra_message=None):
         call="norm_evaluator",
         agent_id=None,
         round=round_number,
-        phase=None,
+        action=None,
         model=model,
         duration_s=round(duration_s, 3),
         returncode=result.returncode,
@@ -514,12 +520,12 @@ def find_adopted_norm(runtime, round_number):
     state['adopted_norm'] to have just been set — needed when resuming a
     round where vote already ran in a prior crashed attempt."""
     vote_record = next(
-        (r for r in runtime["rounds"] if r["round"] == round_number and r["phase"] == "vote"), None
+        (r for r in runtime["rounds"] if r["round"] == round_number and r["action"] == "vote"), None
     )
     if vote_record is None:
         return None
     propose_record = next(
-        (r for r in runtime["rounds"] if r["round"] == round_number and r["phase"] == "propose"), None
+        (r for r in runtime["rounds"] if r["round"] == round_number and r["action"] == "propose"), None
     )
     return propose_record["proposals"][vote_record["winning_proposer"]]
 
@@ -580,7 +586,7 @@ def norm_implementation_compile_errors():
 
 
 def norm_implementation_runtime_errors():
-    # Actually run HarvestPhase against fabricated state (no real LLM
+    # Actually run HarvestAction against fabricated state (no real LLM
     # calls, monkeypatched fisher response) — once using whatever
     # config.json currently activates, then once per registered norm type
     # standalone with generic params, so a type that compiles and passes
@@ -591,11 +597,11 @@ def norm_implementation_runtime_errors():
     script = (
         "import sys, json\n"
         "sys.path.insert(0, '.')\n"
-        "import phases.harvest as harvest_module\n"
+        "import actions.harvest as harvest_module\n"
         "from engine.norms.registry import NORM_TYPES\n"
         "from engine.norms.context import HarvestContext\n"
         "\n"
-        "def _fake_call_fisher_agent(agent_id, round_number, phase_name, **fields):\n"
+        "def _fake_call_fisher_agent(agent_id, round_number, action_name, **fields):\n"
         "    return {'effort': 0.5, 'reasoning': 'orchestrator smoke test'}\n"
         "harvest_module.call_fisher_agent = _fake_call_fisher_agent\n"
         "\n"
@@ -610,7 +616,7 @@ def norm_implementation_runtime_errors():
         "    },\n"
         "    'round_number': 1,\n"
         "}\n"
-        "harvest_module.PHASE.run(state)\n"
+        "harvest_module.ACTION.run(state)\n"
         "\n"
         "context = HarvestContext.from_state({\n"
         "    'config': {}, 'fluents': [], 'runtime': {'stock_kg': 200.0},\n"
@@ -633,26 +639,26 @@ def norm_implementation_runtime_errors():
         "        errors.append(f'{type_name}: {type(exc).__name__}: {exc}')\n"
         "\n"
         "import importlib, os\n"
-        "from engine.phase_base import Phase\n"
-        "protected_phase_names = {'harvest', 'propose', 'critique', 'vote', 'discuss'}\n"
+        "from engine.action_base import Action\n"
+        "protected_action_names = {'harvest', 'propose', 'critique', 'vote', 'discuss'}\n"
         "schedule = json.loads(open('schedule.json').read())\n"
-        "for py_file in sorted(os.listdir('phases')):\n"
+        "for py_file in sorted(os.listdir('actions')):\n"
         "    if not py_file.endswith('.py') or py_file == '__init__.py':\n"
         "        continue\n"
         "    stem = py_file[:-3]\n"
-        "    if stem in protected_phase_names:\n"
+        "    if stem in protected_action_names:\n"
         "        continue\n"
         "    try:\n"
-        "        module = importlib.import_module(f'phases.{stem}')\n"
-        "        phase = getattr(module, 'PHASE', None)\n"
-        "        if not isinstance(phase, Phase):\n"
-        "            raise TypeError(f'phases.{stem} has no module-level PHASE instance of engine.phase_base.Phase')\n"
-        "        if phase.name != stem:\n"
-        "            raise ValueError(f'phases.{stem}.PHASE.name is {phase.name!r}, must match the filename stem {stem!r}')\n"
+        "        module = importlib.import_module(f'actions.{stem}')\n"
+        "        action = getattr(module, 'ACTION', None)\n"
+        "        if not isinstance(action, Action):\n"
+        "            raise TypeError(f'actions.{stem} has no module-level ACTION instance of engine.action_base.Action')\n"
+        "        if action.name != stem:\n"
+        "            raise ValueError(f'actions.{stem}.ACTION.name is {action.name!r}, must match the filename stem {stem!r}')\n"
         "        if stem not in schedule:\n"
-        "            raise ValueError(f'phases.{stem} exists but has no schedule.json entry')\n"
+        "            raise ValueError(f'actions.{stem} exists but has no schedule.json entry')\n"
         "    except Exception as exc:\n"
-        "        errors.append(f'phases/{py_file}: {type(exc).__name__}: {exc}')\n"
+        "        errors.append(f'actions/{py_file}: {type(exc).__name__}: {exc}')\n"
         "if errors:\n"
         "    print('\\n'.join(errors))\n"
         "    sys.exit(1)\n"
@@ -668,21 +674,21 @@ def norm_implementation_runtime_errors():
         detail = check.stdout.strip() or check.stderr.strip()
         return (
             "Harvest runtime check (active config + every registered norm type + "
-            f"every new phases/*.py file's structural validity):\n{detail}"
+            f"every new actions/*.py file's structural validity):\n{detail}"
         )
     return None
 
 
-def _phases_protected_as_of_head():
-    """Every phase file state/institution.json listed as of HEAD — i.e.
+def _actions_protected_as_of_head():
+    """Every action file state/institution.json listed as of HEAD — i.e.
     before this round's norm-implementer touched anything. Dynamically
     extends the static PROTECTED_PATHS list below: "additive only, never
-    edit a phase once it exists" was always meant to apply to every phase
-    any round has ever created, not just the original four (see the
+    edit an action once it exists" was always meant to apply to every
+    action any round has ever created, not just the original five (see the
     Decision Granularity Rule's own wording in both norm-implementer.md
     files) — but PROTECTED_PATHS is a fixed list written before any round
-    had created anything, so on its own it could never actually cover a
-    phase a later round added. Reading institution.json from HEAD (not the
+    had created anything, so on its own it could never actually cover an
+    action a later round added. Reading institution.json from HEAD (not the
     working tree, which may already reflect this round's own edits) is
     what makes "before this round" precise. Returns [] gracefully if
     institution.json doesn't exist yet at HEAD or fails to parse — the
@@ -697,21 +703,21 @@ def _phases_protected_as_of_head():
         institution = json.loads(result.stdout)
     except json.JSONDecodeError:
         return []
-    return [entry["file"] for entry in institution.get("phases", {}).values() if "file" in entry]
+    return [entry["file"] for entry in institution.get("actions", {}).values() if "file" in entry]
 
 
 def norm_implementation_protected_path_violations():
     """Hard-fail if the norm-implementer touched anything in PROTECTED_PATHS
-    (or a phase any earlier round already created — see
-    _phases_protected_as_of_head()) this round — the actual enforcement of
-    "additive-only" institutional change (new phases/*.py files are fine;
+    (or an action any earlier round already created — see
+    _actions_protected_as_of_head()) this round — the actual enforcement of
+    "additive-only" institutional change (new actions/*.py files are fine;
     editing harvest.py/propose.py/vote.py/engine/norms/etc., or any
-    already-existing phase, is not), independent of whatever opencode's
+    already-existing action, is not), independent of whatever opencode's
     own permission.edit YAML does or doesn't actually block. `git diff
     --name-only` against HEAD catches both a modification to a tracked
     protected file and (via the directory entries in PROTECTED_PATHS) a new
     file dropped inside a protected directory."""
-    protected = PROTECTED_PATHS + _phases_protected_as_of_head()
+    protected = PROTECTED_PATHS + _actions_protected_as_of_head()
     result = subprocess.run(
         ["git", "diff", "--name-only", "HEAD", "--"] + protected,
         cwd=ROOT, capture_output=True, text=True, check=True,
@@ -726,10 +732,11 @@ def norm_implementation_institution_errors():
     """Drift check between state/institution.json and reality, mirroring
     the existing norm-type-registry check's spirit: a config can be
     syntactically valid and still describe something that doesn't exist.
-    Checked both directions — a phase on disk with no institution.json
+    Checked both directions — an action on disk with no institution.json
     entry is exactly as much a lie as an institution.json entry with no
     real file, and either one means state/institution.json can no longer
-    be trusted as "the current institution" for next round's PHASE 1."""
+    be trusted as "the current institution" for next round's understanding
+    step (Section 1 of both norm-implementer.md files)."""
     institution_path = ROOT / "state" / "institution.json"
     if not institution_path.is_file():
         return ["state/institution.json is missing"]
@@ -739,37 +746,37 @@ def norm_implementation_institution_errors():
         return []  # already reported by norm_implementation_compile_errors()'s generic JSON check
 
     schedule = json.loads((ROOT / "schedule.json").read_text())
-    protected_phase_names = {"harvest", "propose", "critique", "vote", "discuss"}
+    protected_action_names = {"harvest", "propose", "critique", "vote", "discuss"}
     on_disk = {
-        p.stem for p in (ROOT / "phases").glob("*.py")
-        if p.stem != "__init__" and p.stem not in protected_phase_names
+        p.stem for p in (ROOT / "actions").glob("*.py")
+        if p.stem != "__init__" and p.stem not in protected_action_names
     }
     declared = {
-        name for name, entry in institution.get("phases", {}).items()
+        name for name, entry in institution.get("actions", {}).items()
         if not entry.get("protected")
     }
 
     errors = []
     for name in sorted(on_disk - declared):
-        errors.append(f"phases/{name}.py exists but has no state/institution.json entry")
+        errors.append(f"actions/{name}.py exists but has no state/institution.json entry")
     for name in sorted(declared - on_disk):
-        errors.append(f"state/institution.json lists phase {name!r} but phases/{name}.py doesn't exist")
+        errors.append(f"state/institution.json lists action {name!r} but actions/{name}.py doesn't exist")
     for name in sorted(declared & on_disk):
         if name not in schedule:
-            errors.append(f"state/institution.json lists phase {name!r} but schedule.json has no entry for it")
+            errors.append(f"state/institution.json lists action {name!r} but schedule.json has no entry for it")
     return errors
 
 
 def discard_norm_implementation(round_number, errors):
     """Roll back everything the norm-implementer touched this round — a
     partially-broken change (a working mechanisms/effort.py alongside a
-    broken phases/harvest.py, say) is exactly as unsafe to leave on disk as
+    broken actions/harvest.py, say) is exactly as unsafe to leave on disk as
     a fully broken one, since reload_project_modules() re-imports all of it
     regardless. Safe to do unconditionally here: commit_norm_implementation()
     hasn't run yet, so nothing from this round has been committed —
     `git checkout --` reverts modified tracked files back to HEAD, `git
-    clean -fd` removes any newly-created untracked files/dirs (a new phase
-    file for a new_phase norm, say) that checkout alone wouldn't touch.
+    clean -fd` removes any newly-created untracked files/dirs (a new action
+    file for a new_action norm, say) that checkout alone wouldn't touch.
 
     The `errors` list is the actual reason, and it's deliberately not
     limited to compile errors: implement_and_evaluate_norm() calls this for
@@ -795,7 +802,7 @@ def discard_norm_implementation(round_number, errors):
         call="norm_implementer_discarded",
         agent_id=None,
         round=round_number,
-        phase=None,
+        action=None,
         model=None,
         duration_s=None,
         returncode=None,
@@ -850,7 +857,7 @@ def commit_norm_implementation(round_number, winning_proposal):
         print(f"Round {round_number}: norm-implementer made no changes in the tracked paths — nothing to commit.")
         log_call(
             call="norm_implementer_no_changes",
-            agent_id=None, round=round_number, phase=None, model=None,
+            agent_id=None, round=round_number, action=None, model=None,
             duration_s=None, returncode=None, prompt=None,
             raw_response=None, parsed_response=None, error=None,
         )
@@ -868,7 +875,7 @@ def commit_norm_implementation(round_number, winning_proposal):
     # signal without inferring anything from git log.
     log_call(
         call="norm_implementer_committed",
-        agent_id=None, round=round_number, phase=None, model=None,
+        agent_id=None, round=round_number, action=None, model=None,
         duration_s=None, returncode=None, prompt=None,
         raw_response=None, parsed_response=None, commit_hash=commit_hash, error=None,
     )
@@ -961,7 +968,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             repair_message = (
                 f"Round {round_number}'s implementation has compile/validation errors that must "
                 f"be fixed before it can even be evaluated:\n\n{chr(10).join(compile_errors)}\n\n"
-                "Fix exactly these errors, then re-run your own PHASE 5 validation "
+                "Fix exactly these errors, then re-run your own verification step "
                 "(python3 -m py_compile on every file you touched, plus pytest tests/regression/ "
                 "and tests/norm_checks/) yourself before finishing — don't rely on this message "
                 "alone to catch the next issue. Don't change anything else about your "
@@ -1064,7 +1071,7 @@ ROUND_ARTIFACT_PATHS = [
     "plots",
     "state/runtime.json",
     "state/agents.json",
-    # The norm-implementer's PHASE 1 requirement list — always preserved,
+    # The norm-implementer's institutional design requirement list — always preserved,
     # same forensic reasoning as logs/norm.txt above: it's what the
     # norm-evaluator judged the round against, and it's still useful
     # evidence of what was analyzed even when the round's actual code gets
@@ -1125,8 +1132,9 @@ def refresh_knowledge_graph(round_number):
     """Keep the Understand-Anything semantic graph current after a round
     actually changes code — without this, it's frozen at whatever it looked
     like when hpc_ollama_entrypoint.sh built it before round 1, and gets
-    more wrong every round after that (norm-implementer's own PHASE 2
-    staleness check would just keep reporting it as unusable — no point
+    more wrong every round after that (norm-implementer's own
+    codebase-understanding staleness check would just keep reporting it
+    as unusable — no point
     building it at all if nothing ever refreshes it).
 
     Deliberately NOT done via the plugin's own `autoUpdate`/hook mechanism
@@ -1161,8 +1169,8 @@ def refresh_knowledge_graph(round_number):
     a shorter timeout than that one's 1800s is appropriate. Failure here is
     never fatal to the round; same graceful-degradation shape as
     hpc_ollama_entrypoint.sh's own codegraph/understand-anything blocks —
-    a stale-but-present graph is what PHASE 2's own staleness check is
-    already built to handle, so there's no reason to let this block the
+    a stale-but-present graph is what the norm-implementer's own staleness
+    check is already built to handle, so there's no reason to let this block the
     round or the rest of the run.
     """
     if os.environ.get("BUILD_KNOWLEDGE_GRAPH") != "1":
@@ -1202,7 +1210,7 @@ def refresh_knowledge_graph(round_number):
         print(f"Round {round_number}: knowledge graph refresh timed out after 600s — continuing "
               f"with the graph as it was; norm-implementer's own staleness check will flag this.")
         log_call(
-            call="knowledge_graph_refresh", agent_id=None, round=round_number, phase=None,
+            call="knowledge_graph_refresh", agent_id=None, round=round_number, action=None,
             model=model, duration_s=600.0, returncode=None, prompt=" ".join(cmd),
             raw_response=None, parsed_response=None, error="timeout",
         )
@@ -1233,7 +1241,7 @@ def refresh_knowledge_graph(round_number):
         print(f"Round {round_number}: knowledge graph refresh OK ({tool_call_count} tool calls, "
               f"{duration_s:.1f}s) — graph now matches HEAD.")
     log_call(
-        call="knowledge_graph_refresh", agent_id=None, round=round_number, phase=None,
+        call="knowledge_graph_refresh", agent_id=None, round=round_number, action=None,
         model=model, duration_s=round(duration_s, 3), returncode=result.returncode,
         prompt=" ".join(cmd), raw_response=result.stdout, tool_call_count=tool_call_count,
         parsed_response=final_text, error=error,
@@ -1263,13 +1271,13 @@ def knowledge_graph_matches_head():
 def reload_project_modules():
     """Python caches imported modules for the life of the process — without
     this, a norm-implementer edit to mechanisms/*.py, norms/*.py, or
-    phases/*.py on disk never actually takes effect within a single
+    actions/*.py on disk never actually takes effect within a single
     continuous simulate.py run, only the very first round's version of
     that code ever executes. Modules not yet imported (a brand new plugin
-    or phase file) don't need reloading — the plain import a few lines
+    or action file) don't need reloading — the plain import a few lines
     down already gets them fresh.
 
-    norms/ needs more than the mechanisms/phases pattern: engine.norms.
+    norms/ needs more than the mechanisms/actions pattern: engine.norms.
     registry's NORM_TYPES is a module-level statement
     (`NORM_TYPES = _discover_norm_types()`), computed exactly once at
     first import, not recomputed lazily — reloading norms/*.py alone
@@ -1286,8 +1294,8 @@ def reload_project_modules():
     then engine.norms.registry (rebinds its own NORM_TYPES against the
     freshly reloaded norms/*.py classes), then engine.norms.engine
     (rebinds its own `from engine.norms.registry import load_norms` to
-    the fresh function registry.py's reload just created), then phases
-    (rebinds phases/harvest.py's own `from engine.norms.engine import
+    the fresh function registry.py's reload just created), then actions
+    (rebinds actions/harvest.py's own `from engine.norms.engine import
     NormEngine` the same way, and mechanisms.x imports same as before)."""
     for prefix in ("mechanisms", "norms"):
         for name in sorted(n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")):
@@ -1295,36 +1303,36 @@ def reload_project_modules():
     for module_name in ("engine.norms.registry", "engine.norms.engine"):
         if module_name in sys.modules:
             importlib.reload(sys.modules[module_name])
-    for name in sorted(n for n in list(sys.modules) if n == "phases" or n.startswith("phases.")):
+    for name in sorted(n for n in list(sys.modules) if n == "actions" or n.startswith("actions.")):
         importlib.reload(sys.modules[name])
 
 
 def run_cycle(round_number):
-    """Run every schedule.json phase gated on for this round, in file order.
-    Skips phases already recorded for this round (resuming after a crash
+    """Run every schedule.json action gated on for this round, in file order.
+    Skips actions already recorded for this round (resuming after a crash
     mid-round) instead of re-running or skipping past them. Returns False
     if the lake collapsed this round (stop the simulation)."""
     print(f"\n=== Round {round_number} ===")
     reload_project_modules()
     state = load_state(round_number)
     schedule = load_schedule()
-    already_ran = {r["phase"] for r in state["runtime"]["rounds"] if r["round"] == round_number}
+    already_ran = {r["action"] for r in state["runtime"]["rounds"] if r["round"] == round_number}
 
-    for phase_name, gate in schedule.items():
-        if phase_name in already_ran:
-            print(f"--- {phase_name}: already recorded for round {round_number}, resuming past it ---")
+    for action_name, gate in schedule.items():
+        if action_name in already_ran:
+            print(f"--- {action_name}: already recorded for round {round_number}, resuming past it ---")
             continue
         if not evaluate_gate(gate, state["fluents"], round_number):
-            print(f"--- {phase_name}: gated off this round ---")
+            print(f"--- {action_name}: gated off this round ---")
             continue
 
-        print(f"\n--- Round {round_number}: {phase_name} ---")
-        phase_module = importlib.import_module(f"phases.{phase_name}")
-        record = phase_module.PHASE.run(state)
+        print(f"\n--- Round {round_number}: {action_name} ---")
+        action_module = importlib.import_module(f"actions.{action_name}")
+        record = action_module.ACTION.run(state)
         save_runtime(state)
         save_fluents(state)
         print(json.dumps(record, indent=2))
-        write_memory_episodes(phase_module.PHASE, state, record, round_number)
+        write_memory_episodes(action_module.ACTION, state, record, round_number)
 
         if state["runtime"]["stock_kg"] <= COLLAPSE_THRESHOLD_KG:
             print(
@@ -1361,7 +1369,7 @@ def run_cycle(round_number):
 
 
 def round_is_complete(runtime, fluents, schedule, round_number):
-    recorded = {r["phase"] for r in runtime["rounds"] if r["round"] == round_number}
+    recorded = {r["action"] for r in runtime["rounds"] if r["round"] == round_number}
     expected = {name for name, gate in schedule.items() if evaluate_gate(gate, fluents, round_number)}
     return expected.issubset(recorded)
 

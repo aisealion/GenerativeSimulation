@@ -4,9 +4,9 @@
 # deaths, and any active norm's own persistent state under
 # runtime["norms"]), state/fluents.json (deaths).
 #
-# HarvestPhase encodes no norm's rule itself — every per-agent constraint (a
+# HarvestAction encodes no norm's rule itself — every per-agent constraint (a
 # cap, a reserve, a ban) is a Norm plugin under norms/, activated purely
-# through state["config"]["norms"]; with that list empty, this phase is
+# through state["config"]["norms"]; with that list empty, this action is
 # physics only.
 
 from engine.norms.context import HarvestContext
@@ -21,14 +21,14 @@ from engine.physics import (
     CARRYING_CAPACITY_KG,
 )
 from engine.llm_agents import call_fisher_agent
-from engine.phase_base import Phase
+from engine.action_base import Action
 
 
-class HarvestPhase(Phase):
+class HarvestAction(Action):
     name = "harvest"
 
     def prompt_fields(self, state, agent_id):
-        """Phase-interface method (no current caller outside run() itself —
+        """Action-interface method (no current caller outside run() itself —
         confirmed by repo-wide grep — but kept for interface compliance and
         for tests/norms/ that may want to preview a single agent's prompt
         in isolation). Builds its own fresh context/engine, so a norm whose
@@ -62,7 +62,7 @@ class HarvestPhase(Phase):
         window = config.get("history_window_rounds", 5)
         past_harvests = [
             r for r in runtime["rounds"]
-            if r["phase"] == "harvest" and r["round"] < round_number
+            if r["action"] == "harvest" and r["round"] < round_number
         ][-window:]
         if not past_harvests:
             return "This is the first count anyone's taken — no earlier surveys to compare against."
@@ -136,7 +136,7 @@ class HarvestPhase(Phase):
 
         round_record = {
             "round": round_number,
-            "phase": "harvest",
+            "action": "harvest",
             "stock_kg_before": context.stock_before,
             "agents": {
                 agent_id: {
@@ -158,4 +158,4 @@ class HarvestPhase(Phase):
         return round_record
 
 
-PHASE = HarvestPhase()
+ACTION = HarvestAction()

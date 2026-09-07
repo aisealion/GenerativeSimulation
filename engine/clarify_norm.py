@@ -1,10 +1,10 @@
-"""CLI the norm-implementer agent invokes (via Bash) during PHASE 1 to ask
-the fisher who proposed the round's adopted rule what an ambiguous or
-incomplete requirement actually means. Never used to change norm.txt, and
-never answered by the norm-implementer itself — only the proposer's own
-call_fisher_agent() response counts. Logged through the same
+"""CLI the norm-implementer agent invokes (via Bash) during its institutional
+design step to ask the fisher who proposed the round's adopted rule what an
+ambiguous or incomplete requirement actually means. Never used to change
+norm.txt, and never answered by the norm-implementer itself — only the
+proposer's own call_fisher_agent() response counts. Logged through the same
 log_call()/logs/model_calls.jsonl path every other fisher call uses
-(call="fisher", phase="clarify"), so no separate log file is needed to
+(call="fisher", action="clarify"), so no separate log file is needed to
 review these after the fact.
 
 Usage: python3 -m engine.clarify_norm --round <N> --question "<question>"
@@ -26,12 +26,12 @@ def _winning_proposer_and_proposal(runtime, round_number):
     returns the proposer's agent_id — needed here to know who to ask,
     which find_adopted_norm() itself has no reason to expose."""
     vote_record = next(
-        (r for r in runtime["rounds"] if r["round"] == round_number and r["phase"] == "vote"), None
+        (r for r in runtime["rounds"] if r["round"] == round_number and r["action"] == "vote"), None
     )
     if vote_record is None:
         return None, None
     propose_record = next(
-        (r for r in runtime["rounds"] if r["round"] == round_number and r["phase"] == "propose"), None
+        (r for r in runtime["rounds"] if r["round"] == round_number and r["action"] == "propose"), None
     )
     proposer_id = vote_record["winning_proposer"]
     return proposer_id, propose_record["proposals"][proposer_id]

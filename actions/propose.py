@@ -2,18 +2,18 @@
 # Writes: state/runtime.json (proposals for the round).
 
 from engine.llm_agents import call_fisher_agent
-from engine.phase_base import Phase
+from engine.action_base import Action
 from engine.physics import alive_agent_ids
 
 
-class ProposePhase(Phase):
+class ProposeAction(Action):
     name = "propose"
 
     def prompt_fields(self, state, agent_id):
         runtime = state["runtime"]
         agents = state["agents"]
         agent_ids = alive_agent_ids(agents, runtime)
-        last_harvest = next(r for r in reversed(runtime["rounds"]) if r["phase"] == "harvest")
+        last_harvest = next(r for r in reversed(runtime["rounds"]) if r["action"] == "harvest")
 
         others_summary = "\n".join(
             f"- {agents[other_id]['name']} brought in {last_harvest['agents'][other_id]['harvested_kg']:.0f}kg."
@@ -46,7 +46,7 @@ class ProposePhase(Phase):
 
         round_record = {
             "round": round_number,
-            "phase": "propose",
+            "action": "propose",
             "proposals": proposals,
         }
 
@@ -66,4 +66,4 @@ class ProposePhase(Phase):
         ]
 
 
-PHASE = ProposePhase()
+ACTION = ProposeAction()

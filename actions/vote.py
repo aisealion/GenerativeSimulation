@@ -4,11 +4,11 @@
 # Writes: state/runtime.json (vote tallies), state/fluents.json (adopted rules).
 
 from engine.llm_agents import call_fisher_agent
-from engine.phase_base import Phase
+from engine.action_base import Action
 from engine.physics import alive_agent_ids
 
 
-class VotePhase(Phase):
+class VoteAction(Action):
     name = "vote"
 
     def _proposals(self, state):
@@ -17,23 +17,23 @@ class VotePhase(Phase):
         all of them, and the tie-break below (max() over an in-order dict)
         favors whichever proposal comes first in this same order.
 
-        Prefers this round's phases/critique.py output (the
+        Prefers this round's actions/critique.py output (the
         critique-then-revise loop's final, possibly-revised text) over
         propose's own raw proposals — falls back to propose's when no
         critique round record exists for this round, so an older
         schedule.json with critique gated off (or a round resumed from
-        before this phase existed) still works unchanged."""
+        before this action existed) still works unchanged."""
         runtime = state["runtime"]
         agents = state["agents"]
         round_number = state["round_number"]
         critique_record = next(
-            (r for r in runtime["rounds"] if r["round"] == round_number and r["phase"] == "critique"),
+            (r for r in runtime["rounds"] if r["round"] == round_number and r["action"] == "critique"),
             None,
         )
         if critique_record is not None:
             proposals_source = critique_record["proposals"]
         else:
-            last_propose = next(r for r in reversed(runtime["rounds"]) if r["phase"] == "propose")
+            last_propose = next(r for r in reversed(runtime["rounds"]) if r["action"] == "propose")
             proposals_source = last_propose["proposals"]
         return [
             (agent_id, proposals_source[agent_id])
@@ -71,7 +71,7 @@ class VotePhase(Phase):
 
         round_record = {
             "round": round_number,
-            "phase": "vote",
+            "action": "vote",
             "votes": votes,
             "tally": tally,
             "winner_index": winner_index,
@@ -96,4 +96,4 @@ class VotePhase(Phase):
         return [{"event_type": "vote_outcome", "text": text, "agent_id": None, "group_id": "community"}]
 
 
-PHASE = VotePhase()
+ACTION = VoteAction()
