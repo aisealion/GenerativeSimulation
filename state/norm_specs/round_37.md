@@ -1,0 +1,5 @@
+Round 37 Norm Specification
+
+Policy: Each fisher may take up to 90% of the lake’s current biomass per trip; if the communal reserve is below 5 kg they must deposit 5% of their catch into the reserve; if the reserve falls below 3 kg the maximum take for all fishers is automatically reduced by 30% for the following trip until the reserve reaches at least 5 kg.
+
+Operationalization: The steward records each fisher’s catch weight and the lake’s biomass after every trip. If the reserve is below 5 kg, the fisher deposits 5 % of the catch into the reserve before leaving. The steward checks that the 90 % cap and deposit rule were obeyed; if a fisher exceeds the 90 % limit or fails to deposit when required, the steward imposes a fine of 1 kg taken from the fisher’s catch and deposits that 1 kg into the communal reserve. When the reserve drops below 3 kg, the steward automatically applies a 30 % reduction to the 90 % cap for the next trip; once the reserve rises to at least 5 kg the reduction is lifted. All actions are logged and reported to the community each round.
