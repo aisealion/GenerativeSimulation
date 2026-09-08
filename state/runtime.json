@@ -1,6 +1,6 @@
 {
-  "round": 38,
-  "stock_kg": 2.6630931703815532,
+  "round": 39,
+  "stock_kg": 2.752784210242855,
   "rounds": [
     {
       "round": 1,
@@ -19271,19 +19271,370 @@
       },
       "winner_index": 5,
       "winning_proposer": "agent_8"
+    },
+    {
+      "round": 39,
+      "action": "harvest",
+      "stock_kg_before": 2.6630931703815532,
+      "agents": {
+        "agent_3": {
+          "effort": 0.4,
+          "harvested_kg": 0.053261863407631074,
+          "reasoning": "I\u2019ll go out just enough to net about 1.2\u202fkg, covering my 1\u202fkg daily need while leaving the lake mostly intact for the community.",
+          "note": "missing deposit, fine 0.00\u202fkg within quota, deposit 0.00\u202fkg",
+          "participated": true
+        },
+        "agent_5": {
+          "effort": 0.2,
+          "harvested_kg": 0.026630931703815537,
+          "reasoning": "I\u2019ll fish at 0.2 effort to hit the 18% quota exactly, deposit the required 5\u202f% to the communal reserve, and keep my reserves high for future trips.",
+          "note": "missing deposit, fine 0.00\u202fkg within quota, deposit 0.00\u202fkg",
+          "participated": true
+        },
+        "agent_6": {
+          "effort": 1.0,
+          "harvested_kg": 0.13315465851907768,
+          "reasoning": "I\u2019ll haul the whole lake to meet my 1kg need and satisfy the 2kg deposit, even if it means over\u2011quota for this round.",
+          "note": "missing deposit, fine 0.01\u202fkg within quota, deposit 0.01\u202fkg",
+          "participated": true
+        },
+        "agent_7": {
+          "effort": 0.15,
+          "harvested_kg": 0.019973198777861648,
+          "reasoning": "I\u2019ll keep it low to stay under the 18\u202f% quota, so I avoid a penalty, still grab a bite for myself and put the required 2\u202fkg reserve deposit into the communal pool.",
+          "note": "missing deposit, fine 0.00\u202fkg within quota, deposit 0.00\u202fkg",
+          "participated": true
+        },
+        "agent_8": {
+          "effort": 0.4,
+          "harvested_kg": 0.053261863407631074,
+          "reasoning": "I\u2019ll aim for the 1\u202fkg I need; with 3\u202fkg in the lake, 0.4 effort should get me that while staying within the 2\u202fkg reserve rule.",
+          "note": "missing deposit, fine 0.00\u202fkg within quota, deposit 0.00\u202fkg",
+          "participated": true
+        },
+        "agent_9": {
+          "effort": 0.6,
+          "harvested_kg": 0.07989279511144659,
+          "reasoning": "I\u2019ll go out with moderate effort to net roughly 1.8\u202fkg of fish, which after the 5% deposit still covers my 1\u202fkg per\u2011trip need and keeps me within safe limits.",
+          "note": "missing deposit, fine 0.00\u202fkg within quota, deposit 0.00\u202fkg",
+          "participated": true
+        }
+      },
+      "stock_kg_after_harvest": 2.2969178594540898,
+      "stock_kg_after_regrowth": 2.752784210242855
+    },
+    {
+      "round": 39,
+      "action": "propose",
+      "proposals": {
+        "agent_3": {
+          "policy": "Each fisher may take up to 0.9\u202fkg per trip, must deposit 25\u202f% of the catch into the lake reserve; fishing is suspended when lake mass falls below 2.5\u202fkg and resumes when it reaches 4.0\u202fkg, and each fisher has a seasonal cap of 4.5\u202fkg.",
+          "operationalization": "On each trip, the fisher records the catch weight and deposits 25\u202f% into the communal reserve, then keeps the remainder. The community ledger is updated nightly by a designated recorder; if the lake mass ever falls below 2.5\u202fkg, all fishing stops until the reserve reaches 4.0\u202fkg. Anyone who fails to deposit the required amount or exceeds the seasonal cap receives a fine equal to the over\u2011catch, and may be temporarily barred from fishing until the fine is paid.",
+          "reasoning": "I want a rule that lets us keep the lake healthy while still giving each of us enough to live on. 0.9\u202fkg per trip gives us a chance to fish twice if needed, the 25\u202f% deposit keeps the reserve building, and the suspension thresholds protect the fish stock when it\u2019s low."
+        },
+        "agent_5": {
+          "policy": "Each fisher may take up to 70% of the current lake stock per trip, but must leave at least 1\u202fkg of fish in the lake afterwards.",
+          "operationalization": "Before each trip a fisher declares the amount they intend to catch. The community records the current lake stock. The catch is limited to the smaller of 70% of the stock or the amount that would leave 1\u202fkg remaining. If a fisher tries to take more than allowed, they are fined 1\u202fkg per kg over the limit and must deposit the fine into a communal reserve. The reserve is used to replenish the lake or fund community needs. Fines are recorded in a shared ledger, and any fisher who repeatedly violates the rule loses fishing privileges for a set number of rounds.",
+          "reasoning": "This rule lets me take the largest possible haul (up to 2\u202fkg when the lake is at 3\u202fkg) while still protecting a tiny reserve that keeps the lake from collapsing. The fine deters over\u2011catching and the communal reserve ensures that the lake can be restored for future trips. It balances my own profit with a simple, enforceable system that the community can agree to."
+        },
+        "agent_6": {
+          "policy": "Each fisher may take up to 95\u202f% of the lake\u2019s current biomass per trip, deposit 2\u202f% of the catch into the communal reserve only when the reserve falls below 5\u202fkg, and if the reserve drops below 2\u202fkg the maximum take for all is reduced to 50\u202f% for the next trip until the reserve reaches at least 5\u202fkg.",
+          "operationalization": "On each trip, you estimate the lake\u2019s current biomass, calculate 95\u202f% of that amount, and fish up to that figure. If, after your catch, the communal reserve is under 5\u202fkg, you hand over 2\u202f% of your catch to the reserve. Should the reserve fall below 2\u202fkg, all fishers agree to lower their take to 50\u202f% of the lake\u2019s biomass for the following trip; this reduction remains until the reserve reaches 5\u202fkg. The reserve is tracked by a community ledger updated after each trip; non\u2011compliance results in a temporary ban on fishing for one trip.",
+          "reasoning": "I want to keep my profits high while only giving the community a minimal safety net. 95\u202f% take lets me catch most of the lake, the 2\u202f% deposit is cheap, and the low reserve threshold (2\u202fkg) ensures the lake isn\u2019t overfished, but the rule doesn\u2019t force me to pay more than I want."
+        },
+        "agent_7": {
+          "policy": "Each fisher may take up to 2\u202fkg per trip, deposit 0.5\u202fkg into a shared replenishment pool, the community\u2019s total daily catch may not exceed 70\u202f% of the lake\u2019s weight, and at least 20\u202f% of the lake\u2019s stock must remain untouched.",
+          "operationalization": "On each fishing day every fisher reports their catch and deposit to the rotating recorder. The shared pool is updated with the 0.5\u202fkg deposit. The sum of all catches is compared to 70\u202f% of the current lake weight; any excess is returned to the lake and the fisher must redo the catch. If a fisher fails to deposit, a fine of 0.01\u202fkg is deducted from their next catch; repeated failures result in a one\u2011day fishing ban. Deposits are used for periodic restocking efforts and shared maintenance. All logs are reviewed weekly by the community council to enforce compliance.",
+          "reasoning": "I need at least 1\u202fkg per trip to survive, so giving each of us 2\u202fkg per trip keeps me alive while still allowing a buffer for the lake. The 0.5\u202fkg deposit builds a shared pool that can be used for restocking, which keeps the lake productive for everyone. Capping the total catch at 70\u202f% of the lake weight protects the fish population, and keeping 20\u202f% untouched ensures the lake never goes below a survivable level. This rule balances my personal survival with long\u2011term sustainability and fairness for the community."
+        },
+        "agent_8": {
+          "policy": "Maintain a lake reserve of 2\u202fkg; each fisher may take up to 4\u202fkg per trip and no more than 12\u202fkg per week; 5\u202f% of each catch is deposited into a community pool and refunded when the lake reaches 2\u202fkg again; any overage is fined 0.02\u202fkg per kg over and causes the fisher to skip their next trip.",
+          "operationalization": "Every day the lake keeper records each fisher\u2019s catch and deposit; the reserve is checked after each trip. If the lake falls below 2\u202fkg, the community pool is immediately refunded to all fishers. If a fisher takes more than 4\u202fkg in a single trip or exceeds 12\u202fkg over the week, the excess weight is fined 0.02\u202fkg per kilogram and the fisher is barred from fishing for the following day. All records are kept in the shared ledger and can be inspected by any community member.",
+          "reasoning": "I need enough fish to keep myself fed each trip, but the lake must stay alive for all of us. A 2\u202fkg reserve keeps the lake healthy, while 4\u202fkg per trip and 12\u202fkg per week give me a realistic chance to earn the 1\u202fkg I need. The 5\u202f% deposit protects the lake and the community pool gives everyone a safety net. The fine and skip penalty stop overfishing and give us a clear consequence for breaking the rule."
+        },
+        "agent_9": {
+          "policy": "Each fisher may take up to 1\u202fkg per trip or 40\u202f% of the lake\u2019s current stock, whichever is lower; a 0.01\u202fkg deposit is paid before fishing and all catches are logged.",
+          "operationalization": "Before leaving the dock each fisher must place 0.01\u202fkg on the communal deposit pot and fill out a simple log sheet with the amount taken. At the end of each month the community tallies the total catch and any fisherman who fails to deposit or exceeds the limit is fined 1\u202fkg from their reserve. All logs are reviewed by a rotating committee and disputes resolved by majority vote.",
+          "reasoning": "I want a limit that protects the lake but lets me eat and make a living. 1\u202fkg keeps me fed, 40\u202f% stops us from depleting the stock. 0.01\u202fkg deposit is small but forces responsibility, and a 1\u202fkg penalty deters cheating. The monthly review keeps everyone honest without heavy bureaucracy."
+        }
+      }
+    },
+    {
+      "round": 39,
+      "action": "critique",
+      "proposals": {
+        "agent_3": {
+          "policy": "Each fisher may take up to 0.9\u202fkg per trip, must deposit 25\u202f% of that catch into the lake reserve; fishing is suspended when the lake\u2019s effective mass (stock\u202f+\u202freserve) falls below 2.5\u202fkg and resumes when it reaches 4.0\u202fkg, and each fisher has a seasonal cap of 4.5\u202fkg per calendar year, resetting on January\u202f1; the community council enforces temporary bans and fines, recording all actions in the communal ledger.",
+          "operationalization": "1. **Catch and Deposit** \u2013 After each trip the fisher removes 25\u202f% of the caught fish, places it in the communal reserve box beside the dock, and writes the exact amount on the communal ledger. The remaining 75\u202f% stays in the fisher\u2019s personal holding.\n2. **Daily Monitoring** \u2013 The council reviews the stock and reserve entries on the ledger each morning to compute the lake\u2019s effective mass (stock\u202f+\u202freserve).\n3. **Suspension Enforcement** \u2013 If the effective mass drops below 2.5\u202fkg, the council posts a suspension notice on the community board and announces it at the next gathering. All fishers must cease fishing immediately; the council may request proof of compliance.\n4. **Resumption** \u2013 When the effective mass reaches 4.0\u202fkg, the council lifts the suspension, updates the ledger, and informs the community that fishing may resume.\n5. **Deposit Verification** \u2013 At the next community meeting the council opens the reserve box, counts the fish, and cross\u2011checks the count against the ledger entries. Any discrepancy triggers a fine and a temporary ban until the ledger and reserve are reconciled.\n6. **Seasonal Cap & Reset** \u2013 Each fisher\u2019s total catch is tracked annually. On January\u202f1 every fisher\u2019s seasonal total resets to zero, allowing a fresh cap of 4.5\u202fkg for the new year.\n7. **Bans and Fines** \u2013 The council issues temporary bans for violations and records fines in the ledger. Bans are lifted once the fine is paid at a council meeting, either in food, fish, or cash.\n8. **Transparency** \u2013 All ledger entries, reserve counts, and suspension notices are displayed publicly so every fisher can verify compliance.",
+          "reasoning": "This version consolidates all clarified points: deposit mechanism, ledger recording, council verification, suspension enforcement, seasonal reset, and fine/bann system, ensuring transparency, enforceability, and community stewardship of the lake."
+        },
+        "agent_5": {
+          "policy": "Each fisher may take up to 70% of the lake\u2019s current stock per trip, but must leave at least 1\u202fkg of fish in the lake after the catch; any declared catch beyond this limit is fined 1\u202fkg per kg over and, after two separate violations, the fisher is banned for 2 rounds.",
+          "operationalization": "1. At trip start, the Council records the current lake stock. 2. The fisher declares the intended catch. 3. Compute allowed catch = min(0.70\u202f\u00d7\u202fstock, stock\u202f\u2013\u202f1\u202fkg). 4. If declared catch > allowed, compute fine = (declared\u202f\u2013\u202fallowed)\u202f\u00d7\u202f1\u202fkg per kg over. 5. Deposit the fine into the communal reserve ledger managed by the Council. 6. Track each fisher\u2019s violations; on the second violation, the Council records a 2\u2011round fishing ban for that fisher in the shared ledger. 7. After the ban period ends, the Council automatically clears the ban entry and resets the fisher\u2019s violation count to zero. The communal reserve is held by the community under a shared ledger that all fishers can view and is used for lake restoration or community needs.",
+          "reasoning": "This version preserves the 70% quota, enforces a minimum 1\u202fkg reserve, provides clear fines, and establishes a transparent ban system while keeping the communal reserve collectively managed."
+        },
+        "agent_6": {
+          "policy": "Each fisher may take up to 95\u202f% of the lake\u2019s current biomass per trip; if the communal reserve is below 5\u202fkg, 2\u202f% of the catch must be deposited into the reserve; if the reserve falls below 2\u202fkg, the next trip\u2019s maximum take is capped at 50\u202f% until the reserve reaches 5\u202fkg or more.",
+          "operationalization": "1. Before the trip, read the ledger\u2019s \"reserve\" value. 2. If reserve\u202f<\u202f2\u202fkg, set max_take\u202f=\u202f0.50\u202f\u00d7\u202fcurrent lake biomass; otherwise set max_take\u202f=\u202f0.95\u202f\u00d7\u202fcurrent lake biomass. 3. The fisher selects a catch up to max_take. 4. Update lake biomass: lake\u202f=\u202flake\u202f\u2013\u202fcatch. 5. If reserve\u202f<\u202f5\u202fkg, compute deposit\u202f=\u202f0.02\u202f\u00d7\u202fcatch, add deposit to reserve, and record the deposit in the ledger. 6. Write the updated lake biomass and reserve back to the ledger. 7. If reserve\u202f\u2265\u202f5\u202fkg, clear the 50\u202f% flag so the following trip resumes the 95\u202f% limit. 8. All updates are made to a shared ledger that every fisher records after each trip, ensuring collective responsibility for deposits and compliance.",
+          "reasoning": "This version harmonizes the community\u2019s prior proposals: it keeps the generous 95\u202f% take when the reserve is healthy, imposes a modest 2\u202f% deposit when the reserve is low, and provides a clear 50\u202f% safeguard when the reserve falls critically low, while automatically resetting once the reserve recovers. The ledger-based bookkeeping ensures transparency and collective enforcement of the rules."
+        },
+        "agent_7": {
+          "policy": "Each fisher may take up to 2\u202fkg per trip, deposit 0.5\u202fkg into a shared replenishment pool, the community\u2019s daily net catch (takes minus deposits) may not exceed 70\u202f% of the lake\u2019s starting stock, and at least 20\u202f% of the lake\u2019s stock must remain untouched.",
+          "operationalization": "At the start of each day the lake\u2019s total weight is recorded. Every fisher logs the weight taken and the required 0.5\u202fkg deposit. The rotating recorder tallies total takes (T) and total deposits (D), computes net removal N = T \u2013 D, and compares N to 0.7\u202f\u00d7\u202finitial stock. If N exceeds this limit the day is flagged and the council imposes a fine equal to 10\u202f% of the excess removal beyond 0.8\u202f\u00d7\u202finitial stock (i.e., fine = 0.1\u202f\u00d7\u202f(N \u2013 0.8\u202f\u00d7\u202finitial stock)). The remaining stock must stay \u2265 0.2\u202f\u00d7\u202finitial stock; if not, a fine is applied. Two consecutive failed deposit attempts by a fisher trigger a one\u2011day fishing ban for that fisher. The shared replenishment pool is held by the rotating recorder, who also maintains the deposit log. The day\u2011to\u2011day guard (same recorder) enforces the daily catch limit, and the council reviews the ledger weekly to enforce fines and update the community.",
+          "reasoning": "This version balances harvest limits, ensures accountability, and protects the lake\u2019s long\u2011term sustainability while allowing me to fish enough to survive."
+        },
+        "agent_8": {
+          "policy": "Maintain a lake reserve of 2\u202fkg; each fisher may take up to 4\u202fkg per trip and no more than 12\u202fkg per week; 5\u202f% of each catch is deposited into a community pool and refunded when the lake reserve reaches 2\u202fkg again; any overage is fined 0.02\u202fkg per kg over and causes the fisher to skip their next trip.",
+          "operationalization": "The lake keeper, a community\u2011chosen volunteer, records every trip\u2019s catch and the 5\u202f% deposit. If the reserve falls below 2\u202fkg, the keeper holds the pool and continues monitoring; once the reserve rises back to 2\u202fkg, the keeper refunds the pool to all fishers in proportion to the amounts they deposited. The keeper tallies each fisher\u2019s total catch over the last seven consecutive days ending on the day of the current trip to enforce the 12\u202fkg per\u2011week limit. Any catch exceeding the 4\u202fkg per\u2011trip or 12\u202fkg per\u2011week limits triggers a fine of 0.02\u202fkg per excess kg, which the keeper adds to the community pool, records the fine, and bars the fisher from fishing the following day.",
+          "reasoning": "This version protects the lake\u2019s reserve while giving fishers clear limits and fair refund mechanisms, and it establishes transparent enforcement through the community keeper."
+        },
+        "agent_9": {
+          "policy": "Each fisher may take up to 1\u202fkg per trip or 40\u202f% of the lake\u2019s current stock, whichever is lower; a 0.01\u202fkg deposit must be paid before fishing and all catches must be logged by the day keeper. Deposits are placed in the communal chest immediately before fishing and recorded. If a penalty applies\u2014because the deposit was not made, the catch exceeded the limit, or the catch was not logged\u20141\u202fkg is taken from the fisher\u2019s recorded reserve (moving a fish from the crate to the communal chest). If the reserve has less than 1\u202fkg, the penalty is whatever remains and the reserve is set to 0.",
+          "operationalization": "After each trip, the fisher records how much they keep in their personal lockable crate on the shared ledger, which tracks every fisher\u2019s reserve. The day keeper, who is on duty that day, ensures the 0.01\u202fkg deposit is placed in the communal chest before the fisher leaves and writes this deposit in the ledger. Once the fisher returns, the day keeper checks that the haul does not exceed the lower of 1\u202fkg or 40\u202f% of the lake\u2019s current stock and that the catch is logged. If any of these conditions fail, the day keeper moves one fish from the fisher\u2019s crate to the communal chest, records the transfer in the ledger next to the fisher\u2019s name and the date, and adjusts the fisher\u2019s reserve accordingly (setting it to zero if less than 1\u202fkg). All ledger entries are read at the end of the month to ensure transparency and prevent cheating.",
+          "reasoning": "This version keeps the reserve clear, trackable, and fair, enforces compliance through a simple deposit and penalty system, and assigns clear responsibilities to the day keeper so that all actions are recorded and visible to the community."
+        }
+      },
+      "dialogues": {
+        "agent_3": [
+          {
+            "question": "The proposal says each fisher must deposit 25% of the catch into the lake reserve, but it doesn\u2019t specify who holds that reserve\u2014does the deposit go into the community\u2019s stock_kg, or is the lake reserve a separate entity, and who manages it?",
+            "answer": "In our terms, the \u2018lake reserve\u2019 is a separate bucket that sits beside the lake\u2019s total fish mass. The reserve is not counted in the community\u2019s stock_kg; it\u2019s a communal safety\u2011net that we keep on a ledger called *lake_reserve_kg*.  Whenever a fisher takes a catch, they set aside 25\u202f% of that catch and deposit it into the lake reserve.  The reserve is managed collectively by the fishing council, with the designated recorder updating the ledger each night.  The reserve\u2019s mass is added to the lake\u2019s effective mass for the purposes of the suspension rules, but it stays distinct from the stock that we all keep for our own use.\n\nYour policy, as you wrote it, is fine.  The only clarification is that the deposit goes into the lake reserve, not into the communal stock_kg.  Everything else remains unchanged.",
+            "revised_policy": "Each fisher may take up to 0.9\u202fkg per trip, must deposit 25\u202f% of the catch into the lake reserve; fishing is suspended when lake mass falls below 2.5\u202fkg and resumes when the lake reserve reaches 4.0\u202fkg, and each fisher has a seasonal cap of 4.5\u202fkg.",
+            "revised_operationalization": "On each trip, a fisher records the catch weight.  They calculate 25\u202f% of that catch as the deposit, add that deposit to the lake reserve (lake_reserve_kg).  The remainder is kept for personal use.  The lake\u2019s effective mass for the suspension rules is the sum of the lake\u2019s stock_kg plus the lake reserve.  If that effective mass falls below 2.5\u202fkg, all fishing stops until the reserve (and thus the effective mass) reaches 4.0\u202fkg.  The designated recorder updates the ledger nightly.  Any fisher who fails to deposit the required 25\u202f% or who exceeds the 4.5\u202fkg seasonal cap is fined an amount equal to the over\u2011catch and may be temporarily barred from fishing until the fine is paid."
+          },
+          {
+            "question": "The proposal sets a seasonal cap of 4.5\u202fkg per fisher but doesn\u2019t specify how a season is defined or when it resets. When does the seasonal limit reset and how is a season determined?",
+            "answer": "The season is the calendar year \u2013 from January\u202f1 to December\u202f31.  At the start of each new year every fisher\u2019s seasonal catch total is reset to zero, so the 4.5\u202fkg cap applies only to the fish taken during that year.  In practice we treat the \u2018season\u2019 as the span between the first day of fishing after the lake freezes (or any official opening date) and the following year\u2019s opening.  When the year rolls over, the count clears automatically.",
+            "revised_policy": "Each fisher may take up to 0.9\u202fkg per trip, must deposit 25\u202f% of the catch into the lake reserve; fishing is suspended when the lake\u2019s effective mass (stock\u202f+\u202freserve) falls below 2.5\u202fkg and resumes when it reaches 4.0\u202fkg; each fisher has a seasonal cap of 4.5\u202fkg, which applies to the total catch taken between January\u202f1 and December\u202f31 of each calendar year, and resets to zero on January\u202f1.",
+            "revised_operationalization": "A fisher records each trip\u2019s catch weight.  They calculate 25\u202f% of that catch as the deposit, add the deposit to the lake reserve, and keep the remainder.  The lake\u2019s effective mass is the sum of the lake\u2019s stock plus the reserve; if it drops below 2.5\u202fkg fishing is suspended until the effective mass reaches 4.0\u202fkg.  For each calendar year, a fisher\u2019s cumulative catch is tallied; if it exceeds 4.5\u202fkg the fisher is fined an amount equal to the over\u2011catch and may be temporarily barred until the fine is paid.  At the start of the new year (January\u202f1), each fisher\u2019s cumulative catch total is reset to zero, allowing a fresh season of up to 4.5\u202fkg."
+          },
+          {
+            "question": "The policy says a fisher may be temporarily barred until the fine is paid, but it does not specify who has the authority to impose or lift that ban, nor how the fine is collected or recorded.",
+            "answer": "In our village the fishing rules are enforced by the council of elders who meet every month. If a fisher exceeds the seasonal cap, the council will issue a temporary ban notice that the fisher must show at the next meeting. The fine is paid to the community\u2019s shared ledger\u2014usually in food or fish that the fisher brings to the council. The council keeps a record of each ban and fine in the communal ledger so everyone knows who is barred and how much is owed. Once the fine is cleared the council lifts the ban and the fisher can resume fishing.",
+            "revised_policy": "Each fisher may take up to 0.9\u202fkg per trip, must deposit 25\u202f% of the catch into the lake reserve; fishing is suspended when the lake\u2019s effective mass (stock\u202f+\u202freserve) falls below 2.5\u202fkg and resumes when it reaches 4.0\u202fkg; each fisher has a seasonal cap of 4.5\u202fkg, which applies to the total catch taken between January\u202f1 and December\u202f31 of each calendar year, and resets to zero on January\u202f1. The community council enforces temporary bans and fine collection, recording all fines and bans in the communal ledger.",
+            "revised_operationalization": "The council will issue a written ban notice to the fisher who exceeded the cap. The fisher must pay the fine directly to the council during the next meeting, using either cash, food, or fish. The council records the fine amount and the ban status in the communal ledger, and removes the ban once the fine is paid. All fishers can see the ledger to track their standing."
+          },
+          {
+            "question": "The proposal requires each fisher to deposit 25% of the catch into the lake reserve, but it doesn\u2019t specify who verifies that the deposit has been made or how that deposit is enforced.",
+            "answer": "I think we should put the 25\u202f% deposit in a communal box that everyone can see \u2013 the one in the shed by the dock. Each time I finish a trip I will take the required amount out of my catch, drop it in that box, and write the number on the ledger. At the next community meeting the council will open the box, count the fish, and check that every entry on the ledger matches what is in the box. If someone forgets or the numbers don\u2019t match, the council can levy a fine and put a temporary ban on that fisher until the fine is paid and the ledger is corrected. That way we all know the reserve is kept and we can trust that the deposit rule is followed.\n\n\"Revised Policy\": \"Each fisher may take up to 0.9\u202fkg per trip, must deposit 25\u202f% of that catch into the lake reserve; fishing is suspended when the lake\u2019s effective mass (stock\u202f+\u202freserve) falls below 2.5\u202fkg and resumes when it reaches 4.0\u202fkg; each fisher has a seasonal cap of 4.5\u202fkg, which applies to the total catch taken between January\u202f1 and December\u202f31 of each calendar year, and resets to zero on January\u202f1. The council enforces temporary bans and fine collection, recording all fines and bans in the communal ledger. Deposits are made by the fisher upon return to the communal box and recorded in the ledger. The council verifies deposit amounts by counting the reserve box at each meeting; if a fisher fails to deposit, a fine will be imposed and a ban issued until the fine is paid.\",\n\n\"Revised Operationalization\": \"After each trip, the fisher deposits 25\u202f% of the catch into the shared reserve box, writes the amount on the communal ledger, and places the remaining 75\u202f% in their personal holding. At the next community meeting, the council opens the reserve box, counts the fish, and cross\u2011checks the count with the ledger entries. Any discrepancy triggers a fine and a temporary ban until the ledger and reserve are reconciled.\",\n\n\"reasoning\":\"I added a concrete deposit procedure so that everyone can see the reserve, the ledger keeps the record, and the council can easily verify compliance. This addresses the missing verification and enforcement point while keeping the spirit of shared responsibility.\"",
+            "revised_policy": "Each fisher may take up to 0.9\u202fkg per trip, must deposit 25\u202f% of the catch into the lake reserve; fishing is suspended when the lake\u2019s effective mass (stock\u202f+\u202freserve) falls below 2.5\u202fkg and resumes when it reaches 4.0\u202fkg; each fisher has a seasonal cap of 4.5\u202fkg, which applies to the total catch taken between January\u202f1 and December\u202f31 of each calendar year, and resets to zero on January\u202f1. The community council enforces temporary bans and fine collection, recording all fines and bans in the communal ledger.",
+            "revised_operationalization": "The council will issue a written ban notice to the fisher who exceeded the cap. The fisher must pay the fine directly to the council during the next meeting, using either cash, food, or fish. The council records the fine amount and the ban status in the communal ledger, and removes the ban once the fine is paid. All fishers can see the ledger to track their standing."
+          },
+          {
+            "question": "When the lake\u2019s effective mass falls below 2.5\u202fkg and the policy says fishing is suspended, who has the authority to stop fishing and how is that suspension enforced and communicated to the fishers?",
+            "answer": "The authority to stop fishing when the lake\u2019s effective mass falls below 2.5\u202fkg lies with the community council \u2013 the group we all agree on to govern the lake.  Once the council notices the threshold has been breached (by the daily count of stock plus reserve that we keep on the communal ledger), the council will announce a suspension of fishing immediately.  We will post a notice on the community board by the dock, and the council chair will call out the suspension at the next gathering so everyone hears.  All fishers are expected to cease fishing right away; the council may ask for proof of compliance and will impose a temporary ban and fine on anyone who ignores the stop.  When the effective mass reaches 4.0\u202fkg, the council will lift the suspension and all fishing may resume.  This procedure is part of the council\u2019s role in enforcing rules and keeping the lake healthy for everyone.\n\nThe policy remains unchanged:\n\n\"Each fisher may take up to 0.9\u202fkg per trip, must deposit 25\u202f% of the catch into the lake reserve; fishing is suspended when the lake\u2019s effective mass (stock\u202f+\u202freserve) falls below 2.5\u202fkg and resumes when it reaches 4.0\u202fkg; each fisher has a seasonal cap of 4.5\u202fkg, which applies to the total catch taken between January\u202f1 and December\u202f31 of each calendar year, and resets to zero on January\u202f1. The community council enforces temporary bans and fine collection, recording all fines and bans in the communal ledger.\"",
+            "revised_policy": "Each fisher may take up to 0.9\u202fkg per trip, must deposit 25\u202f% of the catch into the lake reserve; fishing is suspended when the lake\u2019s effective mass (stock\u202f+\u202freserve) falls below 2.5\u202fkg and resumes when it reaches 4.0\u202fkg; each fisher has a seasonal cap of 4.5\u202fkg, which applies to the total catch taken between January\u202f1 and December\u202f31 of each calendar year, and resets to zero on January\u202f1. The community council enforces temporary bans and fine collection, recording all fines and bans in the communal ledger.",
+            "revised_operationalization": "The council will monitor the lake\u2019s effective mass daily (using the stock and reserve records).  When the mass dips below 2.5\u202fkg, the council will post a suspension notice on the dock board and announce it at the next community meeting.  All fishers must stop fishing immediately; the council may request proof of compliance.  Fishers who continue fishing during a suspension will receive a temporary ban and a fine, payable at the next council meeting in cash, food, or fish.  The suspension is lifted when the effective mass reaches 4.0\u202fkg, at which point the council will update the ledger and all fishers may resume.\n\n"
+          }
+        ],
+        "agent_5": [
+          {
+            "question": "Who holds the communal reserve into which fines are deposited?",
+            "answer": "The communal reserve is held by the community itself, under a shared ledger that every fisher can view. It isn\u2019t owned by any single person or fisher \u2013 it\u2019s a collective pot that the Council of Fishermen manages and replenishes from fines and any surplus, and uses for lake restoration or community needs.",
+            "revised_policy": "Each fisher may take up to 70% of the lake\u2019s current stock per trip, but must leave at least 1\u202fkg of fish in the lake afterwards.",
+            "revised_operationalization": "Before each trip, a fisher declares the amount they intend to catch. The current lake stock is recorded. The catch is limited to the smaller of 70% of the stock or the amount that would leave 1\u202fkg remaining. If a fisher attempts to exceed this limit, they are fined 1\u202fkg per kg over the limit. The fine is deposited into the communal reserve, which is recorded in the shared ledger managed by the Council of Fishermen. Repeated violations result in loss of fishing privileges for a set number of rounds."
+          },
+          {
+            "question": "Who is responsible for verifying that a fisher\u2019s declared catch does not exceed the limit and for enforcing the fine?",
+            "answer": "The verification and enforcement of the catch limits is the responsibility of the Council of Fishermen. Each fisher must declare their intended catch before setting out, and the Council will check that the declared amount does not exceed the smaller of 70\u202f% of the current lake stock or the amount that would leave 1\u202fkg in the lake. If a fisher tries to exceed the limit, the Council will impose a fine of 1\u202fkg for every kilogram over the limit and deposit that fine into the communal reserve as recorded in the shared ledger. Repeated violations will result in loss of fishing privileges for a set number of rounds, as agreed by the community.",
+            "revised_policy": "Each fisher may take up to 70% of the lake\u2019s current stock per trip, but must leave at least 1\u202fkg of fish in the lake after the catch.",
+            "revised_operationalization": "Before each trip, a fisher declares the amount they intend to catch. The current lake stock is recorded. The catch is limited to the smaller of 70% of the stock or the amount that would leave 1\u202fkg remaining. If a fisher attempts to exceed this limit, they are fined 1\u202fkg per kg over the limit. The fine is deposited into the communal reserve, which is recorded in the shared ledger managed by the Council of Fishermen. Repeated violations result in loss of fishing privileges for a set number of rounds."
+          },
+          {
+            "question": "What is the specific number of rounds a fisher will lose fishing privileges after repeated violations?",
+            "answer": "2 rounds",
+            "revised_policy": "Each fisher may take up to 70% of the lake\u2019s current stock per trip, but must leave at least 1\u202fkg of fish in the lake after the catch.",
+            "revised_operationalization": "Before each trip, a fisher declares the amount they intend to catch. The current lake stock is recorded. The catch is limited to the smaller of 70% of the stock or the amount that would leave 1\u202fkg remaining. If a fisher attempts to exceed this limit, they are fined 1\u202fkg per kg over the limit. The fine is deposited into the communal reserve, which is recorded in the shared ledger managed by the Council of Fishermen. Repeated violations result in loss of fishing privileges for 2 rounds."
+          },
+          {
+            "question": "What constitutes a repeated violation that triggers loss of fishing privileges\u2014after how many violations does a fisher lose privileges for 2 rounds?",
+            "answer": "A repeated violation is when you\u2019re caught exceeding the limit more than once. Once I\u2019ve fined you twice for going over the 70% / 1\u202fkg rule, the council will strip your fishing privileges for two rounds. That\u2019s how \u2018repeated\u2019 is defined here.",
+            "revised_policy": "Each fisher may take up to 70% of the lake\u2019s current stock per trip, but must leave at least 1\u202fkg of fish in the lake after the catch. Before each trip, a fisher declares the amount they intend to catch. The current lake stock is recorded. The catch is limited to the smaller of 70% of the stock or the amount that would leave 1\u202fkg remaining. If a fisher attempts to exceed this limit, they are fined 1\u202fkg per kg over the limit. The fine is deposited into the communal reserve, which is recorded in the shared ledger managed by the Council of Fishermen. Repeated violations (two separate incidents of exceeding the limit) result in loss of fishing privileges for 2 rounds.",
+            "revised_operationalization": "- Record current lake stock at trip start.\n- Fisher declares intended catch.\n- Calculate allowed catch = min(0.70 * stock, stock - 1\u202fkg).\n- If declared catch > allowed, fine = (declared - allowed) * 1\u202fkg per kg over.\n- Deposit fine into communal reserve ledger.\n- Track violations per fisher. On the second violation, impose a 2\u2011round fishing ban.\n- After ban, reset violation count to zero."
+          },
+          {
+            "question": "Who records the fishing ban, tracks its duration, and resets the violation count after the ban period ends?",
+            "answer": "The Council of Fishermen keeps the official record of any fishing ban. After a fisher\u2019s second violation, the Council logs a 2\u2011round fishing ban for that individual in the shared ledger, notes the start round, and tracks the passage of time. When the two rounds are completed, the Council automatically clears the ban entry and resets that fisher\u2019s violation counter to zero. This ensures transparency and fairness for all members.\n\n\"Each fisher may take up to 70% of the lake\u2019s current stock per trip, but must leave at least 1\u202fkg of fish in the lake after the catch. Before each trip, a fisher declares the amount they intend to catch. The current lake stock is recorded. The catch is limited to the smaller of 70% of the stock or the amount that would leave 1\u202fkg remaining. If a fisher attempts to exceed this limit, they are fined 1\u202fkg per kg over the limit. The fine is deposited into the communal reserve, which is recorded in the shared ledger managed by the Council of Fishermen. Repeated violations (two separate incidents of exceeding the limit) result in loss of fishing privileges for 2 rounds.\n\n\"Revised operationalization:\n1. Record current lake stock at trip start.\n2. Fisher declares intended catch.\n3. Calculate allowed catch = min(0.70 * stock, stock - 1\u202fkg).\n4. If declared catch > allowed, fine = (declared - allowed) * 1\u202fkg per kg over.\n5. Deposit fine into communal reserve ledger.\n6. Track violations per fisher. On the second violation, impose a 2\u2011round fishing ban via the Council\u2019s ledger.\n7. After the ban period ends, the Council resets the violation count to zero.\n\n\"No changes to the policy are needed as the operational steps already cover the ban recording and reset.\n\n",
+            "revised_policy": "Each fisher may take up to 70% of the lake\u2019s current stock per trip, but must leave at least 1\u202fkg of fish in the lake after the catch. Before each trip, a fisher declares the amount they intend to catch. The current lake stock is recorded. The catch is limited to the smaller of 70% of the stock or the amount that would leave 1\u202fkg remaining. If a fisher attempts to exceed this limit, they are fined 1\u202fkg per kg over the limit. The fine is deposited into the communal reserve, which is recorded in the shared ledger managed by the Council of Fishermen. Repeated violations (two separate incidents of exceeding the limit) result in loss of fishing privileges for 2 rounds.",
+            "revised_operationalization": "1. Record current lake stock at trip start.\n2. Fisher declares intended catch.\n3. Calculate allowed catch = min(0.70 * stock, stock - 1\u202fkg).\n4. If declared catch > allowed, fine = (declared - allowed) * 1\u202fkg per kg over.\n5. Deposit fine into communal reserve ledger.\n6. Track violations per fisher. On the second violation, impose a 2\u2011round fishing ban via the Council\u2019s ledger.\n7. After the ban period ends, the Council resets the violation count to zero."
+          }
+        ],
+        "agent_6": [
+          {
+            "question": "Who is responsible for holding the communal reserve and ensuring deposits are made?",
+            "answer": "We keep the communal reserve together in a shared ledger that every fisher updates after each trip. I, Lani, will make sure my deposit is recorded, but no one person holds the reserve alone \u2013 it\u2019s a collective responsibility.",
+            "revised_policy": "Each fisher may take up to 95% of the lake\u2019s current biomass per trip, deposit 2% of the catch into the communal reserve only when the reserve falls below 5 kg, and if the reserve drops below 2 kg the maximum take for all is reduced to 50% for the next trip until the reserve reaches at least 5 kg.",
+            "revised_operationalization": "After each trip, every fisher reports their catch to the shared ledger. If the reserve is under 5 kg, each fisher deposits 2% of their catch into the reserve. If it falls below 2 kg, all fishers agree to lower their take to 50% for the next trip. The ledger is monitored by the community; non\u2011compliance results in a one\u2011trip ban."
+          },
+          {
+            "question": "Who is responsible for determining when a fisher has violated the rule and for enforcing the one\u2011trip ban?",
+            "answer": "I reckon the ledger itself is the first line of defence \u2013 it records every catch and deposit, so it can instantly see if a fisher\u2019s 2\u202f% deposit was missed or if the reserve dipped below 5\u202fkg. When the ledger flags a violation, the community meets and votes to enforce the one\u2011trip ban on the offending fisher. In short, the ledger monitors compliance and the community collectively enforces the ban.",
+            "revised_policy": "Each fisher may take up to 95% of the lake\u2019s current biomass per trip, deposit 2% of the catch into the communal reserve only when the reserve falls below 5\u202fkg, and if the reserve drops below 2\u202fkg the maximum take for all is reduced to 50% for the next trip until the reserve reaches at least 5\u202fkg.",
+            "revised_operationalization": "Each trip, every fisher reports their catch to the shared ledger. If the reserve is under 5\u202fkg, each fisher deposits 2% of their catch into the reserve. If it falls below 2\u202fkg, all fishers agree to lower their take to 50% for the next trip until the reserve reaches at least 5\u202fkg. The ledger automatically records all catches, deposits, and reserve levels; any discrepancy is flagged and the community votes on a one\u2011trip ban for the violator."
+          },
+          {
+            "question": "How does the community decide when to switch back to the 95% take limit after the reserve reaches 5\u202fkg?",
+            "answer": "When the reserve climbs back to 5\u202fkg or more, the rule sheet on the ledger says the 95\u202f% take is back in play. We don\u2019t need a fresh vote for that; it\u2019s a built\u2011in reset that happens the first trip after the reserve hits the threshold. In practice, I tell the crew: as soon as the communal reserve is 5\u202fkg or more, you\u2019re free to use the 95\u202f% limit again. If the reserve dips below 5\u202fkg again, the 50\u202f% cap kicks in until it tops 5\u202fkg again.",
+            "revised_policy": "Each fisher may take up to 95% of the lake\u2019s current biomass per trip, deposit 2% of the catch into the communal reserve only when the reserve falls below 5\u202fkg, and if the reserve drops below 2\u202fkg the maximum take for all is reduced to 50% for the next trip until the reserve reaches at least 5\u202fkg.",
+            "revised_operationalization": "The shared ledger records every trip\u2019s catch, deposit, and reserve level. If the reserve is under 5\u202fkg, each fisher deposits 2% of their catch. If the reserve falls below 2\u202fkg, all fishers automatically switch to a 50% take for the following trip. Once the reserve reaches 5\u202fkg or more, the ledger resets the maximum take to 95% for the next trip. Any discrepancy is flagged and may trigger a one\u2011trip ban pending community vote."
+          },
+          {
+            "question": "Which state variable holds the communal reserve and how is it updated by the ledger?",
+            "answer": "The communal reserve lives in the ledger as a single numeric field called \"reserve\" \u2013 it\u2019s the pool of fish weight that every fisher must deposit into when the rule says so. After each trip the ledger bumps that reserve up by adding the deposit made by every fisher (in this case 2\u202f% of each catch when the reserve is below 5\u202fkg). If a fisher takes a catch, the catch is removed from the lake but not from the reserve; the reserve only grows from deposits and shrinks only if the community imposes a penalty that draws from it (which hasn\u2019t happened yet). The ledger also keeps a flag for the next\u2011trip take limit: if the reserve ever falls below 2\u202fkg the ledger records that the following trip\u2019s maximum take should be 50\u202f%, and when the reserve climbs back to 5\u202fkg or more it clears that flag and restores the 95\u202f% take limit.",
+            "revised_policy": "Each fisher may take up to 95% of the lake\u2019s current biomass per trip, deposit 2% of the catch into the communal reserve only when the reserve falls below 5\u202fkg, and if the reserve drops below 2\u202fkg the maximum take for all is reduced to 50% for the next trip until the reserve reaches at least 5\u202fkg.",
+            "revised_operationalization": "1. At the start of a trip, check the ledger\u2019s reserve. If reserve<2\u202fkg, set max_take=0.5 of lake biomass; otherwise set max_take=0.95. 2. Fisher selects a catch up to max_take. 3. If reserve<5\u202fkg, compute deposit=0.02\u00d7catch and add deposit to reserve. 4. Update lake biomass = lake biomass \u2013 catch. 5. If reserve\u22655\u202fkg, clear the 50% flag so next trip reverts to 95% limit."
+          },
+          {
+            "question": "What is the initial value of the communal reserve when the policy begins?",
+            "answer": "16.4\u202fkg",
+            "revised_policy": "Each fisher may take up to 95% of the lake\u2019s current biomass per trip, deposit 2% of the catch into the communal reserve only when the reserve falls below 5\u202fkg, and if the reserve drops below 2\u202fkg the maximum take for all is reduced to 50% for the next trip until the reserve reaches at least 5\u202fkg.",
+            "revised_operationalization": "1. At the start of a trip, check the ledger\u2019s reserve. If reserve<2\u202fkg, set max_take=0.5 of lake biomass; otherwise set max_take=0.95. 2. Fisher selects a catch up to max_take. 3. If reserve<5\u202fkg, compute deposit=0.02\u00d7catch and add deposit to reserve. 4. Update lake biomass = lake biomass \u2013 catch. 5. If reserve\u22655\u202fkg, clear the 50% flag so next trip reverts to 95% limit."
+          }
+        ],
+        "agent_7": [
+          {
+            "question": "How many failed deposit attempts constitute a repeated failure that triggers a one\u2011day fishing ban?",
+            "answer": "Two consecutive failed deposit attempts trigger the one\u2011day fishing ban.",
+            "revised_policy": "Each fisher may take up to 2\u202fkg per trip, deposit 0.5\u202fkg into a shared replenishment pool, the community\u2019s total daily catch may not exceed 70\u202f% of the lake\u2019s weight, and at least 20\u202f% of the lake\u2019s stock must remain untouched.",
+            "revised_operationalization": "On each fishing day every fisher reports their catch and deposit to the rotating recorder. The shared pool is updated with the 0.5\u202fkg deposit. The sum of all catches is compared to 70\u202f% of the current lake weight; any excess is returned to the lake and the fisher must redo the catch. If a fisher fails to deposit, a fine of 0.01\u202fkg is deducted from their next catch. Repeated failures, defined as two consecutive missed deposit attempts, result in a one\u2011day fishing ban. Deposits are used for periodic restocking efforts and shared maintenance. All logs are reviewed weekly by the community council to enforce compliance."
+          },
+          {
+            "question": "Who is responsible for holding the shared replenishment pool and ensuring deposits are properly recorded and managed?",
+            "answer": "The rotating recorder, as chosen by the council, is the one who holds the shared replenishment pool and keeps the deposit log. I\u2019ll make sure to put my 0.5\u202fkg in on time, but the record\u2011keeper is responsible for tallying and safekeeping it.",
+            "revised_policy": "Each fisher may take up to 2\u202fkg per trip, deposit 0.5\u202fkg into a shared replenishment pool, the community\u2019s total daily catch may not exceed 70\u202f% of the lake\u2019s weight, and at least 20\u202f% of the lake\u2019s stock must remain untouched.",
+            "revised_operationalization": "The rotating recorder holds the shared replenishment pool and records all deposits and catches. The community council reviews the ledger weekly to enforce compliance. Deposits are added to the pool immediately upon receipt."
+          },
+          {
+            "question": "Who is responsible for ensuring compliance with the daily catch limit and handling any excess catches on a daily basis?",
+            "answer": "The day\u2011to\u2011day guard is the rotating recorder \u2013 the person who keeps the ledger of every trip.  Each fisher must report his catch and deposit immediately; the recorder tallies the daily totals and flags any run\u2011over.  If a fisher\u2019s share pushes the community total over the 70\u202f% ceiling, the recorder notifies the community council, who can impose the fine or require restitution.  In short, the recorder enforces the limit daily and the council cleans up any excess on the weekly review.",
+            "revised_policy": "Each fisher may take up to 2\u202fkg per trip, deposit 0.5\u202fkg into a shared replenishment pool, the community\u2019s total daily catch may not exceed 70\u202f% of the lake\u2019s weight, and at least 20\u202f% of the lake\u2019s stock must remain untouched.",
+            "revised_operationalization": "All fishers record their catch and deposit to the shared replenishment pool immediately.  The rotating recorder compiles a daily ledger of total catches; any daily total exceeding 70\u202f% of the lake\u2019s weight is flagged.  The council reviews the ledger weekly, enforces fines or restitution for excess catches, and updates the community on compliance."
+          },
+          {
+            "question": "How is the requirement that at least 20\u202f% of the lake\u2019s stock must remain untouched verified and enforced on a daily basis?",
+            "answer": "We look at the books, not at the water. Every fisher writes down what he takes and what he puts back in the pool. The recorder adds up all the takes and all the deposits. If you take 2\u202fkg and deposit 0.5\u202fkg, the lake has really lost 1.5\u202fkg that day. The rule is that the lake must still have at least 20\u202f% of the stock that it had at the start of the day. So the recorder takes the lake\u2019s weight at the beginning of the day, multiplies by 0.8, and makes sure the net removal (takes minus deposits) never exceeds that number. If it does, the day is flagged and we slap a fine on the fishers who over\u2011took. That way we know every day we\u2019re leaving at least a fifth of the lake untouched.",
+            "revised_policy": "Each fisher may take up to 2\u202fkg per trip, deposit 0.5\u202fkg into a shared replenishment pool, the community\u2019s total daily net catch (takes minus deposits) may not exceed 70\u202f% of the lake\u2019s weight at the start of the day, and at least 20\u202f% of the lake\u2019s stock must remain untouched.",
+            "revised_operationalization": "1. At the start of each day, the current lake stock is recorded (usually from last night\u2019s measurement). 2. Throughout the day every fisher records the weight taken and the weight deposited in the shared pool. 3. The rotating recorder sums all takes (T) and all deposits (D) to compute the net removal: N = T \u2013 D. 4. The recorder compares N to 0.8 \u00d7 (initial stock). 5. If N > 0.8 \u00d7 (initial stock), the ledger flags the day as non\u2011compliant; a fine equal to a percentage of the excess removal is imposed. 6. The remaining stock is verified as initial stock \u2013 N, which must be \u2265 0.2 \u00d7 initial stock. 7. The council reviews the daily ledger weekly, enforces fines or restitution, and updates the community on compliance."
+          },
+          {
+            "question": "What percentage is used to calculate the fine for excess removal when the net removal exceeds 80% of the lake\u2019s initial stock?",
+            "answer": "10%",
+            "revised_policy": "Each fisher may take up to 2\u202fkg per trip, deposit 0.5\u202fkg into a shared replenishment pool, the community\u2019s total daily net catch (takes minus deposits) may not exceed 70\u202f% of the lake\u2019s weight at the start of the day, and at least 20\u202f% of the lake\u2019s stock must remain untouched.",
+            "revised_operationalization": "At the start of each day, the current lake stock is recorded. Throughout the day every fisher logs the weight taken and deposited. The rotating recorder sums all takes (T) and deposits (D) to compute the net removal: N = T \u2013 D. The recorder compares N to 0.8 \u00d7 (initial stock); if N > 0.8 \u00d7 (initial stock), a fine equal to 10\u202f% of the excess removal (N \u2013 0.8 \u00d7 initial stock) is imposed. The remaining stock is verified as initial stock \u2013 N, which must be \u2265 0.2 \u00d7 initial stock. The council reviews the ledger weekly, enforces fines, and updates the community on compliance."
+          }
+        ],
+        "agent_8": [
+          {
+            "question": "What is the identity and selection process for the lake keeper, and what authority do they have to enforce the rules?",
+            "answer": "The lake keeper is a community\u2011chosen volunteer. Every season we hold a simple majority vote; anyone who has been fishing here, respects the rules, and can keep a ledger can stand for the role. The keeper\u2019s job is to tally each trip\u2019s catch, calculate the 5\u202f% deposit, watch the lake\u2019s reserve, and enforce the penalties when the rules are broken. They don\u2019t have power beyond what we all agree on \u2013 they can collect fines and skip\u2011days, but they can\u2019t change the rules without another community vote.",
+            "revised_policy": "Maintain a lake reserve of 2\u202fkg; each fisher may take up to 4\u202fkg per trip and no more than 12\u202fkg per week; 5\u202f% of each catch is deposited into a community pool and refunded when the lake reaches 2\u202fkg again; any overage is fined 0.02\u202fkg per kg over and causes the fisher to skip their next trip.",
+            "revised_operationalization": "Every trip the fisher reports catch weight; the keeper records the 5\u202f% deposit in the shared ledger and checks the lake reserve. If the reserve falls below 2\u202fkg, the keeper immediately refunds the pool to all fishers. If a fisher exceeds the trip limit of 4\u202fkg or the weekly limit of 12\u202fkg, the keeper calculates the excess weight, applies a fine of 0.02\u202fkg per excess kg, records the fine, and marks the fisher as barred for the following day. All records are publicly viewable by the community."
+          },
+          {
+            "question": "When exactly does the keeper refund the deposit: upon the lake reserve falling below 2\u202fkg, or when the lake stock reaches 2\u202fkg again?",
+            "answer": "The deposit is returned only when the lake\u2019s reserve has come back up to 2\u202fkg after having fallen below that level. In other words, the keeper will wait until the lake stock reaches the 2\u202fkg mark again before refunding the community pool.",
+            "revised_policy": "Maintain a lake reserve of 2\u202fkg; each fisher may take up to 4\u202fkg per trip and no more than 12\u202fkg per week; 5\u202f% of each catch is deposited into a community pool and refunded when the lake reserve reaches 2\u202fkg again; any overage is fined 0.02\u202fkg per kg over and causes the fisher to skip their next trip.",
+            "revised_operationalization": "Every trip the fisher reports catch weight; the keeper records the 5\u202f% deposit in the shared ledger. If the lake reserve falls below 2\u202fkg, the keeper holds the pool and continues to monitor the stock. Once the reserve rises back to 2\u202fkg, the keeper immediately refunds the pool to all fishers. If a fisher exceeds the trip limit of 4\u202fkg or the weekly limit of 12\u202fkg, the keeper calculates the excess weight, applies a fine of 0.02\u202fkg per excess kg, records the fine, and marks the fisher as barred for the following day. All records are publicly viewable by the community."
+          },
+          {
+            "question": "What defines a week for the 12\u202fkg per\u2011week limit \u2013 e.g., calendar week, a 7\u2011day period, or something else?",
+            "answer": "We\u2019ll count a week as the last seven consecutive days ending on the day of your current trip.",
+            "revised_policy": "Maintain a lake reserve of 2 kg; each fisher may take up to 4 kg per trip and no more than 12 kg per week; 5 % of each catch is deposited into a community pool and refunded when the lake reserve reaches 2 kg again; any overage is fined 0.02 kg per kg over and causes the fisher to skip their next trip.",
+            "revised_operationalization": "Every trip the fisher reports catch weight; the keeper records the 5 % deposit in the shared ledger. If the lake reserve falls below 2 kg, the keeper holds the pool and continues to monitor the stock. Once the reserve rises back to 2 kg, the keeper immediately refunds the pool to all fishers. If a fisher exceeds the trip limit of 4 kg or the weekly limit of 12 kg, the keeper calculates the excess weight, applies a fine of 0.02 kg per excess kg, records the fine, and marks the fisher as barred for the following day. For the 12 kg per\u2011week limit, the keeper tallies the total catch in the preceding 7 consecutive days (ending on the current trip\u2019s date) and compares it to the 12 kg cap."
+          },
+          {
+            "question": "How is the community pool refunded to fishers\u2014equally, proportionally to their deposits, or by another method?",
+            "answer": "We refund the pool proportionally to each fisher\u2019s share of the deposits. That way, someone who contributed more gets back more, keeping the system fair.",
+            "revised_policy": "Maintain a lake reserve of 2\u202fkg; each fisher may take up to 4\u202fkg per trip and no more than 12\u202fkg per week; 5\u202f% of each catch is deposited into a community pool and refunded when the lake reserve reaches 2\u202fkg again; any overage is fined 0.02\u202fkg per kg over and causes the fisher to skip their next trip.",
+            "revised_operationalization": "The keeper records each trip\u2019s catch and the 5\u202f% deposit. If the reserve falls below 2\u202fkg, the keeper holds the pool and continues monitoring the stock. Once the reserve rises back to 2\u202fkg, the keeper refunds the pool to all fishers in proportion to the amount they deposited. If a fisher exceeds the trip limit of 4\u202fkg or the weekly limit of 12\u202fkg, the keeper calculates the excess weight, applies a fine of 0.02\u202fkg per excess kg, records the fine, and marks the fisher as barred for the following day. For the 12\u202fkg per\u2011week limit, the keeper tallies the total catch in the preceding 7 consecutive days (ending on the current trip\u2019s date) and compares it to the 12\u202fkg cap."
+          },
+          {
+            "question": "Where does the 0.02\u202fkg per\u202fkg over fine go\u2014does it get added to the community pool, returned to the fisher, or used for something else?",
+            "answer": "The fine is added to the community pool.  When a fisher exceeds the limits, the keeper records the excess, takes 0.02\u202fkg of fine per kg over, and puts that amount into the pool.  It helps cover the cost of restoring the lake to its reserve level and keeps the pool strong for future refunds.\n\n",
+            "revised_policy": "Maintain a lake reserve of 2\u202fkg; each fisher may take up to 4\u202fkg per trip and no more than 12\u202fkg per week; 5\u202f% of each catch is deposited into a community pool and refunded when the lake reserve reaches 2\u202fkg again; any overage is fined 0.02\u202fkg per kg over and causes the fisher to skip their next trip.",
+            "revised_operationalization": "The keeper records each trip\u2019s catch and the 5\u202f% deposit.  If the reserve falls below 2\u202fkg, the keeper holds the pool and continues monitoring the stock.  Once the reserve rises back to 2\u202fkg, the keeper refunds the pool to all fishers in proportion to the amount they deposited.  If a fisher exceeds the trip limit of 4\u202fkg or the weekly limit of 12\u202fkg, the keeper calculates the excess weight, applies a fine of 0.02\u202fkg per excess kg, records the fine, adds the fine to the community pool, and marks the fisher as barred for the following day.  For the 12\u202fkg per\u2011week limit, the keeper tallies the total catch in the preceding 7 consecutive days (ending on the current trip\u2019s date) and compares it to the 12\u202fkg cap."
+          }
+        ],
+        "agent_9": [
+          {
+            "question": "The proposal introduces a communal deposit pot but does not specify who holds it or how it is tracked\u2014who holds the deposit pot?",
+            "answer": "I reckon we keep the pot on the dock, in a locked chest. The person who\u2019s on duty that day\u2014rotating every few days\u2014holds it and makes sure the 0.01\u202fkg is put in before any fisherman leaves. He writes it down on the log sheet and we all read the ledger at the end of the month so nobody can cheat. That way the pot is held by the community, not by one person.",
+            "revised_policy": "Each fisher may take up to 1\u202fkg per trip or 40\u202f% of the lake\u2019s current stock, whichever is lower; a 0.01\u202fkg deposit is paid before fishing and all catches are logged.",
+            "revised_operationalization": "Before a fisher departs, the 0.01\u202fkg deposit is placed in the communal chest at the dock. The day\u2019s keeper, rotating every few days, records the deposit on the shared log sheet. At the end of the month, the community tallies the total catch; any fisher who fails to deposit or exceeds the limit is fined 1\u202fkg from their reserve. All logs are reviewed by a rotating committee, and disputes are resolved by majority vote."
+          },
+          {
+            "question": "The policy says a fisher is fined 1\u202fkg from their reserve, but the proposal does not explain how a fisher\u2019s reserve is defined, tracked, or where it is stored?",
+            "answer": "Hi, the reserve is just the fish you keep for yourself after a trip. Every fisher has a little crate or bucket on the dock where we keep our personal catch. We lock it and only you have the key, so your fish stay yours. We keep a shared ledger where each fisher writes how many kilograms they are putting in their crate after the trip. That ledger is the record of everyone\u2019s reserve. When someone misses the deposit or takes more than allowed, we move 1\u202fkg from that fisher\u2019s crate to the communal chest. If a fisher\u2019s reserve has less than 1\u202fkg, we take whatever is left as the penalty. This way everyone knows how much fish they\u2019re holding and where penalties come from. I\u2019ve added a note in the operational rules so we track it properly.\n\nPolicy unchanged: \"Each fisher may take up to 1\u202fkg per trip or 40\u202f% of the lake\u2019s current stock, whichever is lower; a 0.01\u202fkg deposit is paid before fishing and all catches are logged.\"\n\nOperationalisation revised to include reserve handling: 1. After fishing, you record the amount you keep in your personal reserve on the shared ledger. 2. Your personal reserve is stored in your lockable crate on the dock. 3. Deposits are placed in the communal chest and logged by the day\u2019s keeper. 4. If a penalty applies, 1\u202fkg is taken from the fisher\u2019s recorded reserve (by moving a fish from the crate to the communal chest). 5. If the reserve has <1\u202fkg, the penalty is whatever remains and the reserve is set to 0.\n\nThis keeps the reserve clear, trackable, and fair to all of us.",
+            "revised_policy": "Each fisher may take up to 1\u202fkg per trip or 40\u202f% of the lake\u2019s current stock, whichever is lower; a 0.01\u202fkg deposit is paid before fishing and all catches are logged.",
+            "revised_operationalization": "After fishing, record the amount kept in your personal reserve on the shared ledger. Store your reserve in a lockable crate on the dock. Deposits go to the communal chest and are logged by the day\u2019s keeper. If a penalty applies, 1\u202fkg is taken from the fisher\u2019s recorded reserve (by moving a fish from the crate to the communal chest). If the reserve has less than 1\u202fkg, the penalty is whatever remains and the reserve is set to 0."
+          },
+          {
+            "question": "The policy says a penalty is enforced by moving a fish from the fisher\u2019s reserve crate to the communal chest, but it does not specify who physically performs this transfer and how it is recorded.",
+            "answer": "I\u2019ll have the day keeper handle the transfer. Whenever a penalty kicks in, the day keeper will take one fish from my crate, put it in the communal chest, and mark that move in the ledger next to my name and the day\u2019s catch record. That way everyone knows where the fish went and the penalty is recorded officially.",
+            "revised_policy": "Each fisher may take up to 1\u202fkg per trip or 40\u202f% of the lake\u2019s current stock, whichever is lower; a 0.01\u202fkg deposit is paid before fishing and all catches are logged. Deposits go to the communal chest and are logged by the day\u2019s keeper. If a penalty applies, 1\u202fkg is taken from the fisher\u2019s recorded reserve (by moving a fish from the crate to the communal chest). If the reserve has less than 1\u202fkg, the penalty is whatever remains and the reserve is set to 0.",
+            "revised_operationalization": "The day keeper will physically transfer the fish from the fisher\u2019s reserve crate to the communal chest when a penalty applies. The transfer is recorded in the shared ledger by noting the fisher\u2019s name, the amount moved, and the date. Deposits are placed in the communal chest immediately before fishing, and all catches are logged by the day keeper. The reserve crate is kept lockable on the dock."
+          },
+          {
+            "question": "What specific behavior or condition triggers the penalty\u2014i.e., what constitutes a violation that leads to the 1\u202fkg transfer?",
+            "answer": "The penalty is triggered when a fisher breaks any part of the rule. Specifically:\n1. **Missing the deposit** \u2013 if the fisher does not place the 0.01\u202fkg deposit in the communal chest before starting to fish.\n2. **Exceeding the catch limit** \u2013 if the fisher takes more than the lower of 1\u202fkg or 40\u202f% of the lake\u2019s current stock in a single trip.\n3. **Failing to log the catch** \u2013 if the day keeper does not record the fisher\u2019s haul for that day.\nIn any of these cases the day keeper will move 1\u202fkg (or whatever remains of the fisher\u2019s reserve if less than 1\u202fkg) from the fisher\u2019s reserve crate into the communal chest, and record the transfer in the ledger.\n\nThese three conditions are the only triggers for the 1\u202fkg penalty transfer.",
+            "revised_policy": "Each fisher may take up to 1\u202fkg per trip or 40\u202f% of the lake\u2019s current stock, whichever is lower; a 0.01\u202fkg deposit must be paid before fishing and all catches must be logged by the day keeper. Deposits are placed in the communal chest immediately before fishing and are recorded by the day keeper. If a penalty applies\u2014because the deposit was not made, the catch exceeded the limit, or the catch was not logged\u20141\u202fkg is taken from the fisher\u2019s recorded reserve (by moving a fish from the crate to the communal chest). If the reserve has less than 1\u202fkg, the penalty is whatever remains and the reserve is set to 0.",
+            "revised_operationalization": "The day keeper checks that each fisher has paid the 0.01\u202fkg deposit before the trip. After the fisher returns, the day keeper verifies that the haul does not exceed the limit (1\u202fkg or 40\u202f% of the current lake stock) and that the catch is recorded in the daily log. If any of these conditions fail, the day keeper transfers 1\u202fkg (or the remainder of the reserve if less) from the fisher\u2019s reserve crate into the communal chest, and notes the transfer in the shared ledger with the fisher\u2019s name, amount moved, and date."
+          }
+        ]
+      }
+    },
+    {
+      "round": 39,
+      "action": "vote",
+      "votes": {
+        "agent_3": {
+          "vote": 6,
+          "reasoning": "I need a guaranteed 1\u202fkg haul each trip to keep myself fed. Proposal\u00a06 lets me take up to 1\u202fkg or 40\u202f% of the lake (whichever is lower), so as long as the lake has more than 2.5\u202fkg I can always catch 1\u202fkg. The 0.01\u202fkg deposit is negligible, and the rule\u2019s simple ledger system keeps everyone honest. The penalty system keeps the lake safe without making it hard for me to earn a living. It balances my needs with the community\u2019s well\u2011being best."
+        },
+        "agent_5": {
+          "vote": 3,
+          "reasoning": "Policy\u202f3 lets me grab up to 95% of the lake each trip \u2013 with the lake at 3\u202fkg that\u2019s 2.85\u202fkg right now, and I only have to put 2\u202f% of that (\u22480.06\u202fkg) back into the reserve because the reserve is below 5\u202fkg. That leaves me almost 2.8\u202fkg of fish to keep, which is far more than the 1\u202fkg I need for food and still gives me a good surplus. The other options cap me at 2\u202fkg (policy\u202f2), 0.9\u202fkg (policy\u202f1), or force a 50\u202f% cap on the next trip if the reserve is low (policy\u202f5). Policy\u202f3 gives the biggest haul with only a tiny deposit, so it\u2019s the best for my survival and profit."
+        },
+        "agent_6": {
+          "vote": 3,
+          "reasoning": "I want to keep as much fish as I can for myself and for the future of my family. With the lake\u2019s current stock at about 3\u202fkg and the reserve at 16.4\u202fkg, the deposit condition in policy\u00a03 doesn\u2019t kick in because the reserve is well above 5\u202fkg. That means I can take 95\u202f% of the lake\u2019s biomass\u2014roughly 2.85\u202fkg in one trip\u2014without having to put any fish back. The policy also has no seasonal cap or daily limit, so I\u2019m not forced to stop until the lake is almost empty. This gives me almost the entire lake\u2019s mass (about 3\u202fkg total) while still keeping the reserve above the critical threshold, so the lake remains healthy for future trips. Policy\u00a02 would limit me to only 2\u202fkg because of the 1\u202fkg safety rule, and the other proposals either restrict my take to 0.9\u202fkg or 2\u202fkg, or require heavy deposits. Therefore, policy\u00a03 best serves my needs as a fisher."
+        },
+        "agent_7": {
+          "vote": 2,
+          "reasoning": "I need at least 1\u202fkg each trip to feed myself. Policy\u202f2 lets me take up to 70\u202f% of the lake\u2019s current stock but guarantees at least 1\u202fkg stays in the water, so I can always keep 1\u202fkg on a 2\u202fkg lake. There\u2019s no deposit to lose fish, just a fine if I over\u2011declare \u2013 easy to avoid. The other plans either cap my catch at 0.9\u202fkg, force a 0.5\u202fkg deposit, or risk depleting the lake with no buffer. 2\u202fis the most practical for survival and sustainability."
+        },
+        "agent_8": {
+          "vote": 5,
+          "reasoning": "I need to haul at least 1kg each trip to keep myself fed, and my reserves are healthy at 5.7kg. Proposal 5 lets me take up to 4kg per trip, deposit only 5% and still keep 3.8kg. It has no strict seasonal cap beyond a reasonable weekly limit, and the deposit is refunded when the reserve hits 2kg, which it already does. This gives me the biggest personal haul while keeping the lake healthy, so I\u2019ll back it."
+        },
+        "agent_9": {
+          "vote": 3,
+          "reasoning": "I need to get as much fish as possible each trip while keeping my reserve safe. Policy 3 lets me take up to 95\u202f% of the lake\u2019s current stock with no personal deposit requirement until the communal reserve falls below 5\u202fkg \u2013 my personal reserve isn\u2019t affected, and I don\u2019t risk fines or bans. With the lake at 3\u202fkg (or 2\u20133\u202fkg after the last round) I can harvest almost all of it each trip, keep the bulk, and still leave enough to keep the lake healthy for future trips. The only caveat is that if the communal reserve dips below 5\u202fkg a 2\u202f% deposit is forced, but that\u2019s a small loss relative to the catch I get. This rule gives me the highest potential yield per effort without imposing hard caps or penalties on me personally, so it\u2019s the best fit for my goal of maximizing value from each fishing effort."
+        }
+      },
+      "tally": {
+        "1": 0,
+        "2": 1,
+        "3": 3,
+        "4": 0,
+        "5": 1,
+        "6": 1
+      },
+      "winner_index": 3,
+      "winning_proposer": "agent_6"
     }
   ],
   "payoff": {
     "agent_0": -0.6666105461100331,
     "agent_1": -0.9080642315923813,
     "agent_2": -0.213310046571333,
-    "agent_3": 2.3506345451149446,
+    "agent_3": 1.4038964085225758,
     "agent_4": -0.3001509143323491,
-    "agent_5": 23.767974411581203,
-    "agent_6": 17.289189609361454,
-    "agent_7": 15.49123420724769,
-    "agent_8": 6.644113746008779,
-    "agent_9": 13.85648477696631
+    "agent_5": 22.79460534328502,
+    "agent_6": 16.422344267880533,
+    "agent_7": 14.511207406025552,
+    "agent_8": 5.69737560941641,
+    "agent_9": 12.936377572077756
   },
   "dead_agents": [
     "agent_2",
@@ -19293,7 +19644,7 @@
   ],
   "norms": {
     "round_1": {
-      "reserve_kg": 118.13673981303091
+      "reserve_kg": 118.1550485785773
     },
     "round_4": {
       "agent_0": {
@@ -19336,7 +19687,7 @@
         "streak": 0,
         "suspended": false
       },
-      "reserve_kg": 9.444364966429909
+      "reserve_kg": 9.462673731976283
     }
   }
 }
