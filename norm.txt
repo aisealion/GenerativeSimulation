@@ -1,3 +1,8 @@
-Policy: Maximum catch per fisher per trip: 20 kg, mandatory reserve of 12 % of the lake’s stock at the start of each trip; if the reserve falls below this threshold during a round, all fishers’ quotas are reduced by 20 % for the next round.
+Policy: Maximum catch per fisher per trip is 15 kg, with a mandatory reserve equal to 20 % of the lake’s current stock. If the reserve falls below 20 %, all fishers’ quotas are reduced by 20 % for the next round.
 
-Operationalization: Every fisher records in the communal ledger the lake’s starting stock, the amount taken, and the ending stock after each trip. The community steward reviews the ledger before the next round, verifies that no one’s catch exceeded 20 kg and that the ending stock after any catch was at least 12 % of the starting stock. If a violation is found, the steward records a 20 % reduction on each fisher’s current quota in the ledger; the reduction is applied to whatever quota each fisher has at that time (so a previously reduced quota is cut again by 20 %). The updated quotas are made visible to all fishers for the next round. No automatic penalty occurs if no violation is flagged; trust the ledger otherwise.
+Operationalization: 1. At the start of each round the rotating committee records the lake’s stock.
+2. Each fisher may take up to 15 kg; if a fisher exceeds 15 kg, the excess is fined and an equal deposit is held by the committee.
+3. After all catches are recorded, the committee calculates the remaining stock. If the remaining stock is less than 20 % of the recorded starting stock, the committee announces that all fishers’ maximum catch quotas for the next round will be cut by 20 %.
+4. Deposits of fishers who complied with the 15 kg limit and the reserve rule are returned to them after the next compliance check. Deposits forfeited by violators are added to the community pool.
+5. Fine revenue from over‑catch is held by the committee and, when forfeited, is added directly to the community pool for lake upkeep or community needs.
+6. All fishers must adhere to the new quotas in the following round, with the deposit and fine mechanisms in place for enforcement.
