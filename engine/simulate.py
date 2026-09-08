@@ -354,12 +354,24 @@ def run_norm_implementer(round_number, extra_message=None):
     # unrelated. `state/norm_specs/round_{round_number}.md` is stated as
     # the exact filename the institutional design step must write, matching
     # run_norm_evaluator()'s already-correct message below verbatim.
+    #
+    # The closing-json-block reminder below was added after a real 23-round
+    # run showed 0/33 norm-implementer invocations ever produced a
+    # parseable report — the requirement lived only in the system prompt
+    # (norm-implementer.md's own "Report" section), never restated
+    # per-invocation. Mirrors the exact fix that already worked for
+    # run_norm_evaluator()'s sentinel line below: that one's corrective
+    # retry message alone doesn't help the *first* attempt, which is where
+    # the failure actually happens every time.
     message = extra_message or (
         f"This is round {round_number}. norm.txt has been updated for this round. "
         f"Read it and implement accordingly, following your standing instructions. "
         f"Write your institutional design specification to exactly "
         f"state/norm_specs/round_{round_number}.md "
-        f"— use {round_number} for the round number, not a number inferred from any other file."
+        f"— use {round_number} for the round number, not a number inferred from any other file. "
+        f"End your response with the fenced ```json report block your instructions describe "
+        f"(the one containing a \"classification\" key) — this is required every time, not "
+        f"just when something went wrong."
     )
     cmd = ["opencode", "run", "--agent", "norm-implementer", "--format", "json"]
     # NORM_IMPLEMENTER_MODEL takes precedence over OPENCODE_MODEL: the
@@ -437,10 +449,22 @@ def run_norm_evaluator(round_number, extra_message=None):
     exactly like a norm-implementer failure: discard, don't crash the rest
     of the run."""
     print("\n--- invoking norm-evaluator ---")
+    # The sentinel-line reminder in this default message was added after a
+    # real 23-round run showed the FIRST evaluator attempt failed to
+    # include EVALUATION_RESULT: on literally every single completed round
+    # (22/22) — only the automatic corrective retry message below already
+    # restated the requirement, which meant every round paid for one
+    # wasted evaluator subprocess call before ever succeeding. The
+    # requirement already lives in norm-evaluator.md's own system prompt;
+    # restating it here, in the per-invocation message itself, is what
+    # actually fixed the retry's own success rate, so it should help the
+    # first attempt the same way.
     message = extra_message or (
         f"Round {round_number}'s norm-implementer changes are ready to check. Read "
         f"state/norm_specs/round_{round_number}.md and the diff, write and run your own "
-        "tests, and report your verdicts following your standing instructions."
+        "tests, and report your verdicts following your standing instructions. End your "
+        "response with the required EVALUATION_RESULT: COMPLIANT or "
+        "EVALUATION_RESULT: NEEDS_REPAIR line — every time, not just when something failed."
     )
     cmd = ["opencode", "run", "--agent", "norm-evaluator", "--format", "json"]
     # Same NORM_IMPLEMENTER_MODEL-or-OPENCODE_MODEL fallback as
@@ -767,6 +791,101 @@ def norm_implementation_institution_errors():
     return errors
 
 
+def norm_implementation_orphaned_norm_errors():
+    """Catches a real, repeatedly-observed failure mode a real 23-round run
+    surfaced: a norm-implementer round creates a brand-new norms/{name}.py
+    plugin (a real, correctly-written Norm subclass) and never adds its
+    type_name to state/config.json's "norms" list — engine.norms.registry's
+    NORM_TYPES auto-discovers the class either way, so it compiles clean,
+    passes the generic empty-params smoke test, and even the norm-evaluator
+    can pass it (if its own fabricated test state hand-inserts the type
+    rather than reading the real config) — but NormEngine.from_config()
+    never loads it in the real round loop, since nothing in the real
+    config's "norms" list ever names it. On that real run, 10 of 11
+    committed rounds hit exactly this: written, evaluated COMPLIANT,
+    committed, and never executed once. Mirrors
+    norm_implementation_institution_errors()'s drift-check spirit (a file
+    existing isn't the same as it being wired in) but for norms/ instead of
+    actions/.
+
+    Only checks norms/*.py files this round actually touched (added or
+    modified) — an existing, deliberately unreferenced plugin from an
+    earlier round (still real, just not this round's concern, and
+    possibly reusable later per norms/README.md) is not an error; only a
+    file this round just wrote and then apparently forgot to activate is.
+
+    Uses `git status --porcelain`, not `git diff --name-only HEAD` —
+    deliberately, after that exact mistake was caught testing this
+    function: a brand-new norms/{name}.py file is untracked at the point
+    this check runs (commit_norm_implementation() hasn't staged anything
+    yet), and `git diff` never shows untracked files at all, only changes
+    to already-tracked ones. `git status --porcelain` reports both a
+    modified tracked file (` M path`) and a new untracked one (`?? path`)
+    in one pass, which is what a real new-plugin round actually looks
+    like at this point in the pipeline."""
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "--", "norms"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    )
+    touched = [
+        line[3:] for line in result.stdout.splitlines()
+        if line[3:].endswith(".py") and not line[3:].endswith("__init__.py")
+    ]
+    if not touched:
+        return []
+
+    config_path = ROOT / "state" / "config.json"
+    if not config_path.is_file():
+        return []  # already reported by norm_implementation_compile_errors()
+    try:
+        config = json.loads(config_path.read_text())
+    except json.JSONDecodeError:
+        return []  # already reported by norm_implementation_compile_errors()
+    active_types = {spec.get("type") for spec in config.get("norms", [])}
+
+    # Re-discover fresh in a subprocess, same reasoning as
+    # norm_implementation_runtime_errors()'s own fabricated-state check:
+    # this runs mid-round, before reload_project_modules() would next pick
+    # up whatever this round just wrote to disk, and a stale in-process
+    # NORM_TYPES snapshot could otherwise miss a type this round just added.
+    script = (
+        "import sys, json\n"
+        "sys.path.insert(0, '.')\n"
+        "from engine.norms.registry import NORM_TYPES\n"
+        "touched = json.loads(sys.argv[1])\n"
+        "out = {}\n"
+        "for type_name, cls in NORM_TYPES.items():\n"
+        "    module_path = cls.__module__.replace('.', '/') + '.py'\n"
+        "    if module_path in touched:\n"
+        "        out.setdefault(module_path, []).append(type_name)\n"
+        "print(json.dumps(out))\n"
+    )
+    check = subprocess.run(
+        [sys.executable, "-c", script, json.dumps(touched)],
+        cwd=ROOT, capture_output=True, text=True, timeout=60,
+    )
+    if check.returncode != 0:
+        detail = check.stdout.strip() or check.stderr.strip()
+        return [f"norm-type discovery for orphan check failed:\n{detail}"]
+    try:
+        types_by_file = json.loads(check.stdout.strip())
+    except json.JSONDecodeError:
+        return []  # discovery itself is exercised separately by the runtime check
+
+    errors = []
+    for module_path, type_names in sorted(types_by_file.items()):
+        if not any(t in active_types for t in type_names):
+            errors.append(
+                f"{module_path} defines type_name(s) {type_names} but none of them "
+                f'appear in state/config.json\'s "norms" list — this plugin will '
+                f"never actually run in the simulation until one is added there. "
+                f'Add {{"type": "{type_names[0]}", ...}} (with whatever params it '
+                f"needs) to state/config.json's \"norms\" list, or remove the file "
+                f"if it was never meant to be active yet."
+            )
+    return errors
+
+
 def discard_norm_implementation(round_number, errors):
     """Roll back everything the norm-implementer touched this round — a
     partially-broken change (a working mechanisms/effort.py alongside a
@@ -842,6 +961,38 @@ def discard_norm_implementation(round_number, errors):
     )
 
 
+def _norm_activation_summary():
+    """Purely informational — never gates anything, unlike
+    norm_implementation_orphaned_norm_errors() above. Printed after every
+    successful commit so a human watching a live run (as one real 23-round
+    run already was, after the fact) sees norms/ accumulating dead files
+    or config only ever referencing one type round after round as it
+    happens, rather than only discoverable via a full log post-mortem —
+    the same real run this was written for had 10 files on disk and had
+    ever activated exactly one of them, the whole time."""
+    norm_files = sorted(
+        p.stem for p in (ROOT / "norms").glob("*.py") if p.stem != "__init__"
+    )
+    try:
+        config = json.loads((ROOT / "state" / "config.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        return "  [norm activation summary unavailable: state/config.json unreadable]"
+    active_types = sorted({spec.get("type") for spec in config.get("norms", [])})
+    # A norm file's stem isn't necessarily its type_name (e.g.
+    # daily_thirty_percent_norm.py defines type_name="daily_thirty_percent")
+    # — comparing filenames to types is deliberately approximate here since
+    # this is observational only, not the authoritative check (that's
+    # norm_implementation_orphaned_norm_errors(), which actually imports
+    # each module to read its real type_name). Good enough to flag "the
+    # count is growing" at a glance without paying subprocess-import cost
+    # every single round regardless of whether anything changed.
+    return (
+        f"  Norm plugin inventory: {len(norm_files)} file(s) in norms/, "
+        f"{len(active_types)} type(s) currently active in state/config.json "
+        f"({', '.join(active_types) if active_types else 'none'})."
+    )
+
+
 def commit_norm_implementation(round_number, winning_proposal):
     """The norm-implementer is unreliable about running its own git commit —
     observed across real runs, it consistently skips it regardless of
@@ -869,6 +1020,7 @@ def commit_norm_implementation(round_number, winning_proposal):
         ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
     ).stdout.strip()
     print(f"Committed round {round_number} as {commit_hash}: {winning_proposal['policy'][:72]}")
+    print(_norm_activation_summary())
     # Distinct from norm_implementer_discarded — the only other log_call()
     # this function's caller can reach — so plot 6 (engine/monitoring.py)
     # gets a clean, mutually-exclusive per-round commit/discard/no-op
@@ -954,6 +1106,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
 
         compile_errors = norm_implementation_compile_errors()
         compile_errors += norm_implementation_institution_errors()
+        compile_errors += norm_implementation_orphaned_norm_errors()
         if not compile_errors:
             runtime_error = norm_implementation_runtime_errors()
             if runtime_error:
@@ -972,7 +1125,8 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 "(python3 -m py_compile on every file you touched, plus pytest tests/regression/ "
                 "and tests/norm_checks/) yourself before finishing — don't rely on this message "
                 "alone to catch the next issue. Don't change anything else about your "
-                "implementation beyond what's needed to fix these specific errors."
+                "implementation beyond what's needed to fix these specific errors. End your "
+                "response with the fenced ```json report block your instructions describe."
             )
             refresh_knowledge_graph(round_number)
             if not run_norm_implementer(round_number, extra_message=repair_message):
@@ -1051,7 +1205,9 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             f"ambiguity the evaluator's own tests exposed), redo that requirement's "
             f"clarification in state/norm_specs/round_{round_number}.md (ask a sharper question "
             "than last time), then adjust the implementation for whatever the resolution "
-            "changes. Follow your standing instructions for handling a repair re-invocation.\n\n"
+            "changes. Follow your standing instructions for handling a repair re-invocation. "
+            "End your response with the fenced ```json report block your instructions "
+            "describe.\n\n"
             f"--- Evaluator's report ---\n{evaluation['text']}\n--- end of report ---"
         )
         refresh_knowledge_graph(round_number)

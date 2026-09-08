@@ -171,6 +171,38 @@ of relying on real `schedule.json` gating):
   `IMPLEMENTATION_ERROR`, unless what "correct" means genuinely isn't
   pinned down (see `SPEC_GAP` below).
 
+The same two-level split applies to a requirement whose `owner` is a
+`norms/*.py` type, new or reused — **and this is the one real runs have
+gotten wrong repeatedly**, so treat it as seriously as the action case
+above, not as a lighter-weight formality:
+
+- **Level 1 (structural, norm-type)** — is the type actually loadable in
+  a real round: read `state/config.json` **directly off disk** and
+  confirm the requirement's type appears in its `"norms"` list. Do not
+  accept a fabricated `state["config"]["norms"]` you constructed by hand
+  for your own test as evidence of this — that only proves the class
+  works when directly instantiated, never that `NormEngine.from_config()`
+  would ever actually load it in the real round loop. A real 23-round run
+  had 10 of 11 committed rounds create a correctly-written, fully
+  class-compliant `Norm` subclass that was **never once referenced in the
+  real config** — every one of those was incorrectly marked `COMPLIANT`
+  by an earlier version of this check, because the fabricated test state
+  papered over the exact gap that mattered. A type missing from the real
+  config is `IMPLEMENTATION_ERROR`, full stop, regardless of how
+  correctly the class behaves when you exercise it directly.
+- **Level 2 (functional, norm-type)** — only once Level 1 passes: the
+  usual `evaluate()`/hook-chain test from STEP 2.
+
+Separately: if the requirement's design names a role performing a
+decision (a monitor, verifier, recorder, steward, committee), check
+`state/fluents.json` directly for a matching role fluent record (written
+via `assign_role()`/`set_fact()`) — a role the spec/diff describes but
+that was never actually assigned to any agent is also `IMPLEMENTATION_ERROR`,
+not something to overlook because the numeric enforcement portion of the
+same requirement tested fine. A described consequence (a ban, a fee, a
+ledger entry) with no corresponding state write anywhere in the diff gets
+the same verdict, for the same reason.
+
 - `COMPLIANT` — the test passes, and it actually checks the requirement's
   specific claim (a number, a threshold, a reset), not just that
   `ACTION.run()` didn't crash. For an action-owned requirement, both

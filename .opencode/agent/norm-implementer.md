@@ -200,6 +200,23 @@ exact way (`TypeError` deep inside `NormEngine`, from a norm with a
 string configured where a number was expected reaching an un-defaulted
 `.get()`). Fix it in the code itself, always.
 
+**A `norms/{name}.py` file has zero effect on the running simulation
+until its `type_name` is added as an entry in `state/config.json`'s
+`"norms"` list, in the same round.** `NORM_TYPES` auto-discovery
+(`engine/norms/registry.py`) makes the class importable and registered,
+but `NormEngine.from_config()` only ever instantiates types that
+`state["config"]["norms"]` actually names — a plugin can compile cleanly,
+pass every smoke test, and even get evaluated `COMPLIANT`, while never
+once executing in a real round, simply because this one config edit was
+never made. This is the single most common way a round gets written and
+committed but never actually enforces anything: a real run had 10 of 11
+committed rounds hit exactly this. Writing the file is never the last
+step — activating it is. A round that replaces the currently active
+rule (the normal case — each round's adopted norm is usually a whole new
+rule, not an addendum) should generally *replace* `state/config.json`'s
+`"norms"` list rather than append to it; keep an older entry only if the
+new norm's own text genuinely leaves that concern untouched.
+
 ---
 
 # 1. Understand the Existing System First
@@ -236,6 +253,18 @@ Do not begin modifying code until you understand:
 
 Do not assume a mechanism exists simply because its name suggests it
 does. Inspect the implementation.
+
+**Before deciding a new `norms/{name}.py` file is needed, list what
+already exists.** In your report, name every current `norms/*.py` file's
+`type_name` and a one-line summary of its shape (a flat cap, a
+percentage-of-stock cap, a monthly cumulative tracker, a reserve deposit,
+a ban) — then state explicitly which one you're reusing (parametrically,
+via `state/config.json` alone) or, if none fit, exactly why not, before
+writing a new file. A real run accumulated 10 separate `norms/*.py` files
+implementing the same handful of cap/reserve shapes from scratch, never
+once reusing an earlier one — this is the forcing function meant to
+catch that before it happens again, not another restatement of "check
+first" that's easy to skip past.
 
 ---
 
@@ -275,25 +304,56 @@ simulation — one `call_fisher_agent()` call per action, per round.
 another agent's record, voting on a sanction, choosing whether to close
 something are all fair game, exactly as much as an effort/cap choice is.
 
-Reason about a new requirement in this fixed order, so its surface
-novelty never pulls you toward "new action" before the cheaper routes are
-ruled out:
+**Before applying the elimination test below, scan norm.txt's
+Operationalization for a positive signal first.** Any verb where an actor
+exercises judgment using information that isn't already reduced to a
+number or boolean — weighs, judges, inspects, decides, reviews-and-rules,
+verifies, contests, appeals, testifies, exercises discretion — is
+presumptively action-shaped. The elimination test below exists to catch a
+verb that only *sounds* judgment-like but actually reduces to arithmetic
+("decides whether the catch exceeds the limit" is just a comparison) —
+it is not there to talk you out of a requirement that's genuinely a
+judgment call. **Route by what the requirement actually is, never by
+which path is less work to implement**: a genuine new-action requirement
+routed to `norms/*.py` to save a round's step budget is not a smaller
+mistake than the reverse — it's a norm that's silently never actually
+operative. (A real run's round 21 named a rotating "verifier" who weighs
+each fisher's catch and imposes a ban — an action-shaped decision — and
+it was routed entirely into a deterministic comparison instead; nobody
+was ever actually banned, because the "decision" the norm described was
+never really made by anyone.)
+
+Once the scan above finds no positive trigger — or to confirm one you did
+find should stay action-shaped rather than dissolve into arithmetic —
+reason about the requirement in this order:
 
 1. **Is this fully deterministic?** — a calculation, a consequence, a
    bookkeeping write, no new agent judgment involved. → route through
-   `norms/*.py`, no matter how novel-sounding the rule is. This covers
-   most rules.
-2. **Does an existing action's own `call_fisher_agent()` call already
-   collect the decision this requires**, even if nothing currently
-   enforces it? → still routes through `norms/*.py`, reading that
-   existing output — no action change of any kind, new or edited.
+   `norms/*.py`, no matter how novel-sounding the rule is. Some rules
+   really are this simple; many are not — don't assume this is the
+   common case before checking.
+2. **Does an existing action's own `call_fisher_agent()` response schema
+   already have a field whose value directly answers this specific
+   requirement** — not a field that could be creatively reinterpreted to
+   answer it — even if nothing currently enforces it? → still routes
+   through `norms/*.py`, reading that existing output — no action change
+   of any kind, new or edited.
 3. **Neither of the above** — the norm genuinely requires a new agent
    decision/act that no existing action hosts → a new action is required
    (Section 5/13).
 
-Never default `new norm → new action`. Existing actions are never edited
-to reach outcome 1 or 2 — not the five originally-protected ones, and not
-one an earlier round of yours created either (Section 13).
+Never default `new norm → new action`. **Equally, never default `new
+norm → norms/*.py` because it's cheaper to build.** A `Norm` plugin has
+no judgment — only arithmetic over values that already exist. If the
+requirement asks an actor to weigh, decide, inspect, or judge something
+using information not already reduced to a number or boolean, that is
+action-shaped by definition, regardless of how much simpler a `norms/`
+file would be to write — a new action costs five separate artifacts
+(Section 13) against `norms/`'s one file plus a config entry, and that
+cost difference is never itself a legitimate reason to pick the cheaper
+route. Existing actions are never edited to reach outcome 1 or 2 — not
+the five originally-protected ones, and not one an earlier round of
+yours created either (Section 13).
 
 ---
 
@@ -401,6 +461,11 @@ Institutional consequence:
 Agent-visible information:
 Verification:
 ```
+
+Whenever `Existing action or new action` resolves to a `norms/*.py`
+type (new or reused), `State changed` must explicitly include
+`state/config.json` — writing or extending the plugin file is not the
+same as activating it; see the callout above the "Norm plugin contract".
 
 For a requirement routed to a **new action**, this becomes a full design
 — see Section 13's recipe for exactly what each field commits you to
@@ -712,6 +777,30 @@ responds to that decision (an appeal, a review), quietly never gets
 built. Add any missing requirement now and route it through Section 5
 before continuing.
 
+**Activation — the single most common way a round is written but never
+enforces anything.** For every `norms/*.py` file you added or changed
+this round, open the real `state/config.json` on disk (not your memory
+of having written it) and confirm that type's `"type"` actually appears
+in its `"norms"` list. A plugin can compile, pass every smoke test, and
+still never run a single time in the actual simulation if this one edit
+was skipped — this exact gap was found in 10 of 11 committed rounds on a
+real run. If you named a role in this round's design (a monitor,
+verifier, recorder, steward, committee), also grep your own diff for
+`assign_role(`/`set_fact(` — a role your spec says exists but that
+nothing in the diff ever assigns is exactly the same class of gap, one
+layer up: described, never built.
+
+**Judgment-verb burden-shifting check.** If `norm.txt` contains any
+judgment-verb from Section 3's trigger list (weighs, judges, inspects,
+decides, reviews-and-rules, verifies, contests, appeals, testifies,
+exercises discretion) and this round did not add a new action, state
+explicitly, in your report, why that verb was determined to reduce to
+arithmetic rather than genuine agent discretion. This is a burden you
+must actively discharge, not a check that passes by default — the same
+posture as everything else in this file that treats "not addressed" as a
+failure rather than a pass. Don't let a routing decision like this go
+unexamined the way one real round's apparently did.
+
 **Actions.** Does every new action represent a genuine new agent
 decision? Could the requirement have been implemented without one? Is it
 correctly scheduled (`schedule.json` and `state/institution.json` agree
@@ -786,9 +875,11 @@ accepted norm.
    verification`), and the Section 16 completeness re-walk's result.
 2. Parametric vs. structural routing per requirement, with rationale —
    including, for any new-action requirement, the Decision Granularity
-   Rule reasoning that led there — and for anything genuinely denied
-   (needing to edit a protected file directly, not just add alongside
-   it).
+   Rule reasoning that led there; and, per Section 16's judgment-verb
+   check, an explicit justification for every requirement that contains a
+   judgment-verb but was NOT routed to a new action — and for anything
+   genuinely denied (needing to edit a protected file directly, not just
+   add alongside it).
 3. The diff, if any.
 4. `tests/norm_checks/` and `tests/regression/` results.
 5. If a new `norms/*.py` type was added: one sentence on what future

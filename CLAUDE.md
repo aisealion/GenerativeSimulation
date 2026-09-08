@@ -2979,3 +2979,201 @@ is reasoned to generalize (it's stated with no reference to the specific
 role/decision/appeal example that motivated it), but only a real run
 against a genuinely multi-actor norm would confirm it actually changes
 model behavior rather than just reading better.
+
+## Real 23-round run analysis: norm plugins written but never activated (2026-09-08)
+
+A direct forensic pass over `sim/run-20260907-215408` (round 23 at the
+time, `state/runtime.json`/`state/config.json`/`state/institution.json`/
+`norms/`/`git log`/all 3,307 lines of `logs/model_calls.jsonl`) found the
+single most consequential bug this project has produced so far: **10 of
+the 11 rounds that "committed" a new norm only ever created a new
+`norms/{name}.py` file and never added its `type_name` to
+`state/config.json`'s `"norms"` list.** `NormEngine.from_config()` only
+loads types actually named there, so those 10 plugins — each a
+correctly-written `Norm` subclass, each marked `COMPLIANT` by the
+norm-evaluator, each committed — never executed a single time. The only
+rule that has ever actually run since round 15 is `daily_thirty_percent`,
+unchanged for 8 rounds since. Root cause confirmed directly:
+`state/norm_specs/round_20.md`'s own "Implementation Notes" say only
+*"add it to `norms/`"* — activating it in config was never even part of
+the model's own plan, not a step it planned and then skipped. A
+secondary, same-pattern finding: **zero role fluents
+(`assign_role`/`set_fact`) have ever been written in this run**, despite
+roughly half the adopted norms naming a monitor/verifier/recorder/
+committee role — the described consequences (bans, ledgers) were never
+built either, independent of the config-activation question. Direct
+consequence of both: nobody has ever been banned in this run, and even
+`daily_thirty_percent_norm.py` itself has no `is_eligible()` override, so
+its own described "forfeits next day's fishing" only ever increments an
+unused counter. Separately, `norms/` had accumulated 10 files
+reimplementing the same handful of cap/reserve shapes from scratch every
+round, never reusing or parameterizing an earlier one — no live conflict
+today only because the activation bug above meant at most one was ever
+active at once. (The declining/near-zero lake stock this run also showed
+is *not* a bug — `stock_kg_after_regrowth <= 0` genuinely hadn't fired,
+because removal under the one norm that's ever run structurally exceeds
+regrowth at low stock, so the lake was asymptotically declining rather
+than crossing zero; no fix needed there.)
+
+Also quantified precisely while investigating: the `norm-evaluator`'s
+first attempt failed to produce the required `EVALUATION_RESULT:`
+sentinel line on **100% of the 22 completed rounds** (recovers only via
+the existing automatic corrective retry — see the "Replaced the
+evaluator's required JSON schema" entry above for why that sentinel
+exists at all). The `norm-implementer`'s closing fenced ```json report
+never parsed successfully on **any of its 33 invocations this run**. And
+the evaluator's `COMPLIANT` verdicts on all 10 orphaned-plugin rounds
+above are now understood as a real gap in the evaluator's own STEP 4, not
+just the implementer's oversight: its Level 1/2 split (added 2026-09-04
+for a new-*action* requirement) had no equivalent check for a
+`norms/*.py`-owned requirement — a hand-fabricated test state with the
+type manually inserted proves the class works in isolation, never that
+`state/config.json` actually references it for real.
+
+**Fixes applied, all four addressing what the data actually showed
+(everything below only affects future rounds — none of it retroactively
+repairs rounds 1–22):**
+
+- **`engine/simulate.py` gained `norm_implementation_orphaned_norm_errors()`**,
+  wired into `implement_and_evaluate_norm()`'s repair loop right next to
+  `norm_implementation_institution_errors()` (same bounded-retry
+  treatment as a compile error, not an immediate discard — the model can
+  trivially fix "add one config entry"). `git status --porcelain -- norms`
+  (not `git diff --name-only HEAD` — see the function's own docstring for
+  why: a brand-new plugin file is *untracked* at the point this check
+  runs, and `git diff` never shows untracked files, only changes to
+  already-tracked ones; this was caught testing the function against a
+  real fabricated orphan before it ever reached a real round) finds every
+  `norms/*.py` file this round touched, re-imports each fresh in a
+  subprocess to read its real `type_name` (same staleness reasoning
+  `norm_implementation_runtime_errors()` already uses for its own
+  fabricated-state subprocess), and flags any whose type is absent from
+  the real `state/config.json`. Verified against the real repo (clean,
+  returns `[]`, since `daily_thirty_percent` is genuinely referenced) and
+  against a deliberately fabricated `norms/_test_orphan.py` (correctly
+  flagged, cleaned up afterward, working tree confirmed clean again).
+- **Both `norm-implementer.md` copies** gained an unmissable callout right
+  after "Norm plugin contract" stating the activation requirement
+  directly (plus brief replace-vs-append guidance — each round's adopted
+  norm is normally a whole replacement rule, not an addendum), a note on
+  Section 5's per-requirement template that `state/config.json` is an
+  expected "state changed" target for any `norms/*.py`-owned requirement,
+  a new Section 16 "Activation" self-check paragraph covering both the
+  config-activation gap and the role-fluent gap, and — in Section 1 — a
+  forcing-function requirement to list every existing `norms/*.py`
+  `type_name` and its shape before deciding a new file is needed,
+  addressing the reuse-discipline finding directly.
+- **Both `norm-evaluator.md` copies** gained a parallel Level 1/2
+  structural split for a `norms/*.py`-owned requirement (mirroring the
+  existing new-action one): Level 1 requires reading `state/config.json`
+  directly off disk, never trusting a hand-fabricated test config as
+  proof of real activation — a type missing from real config is
+  `IMPLEMENTATION_ERROR` regardless of how correctly the class behaves in
+  isolation, stated explicitly against the real 10/11 false-`COMPLIANT`
+  evidence. A matching check requires confirming a named role actually
+  has a `state/fluents.json` record, not just a mention in the spec/diff.
+- **`run_norm_evaluator()`/`run_norm_implementer()`'s default per-round
+  messages** (`engine/simulate.py`) each gained one sentence restating
+  their respective closing-report requirement (the `EVALUATION_RESULT:`
+  sentinel; the fenced ```json block) directly in the *first* invocation,
+  not just the corrective-retry message — mirroring the exact fix that
+  already measurably worked for the evaluator's retry path, now applied
+  to the attempt that's actually failing every time. Both `repair_message`
+  construction sites in `implement_and_evaluate_norm()` got the same
+  one-line addition.
+- **`commit_norm_implementation()` gained `_norm_activation_summary()`**,
+  printed after every real commit — purely informational, never gating:
+  total `norms/*.py` file count vs. how many types are actually active in
+  `state/config.json`. Run against the real current state, it already
+  prints exactly the finding above (`10 file(s) in norms/, 1 type(s)
+  currently active`) — early visibility for whoever is watching a live
+  run, instead of only discoverable via a full log post-mortem after the
+  fact.
+
+**Also fixed in the same pass, unrelated to the norm pipeline but
+blocking all local test collection**: `tests/conftest.py` had a missing
+closing parenthesis (`sys.path.insert(0, os.path.abspath(os.path.join(...))`
+one paren short) from the repo's last manual commit, predating this
+session — trivial syntax fix, confirmed by `pytest`'s own collection
+error and unrelated to any agent-driven change.
+
+Verified: `python3 -m py_compile` on every touched file;
+`pytest tests/regression/ tests/norms/` — 41 passing (up from 38 purely
+because the `conftest.py` fix let 3 previously-uncollectable tests run;
+no test behavior changed); `yaml.safe_load()` on both opencode-copy
+frontmatter blocks; a full diff between each pair of `.opencode`/`.claude`
+copies confirms only the pre-existing intentional differences (frontmatter,
+enforcement-mechanism notes) remain, nothing drifted out of sync. Not
+verified: an actual `opencode run` against a live norm.txt exercising any
+of this — same standing caveat as every other agent-instruction change in
+this file without a completed live run behind it. The real test is
+whether round 24+ of the still-running `sim/run-20260907-215408` finally
+shows a `state/config.json` diff the next time a structural norm is
+adopted, and/or a caught `norm_implementation_orphaned_norm_errors()`
+repair cycle if it doesn't.
+
+## Section 3's routing test had a one-directional bias toward norms/*.py (2026-09-08, same day)
+
+A close read of Section 3 (Decision Granularity Rule) after the round-21
+finding above, by explicit request, found the routing test itself was
+never neutral — it was structurally biased toward `norms/*.py`, which is
+plausibly *why* round 21's judgment-shaped "verifier decides a violation
+and imposes a ban" got routed into a deterministic comparison in the
+first place, not just an isolated model mistake. Five specific defects,
+all in the same direction:
+
+1. **The elimination test anchored the outcome before testing it** — step
+   1 ended with *"this covers most rules,"* a stated expectation sitting
+   right before the model classifies an ambiguous case, not a neutral
+   instruction.
+2. **Step 2's "already collects" test only required adjacency, not
+   correspondence** — an existing action's unrelated `reasoning` field
+   could plausibly be argued to "already collect" almost any
+   judgment-adjacent thing, letting a real decision get skipped entirely.
+3. **Only one direction had a named warning.** *"Never default new norm →
+   new action"* stood alone, with no textual counterweight against
+   defaulting the other way.
+4. **Cost asymmetry was real and never disqualified as a reason.** A
+   `norms/*.py` addition is one file; a new action (Section 13) is five
+   separately-checked artifacts, any one of which can discard the round.
+   Nothing said that a lower step-cost was an illegitimate reason to
+   choose a route.
+5. **The test was phrased entirely as negation** ("is this NOT
+   deterministic," "is this NOT already collected") with no positive verb
+   signal — unlike Section 4's own extraction step, which already
+   correctly scans for verbs directly.
+
+Fixed by making the same five changes to Section 3 (both
+`norm-implementer.md` copies):
+
+- A positive trigger-verb scan (weighs, judges, inspects, decides,
+  reviews-and-rules, verifies, contests, appeals, testifies, exercises
+  discretion) now runs *before* the elimination test, explicitly framing
+  the test as existing to catch a verb that only sounds judgment-like,
+  not to talk the model out of a genuine one.
+- Step 1's "this covers most rules" line is gone, replaced with "some
+  rules really are this simple; many are not — don't assume this is the
+  common case before checking."
+- Step 2 now requires an existing response field to "directly answer this
+  specific requirement — not a field that could be creatively
+  reinterpreted to answer it."
+- A symmetric warning sits directly next to the existing one: "Equally,
+  never default `new norm → norms/*.py` because it's cheaper to build,"
+  spelling out that cost difference is never itself a legitimate routing
+  reason, and naming round 21 as the concrete case this already produced.
+- Section 16 gained a burden-shifting self-check — the same
+  deny-by-default posture this file already uses elsewhere: if norm.txt
+  contains a trigger-list verb and no new action was added that round,
+  the report must state explicitly why that verb reduces to arithmetic.
+  This flows into the "Report, in this order" section's own item 2, so
+  it's a required part of every report, not just Section 16 prose.
+
+Verified: `pytest tests/regression/ tests/norms/` (41 tests) unaffected —
+prompt-only change, no code touched. Both `.opencode`/`.claude` copy
+diffs re-confirmed to contain only the same pre-existing intentional
+deltas (frontmatter, enforcement-mechanism notes) already on record
+above, nothing else drifted. Not verified: whether this actually changes
+model behavior on a real judgment-shaped norm — same standing caveat as
+every prompt-only change in this file without a completed live run
+behind it, though this one is unusually well-targeted at a mechanism a
+real round already demonstrated failing.
