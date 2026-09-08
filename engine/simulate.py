@@ -31,8 +31,8 @@ DEFAULT_MAX_ROUNDS = 100
 NORM_IMPLEMENTER_TRACKED_PATHS = [
     # state/runtime.json is deliberately never on this list — it's
     # simulation-owned (the implementer must never write it; see Section 2
-    # of both norm-implementer.md files) and it's what commit_round_artifacts()
-    # further down commits separately, every round, unconditionally — kept
+    # of both norm-implementer.md files) and it's what commit_round()
+    # further down commits every round, unconditionally — kept
     # off this list so a discard's `git clean -fd` (scoped to exactly this
     # list) can never touch it.
     # norms/ replaced mechanisms/ + phases/ here (2026-08-27) — the
@@ -79,8 +79,8 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # references code, so it never goes stale on a discard, and it's
     # exactly the forensic record of what was analyzed even when a round
     # gets discarded — putting it here would mean discard_norm_implementation()'s
-    # `git clean -fd` deletes it from disk before commit_round_artifacts()
-    # ever gets a chance to preserve it.
+    # `git clean -fd` deletes it from disk before commit_round() ever gets
+    # a chance to preserve it.
     # state/institution.json IS here, unlike state/norm_specs above — it
     # describes what actions currently exist in code (a "current actions"
     # snapshot, not a historical record of what was required), so it must
@@ -90,7 +90,7 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # engine/simulate.py itself is now editable by the norm-implementer
     # (was previously denied — see CLAUDE.md for why that changed and the
     # residual risk). It has to be listed here for two reasons: so
-    # commit_norm_implementation()'s `git add` actually picks up edits to
+    # stage_norm_implementation()'s `git add` actually picks up edits to
     # it (before this, an edit landed on disk but never got committed by
     # the deterministic path — it had to be committed by hand instead),
     # and so norm_implementation_compile_errors() below includes it in the
@@ -817,7 +817,7 @@ def norm_implementation_orphaned_norm_errors():
     Uses `git status --porcelain`, not `git diff --name-only HEAD` —
     deliberately, after that exact mistake was caught testing this
     function: a brand-new norms/{name}.py file is untracked at the point
-    this check runs (commit_norm_implementation() hasn't staged anything
+    this check runs (stage_norm_implementation() hasn't staged anything
     yet), and `git diff` never shows untracked files at all, only changes
     to already-tracked ones. `git status --porcelain` reports both a
     modified tracked file (` M path`) and a new untracked one (`?? path`)
@@ -891,8 +891,8 @@ def discard_norm_implementation(round_number, errors):
     partially-broken change (a working mechanisms/effort.py alongside a
     broken actions/harvest.py, say) is exactly as unsafe to leave on disk as
     a fully broken one, since reload_project_modules() re-imports all of it
-    regardless. Safe to do unconditionally here: commit_norm_implementation()
-    hasn't run yet, so nothing from this round has been committed —
+    regardless. Safe to do unconditionally here: commit_round() hasn't run
+    yet, so nothing from this round has been committed —
     `git checkout --` reverts modified tracked files back to HEAD, `git
     clean -fd` removes any newly-created untracked files/dirs (a new action
     file for a new_action norm, say) that checkout alone wouldn't touch.
@@ -993,12 +993,25 @@ def _norm_activation_summary():
     )
 
 
-def commit_norm_implementation(round_number, winning_proposal):
-    """The norm-implementer is unreliable about running its own git commit —
-    observed across real runs, it consistently skips it regardless of
-    instructions. Don't depend on model compliance for something this
-    mechanical: commit deterministically here instead, scoped to exactly the
-    paths the agent is allowed to touch (never state/runtime.json)."""
+def stage_norm_implementation(round_number):
+    """Stages (git add only, never commits) the norm-implementer's tracked
+    paths. Used to be commit_norm_implementation() — committed here
+    immediately, separately from commit_round_artifacts()'s own later
+    commit, which meant every round that actually changed something
+    produced two commits ("Round N norm: ..." then "Round N artifacts:
+    ...") instead of one. By request, after a real run made this
+    unnecessary doubling obvious: staging now happens here, but the actual
+    `git commit` is deferred to commit_round() below, which combines
+    whatever's staged here with this round's own artifacts (logs,
+    norm.txt, runtime state, plots) into a single commit — the same
+    reason commit_round() needs to know whether anything was staged here,
+    which is exactly what this function's return value now communicates.
+
+    Still not dependent on model compliance for anything mechanical: the
+    norm-implementer is unreliable about running its own git commit,
+    observed across real runs, so staging (and eventually committing)
+    happens here regardless, scoped to exactly the paths the agent is
+    allowed to touch (never state/runtime.json)."""
     subprocess.run(["git", "add"] + NORM_IMPLEMENTER_TRACKED_PATHS, cwd=ROOT, check=True)
     staged = subprocess.run(
         ["git", "diff", "--cached", "--name-only"], cwd=ROOT, capture_output=True, text=True, check=True
@@ -1012,26 +1025,10 @@ def commit_norm_implementation(round_number, winning_proposal):
             duration_s=None, returncode=None, prompt=None,
             raw_response=None, parsed_response=None, error=None,
         )
-        return None
+        return False
 
-    message = f"Round {round_number} norm: {winning_proposal['policy']}\n\n{winning_proposal['operationalization']}"
-    subprocess.run(["git", "commit", "-m", message], cwd=ROOT, check=True, capture_output=True, text=True)
-    commit_hash = subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
-    ).stdout.strip()
-    print(f"Committed round {round_number} as {commit_hash}: {winning_proposal['policy'][:72]}")
     print(_norm_activation_summary())
-    # Distinct from norm_implementer_discarded — the only other log_call()
-    # this function's caller can reach — so plot 6 (engine/monitoring.py)
-    # gets a clean, mutually-exclusive per-round commit/discard/no-op
-    # signal without inferring anything from git log.
-    log_call(
-        call="norm_implementer_committed",
-        agent_id=None, round=round_number, action=None, model=None,
-        duration_s=None, returncode=None, prompt=None,
-        raw_response=None, parsed_response=None, commit_hash=commit_hash, error=None,
-    )
-    return commit_hash
+    return True
 
 
 MAX_NORM_REPAIR_ATTEMPTS = 2
@@ -1070,18 +1067,22 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     itself failing to produce any verdict at all — that's not a finding
     about the code, so it doesn't consume a repair attempt or discard the
     round on its own; only genuinely exhausting the evaluator retries
-    does. Returns True iff a commit actually happened; False means a
-    discard already happened and was logged — same "this round's
-    mechanics stay as they were" contract every other failure path in
-    this file already has.
+    does. Returns True iff the norm-implementer's changes were staged
+    (ready for run_cycle()'s own single per-round commit, alongside this
+    round's artifacts — see commit_round() below); False means either a
+    discard already happened and was logged, or the round was COMPLIANT
+    but genuinely made no changes to stage — either way, "this round's
+    mechanics stay as they were" is the same contract every other failure
+    path in this file already has, the caller just shouldn't attribute
+    the final commit's message to a norm that was never actually staged.
 
     The knowledge graph is refreshed immediately before every
     run_norm_implementer() call in this function — including repair
     retries — not after a successful commit (changed 2026-09-06, by
     request). Refreshing only after a commit meant the graph could go
     stale between that refresh and the next time a norm-implementer call
-    actually reads it: other commits land in between (commit_round_artifacts()
-    at the end of every round, regardless of whether a norm was even
+    actually reads it: other commits land in between (commit_round() at
+    the end of every round, regardless of whether a norm was even
     adopted that round), so "freshest right after my own last commit" is
     not the same guarantee as "fresh at the moment the implementer is
     about to consult it." Refreshing right before each call gives that
@@ -1177,8 +1178,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             return False
 
         if evaluation["result"] == "COMPLIANT":
-            commit_hash = commit_norm_implementation(round_number, winning_proposal)
-            return bool(commit_hash)
+            return stage_norm_implementation(round_number)
 
         # No more structured per-requirement verdict list (that was exactly
         # the part the model couldn't reliably reproduce) — the repair
@@ -1237,30 +1237,49 @@ ROUND_ARTIFACT_PATHS = [
 ]
 
 
-def commit_round_artifacts(round_number):
-    """Commit the round's own produced data — logs, norm.txt, runtime
-    state, plots — every round, unconditionally, regardless of whether
-    this round's norm itself committed, was a no-op, or got discarded.
-    Without this, the only thing making it into git history is whatever a
-    human happens to sweep up in a manual commit — real logs/model_calls.jsonl
-    and norm.txt content have been lost this way before (a crash or an
-    interrupted run before the next manual commit). Every round of
-    forensic archaeology this session has depended on
-    logs/model_calls.jsonl actually existing in git — this is what makes
-    that reliable going forward instead of incidental.
+def commit_round(round_number, winning_proposal):
+    """The single commit for this round — combines whatever
+    stage_norm_implementation() already staged (if a norm was adopted,
+    evaluated COMPLIANT, and actually changed something) with this
+    round's own artifacts (logs, norm.txt, runtime state, plots), every
+    round, unconditionally, regardless of whether this round's norm
+    committed, was a no-op, or got discarded.
 
-    Deliberately NOT folded into NORM_IMPLEMENTER_TRACKED_PATHS/
-    commit_norm_implementation() above, on purpose, not an oversight:
-    that list is scoped to what the norm-implementer is allowed to touch
-    and — critically — what discard_norm_implementation() is allowed to
-    `git clean -fd` on a discard. logs/ and norm.txt are exactly the
-    forensic record of *why* a round got discarded; if they were on that
-    list they'd be at risk of being wiped by the very discard they explain.
-    state/runtime.json is simulation-owned and already explicitly
-    off-limits to the implementer for the same reason it's not tracked
-    there either (see NORM_IMPLEMENTER_TRACKED_PATHS's own docstring
-    note) — this is the orchestrator committing its own output, not
-    granting the implementer any new reach.
+    Replaces what used to be two separate commits — commit_norm_
+    implementation() committing "Round N norm: ..." immediately, then
+    this function (formerly commit_round_artifacts()) committing "Round N
+    artifacts: ..." right after — by request, once a real run made the
+    doubling obvious every round that actually changed something. `winning_proposal`
+    is passed only when stage_norm_implementation() actually staged real
+    changes this round (run_cycle() is responsible for that — see there);
+    `None` means either no norm was adopted, it was discarded, or it was
+    COMPLIANT but made no changes, and the commit (if anything is staged
+    at all) is purely this round's artifacts.
+
+    Without the artifact half of this, the only thing making it into git
+    history is whatever a human happens to sweep up in a manual commit —
+    real logs/model_calls.jsonl and norm.txt content have been lost this
+    way before (a crash or an interrupted run before the next manual
+    commit). Every round of forensic archaeology this project has done
+    has depended on logs/model_calls.jsonl actually existing in git —
+    this is what makes that reliable going forward instead of incidental.
+
+    Deliberately still commits artifact paths separately from
+    NORM_IMPLEMENTER_TRACKED_PATHS's own staging (stage_norm_implementation()
+    stages those, this function stages ROUND_ARTIFACT_PATHS on top before
+    the one final commit) rather than merging the two path lists
+    themselves: that list is scoped to what the norm-implementer is
+    allowed to touch and — critically — what discard_norm_implementation()
+    is allowed to `git clean -fd` on a discard. logs/ and norm.txt are
+    exactly the forensic record of *why* a round got discarded; if they
+    were on that list they'd be at risk of being wiped by the very
+    discard they explain. state/runtime.json is simulation-owned and
+    already explicitly off-limits to the implementer for the same reason
+    it's not tracked there either (see NORM_IMPLEMENTER_TRACKED_PATHS's
+    own docstring note) — this is the orchestrator committing its own
+    output, not granting the implementer any new reach. The two path
+    lists staying separate costs nothing now that the actual `git commit`
+    call combining them is shared.
 
     A real cost worth naming, not hiding: state/runtime.json grows every
     round and gets committed every round here, so a long many-round run
@@ -1269,19 +1288,38 @@ def commit_round_artifacts(round_number):
     project's own history has already hit that failure mode more than
     once."""
     existing = [p for p in ROUND_ARTIFACT_PATHS if (ROOT / p).exists()]
-    if not existing:
-        return
-    subprocess.run(["git", "add"] + existing, cwd=ROOT, check=True)
+    if existing:
+        subprocess.run(["git", "add"] + existing, cwd=ROOT, check=True)
     staged = subprocess.run(
         ["git", "diff", "--cached", "--name-only"], cwd=ROOT, capture_output=True, text=True, check=True
     ).stdout.strip()
     if not staged:
         return
-    subprocess.run(
-        ["git", "commit", "-m", f"Round {round_number} artifacts: logs, norm.txt, runtime state, plots"],
-        cwd=ROOT, check=True, capture_output=True, text=True,
-    )
-    print(f"Round {round_number}: committed round artifacts (logs, norm.txt, runtime state, plots).")
+
+    if winning_proposal:
+        message = f"Round {round_number} norm: {winning_proposal['policy']}\n\n{winning_proposal['operationalization']}"
+    else:
+        message = f"Round {round_number} artifacts: logs, norm.txt, runtime state, plots"
+    subprocess.run(["git", "commit", "-m", message], cwd=ROOT, check=True, capture_output=True, text=True)
+    commit_hash = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+    if winning_proposal:
+        print(f"Committed round {round_number} as {commit_hash}: {winning_proposal['policy'][:72]}")
+        # Distinct from norm_implementer_discarded/norm_implementer_no_changes
+        # — the log_call()s the caller can otherwise reach — so plot 6
+        # (engine/monitoring.py) gets a clean, mutually-exclusive per-round
+        # commit/discard/no-op signal without inferring anything from git log.
+        log_call(
+            call="norm_implementer_committed",
+            agent_id=None, round=round_number, action=None, model=None,
+            duration_s=None, returncode=None, prompt=None,
+            raw_response=None, parsed_response=None, commit_hash=commit_hash, error=None,
+        )
+    else:
+        print(f"Round {round_number}: committed round artifacts as {commit_hash} "
+              f"(logs, norm.txt, runtime state, plots).")
 
 
 def refresh_knowledge_graph(round_number):
@@ -1298,7 +1336,7 @@ def refresh_knowledge_graph(round_number):
     hooks.json): that mechanism assumes the agent whose session it's
     watching is the one running `git commit` and can act on the "you must
     update now" instruction it injects. Neither holds here — this project's
-    commit_norm_implementation() above commits via a plain subprocess, not
+    commit_round() above commits via a plain subprocess, not
     through any agent's own tool calls, so the PostToolUse hook would never
     fire at all; and norm-implementer's own SessionStart hook would fire
     every round but inject an instruction it's structurally unable to
@@ -1495,17 +1533,19 @@ def run_cycle(round_number):
                 f"\nLake has collapsed at round {round_number} "
                 f"(stock_kg={state['runtime']['stock_kg']}). Stopping."
             )
-            # This early return skips update_plots()/commit_round_artifacts()
-            # below — without calling it here too, the single most
-            # narratively important round of the whole run (the one that
-            # actually ends it) would be exactly the one round whose data
-            # never makes it into git.
-            commit_round_artifacts(round_number)
+            # This early return skips update_plots()/commit_round() below —
+            # without calling it here too, the single most narratively
+            # important round of the whole run (the one that actually ends
+            # it) would be exactly the one round whose data never makes it
+            # into git. Never a norm commit here — collapse happens mid-
+            # harvest, before propose/vote have even run this round.
+            commit_round(round_number, None)
             return False
 
     write_fact_memory_events(state, round_number)
 
     winning_proposal = state.get("adopted_norm") or find_adopted_norm(state["runtime"], round_number)
+    norm_staged = False
     if winning_proposal:
         if norm_already_committed(round_number):
             print(f"\nRound {round_number}: norm-implementer already committed for this round, skipping.")
@@ -1516,10 +1556,15 @@ def run_cycle(round_number):
             )
             (ROOT / "norm.txt").write_text(norm_text)
             print(f"\nAdopted norm written to norm.txt:\n{norm_text}")
-            implement_and_evaluate_norm(round_number, winning_proposal)
+            norm_staged = implement_and_evaluate_norm(round_number, winning_proposal)
 
     update_plots(state)
-    commit_round_artifacts(round_number)
+    # winning_proposal only carries through to commit_round() as this
+    # round's commit message when something was actually staged for it —
+    # otherwise this is purely an artifacts commit (see commit_round()'s
+    # own docstring for why "None" here means several different things,
+    # all of which get the same generic message).
+    commit_round(round_number, winning_proposal if norm_staged else None)
 
     return True
 

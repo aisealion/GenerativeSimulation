@@ -3177,3 +3177,92 @@ model behavior on a real judgment-shaped norm — same standing caveat as
 every prompt-only change in this file without a completed live run
 behind it, though this one is unusually well-targeted at a mechanism a
 real round already demonstrated failing.
+
+## Merged to one commit per round (2026-09-08, same day)
+
+By request: every round that actually changed something used to produce
+two separate commits — `commit_norm_implementation()` committed "Round N
+norm: ..." immediately once the evaluator returned `COMPLIANT`, then
+`commit_round_artifacts()` committed "Round N artifacts: ..." separately,
+right after. `commit_norm_implementation()` was renamed
+`stage_norm_implementation()` and now only `git add`s the
+norm-implementer's tracked paths and returns a bool (staged or not) —
+`commit_norm_implementation()`'s old no-changes case still logs
+`norm_implementer_no_changes` immediately, since that outcome is
+definitive either way. `commit_round_artifacts()` became `commit_round()`:
+it now also stages `ROUND_ARTIFACT_PATHS`, then does the one real `git
+commit` for the round, using the norm's message (`"Round N norm: ..."`,
+preserving `norm_already_committed()`'s existing grep pattern exactly, no
+change needed there) when `stage_norm_implementation()` actually staged
+something, or the generic artifacts message otherwise. `run_cycle()`
+threads the bool through (`norm_staged = implement_and_evaluate_norm(...)`)
+so `commit_round()` knows which message applies. The lake-collapse
+early-return's own commit call became `commit_round(round_number, None)`
+— never a norm message there, since collapse happens mid-harvest, before
+propose/vote have run that round at all.
+
+Verified two ways: `pytest tests/regression/ tests/norms/` (38 tests)
+unaffected, and — since neither suite actually exercises this commit
+logic — a real functional check in an isolated `/tmp` git repo (not this
+project's own history), simulating both cases directly: staged norm
+files (`norms/foo.py`, `state/config.json`) plus artifact paths produced
+exactly one commit containing all of them under the norm message;
+artifacts alone (nothing staged from a norm) produced exactly one commit
+under the generic message, and `git log --grep '^Round N norm:'` against
+that second case correctly found nothing (no false positive on the
+resume-safety check). Not yet verified against a real live round — same
+standing caveat as every orchestrator change in this file without one.
+
+## Two real findings from round 1–2 of a fresh v5 run, and a live config break (2026-09-08, same day)
+
+The very next real run after the fixes above landed (`sim/run-20260908-131011`,
+branched from `feature/plugin-architecture-v5` post-fix) surfaced two
+things worth recording, one encouraging and one urgent:
+
+- **Round 2 worked exactly as the activation fix intended**: a genuinely
+  deterministic 8%-of-biomass trip cap got a real `norms/*.py`-shaped
+  routing decision, and — unlike every structural round in the previous
+  run — `state/config.json` was actually updated to activate it (traced
+  directly: `git show` on the round's own commit, one line changed,
+  `"norms": [] → [{"type": "quota_8_percent", ...}]`).
+- **Round 1 did essentially nothing, and the evaluator rubber-stamped
+  it.** Round 1's norm was rich (a 20kg trip cap, a fine, a one-week ban,
+  a rotating steward, a shared ledger) — exactly the kind of
+  judgment-shaped norm the Section 3 rewrite above was aimed at. Traced
+  directly from `logs/model_calls.jsonl`'s own `raw_response` tool-call
+  trace: the norm-implementer's entire session was 8 tool calls — three
+  redundant `codegraph_explore` queries for "norm.txt", reading norm.txt,
+  globbing `norms/*.py` (the Section 1 reuse-check working correctly),
+  reading the previous round's spec, and writing `state/norm_specs/round_1.md`
+  — a copy-paste restatement of the Operationalization with **no
+  requirement table, no clarity classification, no routing decision, no
+  institutional_changes block**. Nothing was ever created in `norms/`,
+  `actions/`, or `state/config.json`; the only diff in that round's commit
+  was an unrelated agent-death fluent from ordinary harvest physics.  The
+  norm-evaluator's own first attempt found no `EVALUATION_RESULT:`
+  sentinel (as usual — see the entry above), but its **retry made zero
+  tool calls** and returned `COMPLIANT` in a 1,273-character response —
+  it never read the diff, never wrote or ran a test, and still approved a
+  round that implemented literally nothing. This is a different, more
+  severe failure than the activation gap that motivated today's earlier
+  fixes: not "written but not wired in," but "nothing written at all, and
+  nothing caught it." Not yet fixed — flagged here for the next pass, since
+  it points at the evaluator's retry prompt inviting a snap
+  re-assertion of a verdict rather than an actual redo of STEP 1–3's
+  read-and-test work.
+- **The live repo's `state/config.json` is currently broken**: it
+  references `{"type": "quota_8_percent", ...}}`, but no
+  `norms/quota_8_percent.py` (or any file defining that `type_name`)
+  exists anywhere in this branch's history. Confirmed directly
+  (`load_norms(config)` raises `ValueError: unknown norm type
+  'quota_8_percent'`) — the very next round's `actions/harvest.py` would
+  crash immediately on `NormEngine.from_config()`. Traced as far as
+  possible: the norm-implementer's own round 2 session (the 8 tool calls
+  listed above) never touched `state/config.json` at all, and git history
+  on this branch shows the `[] → [{"type": "quota_8_percent", ...}]` edit
+  landed as part of round 2's own commit regardless — meaning it was
+  already sitting uncommitted in the working tree, from outside that
+  session, by the time `stage_norm_implementation()`'s unconditional `git
+  add` on `state/config.json` swept it in. Left unresolved, by design,
+  pending a decision on how to fix it (implement the missing type for
+  real vs. revert the reference) rather than guessing.
