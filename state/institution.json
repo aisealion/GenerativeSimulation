@@ -1,11 +1,12 @@
 {
   "actions": {
-    "harvest": {"file": "actions/harvest.py", "protected": true},
-    "propose": {"file": "actions/propose.py", "protected": true},
-    "critique": {"file": "actions/critique.py", "protected": true},
-    "vote": {"file": "actions/vote.py", "protected": true},
-    "discuss": {"file": "actions/discuss.py", "protected": true}
+    "harvest": {"file": "actions/harvest.py", "protected": true, "gate": "true", "description": "each alive fisher decides today's effort", "actor_role": null},
+    "propose": {"file": "actions/propose.py", "protected": true, "gate": "true", "description": "each alive fisher proposes a candidate community rule", "actor_role": null},
+    "critique": {"file": "actions/critique.py", "protected": true, "gate": "true", "description": "each proposal is refined through a bounded critique-and-revise dialogue before the vote", "actor_role": null},
+    "vote": {"file": "actions/vote.py", "protected": true, "gate": "true", "description": "each alive fisher votes on the refined proposals", "actor_role": null},
+    "discuss": {"file": "actions/discuss.py", "protected": true, "gate": "false", "description": "a pre-existing, currently-unimplemented stub", "actor_role": null}
   },
+  "norm_types": {},
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

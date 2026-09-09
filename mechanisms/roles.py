@@ -10,6 +10,30 @@ def role_holder(role_name, agent_id, fluents, round_number):
     return None
 
 
+def current_holder(fluents, role_name, round_number):
+    """The agent_id currently holding role_name, or None if unassigned.
+    Unlike role_holder() above (which checks whether one *specific* agent
+    holds a role — the question a fisher's own prompt needs to answer
+    about itself), this answers "who holds it" without knowing who to ask
+    first — the lookup an action needs when its own institution.json
+    `actor_role` names a role but the specific agent rotates over rounds.
+    Deliberately never cached anywhere (not in institution.json, not on
+    any object) — this function, called fresh each time, is the single
+    place "who currently holds this role" gets answered, so a rotation
+    can never leave a second, stale answer sitting somewhere else. Relies
+    on the same exclusivity every role fluent already has: one open
+    record per role name at a time (set_fact()'s own termination-on-write
+    behavior enforces this for role fluents the same as any other)."""
+    for record in fluents:
+        if (
+            record["fluent"] == role_name
+            and record["initiated_round"] <= round_number
+            and (record["terminated_round"] is None or record["terminated_round"] > round_number)
+        ):
+            return record["holder"]
+    return None
+
+
 def set_fact(
     fluents, fluent_name, args, holder, round_number,
     narration=None, visibility="agent_only", event_type="fact_initiated",
@@ -156,5 +180,22 @@ def _memory_spec(holder, visibility, event_type, text):
 
 
 def assign_role(role_name, agent_id, fluents, round_number, args=None):
+    """The default `args=None` (-> `[agent_id]`) is correct only for a role
+    every eligible agent holds *simultaneously and independently* (e.g.
+    "fisher" — one open record per agent, all coexisting on purpose).
+
+    For a role only one agent holds *at a time* (a rotating recorder,
+    steward, monitor), pass a fixed, agent-independent `args` instead
+    (`args=[]` is the simplest choice) — set_fact()'s own termination
+    logic only closes a previous record when `(fluent_name, args)`
+    matches exactly, so leaving `args` defaulted to `[agent_id]` for an
+    exclusive role means each new holder's assignment uses different args
+    than the last, never terminates the previous holder's record, and
+    leaves multiple simultaneously-"open" holders for the same role —
+    confirmed directly: `current_holder()` then returns whichever one
+    happens to appear first in `fluents`, silently wrong the instant a
+    rotation happens. Get this right by choosing `args` for what it
+    actually controls (which records `set_fact()` treats as "the same
+    slot"), not by agent identity."""
     args = args if args is not None else [agent_id]
     return set_fact(fluents, role_name, args, agent_id, round_number)

@@ -105,12 +105,30 @@ re-validating (Sections 14–16).
 - `engine/physics.py`, `mechanisms/roles.py`, `mechanisms/stock_check.py`
   — off-limits, fixed physics and generic fluent/stock infrastructure.
 - `state/institution.json` — yours to update, never to invent structure
-  in ad hoc — **the one place "what actions currently exist" lives.**
-  `{"actions": {name: {"file", "protected", "gate"?}}, "state": {...}}`.
-  Update it the moment you add an action or new state field — a drift
-  check (`norm_implementation_institution_errors()`) discards the round
-  if this file and reality (real `actions/*.py` files, `schedule.json`
-  keys) disagree in either direction.
+  in ad hoc — **the one place "what actions and norm types currently
+  exist, structurally" lives.** `{"actions": {name: {"file", "protected",
+  "gate"?, "description"?, "actor_role"?}}, "norm_types": {name:
+  {"description", "owner"}}, "state": {...}}`. Update it the moment you
+  add an action, a genuinely new `norms/*.py` type, or a new state field
+  — a drift check (`norm_implementation_institution_errors()`) discards
+  the round if this file and reality (real `actions/*.py`/`norms/*.py`
+  files, `schedule.json` keys) disagree in either direction.
+  **`actor_role` names which role an action structurally requires (or
+  `null` for "any fisher") — it is never the specific agent_id currently
+  holding that role.** That's a different question, answered a different
+  way: `mechanisms.roles.current_holder(fluents, role_name, round_number)`,
+  looked up fresh every time it's needed (an action's own `prompt_fields()`,
+  say), never cached here. This file only changes when the *institution's
+  shape* changes (a new action, a new role requirement); a rotation
+  changing *who* holds an existing role must never touch it — two places
+  claiming to answer "who holds this right now" will disagree the moment
+  a rotation fires, and nothing would remember to keep both in sync.
+  Similarly, `norm_types` is a static catalog of what norm shapes *exist*
+  (written once, when a genuinely new one is invented) — never confuse it
+  with what's *currently enforced*, which is `state/config.json`'s own
+  `"norms"` list plus a `norm_active` fluent record (see "Institutional
+  objects and fluents" below) that actually tracks when each type was
+  active and for how long.
 - `state/config.json` — yours. `"norms"`: a list of `{"type": ...,
   "id"?: ..., ...params}` objects — **order is enforcement order** (a
   reserve-shaped norm must come after any cap-shaped norm it draws from).
@@ -217,6 +235,18 @@ rule, not an addendum) should generally *replace* `state/config.json`'s
 `"norms"` list rather than append to it; keep an older entry only if the
 new norm's own text genuinely leaves that concern untouched.
 
+**Activating or deactivating a type in `state/config.json` also means
+opening or closing its `norm_active` fluent** (`mechanisms.roles.set_fact()`/
+`end_fact()`, `holder="community"`, `args={"type": "<the type>"}` — see
+`state/fluents_schema.md`). This is what actually answers "was this norm
+in force during round N" later — `state/config.json` only ever shows
+*current* state, not history. If the type is genuinely new (never
+appeared in `state/institution.json`'s `norm_types` catalog before), add
+it there too, once — `norm_types` changes only when a new shape is
+invented, `norm_active` changes every round a type turns on or off; doing
+one without the other leaves either the catalog or the history
+incomplete.
+
 ---
 
 # 1. Understand the Existing System First
@@ -255,11 +285,15 @@ Do not assume a mechanism exists simply because its name suggests it
 does. Inspect the implementation.
 
 **Before deciding a new `norms/{name}.py` file is needed, list what
-already exists.** In your report, name every current `norms/*.py` file's
-`type_name` and a one-line summary of its shape (a flat cap, a
-percentage-of-stock cap, a monthly cumulative tracker, a reserve deposit,
-a ban) — then state explicitly which one you're reusing (parametrically,
-via `state/config.json` alone) or, if none fit, exactly why not, before
+already exists.** Start from `state/institution.json`'s `norm_types`
+catalog — it's the fast, already-summarized answer, kept exactly for
+this — and fall back to reading `norms/*.py` directly only if the
+catalog looks missing or stale (an entry whose `owner` file doesn't
+exist, say). In your report, name every current type's `type_name` and a
+one-line summary of its shape (a flat cap, a percentage-of-stock cap, a
+monthly cumulative tracker, a reserve deposit, a ban) — then state
+explicitly which one you're reusing (parametrically, via
+`state/config.json` alone) or, if none fit, exactly why not, before
 writing a new file. A real run accumulated 10 separate `norms/*.py` files
 implementing the same handful of cap/reserve shapes from scratch, never
 once reusing an earlier one — this is the forcing function meant to
@@ -579,6 +613,37 @@ agent and every bystander it's visible to. Check `state/fluents_schema.md`
 before naming a new fluent; reuse an existing name for an existing
 concept.
 
+**A rotating role's current holder lives only in `state/fluents.json`,
+never in `state/institution.json`.** If a norm introduces a role that
+rotates (a recorder, a steward, a monitor), `state/institution.json`'s
+`actor_role` field says an action *requires* that role, structurally —
+it never says who holds it right now. Whatever needs to know the current
+holder (an action's own `prompt_fields()`, most often) calls
+`mechanisms.roles.current_holder(fluents, role_name, round_number)` fresh,
+every time. Do not add anything like `"active_roles": {"recorder":
+"agent_1"}` to `state/institution.json` to "cache" the answer — the
+moment rotation reassigns the role (a fresh `set_fact()` call, same as
+any role assignment), that cached value goes stale, and nothing would
+ever remember to update it, since `state/institution.json` is only
+touched when the institution's *shape* changes, not every round. Two
+places claiming to answer "who holds this role right now" will disagree
+the instant rotation fires.
+
+**When assigning a role that only one agent holds at a time, `assign_role()`'s
+default `args` silently breaks rotation.** `assign_role(role_name,
+agent_id, fluents, round_number)` defaults its `args` to `[agent_id]` —
+correct for a role every eligible agent holds simultaneously (`fisher`),
+wrong for an exclusive rotating one: `set_fact()` only terminates a
+previous record when `(fluent_name, args)` matches exactly, and each new
+holder's `[agent_id]` differs from the last, so the old holder's record
+never closes — confirmed directly, this leaves two "open" holders at
+once, and `current_holder()` then returns whichever happens to appear
+first, silently wrong. For an exclusive role, always pass a fixed,
+agent-independent `args` instead — `assign_role(role_name, agent_id,
+fluents, round_number, args=[])` is enough — so rotating the role
+actually closes the previous holder's record the way `set_fact()` is
+designed to.
+
 ---
 
 # 10. Agents Must Experience the Consequences
@@ -687,8 +752,12 @@ Only once Section 5's design is written, implement:
    means "every round from now on regardless."
 4. Update `state/institution.json`: add `"{name}": {"file":
    "actions/{name}.py", "protected": false, "gate": "<same gate string as
-   the schedule.json entry>"}`, and any new state fields under
-   `"state"`.
+   the schedule.json entry>", "description": "<one sentence — the same
+   Purpose from Section 5's design>", "actor_role": "<the role name from
+   Section 5's Actor field, or null if it's just any alive fisher>"}`,
+   and any new state fields under `"state"`. `actor_role` is the role
+   requirement, never a specific agent — see "A rotating role's current
+   holder..." in Section 9 for why the two must never be conflated.
 5. A `tests/norm_checks/` test that calls the new action's own
    `ACTION.run(state)` against a minimal fabricated state — required,
    covering both the compliant and non-compliant (`enforcement`) path
@@ -788,7 +857,13 @@ real run. If you named a role in this round's design (a monitor,
 verifier, recorder, steward, committee), also grep your own diff for
 `assign_role(`/`set_fact(` — a role your spec says exists but that
 nothing in the diff ever assigns is exactly the same class of gap, one
-layer up: described, never built.
+layer up: described, never built. Confirm too that any `state/config.json`
+activation/deactivation this round has a matching `norm_active`
+`set_fact()`/`end_fact()` call, and that a genuinely new type also got a
+`state/institution.json` `norm_types` entry — and, separately, that
+`state/institution.json` itself contains no specific agent_id anywhere
+under `actor_role` or any ad hoc "current holder" field you may have been
+tempted to add — that value belongs only in `state/fluents.json`.
 
 **Judgment-verb burden-shifting check.** If `norm.txt` contains any
 judgment-verb from Section 3's trigger list (weighs, judges, inspects,

@@ -3266,3 +3266,95 @@ things worth recording, one encouraging and one urgent:
   add` on `state/config.json` swept it in. Left unresolved, by design,
   pending a decision on how to fix it (implement the missing type for
   real vs. revert the reference) rather than guessing.
+
+## `state/institution.json` split: structural facts vs. per-round state, and `norm_active`/`current_holder()` added (2026-09-09)
+
+By request, closing a gap in the schema before it got used for real: an
+earlier design sketch for extending `state/institution.json` (to track
+which role an action needs, and which norm types exist) risked baking
+*per-round-changing* data into a file that's only actually written when
+the institution's *shape* changes — the identical failure shape already
+diagnosed twice in this file already (a value silently going stale
+because nothing remembers to update it every round). Concretely: if
+`institution.json` stored `"active_roles": {"recorder": "agent_1"}`
+alongside an action's structural entry, that value would disagree with
+reality the moment a role rotation fires, since rotation only ever
+touches `state/fluents.json`.
+
+Fixed by keeping two different questions answered in the two files that
+already own them, never duplicated:
+
+- **`state/institution.json`** gained `"norm_types": {name: {"description",
+  "owner"}}` — a static catalog of what norm *shapes exist*, written once
+  when a genuinely new one is invented — and each action entry gained
+  `"description"` and `"actor_role"` (the role an action structurally
+  *requires*, or `null` for "any fisher" — never a specific agent_id).
+  Both fields only ever change when the institution's shape changes, the
+  same cadence the rest of this file already has.
+- **`state/fluents.json`** gained a new fluent shape, `norm_active`
+  (`holder="community"`, `args={"type": "<norm_types key>"}` — the one
+  deliberate exception to every other fluent's list-shaped `args`, since
+  a norm type has no single agent to key off): opened/closed the same
+  round `state/config.json`'s `"norms"` list activates/deactivates a
+  type, giving a queryable history ("was this norm in force during round
+  N") that `state/config.json` alone (current-state-only) and
+  `norm_types` (a catalog of what *can* exist, not what's active) neither
+  one provides. Registered in `state/fluents_schema.md`.
+- **`mechanisms/roles.py` gained `current_holder(fluents, role_name,
+  round_number)`** — the actual live lookup ("who holds this role right
+  now") an action's `prompt_fields()` calls fresh every time, so
+  `state/institution.json`'s `actor_role` never needs (and must never
+  gain) a cached answer to duplicate it.
+- **`engine/simulate.py`'s `norm_implementation_institution_errors()`**
+  extended with the same drift-check pattern already applied to actions:
+  every `norm_types` entry's `owner` path must exist on disk. Verified
+  directly: a fabricated `norm_types` entry pointing at a nonexistent
+  file is correctly flagged, and clearing it returns to a clean check.
+- Both `norm-implementer.md` copies updated throughout: the Repo map's
+  `state/institution.json` bullet documents the split explicitly: naming
+  the exact failure mode ("two places claiming to answer 'who holds this
+  right now' will disagree the moment rotation fires"); the P0 activation
+  callout now also requires the matching `norm_active` `set_fact()`/
+  `end_fact()` call and a `norm_types` entry for a genuinely new type;
+  Section 1's existing-`norms/`-reuse forcing function now points at the
+  `norm_types` catalog first (cheaper than re-deriving it via Glob+Read
+  every round) before falling back to reading `norms/*.py` directly;
+  Section 13's new-action recipe now sets `actor_role`/`description`; and
+  Section 16 gained a matching self-check line.
+
+**A second, real bug found while verifying the above, not designed in
+advance**: testing `current_holder()` against a simulated role rotation
+(`assign_role("recorder", "agent_3", ...)` then `assign_role("recorder",
+"agent_7", ...)`, using `assign_role()`'s own default call shape) showed
+`current_holder()` still returning `"agent_3"` *after* the rotation.
+Root cause: `assign_role()`'s default `args=[agent_id]` is only correct
+for a role every agent holds *simultaneously and independently* (`fisher`
+— one record per agent, all meant to coexist); for an *exclusive*
+rotating role, each new holder's `[agent_id]` differs from the last, so
+`set_fact()`'s own termination logic (`(fluent_name, args)` exact match)
+never closes the previous holder's record — leaving two simultaneously
+"open" holders, with `current_holder()` returning whichever appears
+first in the list, silently wrong. Fixed by re-testing with a fixed,
+agent-independent `args=[]` instead, which behaves correctly (confirmed:
+exactly one open record, correctly reassigned on rotation). Documented
+at the actual point of failure — `assign_role()`'s own docstring in
+`mechanisms/roles.py`, plus a matching warning in both
+`norm-implementer.md` copies right next to the `current_holder()`
+guidance — rather than only in this file, since this is exactly the kind
+of footgun a model would hit on its own the first time it tries to model
+a rotating role, not something a prose warning alone reliably prevents,
+but a docstring at the call site has a better chance.
+
+Verified: `python3 -m py_compile` on every touched file;
+`pytest tests/regression/ tests/norms/` (38 tests) unaffected — nothing
+here touches existing simulation code paths, only adds a new function and
+a new checked field; `yaml.safe_load()` on the opencode copy's
+frontmatter; a real functional test of `current_holder()` against both
+the buggy default-args rotation (confirmed wrong) and the fixed
+explicit-args rotation (confirmed correct); the `norm_active` dict-args
+fluent shape exercised directly through `set_fact()`/`end_fact()` with no
+code changes needed (confirmed `args` is only ever compared by equality
+in `mechanisms/roles.py`, never iterated as a list, so a dict works
+as-is). Not yet verified against a real round with live model
+credentials — same standing caveat as every other agent-instruction
+change in this file without one.

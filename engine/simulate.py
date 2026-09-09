@@ -756,11 +756,13 @@ def norm_implementation_institution_errors():
     """Drift check between state/institution.json and reality, mirroring
     the existing norm-type-registry check's spirit: a config can be
     syntactically valid and still describe something that doesn't exist.
-    Checked both directions — an action on disk with no institution.json
-    entry is exactly as much a lie as an institution.json entry with no
-    real file, and either one means state/institution.json can no longer
-    be trusted as "the current institution" for next round's understanding
-    step (Section 1 of both norm-implementer.md files)."""
+    Checked both directions for actions — an action on disk with no
+    institution.json entry is exactly as much a lie as an institution.json
+    entry with no real file — and one direction for norm_types (a
+    documented type whose owner file doesn't exist) — and either one means
+    state/institution.json can no longer be trusted as "the current
+    institution" for next round's understanding step (Section 1 of both
+    norm-implementer.md files)."""
     institution_path = ROOT / "state" / "institution.json"
     if not institution_path.is_file():
         return ["state/institution.json is missing"]
@@ -788,6 +790,22 @@ def norm_implementation_institution_errors():
     for name in sorted(declared & on_disk):
         if name not in schedule:
             errors.append(f"state/institution.json lists action {name!r} but schedule.json has no entry for it")
+
+    # Same drift-check pattern, applied to norm_types (added 2026-09-09):
+    # a documented catalog entry claiming a norms/*.py file backs it is
+    # exactly as much a lie as an actions/ entry with no real file, if that
+    # path doesn't actually exist. Deliberately only checks path existence,
+    # not that the file's own type_name matches the catalog key — that
+    # stronger check already exists, done properly (by actually importing
+    # the module), in norm_implementation_orphaned_norm_errors() below;
+    # this one is cheap and doesn't need a subprocess.
+    for name, entry in institution.get("norm_types", {}).items():
+        owner = entry.get("owner")
+        if owner and not (ROOT / owner).is_file():
+            errors.append(
+                f"state/institution.json norm_types[{name!r}] names owner "
+                f"{owner!r} but that file doesn't exist"
+            )
     return errors
 
 
