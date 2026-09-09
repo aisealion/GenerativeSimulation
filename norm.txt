@@ -1,22 +1,3 @@
-Policy: Each fisher may take no more than 12 kg per trip, and the lake must retain at least 25 % of its pre‑trip stock after each round. A community‑elected scribe records the pre‑trip stock, logs each fisher’s haul, enforces limits, imposes a one‑round ban and a 10 % fish fine for violations, and maintains a communal fish reserve.
+Policy: No fisher may take more than 12 kg per trip, and the lake must retain at least 25 % of its pre‑trip stock after each fishing round.
 
-Operationalization: 1. Scribe selection: at the start of each round, the community votes to elect one scribe for that round. The scribe must have no stake in the catch, be trusted and fair, and is accountable to the community.
-2. Pre‑trip recording: before any fishing, the scribe measures and records the lake’s total stock on the communal ledger, noting the round number and the pre‑trip quantity.
-3. Logging: each fisher, upon returning, writes a signed log of the amount taken (up to 12 kg). Logs are posted to the communal ledger and must be signed by the fisher.
-4. Verification: after all logs are collected, the scribe verifies that no one logged more than 12 kg and that the remaining lake stock equals or exceeds 25 % of the pre‑trip total. If either condition fails, the scribe returns the excess to the lake and records a forfeiture.
-5. Ban enforcement: if a fisher fails to log or exceeds 12 kg, the scribe records a one‑round ban by setting "ban_until": current round + 1 in the ledger and notifies the fisher. At the start of each round, the scribe checks the ledger; any fisher with a current round ≤ ban_until is prohibited from fishing and cannot log.
-6. Fine: for each violation, the scribe removes 10 % of the current lake stock from the fisher’s haul, returns it to the lake, and deposits it in the communal fish reserve. The reserve is stored in a communal cellar under the scribe’s supervision.
-7. Spot‑checks: the scribe conducts random checks of fishers’ catches at any time, with the authority granted by the rule. If a violation is found, the scribe applies the ban and fine immediately.
-8. Record‑keeping and audit: all actions—pre‑trip stock, individual logs, fines, bans, and reserve deposits—are recorded in a transparent ledger that every fisher can review. The community can audit the ledger at any time.
-9. Review and replacement: if the community believes the scribe is not acting fairly, a new vote can replace the scribe for the next round.
-10. Dispute resolution: any dispute over logs or fines is resolved by a community panel composed of at least three fishers, including one impartial member, within two days of the issue.
-
-# Additional Norms for Round 3
-- DynamicIndividualCapNorm
-- WeeklyAuditNorm
-- ReserveBoostNorm
-
-Parameters required by these norms:
-- cap_adjustment_factor
-- audit_penalty_rate
-- reserve_boost_threshold
+Operationalization: 1. Before each trip the Community Watch records the lake’s current stock with a sonar gauge and notes the pre‑trip value. 2. Every fisher logs the weight of their haul immediately after finishing; if the haul exceeds 12 kg the surplus is seized by the Watch and added to the communal fish reserve. 3. After all hauls the Watch calculates the remaining stock and checks that it is ≥25 % of the pre‑trip value. 4. A rotating verifier (a different fisher each round) cross‑checks the Watch’s measurement on the spot; if there is a discrepancy the community holds a quick majority vote to either accept the Watch’s figure or halt fishing until a new measurement can be taken. 5. If the lake falls below the 25 % threshold fishing is paused indefinitely until the next scheduled round’s stock meets or exceeds that level; no new hauls may occur during the pause. 6. Violations of the 12 kg limit or the 25 % rule result in a suspension of the offender’s fishing rights for the next round, with the excess fish held in the communal reserve and a one‑kg fine paid directly to the reserve (or equivalent labor). 7. Membership is defined by signing a commitment on the community board; inactive or violating members may be suspended or removed following a majority vote. 8. All fines, suspensions, and labor assignments are decided by the community at the meeting where the rule was adopted, with the fisher offering the required fish or labor that best meets community needs. 9. The communal fish reserve is stored in the dock shed and may be redistributed or used for community meals; it is not a penalty pool but a tool to keep fish within the community.
