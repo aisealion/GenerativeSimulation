@@ -1,4 +1,14 @@
-Policy: Each fisher may take up to 12 kg per trip, and the lake must retain at least 30 kg after each fishing round.
+Policy: The community shall implement a sustainable harvesting limit that caps total fish extraction per round to 5% of the lake's current stock, ensuring long-term ecological balance. Additionally, the norms **DynamicIndividualCapNorm**, **WeeklyAuditNorm**, and **ReserveBoostNorm** are active to dynamically adjust individual caps, conduct weekly audits, and boost communal reserves when needed.
 
-Operationalization: 1. Before every fishing round the volunteer—chosen by a quick vote of the fishers present that day or by rotation if none volunteer—records the pre‑round lake stock and posts it on the dock board. 2. Each fisher logs his catch on the ledger and, if a catch exceeds the 12 kg cap, the excess is returned to communal storage at the dock. 3. After all fishers finish, the volunteer totals the catch, subtracts it from the pre‑round stock, and publicly announces the post‑round lake weight. 4. If the remainder is 30 kg or more, the round is valid and fishers keep their catch. 5. If the remainder falls below 30 kg, the volunteer holds the excess fish in communal storage and immediately calls a short community meeting the next morning; the meeting must have a quorum of at least 6 of the 8 fishers. 6. During the meeting the volunteer reports the shortfall and, with the informal council of experienced fishers (Kai, Lani, Nadia, and other long‑term fishers), decides whether to: (a) lower the next round’s individual limit; (b) postpone the next round; or (c) use the stored excess to restore the lake to 30 kg before the next round. 7. All decisions are recorded in the ledger; any adjustments to limits or rules are voted on by simple majority of those present. 8. The volunteer’s role is unpaid but granted priority access to the dock’s storage and the right to serve on the council for rule enforcement.
+Operationalization:
+1. At the start of each round, calculate `cap = 0.05 * available_stock(state["runtime"])`.
+2. **DynamicIndividualCapNorm**: each fisher's personal cap is adjusted by `cap_adjustment_factor` (default 0.05) based on recent stock trends.
+3. **WeeklyAuditNorm**: total catches are summed weekly; excess over the target is penalized at `audit_penalty_rate` (default 0.1).
+4. **ReserveBoostNorm**: if stock falls below `reserve_boost_threshold` (default 120.0), a temporary communal reserve contribution boost is applied.
+5. Any harvest that would cause the round total to exceed the 5% cap is reduced to the cap limit; the excess is returned to the lake and the fisher receives a warning note.
+6. After harvests, stock regeneration proceeds as defined in the physics module.
 
+Parameters:
+- `cap_adjustment_factor`: float, default 0.05 – incremental adjustment to individual caps per stock deviation unit.
+- `audit_penalty_rate`: float, default 0.1 – proportion of excess catch penalized during weekly audits.
+- `reserve_boost_threshold`: float, default 120.0 – stock level below which reserve boosts are triggered.
