@@ -1,3 +1,22 @@
-Policy: Each fisher may take up to 12 kg per trip, and the lake must retain at least 25 % of its pre‑trip stock after each fishing round.
+Policy: Each fisher may take no more than 12 kg per trip, and the lake must retain at least 25 % of its pre‑trip stock after each round. A community‑elected scribe records the pre‑trip stock, logs each fisher’s haul, enforces limits, imposes a one‑round ban and a 10 % fish fine for violations, and maintains a communal fish reserve.
 
-Operationalization: The first fisher of the day records the lake’s weight at dawn in the communal ledger.  Every fisher logs their catch in the same ledger; no catch may exceed 12 kg.  After all fishers finish, the last fisher records the remaining lake weight.  The ledger automatically checks that the remaining weight is at least 25 % of the pre‑trip weight.  Any kg taken over 12 kg is recorded as over‑catch; each kg over the limit incurs a fine of 20 % of the current market value per kg, payable to the community pool within seven days.  If the lake ends with less than 25 % of its pre‑trip stock, the shortfall in kg is multiplied by 20 % of market value and added to the offending fisher’s debt.  All debt balances are stored per fisher in the ledger.  Unpaid penalties trigger a one‑round fishing ban and a proportional reduction of the fisher’s future catch allocation equal to (debt ÷ market‑value per kg) kg per round until cleared.  Market value per kg is the average price per kg that the community earned in the last two fishing rounds; if no sales occurred, a council‑set base rate is used.  Appeals are handled by the fishing council using the ledger as evidence.  The ledger entries are signed and timestamped for audit and appeal purposes.
+Operationalization: 1. Scribe selection: at the start of each round, the community votes to elect one scribe for that round. The scribe must have no stake in the catch, be trusted and fair, and is accountable to the community.
+2. Pre‑trip recording: before any fishing, the scribe measures and records the lake’s total stock on the communal ledger, noting the round number and the pre‑trip quantity.
+3. Logging: each fisher, upon returning, writes a signed log of the amount taken (up to 12 kg). Logs are posted to the communal ledger and must be signed by the fisher.
+4. Verification: after all logs are collected, the scribe verifies that no one logged more than 12 kg and that the remaining lake stock equals or exceeds 25 % of the pre‑trip total. If either condition fails, the scribe returns the excess to the lake and records a forfeiture.
+5. Ban enforcement: if a fisher fails to log or exceeds 12 kg, the scribe records a one‑round ban by setting "ban_until": current round + 1 in the ledger and notifies the fisher. At the start of each round, the scribe checks the ledger; any fisher with a current round ≤ ban_until is prohibited from fishing and cannot log.
+6. Fine: for each violation, the scribe removes 10 % of the current lake stock from the fisher’s haul, returns it to the lake, and deposits it in the communal fish reserve. The reserve is stored in a communal cellar under the scribe’s supervision.
+7. Spot‑checks: the scribe conducts random checks of fishers’ catches at any time, with the authority granted by the rule. If a violation is found, the scribe applies the ban and fine immediately.
+8. Record‑keeping and audit: all actions—pre‑trip stock, individual logs, fines, bans, and reserve deposits—are recorded in a transparent ledger that every fisher can review. The community can audit the ledger at any time.
+9. Review and replacement: if the community believes the scribe is not acting fairly, a new vote can replace the scribe for the next round.
+10. Dispute resolution: any dispute over logs or fines is resolved by a community panel composed of at least three fishers, including one impartial member, within two days of the issue.
+
+# Additional Norms for Round 3
+- DynamicIndividualCapNorm
+- WeeklyAuditNorm
+- ReserveBoostNorm
+
+Parameters required by these norms:
+- cap_adjustment_factor
+- audit_penalty_rate
+- reserve_boost_threshold
