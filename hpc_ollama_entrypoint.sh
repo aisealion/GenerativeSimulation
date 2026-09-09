@@ -300,18 +300,26 @@ mkdir -p logs
 #
 # NORM_IMPLEMENTER_MODEL routes the norm-implementer's (and norm-evaluator's
 # — it shares this same fallback) opencode invocations specifically.
-# Was litellm/Kimi-K2.5 over the Otago LiteLLM proxy; switched back to the
-# local gpt-oss-120b model 2026-09-04, by request, after the Kimi-K2.5
-# quota was exhausted — a paid-model dependency for every single round's
-# norm-implementer/evaluator calls turned out to be a real, hit-in-practice
-# cost, not just a theoretical one. Trades back to the GPU-contention
-# picture this same var was originally introduced to get away from (the
-# norm-implementer/evaluator's 120b calls now share the one allocated GPU
-# with the fisher's own 20b calls again, via Ollama's own model-swapping —
-# see the per-round latency note near OLLAMA_NUM_CTX above), but that's a
-# latency cost, not a hard failure the way an exhausted quota is. Revert to
-# litellm/Kimi-K2.5 (or another litellm/* model) here once quota allows,
-# if the reliability difference matters enough to pay for again.
+# Was litellm/Kimi-K2.5 over the Otago LiteLLM proxy; switched to the local
+# gpt-oss-120b model 2026-09-04, by request, after the Kimi-K2.5 quota was
+# exhausted. Switched back to litellm/Kimi-K2.5 2026-09-10, by request,
+# after analyzing a real 12-round run on the local model found a real,
+# concrete reliability cost of its own: roughly half of all norm-implementer
+# invocations never reached a genuine, deliberate stop (either a
+# zero-token/empty completion from Ollama, or a session that just ended
+# mid-task right after a tool call), and 3 separate calls (2
+# norm-implementer, 1 Understand-Anything build) hung for their full
+# timeout with literally zero output ever captured — most consistent with
+# the local Ollama server itself occasionally not responding to a
+# completion request at all, not a model reasoning failure. Trades the
+# GPU-contention picture this var was originally introduced to escape
+# (norm-implementer/evaluator calls no longer touch the GPU at all now —
+# only the fisher's own 20b calls and, when BUILD_KNOWLEDGE_GRAPH=1, the
+# build agent's 120b calls still do) for a real quota-cost dependency
+# again — see LITELLM_API_KEY's own check right below, now enforced again
+# since this is back to a litellm/* model. Revert to the local model again
+# (the line below, back to `"ollama/${OLLAMA_120B_CTX_MODEL_ID}"`) if quota
+# becomes the binding constraint before the reliability one does.
 #
 # UNDERSTAND_MODEL was briefly routed to Kimi-K2.5 too (2026-09-03, same
 # day) after the local gpt-oss-120b model running the UA build-agent calls
@@ -328,7 +336,7 @@ mkdir -p logs
 # model via OPENCODE_MODEL directly; the two known failure modes above are
 # accepted as a live, unresolved limitation of running UA unattended on
 # that model rather than paid over.
-export NORM_IMPLEMENTER_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
+export NORM_IMPLEMENTER_MODEL="litellm/Kimi-K2.5"
 export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
 
