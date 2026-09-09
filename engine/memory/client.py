@@ -26,6 +26,22 @@ load_dotenv(ROOT / ".env")
 LITELLM_PROXY_BASE_URL = "https://llm.uod.otago.ac.nz/v1"
 DEFAULT_MEMORY_LLM_MODEL = "litellm/Kimi-K2.5"
 DEFAULT_MEMORY_EMBED_MODEL = "litellm/text-embedding-3-small"
+# Used only when LITELLM_API_KEY isn't set (see _default_memory_model()
+# below) — Neo4j itself needs no key and starts fine either way, but
+# without this fallback every memory write/read would silently no-op
+# forever on a KeyError building Graphiti's own LLM/embedder clients.
+# This bare tag is a last resort only (see _default_memory_model()) —
+# Ollama caps every model's context window at 4096 tokens by default
+# regardless of what the model actually supports, silently (no error, just
+# an empty/truncated response), and this tag has no num_ctx override.
+# hpc_ollama_entrypoint.sh's own OPENCODE_MODEL already points at an
+# extended-context variant (a separate `ollama create ... num_ctx` tag,
+# not this one) for exactly this reason — reused below when set.
+FALLBACK_MEMORY_LLM_MODEL = "ollama/gpt-oss:120b"
+# gpt-oss:120b has no embedding endpoint, so the embedder always falls back
+# to a real local embedding model instead of the LLM model — pulled by
+# hpc_ollama_entrypoint.sh whenever the memory layer needs it.
+FALLBACK_MEMORY_EMBED_MODEL = "ollama/nomic-embed-text"
 
 # Neo4j vector indices are created with a fixed dimension up front — this
 # must match what the configured embed model actually returns. Extend this
@@ -53,12 +69,33 @@ def _resolve_provider(model_spec):
     )
 
 
+def _default_memory_model(kind):
+    """Defaults to litellm/* unless LITELLM_API_KEY isn't set, in which case
+    memory falls back to local Ollama instead of failing every write/read.
+    An explicit MEMORY_LLM_MODEL/MEMORY_EMBED_MODEL env var always
+    overrides this either way.
+
+    The llm fallback prefers OPENCODE_MODEL over the bare
+    FALLBACK_MEMORY_LLM_MODEL tag when it's set — on Aoraki that's already
+    the extended-context Ollama variant hpc_ollama_entrypoint.sh built
+    (gpt-oss-120b-<N>ctx), not the plain tag, which Ollama silently caps at
+    a 4096-token context window. No equivalent concern for the embedder:
+    a single episode's text is short, well under any default embedding
+    context limit."""
+    have_litellm_key = bool(os.environ.get("LITELLM_API_KEY"))
+    if kind == "llm":
+        if have_litellm_key:
+            return DEFAULT_MEMORY_LLM_MODEL
+        return os.environ.get("OPENCODE_MODEL") or FALLBACK_MEMORY_LLM_MODEL
+    return DEFAULT_MEMORY_EMBED_MODEL if have_litellm_key else FALLBACK_MEMORY_EMBED_MODEL
+
+
 def _build_graphiti():
     llm_model, llm_base_url, llm_api_key = _resolve_provider(
-        os.environ.get("MEMORY_LLM_MODEL", DEFAULT_MEMORY_LLM_MODEL)
+        os.environ.get("MEMORY_LLM_MODEL", _default_memory_model("llm"))
     )
     embed_model, embed_base_url, embed_api_key = _resolve_provider(
-        os.environ.get("MEMORY_EMBED_MODEL", DEFAULT_MEMORY_EMBED_MODEL)
+        os.environ.get("MEMORY_EMBED_MODEL", _default_memory_model("embed"))
     )
 
     llm_config = LLMConfig(api_key=llm_api_key, model=llm_model, base_url=llm_base_url)

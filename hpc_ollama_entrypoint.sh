@@ -625,6 +625,20 @@ if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
             export NEO4J_USER="neo4j"
             export NEO4J_PASSWORD="$NEO4J_PW"
             echo "Neo4j reachable at $NEO4J_URI — memory layer enabled for this run."
+            # engine/memory/client.py falls back to local Ollama for both the
+            # memory LLM and embedder whenever LITELLM_API_KEY isn't set —
+            # gpt-oss:120b is already required/present per the check above,
+            # but nomic-embed-text (the embedder fallback) isn't pulled
+            # anywhere else, and unlike the two gpt-oss models this one is
+            # small enough (~274MB) to just pull here rather than requiring
+            # it to already be present.
+            if [ -z "${LITELLM_API_KEY:-}" ]; then
+              echo "LITELLM_API_KEY not set — memory layer will use local Ollama; pulling nomic-embed-text..."
+              if ! ollama pull nomic-embed-text; then
+                echo "'ollama pull nomic-embed-text' failed — memory embedding calls will fail" >&2
+                echo "until this model is available (see engine/memory/client.py)." >&2
+              fi
+            fi
             # Stop it when this script exits, success or failure — SLURM
             # would eventually clean up the job's process group regardless,
             # but an explicit stop avoids leaving a stale PID file for the
