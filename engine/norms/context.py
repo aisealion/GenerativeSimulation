@@ -27,7 +27,7 @@ class HarvestContext:
             runtime=state["runtime"],
             agents=state["agents"],
             round_number=state["round_number"],
-            stock_before=available_stock(state["runtime"]),
+            stock_before=state["runtime"].get("stock_kg", 0.0),
         )
 
     def norm_state(self, key):
