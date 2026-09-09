@@ -1,0 +1,136 @@
+[0m
+> build · gpt-oss-120b-32768ctx
+[0m
+[0m⚙ [0mcodegraph_codegraph_explore {"maxFiles":20,"projectPath":"/home/magha601/code/GenerativeSimulation","query":"understand skill directory"}
+[0m✱ [0mGlob "**/understand/**"[90m 0 matches[0m
+[0m✗ [0mRead /home/magha601/.agents/skills/understand/README.md failed[90m [limit=200, offset=1][0m
+[91m[1mError: [0mFile not found: /home/magha601/.agents/skills/understand/README.md
+[0m→ [0mRead /home/magha601/.agents/skills/understand[90m [limit=10, offset=1][0m
+[0m
+[0m$ [0mgit -C "/home/magha601/code/GenerativeSimulation" rev-parse --git-common-dir
+.git
+[0m
+[0m$ [0mls -a
+.
+..
+actions
+AGENTS.md
+.codegraph
+constants
+.DS_Store
+engine
+generate_agents.py
+.git
+.gitignore
+hpc_ollama_entrypoint.sh
+inspect_session.py
+logs
+mechanisms
+memory
+norm_checks
+norms
+.opencode
+opencode.jsonc
+phases
+prompts
+__pycache__
+pyproject.toml
+.pytest_cache
+roles
+run_simulation.slurm
+slurm-6022443.err
+slurm-6022443.out
+slurm-6022756.err
+slurm-6022756.out
+slurm-6022762.err
+slurm-6022762.out
+slurm-6022823.err
+slurm-6022823.out
+slurm-6024440.err
+slurm-6024440.out
+state
+tests
+.venv-fishery
+[0m
+[0m$ [0mtest -d .ua && echo exists || echo missing
+missing
+[0m
+[0m$ [0mgit -C "/home/magha601/code/GenerativeSimulation" rev-parse --git-dir
+.git
+[0m
+[0m→ [0mRead /home/magha601/.agents/skills/understand/SKILL.md[90m [limit=200, offset=1][0m
+[0m
+[0m$ [0mls -a .ua
+ls: cannot access '.ua': No such file or directory
+[0m
+[0m✗ [0mRead /home/magha601/.agents/skills/understand/README.md failed[90m [limit=200, offset=1][0m
+[91m[1mError: [0mFile not found: /home/magha601/.agents/skills/understand/README.md
+[0m✱ [0mGlob "**/understand-anything-plugin"[90m 0 matches[0m
+[0m→ [0mRead /home/magha601/.agents/skills/understand/merge-batch-graphs.py[90m [limit=200, offset=1][0m
+[0m✱ [0mGlob "understand"[90m 0 matches[0m
+[0m✗ [0mRead /home/magha601/.agents/skills/understand/agents/project-scanner.md failed[90m [limit=200, offset=1][0m
+[91m[1mError: [0mFile not found: /home/magha601/.agents/skills/understand/agents/project-scanner.md
+[0m✱ [0mGlob "package.json"[90m in /home/magha601/.agents/skills/understand · 0 matches[0m
+[0m
+[0m$ [0mls -R /home/magha601/.agents/skills/understand
+/home/magha601/.agents/skills/understand:
+build-fingerprints.mjs
+compute-batches.mjs
+extract-import-map.mjs
+extract-structure.mjs
+extract-structure-result.mjs
+frameworks
+generate-ignore.mjs
+languages
+locales
+merge-batch-graphs.py
+merge-subdomain-graphs.py
+scan-project.mjs
+SKILL.md
+
+/home/magha601/.agents/skills/understand/frameworks:
+django.md
+express.md
+fastapi.md
+flask.md
+gin.md
+nextjs.md
+rails.md
+react.md
+spring.md
+vue.md
+
+/home/magha601/.agents/skills/understand/languages:
+cpp.md
+csharp.md
+css.md
+dockerfile.md
+go.md
+graphql.md
+html.md
+java.md
+javascript.md
+json.md
+kotlin.md
+markdown.md
+php.md
+protobuf.md
+python.md
+ruby.md
+rust.md
+scala.md
+shell.md
+sql.md
+swift.md
+terraform.md
+typescript.md
+yaml.md
+
+/home/magha601/.agents/skills/understand/locales:
+en.md
+ja.md
+ko.md
+ru.md
+zh.md
+zh-TW.md
+[0m

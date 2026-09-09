@@ -6,7 +6,12 @@
     "vote": {"file": "actions/vote.py", "protected": true, "gate": "true", "description": "each alive fisher votes on the refined proposals", "actor_role": null},
     "discuss": {"file": "actions/discuss.py", "protected": true, "gate": "false", "description": "a pre-existing, currently-unimplemented stub", "actor_role": null}
   },
-  "norm_types": {},
+  "norm_types": {
+    "catch_limit_with_forfeiture": {
+      "description": "Enforces a catch limit (percent of stock or kg, whichever is less) with forfeiture of excess and temporary bans for violations",
+      "owner": "norms/catch_limit_with_forfeiture.py"
+    }
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

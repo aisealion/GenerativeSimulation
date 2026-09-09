@@ -2,5 +2,13 @@
   "agent_count": 10,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "norms": []
+  "norms": [
+    {
+      "type": "catch_limit_with_forfeiture",
+      "id": "round_1_limit",
+      "percent_limit": 0.15,
+      "kg_limit": 20.0,
+      "ban_days": 1
+    }
+  ]
 }
