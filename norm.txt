@@ -1,3 +1,18 @@
-Policy: No fisher may take more than 12 kg per trip, and the lake must retain at least 30 % of its pre‑trip stock after each round.
+Policy: Each fisher may take no more than 8 kg per trip, and the lake must retain at least 30 % of its pre‑trip stock after every round. If a fisher exceeds the 8 kg limit or the lake falls below the 30 % threshold, that fisher is flagged and barred from fishing for one full round before being allowed to rejoin.
 
-Operationalization: Pre‑trip: the rotating chair measures the lake’s current stock with a calibrated scale and net, writes the exact weight, time, and date in the communal ledger, and a second fisher verifies and signs the entry; the ledger is posted in the hall and online.  Each fisher logs their catch weight on a personal log, signs it, and submits it to the chair after the round.  The chair tallies total catch, checks every log against the 12 kg limit, and if any fisher exceeds it, the chair calculates the excess, requires the fisher to return it, weighs the returned fish, records the weight, and signs the ledger.  An auditor is randomly selected from the three‑member audit team (excluding the violator and their immediate family) for that return; the auditor independently weighs the same batch, confirms the chair’s measurement, and signs the ledger entry.  The chair verifies that the post‑fishing stock equals the pre‑trip stock minus total catch plus returned excess; if the stock falls below 30 % of the pre‑trip stock, the chair schedules a re‑fishing trip.  During re‑fishing, the chair measures the lake stock before and after the trip, the audit team of three cross‑checks the weight difference, the chair calculates the shortfall needed to bring the lake to 30 % of its pre‑re‑fishing stock, and confirms that the post‑re‑fishing stock meets or exceeds this amount.  All three auditors sign the ledger entry with the new stock figures, and the chair updates the ledger for the next round.  Every ledger entry contains pre‑trip stock, total catch, post‑fishing stock, any excess returned, re‑fishing adjustments, and final verified stock, with signatures of the chair and auditors, ensuring transparency, community ownership, and enforceability.
+Operationalization: 1. Prior to each round, the community rotates the role of ledger keeper among fishers who are not flagged, giving the one who has not served the longest time. If all fishers are flagged, the ledger keeper is selected from the flagged fishers by the same rotation rule.
+2. The ledger keeper records the lake’s pre‑trip stock at the exact start of the round on the communal ledger.
+3. After all fishing, the ledger keeper weighs each fisher’s net, records the actual catch weight, and updates the ledger.
+4. The community collectively reviews the ledger, sums all catches, and verifies that the remaining lake stock equals the pre‑trip stock minus total catch. The community then checks that this remaining stock is at least 30 % of the pre‑trip stock.
+5. If any fisher’s catch exceeds 8 kg or the remaining stock is below 30 % of pre‑trip, the ledger keeper flags that fisher on the ledger and posts the ban.
+6. The community refuses to allow any flagged fisher to participate in the next fishing round.
+7. After one full round has passed, the flagged fisher may rejoin the community fishing activities.
+
+Additional Norms referenced in this policy:
+- DynamicIndividualCapNorm
+- WeeklyAuditNorm
+- ReserveBoostNorm
+Parameters used by these norms:
+- cap_adjustment_factor
+- audit_penalty_rate
+- reserve_boost_threshold
