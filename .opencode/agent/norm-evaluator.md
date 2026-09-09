@@ -111,8 +111,13 @@ returns nothing, an obviously stale answer, or fails outright, don't try
 to fix the index yourself — note it in your report and fall back to
 plain Read/Grep.
 
-- Read `norm.txt` and `state/norm_specs/round_{N}.md` in full, including
-  any `institutional_changes` block.
+- Read `norm.txt` and exactly `state/norm_specs/round_{N}.md` (not
+  `norm_specs/round_{N}.md` — a real round mistook the two, read a
+  nonexistent file at the repo root, and reported `NEEDS_REPAIR` on the
+  false premise that the spec was missing, when it existed the whole
+  time at the correct path). If a direct `read` of that exact path fails,
+  run `glob "**/round_{N}.md"` before concluding it's missing — don't
+  guess a different path from memory.
 - `git diff -- norms actions prompts state/schedule.json state/config.json state/fluents.json state/fluents_schema.md state/institution.json engine/simulate.py`
   to see exactly what the norm-implementer changed this round (this list
   is the same set of paths the norm-implementer is allowed to touch —

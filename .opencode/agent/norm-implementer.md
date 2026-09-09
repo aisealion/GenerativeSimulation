@@ -146,7 +146,11 @@ re-validating (Sections 14–16).
   before any code changes — the fixed target an independent
   `norm-evaluator` subagent tests your implementation against afterward.
   Frozen once you start implementing (see Section 5's own note on the one
-  exception).
+  exception). Write to exactly this path, under `state/` — two real
+  rounds wrote to `norm_specs/round_{N}.md` at the repo root instead
+  (dropping the `state/` prefix), which the orchestrator's own check
+  can't find there and reports as "no spec written at all," discarding
+  otherwise-real work over a path typo.
 - `tests/norm_evaluation/` — **not yours.** The `norm-evaluator`
   subagent's own surface. Never edit it, never let a test failing there
   change your mind about what the spec says — report the disagreement.
@@ -549,6 +553,18 @@ If nothing fits, or a specific parameter is genuinely unrecoverable from
 norm.txt: stop, report exactly why, implement nothing. Don't
 guess-and-flag — an implemented guess is harder to notice and correct
 later than a round that visibly didn't implement anything.
+
+**Writing this file is not the end of your task — it's the halfway point.**
+A real round did exactly this and stopped, self-reporting
+`{"classification": "success", "message": "Round N norm specification
+written..."}` — genuinely believing the round was complete. It wasn't: no
+`norms/*.py`, no `state/config.json`, nothing. The orchestrator now checks
+this mechanically (a spec with zero accompanying code/config/fluent
+changes is rejected and sent back), but don't rely on that catching it —
+in the same response, immediately continue to Section 6 onward and
+actually make every change your own classification table just committed
+to. Every table entry needs its `owner` file to actually exist and be
+correct before you finish, not just be named.
 
 ---
 

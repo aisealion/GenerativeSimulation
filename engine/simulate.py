@@ -207,6 +207,33 @@ def extract_tool_trace(stdout):
     return trace
 
 
+def extract_last_step_reason(stdout):
+    """Returns the `reason` field of the LAST step_finish event in the
+    stream, or None if none found / on parse failure. A genuine, deliberate
+    end of turn always reports "stop". Two other real, confirmed
+    truncation signatures found analyzing an actual 12-round run, both
+    meaning the session ended before the model was actually done, not
+    because it chose to stop: "tool-calls" as the very last event (the
+    session ended right after a tool call, with no follow-up turn at all —
+    7 of 26 real norm-implementer invocations on that run), and "unknown"
+    paired with all-zero token counts (6 of 26) — the underlying model
+    completion itself silently failed or returned empty, and opencode
+    still exited 0, indistinguishable from a real success by returncode
+    alone. See run_norm_implementer()'s use of this."""
+    last_reason = None
+    try:
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            event = json.loads(line)
+            if event.get("type") == "step_finish":
+                last_reason = event.get("part", {}).get("reason")
+    except (json.JSONDecodeError, AttributeError):
+        return None
+    return last_reason
+
+
 def extract_json_report(text, required_keys=()):
     """Pulls the trailing fenced ```json block matching required_keys out of
     an agent's response, scanning from the end backwards so an earlier,
@@ -243,10 +270,17 @@ def extract_evaluation_result(text):
 
 def run_norm_implementer(round_number, extra_message=None):
     """Runs the norm-implementer as an opencode subprocess. Returns True on
-    a clean (returncode 0) run, False on any failure (timeout, crash,
-    non-zero exit) — the caller treats False like a compile error: discard
-    this round's changes and continue, rather than crashing the whole
-    multi-round run."""
+    a clean (returncode 0) run that also ended on a genuine "stop" (see
+    extract_last_step_reason()), False on any failure — a timeout, a
+    crash, a non-zero exit, or a session that was silently truncated
+    mid-task despite exiting 0. Analyzing a real 12-round run found this
+    last case is common (13 of 26 real invocations never reached a
+    deliberate stop) and is very likely why code-writing specifically
+    (which tends to happen only after exploration/spec-writing) so rarely
+    got reached at all — not because the implementation itself was too
+    costly to attempt. The caller treats False like a compile error:
+    discard this round's changes and continue, rather than crashing the
+    whole multi-round run or trusting partial work as if it were final."""
     print("\n--- invoking norm-implementer ---")
     # State the round number explicitly — the model can't reliably infer it
     # from file contents alone. Also restates the closing-json-block
@@ -284,6 +318,7 @@ def run_norm_implementer(round_number, extra_message=None):
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
             tool_call_count=None, step_count=None, tool_call_trace=None,
+            last_step_reason=None,
             report=None, error="timeout after 3600s",
         )
         return False
@@ -291,7 +326,15 @@ def run_norm_implementer(round_number, extra_message=None):
     duration_s = time.monotonic() - start
     tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
     tool_call_trace = extract_tool_trace(result.stdout)
+    last_step_reason = extract_last_step_reason(result.stdout)
     report = extract_json_report(final_text, required_keys={"classification"})
+
+    # A session that ended abnormally (see extract_last_step_reason()'s own
+    # docstring for the two real truncation signatures this catches) is not
+    # trustworthy even though opencode itself exited 0 — the model was cut
+    # off mid-task, not finished. Checked here, not just logged, since a
+    # returncode-0 check alone can't tell the two apart.
+    truncated = result.returncode == 0 and last_step_reason not in (None, "stop")
 
     log_call(
         also_log_to=NORM_IMPLEMENTER_LOG_PATH,
@@ -308,8 +351,13 @@ def run_norm_implementer(round_number, extra_message=None):
         tool_call_count=tool_call_count,
         step_count=step_count,
         tool_call_trace=tool_call_trace,
+        last_step_reason=last_step_reason,
         report=report,
-        error=None if result.returncode == 0 else result.stderr.strip(),
+        error=(
+            result.stderr.strip() if result.returncode != 0
+            else f"session ended abnormally (last step reason: {last_step_reason!r}, not 'stop')"
+            if truncated else None
+        ),
     )
 
     print(final_text)
@@ -318,6 +366,12 @@ def run_norm_implementer(round_number, extra_message=None):
               f"treating this round's norm implementation as failed, not crashing the run.",
               file=sys.stderr)
         print(result.stderr, file=sys.stderr)
+        return False
+    if truncated:
+        print(f"Round {round_number}: norm-implementer's session ended abnormally (last step "
+              f"reason: {last_step_reason!r}, not a genuine 'stop') — likely a failed or "
+              f"truncated completion call, not a deliberate finish. Treating this round's "
+              f"partial work as failed rather than trusting it.", file=sys.stderr)
         return False
     return True
 
@@ -748,9 +802,26 @@ def norm_implementation_missing_spec_errors(round_number):
     before evaluation — catches a round that burns its whole step budget
     on exploration (or hallucinated tool calls) and writes nothing at all.
     Also means the evaluator is never invoked against a round with no
-    ground-truth spec to check against."""
+    ground-truth spec to check against.
+
+    Also checks for a specific, recurring real mistake: the model dropping
+    the "state/" prefix and writing to norm_specs/round_N.md at the repo
+    root instead — confirmed across three separate real rounds (two
+    implementer writes, one evaluator read). A generic "file is missing"
+    message left the model guessing (one evaluator spiraled through
+    several unrelated tool calls before giving up); naming the exact wrong
+    path found is far more actionable than restating the correct one
+    again, which the per-invocation message already does verbatim."""
     spec_path = ROOT / "state" / "norm_specs" / f"round_{round_number}.md"
     if not spec_path.is_file():
+        wrong_path = ROOT / "norm_specs" / f"round_{round_number}.md"
+        if wrong_path.is_file():
+            return [
+                f"You wrote round_{round_number}.md to norm_specs/ (repo root) instead of "
+                f"state/norm_specs/ — move it to exactly state/norm_specs/round_{round_number}.md. "
+                "This is a path mistake, not a missing spec: the content likely already exists, "
+                "it's just in the wrong directory."
+            ]
         return [
             f"state/norm_specs/round_{round_number}.md does not exist — the institutional "
             "design specification (institution designer stage) must be written and "
@@ -762,6 +833,43 @@ def norm_implementation_missing_spec_errors(round_number):
             "real per-requirement specification — write the full spec, not a placeholder."
         ]
     return []
+
+
+def norm_implementation_no_code_changes_errors():
+    """Catches a real, repeatedly-observed failure distinct from a missing
+    spec: the norm-implementer writes a real, substantive spec (passing
+    norm_implementation_missing_spec_errors above) and then simply stops,
+    genuinely believing the round is done — one real round's own closing
+    report was literally {"classification": "success", "message": "Round 8
+    norm specification written..."}, nothing else, not even the documented
+    report schema. Checked here mechanically via git status against
+    NORM_IMPLEMENTER_TRACKED_PATHS (state/norm_specs is deliberately not on
+    that list, so a spec-only round leaves nothing there to see) — never by
+    trusting the model's own self-reported classification, which doesn't
+    reliably match the real schema anyway.
+
+    Same known blind spot as everywhere else this exact path list is used
+    for a "did the implementer do something" check: state/fluents.json can
+    be dirtied by ordinary harvest physics (an agent dying) independent of
+    any implementer action, so a round that coincides with a death and
+    changes nothing else would slip past this. Accepted deliberately, by
+    the same standing decision already made for stage_norm_implementation()
+    — not re-litigated here."""
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "--"] + NORM_IMPLEMENTER_TRACKED_PATHS,
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    )
+    if result.stdout.strip():
+        return []
+    return [
+        "You wrote a real institutional design specification but made zero actual "
+        "code/config/fluent changes — norms/*.py, actions/*.py, state/config.json, "
+        "state/fluents.json, and state/institution.json are all untouched. Writing the "
+        "specification is not the end of your task, it's the halfway point: you must now "
+        "implement every requirement in your own classification table, in this same "
+        "response, before finishing. A closing report claiming success with no files "
+        "touched is not a legitimate success."
+    ]
 
 
 def discard_norm_implementation(round_number, errors):
@@ -868,6 +976,35 @@ MAX_NORM_REPAIR_ATTEMPTS = 2
 # says nothing about whether the code is correct, so it must not consume a
 # repair attempt or discard an otherwise-good round on its own.
 MAX_EVALUATOR_ATTEMPTS = 2
+# Same idea, for the norm-implementer's own process. run_norm_implementer()
+# returning False now covers three cases: a crash, a timeout, or a session
+# that ended abnormally mid-task despite exiting 0 (see
+# extract_last_step_reason()). Analyzing a real 12-round run found the
+# third case alone accounted for roughly half of all invocations — treating
+# any of these as an unretried hard failure (as a bare run_norm_implementer()
+# call would) discarded close to half of all rounds before real work ever
+# had a chance to happen, regardless of whether the eventual code would
+# have been fine.
+MAX_IMPLEMENTER_PROCESS_ATTEMPTS = 2
+
+
+def run_norm_implementer_with_retry(round_number, extra_message=None):
+    """Retries run_norm_implementer() itself, up to
+    MAX_IMPLEMENTER_PROCESS_ATTEMPTS times, on a process-level failure —
+    this is not a finding about the code, so it must not be confused with
+    or consume a MAX_NORM_REPAIR_ATTEMPTS repair attempt. Refreshes the
+    knowledge graph before every real attempt (including retries), same as
+    every other call site in this file — a no-op unless
+    BUILD_KNOWLEDGE_GRAPH=1. Same True/False contract as
+    run_norm_implementer() itself."""
+    for attempt in range(1, MAX_IMPLEMENTER_PROCESS_ATTEMPTS + 1):
+        refresh_knowledge_graph(round_number)
+        if run_norm_implementer(round_number, extra_message=extra_message):
+            return True
+        print(f"Round {round_number}: norm-implementer's own process failed, timed out, or was "
+              f"truncated mid-task (attempt {attempt}/{MAX_IMPLEMENTER_PROCESS_ATTEMPTS}) — "
+              f"retrying the process itself, not spending a repair attempt on it.")
+    return False
 
 
 def implement_and_evaluate_norm(round_number, winning_proposal):
@@ -884,10 +1021,11 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     run_norm_implementer()/run_norm_evaluator() call in this function
     (not just after a commit) so it's fresh at the moment each agent
     actually reads it — a no-op unless BUILD_KNOWLEDGE_GRAPH=1."""
-    refresh_knowledge_graph(round_number)
-    if not run_norm_implementer(round_number):
+    if not run_norm_implementer_with_retry(round_number):
         discard_norm_implementation(
-            round_number, ["norm-implementer run itself failed or timed out — see logs/model_calls.jsonl"]
+            round_number,
+            [f"norm-implementer's process failed, timed out, or was truncated on every attempt "
+             f"(after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see logs/model_calls.jsonl"],
         )
         return False
 
@@ -903,6 +1041,8 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         compile_errors += norm_implementation_institution_errors()
         compile_errors += norm_implementation_orphaned_norm_errors()
         compile_errors += norm_implementation_missing_spec_errors(round_number)
+        if not compile_errors:
+            compile_errors += norm_implementation_no_code_changes_errors()
         if not compile_errors:
             runtime_error = norm_implementation_runtime_errors()
             if runtime_error:
@@ -924,11 +1064,12 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 "implementation beyond what's needed to fix these specific errors. End your "
                 "response with the fenced ```json report block your instructions describe."
             )
-            refresh_knowledge_graph(round_number)
-            if not run_norm_implementer(round_number, extra_message=repair_message):
+            if not run_norm_implementer_with_retry(round_number, extra_message=repair_message):
                 discard_norm_implementation(
                     round_number,
-                    ["norm-implementer repair run itself failed or timed out — see logs/model_calls.jsonl"],
+                    [f"norm-implementer's repair run failed, timed out, or was truncated on every "
+                     f"attempt (after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see "
+                     f"logs/model_calls.jsonl"],
                 )
                 return False
             continue
@@ -993,11 +1134,12 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             "describe.\n\n"
             f"--- Evaluator's report ---\n{evaluation['text']}\n--- end of report ---"
         )
-        refresh_knowledge_graph(round_number)
-        if not run_norm_implementer(round_number, extra_message=repair_message):
+        if not run_norm_implementer_with_retry(round_number, extra_message=repair_message):
             discard_norm_implementation(
                 round_number,
-                ["norm-implementer repair run itself failed or timed out — see logs/model_calls.jsonl"],
+                [f"norm-implementer's repair run failed, timed out, or was truncated on every "
+                 f"attempt (after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see "
+                 f"logs/model_calls.jsonl"],
             )
             return False
 
