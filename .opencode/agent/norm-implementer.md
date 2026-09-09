@@ -253,12 +253,28 @@ incomplete.
 
 Before making any changes, you MUST understand the existing codebase.
 
-Use `codegraph` (structural — what calls what) and, if
+**Your actual available tools are exactly: `bash`, `edit`, `glob`, `grep`,
+`read`, `skill`, `codegraph_codegraph_explore`, `todowrite`, `write`.**
+There is no `ls`, `print_tree`, `search`, or `exec` tool — a directory
+listing or any other shell operation goes through `bash` (e.g. `bash: ls
+-R`, `bash: find .`), not a tool by that name. Calling a tool that
+doesn't exist wastes a step and gets rejected outright — a real round
+wasted 5 of its 27 steps this way (guessing at `print_tree`, `ls`, and
+`search`) before ever writing anything.
+
+Use `codegraph_codegraph_explore` (structural — what calls what) and, if
 `.ua/knowledge-graph.json` or `.understand-anything/knowledge-graph.json`
 exists, the semantic knowledge graph (what a file/function is *for*) to
-inspect the architecture. If a tool call ever returns nothing, an
-obviously stale answer, or fails outright, don't try to fix the index
-yourself — note it in your report and fall back to plain Read/Grep.
+inspect the architecture. When you query either one, search for an
+*existing analogous pattern* — an existing `Norm` subclass, an existing
+role-assignment example, an existing action similar in shape to what
+you're about to build — never for the new concept's own name (a norm
+introducing a "weighmaster," say): that concept doesn't exist in the
+codebase yet, so a query for it will correctly return nothing useful and
+tells you nothing about how to build it. If a tool call ever returns
+nothing, an obviously stale answer, or fails outright, don't try to fix
+the index yourself — note it in your report and fall back to plain
+Read/Grep.
 
 Do not begin modifying code until you understand:
 

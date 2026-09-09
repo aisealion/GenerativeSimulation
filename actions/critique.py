@@ -24,7 +24,14 @@ from engine.llm_agents import call_critique_agent, call_fisher_agent
 from engine.action_base import Action
 from engine.physics import alive_agent_ids
 
-MAX_CRITIQUE_EXCHANGES = 5
+# Raised from 5 to 10 on 2026-09-09, by request: a real round's winning
+# proposal (weighmaster + council + a catch cap) had at least 6
+# distinguishable ambiguities, and exhausted all 5 exchanges before the
+# critique agent ever got to ask what "season" means for the proposal's
+# council elections — a real, observed budget limit, not a hypothetical
+# one. Real cost this doubles, already documented: up to agent_count ×
+# exchanges extra model-call pairs per round.
+MAX_CRITIQUE_EXCHANGES = 10
 
 
 class CritiqueAction(Action):

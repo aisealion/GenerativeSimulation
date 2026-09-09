@@ -92,6 +92,25 @@ the running code.
 
 ## STEP 1 — READ
 
+**Your actual available tools are exactly: `glob`, `grep`, `read`,
+`codegraph_codegraph_explore`, and a narrowly-scoped `bash`** (only
+`python3 -m py_compile`, `pytest`, read-only `git status`/`diff`/`log`,
+`codegraph*`, `grep*` are allowed — anything else is denied). `edit` is
+restricted to `tests/norm_evaluation/*` only. There is no `ls`,
+`print_tree`, `search`, or `exec` tool — any directory listing has to go
+through your allowed `bash` commands above, or `glob`.
+
+Before writing any test, use `codegraph_codegraph_explore` (structural —
+what calls what) and, if `.ua/knowledge-graph.json` or
+`.understand-anything/knowledge-graph.json` exists, the semantic
+knowledge graph (what a file/function is *for*) to understand what the
+norm-implementer's diff actually touches and how it fits the surrounding
+code — the same tools and reasoning `norm-implementer.md`'s own
+"Understand the Existing System First" section uses. If a tool call ever
+returns nothing, an obviously stale answer, or fails outright, don't try
+to fix the index yourself — note it in your report and fall back to
+plain Read/Grep.
+
 - Read `norm.txt` and `state/norm_specs/round_{N}.md` in full, including
   any `institutional_changes` block.
 - `git diff -- norms actions prompts state/schedule.json state/config.json state/fluents.json state/fluents_schema.md state/institution.json engine/simulate.py`
