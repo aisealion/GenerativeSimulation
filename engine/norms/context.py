@@ -26,7 +26,7 @@ class HarvestContext:
             fluents=state["fluents"],
             runtime=state["runtime"],
             agents=state["agents"],
-            round_number=state["round_number"],
+            round_number=state.get("round_number", 0),
             stock_before=available_stock(state["runtime"]),
         )
 
