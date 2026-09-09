@@ -1,14 +1,3 @@
-Policy: The community shall implement a sustainable harvesting limit that caps total fish extraction per round to 5% of the lake's current stock, ensuring long-term ecological balance. Additionally, the norms **DynamicIndividualCapNorm**, **WeeklyAuditNorm**, and **ReserveBoostNorm** are active to dynamically adjust individual caps, conduct weekly audits, and boost communal reserves when needed.
+Policy: Each fisher may take up to 12 kg per trip, and the lake must retain at least 25 % of its pre‑trip stock after each fishing round.
 
-Operationalization:
-1. At the start of each round, calculate `cap = 0.05 * available_stock(state["runtime"])`.
-2. **DynamicIndividualCapNorm**: each fisher's personal cap is adjusted by `cap_adjustment_factor` (default 0.05) based on recent stock trends.
-3. **WeeklyAuditNorm**: total catches are summed weekly; excess over the target is penalized at `audit_penalty_rate` (default 0.1).
-4. **ReserveBoostNorm**: if stock falls below `reserve_boost_threshold` (default 120.0), a temporary communal reserve contribution boost is applied.
-5. Any harvest that would cause the round total to exceed the 5% cap is reduced to the cap limit; the excess is returned to the lake and the fisher receives a warning note.
-6. After harvests, stock regeneration proceeds as defined in the physics module.
-
-Parameters:
-- `cap_adjustment_factor`: float, default 0.05 – incremental adjustment to individual caps per stock deviation unit.
-- `audit_penalty_rate`: float, default 0.1 – proportion of excess catch penalized during weekly audits.
-- `reserve_boost_threshold`: float, default 120.0 – stock level below which reserve boosts are triggered.
+Operationalization: The first fisher of the day records the lake’s weight at dawn in the communal ledger.  Every fisher logs their catch in the same ledger; no catch may exceed 12 kg.  After all fishers finish, the last fisher records the remaining lake weight.  The ledger automatically checks that the remaining weight is at least 25 % of the pre‑trip weight.  Any kg taken over 12 kg is recorded as over‑catch; each kg over the limit incurs a fine of 20 % of the current market value per kg, payable to the community pool within seven days.  If the lake ends with less than 25 % of its pre‑trip stock, the shortfall in kg is multiplied by 20 % of market value and added to the offending fisher’s debt.  All debt balances are stored per fisher in the ledger.  Unpaid penalties trigger a one‑round fishing ban and a proportional reduction of the fisher’s future catch allocation equal to (debt ÷ market‑value per kg) kg per round until cleared.  Market value per kg is the average price per kg that the community earned in the last two fishing rounds; if no sales occurred, a council‑set base rate is used.  Appeals are handled by the fishing council using the ledger as evidence.  The ledger entries are signed and timestamped for audit and appeal purposes.
