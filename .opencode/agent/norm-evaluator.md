@@ -75,7 +75,7 @@ the running code.
   norm-implementer's Decision Granularity Rule). Your test exercises
   `actions.{name}.ACTION.run(state)` the same way, against that action's own
   minimal fabricated state — not `actions.harvest`.
-- `state/institution.json`, `schedule.json` — read-only. For an
+- `state/institution.json`, `state/schedule.json` — read-only. For an
   action-owned requirement, confirm the action is actually registered in
   both (see STEP 1/4 below) before writing anything that exercises its
   behavior — an action that isn't wired in yet has no behavior to test.
@@ -94,7 +94,7 @@ the running code.
 
 - Read `norm.txt` and `state/norm_specs/round_{N}.md` in full, including
   any `institutional_changes` block.
-- `git diff -- norms actions prompts schedule.json state/config.json state/fluents.json state/fluents_schema.md state/institution.json engine/simulate.py`
+- `git diff -- norms actions prompts state/schedule.json state/config.json state/fluents.json state/fluents_schema.md state/institution.json engine/simulate.py`
   to see exactly what the norm-implementer changed this round (this list
   is the same set of paths the norm-implementer is allowed to touch —
   `actions` only ever gains new files here, never a modified existing one;
@@ -105,7 +105,7 @@ the running code.
 - For each requirement, note which file/function the norm-implementer's
   own classification table (in its report, if available) or the diff
   itself says implements it — for anything routed to a new action, this
-  means a specific `actions/{name}.py` file plus its `schedule.json` and
+  means a specific `actions/{name}.py` file plus its `state/schedule.json` and
   `state/institution.json` entries.
 
 ## STEP 2 — WRITE TESTS
@@ -132,7 +132,7 @@ the running code.
   `decision_or_action`, `inputs`, `output`, `state_changes`, `after`,
   `frequency`, `gate`, `enforcement`, `interaction`, `verification`):
   first confirm the structural side — `actions/{name}.py` exists,
-  imports, is registered in `schedule.json` and `state/institution.json`
+  imports, is registered in `state/schedule.json` and `state/institution.json`
   — before writing anything functional. Then write a test exercising
   `actions.{name}.ACTION.run(state)` covering *both* the compliant path
   (the actor makes the decision the norm calls for, using exactly the
@@ -157,11 +157,11 @@ For every requirement, exactly one verdict. For a requirement whose
 the same final verdict — don't skip Level 1 just because Level 2 happens
 to pass (a test can pass against an action that isn't actually wired
 into the round loop, if you built the fabricated `state` by hand instead
-of relying on real `schedule.json` gating):
+of relying on real `state/schedule.json` gating):
 
 - **Level 1 (structural)** — does the required action actually exist:
   `actions/{name}.py` importable, an `Action` subclass, `ACTION.name`
-  matching the filename stem, present in both `schedule.json` and
+  matching the filename stem, present in both `state/schedule.json` and
   `state/institution.json`. Missing or broken at this level is
   `IMPLEMENTATION_ERROR` regardless of what a hand-built test might show —
   "the action runs correctly when I call it directly" doesn't count if
@@ -211,7 +211,7 @@ the same verdict, for the same reason.
   unambiguous (from the spec, resolved or `CLEAR`), the test is correct,
   and the code produces something different — at either level above.
   Quote the requirement text and the actual observed value (or, for a
-  Level 1 failure, exactly what's missing: no file, no `schedule.json`
+  Level 1 failure, exactly what's missing: no file, no `state/schedule.json`
   entry, name mismatch).
 - `SPEC_GAP` — while writing the test you found the spec (even after its
   own clarification step) doesn't actually pin down what compliant means

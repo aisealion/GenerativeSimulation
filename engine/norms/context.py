@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass, field
 
-from mechanisms.stock_check import available_stock
+from engine.physics import available_stock
 
 
 @dataclass

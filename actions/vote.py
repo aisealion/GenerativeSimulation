@@ -21,7 +21,7 @@ class VoteAction(Action):
         critique-then-revise loop's final, possibly-revised text) over
         propose's own raw proposals — falls back to propose's when no
         critique round record exists for this round, so an older
-        schedule.json with critique gated off (or a round resumed from
+        state/schedule.json with critique gated off (or a round resumed from
         before this action existed) still works unchanged."""
         runtime = state["runtime"]
         agents = state["agents"]

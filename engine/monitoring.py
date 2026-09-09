@@ -146,6 +146,64 @@ def _plot_tool_calls(implementer_rows, plot_dir):
     _save(fig, plot_dir / "tool_calls.png")
 
 
+def _agent_step_budget(agent_name, default):
+    """Reads the real `steps:` cap straight from the opencode agent's own
+    frontmatter (`.opencode/agent/{agent_name}.md` — the copy
+    engine/simulate.py actually invokes, per CLAUDE.md) rather than
+    hardcoding a number here that could silently drift from it. A plain
+    regex, not a YAML parse — PyYAML isn't a project dependency (checked
+    directly: not in pyproject.toml), and this module has to keep working
+    in the minimal HPC venv, so pulling one in just to read a single
+    top-level integer field isn't worth the new dependency. Falls back to
+    `default` on any read/parse failure, same "telemetry degrades, doesn't
+    block" contract as the rest of this module."""
+    try:
+        text = (ROOT / ".opencode" / "agent" / f"{agent_name}.md").read_text()
+        match = re.search(r"^steps:\s*(\d+)", text, re.MULTILINE)
+        return int(match.group(1)) if match else default
+    except OSError:
+        return default
+
+
+def _plot_steps(call_log, plot_dir):
+    """Step count (one full model turn — see parse_opencode_jsonl()'s own
+    docstring for how this differs from tool-call count) per invocation,
+    for both norm-implementer and norm-evaluator on one chart, each against
+    its own steps: budget as a reference line — added 2026-09-09, by
+    request, specifically so it's visible how close a real round is
+    running to actually exhausting its budget (the failure mode
+    PHASE/Section 16's own "ran out of budget" handling exists for),
+    rather than only ever inferring that after the fact from a truncated
+    response."""
+    implementer_rows = [row for row in call_log if row.get("call") == "norm_implementer"]
+    evaluator_rows = [row for row in call_log if row.get("call") == "norm_evaluator"]
+    if not implementer_rows and not evaluator_rows:
+        return
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    ax.set_title("Agent step count per invocation (vs. each agent's own steps: budget)")
+    ax.set_xlabel("round")
+    ax.set_ylabel("steps used")
+
+    if implementer_rows:
+        rounds = [row["round"] for row in implementer_rows]
+        counts = [row.get("step_count") or 0 for row in implementer_rows]
+        ax.bar([r - 0.2 for r in rounds], counts, width=0.4, color="tab:blue", label="norm-implementer")
+    if evaluator_rows:
+        rounds = [row["round"] for row in evaluator_rows]
+        counts = [row.get("step_count") or 0 for row in evaluator_rows]
+        ax.bar([r + 0.2 for r in rounds], counts, width=0.4, color="tab:orange", label="norm-evaluator")
+
+    implementer_budget = _agent_step_budget("norm-implementer", 500)
+    evaluator_budget = _agent_step_budget("norm-evaluator", 300)
+    ax.axhline(implementer_budget, color="tab:blue", linestyle="--", linewidth=1,
+               label=f"norm-implementer budget ({implementer_budget})")
+    ax.axhline(evaluator_budget, color="tab:orange", linestyle="--", linewidth=1,
+               label=f"norm-evaluator budget ({evaluator_budget})")
+    ax.legend(fontsize=7)
+    _save(fig, plot_dir / "steps.png")
+
+
 def _plot_commits(call_log, plot_dir):
     fig, ax = plt.subplots(figsize=(9, 5))
     ax.set_title("Norm-implementer outcome per round")
@@ -197,5 +255,6 @@ def update_plots(state):
             _plot_tool_calls(implementer_rows, plot_dir)
             _plot_tests(implementer_rows, plot_dir)
         _plot_commits(call_log, plot_dir)
+        _plot_steps(call_log, plot_dir)
     except Exception as exc:
         print(f"  [monitoring plots skipped: {exc}]")

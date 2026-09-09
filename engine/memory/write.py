@@ -10,7 +10,7 @@ from graphiti_core.nodes import EpisodeType
 from engine.memory.client import ensure_indices, graphiti, round_reference_time, run_async
 
 # Seeded from the norm-implementer's six templates (see
-# .claude/agents/norm-implementer.md / .opencode/agent/norm-implementer.md:
+# .opencode/agent/norm-implementer.md:
 # role_fluent, periodic_check, threshold_obligation, reporting_obligation,
 # graduated_sanction, new_action) plus the events that already occur every
 # game today (vote_outcome, proposal_made, routine_harvest). Scores 1-10 —
@@ -26,7 +26,7 @@ IMPORTANCE_BY_EVENT_TYPE = {
     "proposal_made": 3,
     "proposal_refined": 3,
     "routine_harvest": 1,
-    # Generic fallback for mechanisms.roles.set_fact()/end_fact() calls that
+    # Generic fallback for roles.roles.set_fact()/end_fact() calls that
     # don't specify a more specific type above — same importance band as
     # vote_outcome/new_action_activated since these cover a genuine mix of
     # severities (a sanction vs. a minor status change) that a single

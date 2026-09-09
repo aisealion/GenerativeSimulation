@@ -70,7 +70,7 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # so nothing forensic is lost even though the test files themselves
     # are reverted on a discard.
     "tests/norm_evaluation",
-    "schedule.json",
+    "state/schedule.json",
     "state/config.json",
     "state/fluents.json",
     "state/fluents_schema.md",
@@ -117,15 +117,18 @@ PROTECTED_PATHS = [
     # fixed/human-owned as either of them, never a norm-implementer target.
     "actions/critique.py",
     # A pre-existing, currently-unimplemented stub (raises NotImplementedError,
-    # gated permanently off in schedule.json) — not created by any
+    # gated permanently off in state/schedule.json) — not created by any
     # norm-implementer round, so the same "never edit an existing action
     # file, only add new ones" rule covers it too, implemented or not.
     "actions/discuss.py",
     "engine/action_base.py",
     "engine/norms",
     "engine/physics.py",
-    "mechanisms/roles.py",
-    "mechanisms/stock_check.py",
+    # mechanisms/ renamed to roles/ (2026-09-09), reserved for role/fluent
+    # code only — the old mechanisms/stock_check.py's available_stock()
+    # moved into engine/physics.py (already protected above), since it's
+    # fixed protected infrastructure, not role-related.
+    "roles/roles.py",
 ]
 
 HOLDS_AT_RE = re.compile(r"holdsAt\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)")
@@ -136,13 +139,13 @@ def load_state(round_number):
         "config": json.loads((ROOT / "state" / "config.json").read_text()),
         "fluents": json.loads((ROOT / "state" / "fluents.json").read_text()),
         "runtime": json.loads((ROOT / "state" / "runtime.json").read_text()),
-        "agents": json.loads((ROOT / "state" / "agents.json").read_text()),
+        "agents": json.loads((ROOT / "constants" / "agents.json").read_text()),
         "round_number": round_number,
     }
 
 
 def load_schedule():
-    return json.loads((ROOT / "schedule.json").read_text())
+    return json.loads((ROOT / "state" / "schedule.json").read_text())
 
 
 def evaluate_gate(condition, fluents, round_number):
@@ -156,7 +159,7 @@ def evaluate_gate(condition, fluents, round_number):
 
     match = HOLDS_AT_RE.fullmatch(condition)
     if not match:
-        raise ValueError(f"unsupported schedule.json gate condition: {condition!r}")
+        raise ValueError(f"unsupported state/schedule.json gate condition: {condition!r}")
 
     fluent_name = match.group(1)
     return any(
@@ -194,7 +197,7 @@ def write_memory_episodes(action, state, record, round_number):
 
 def write_fact_memory_events(state, round_number):
     """Mirrors write_memory_episodes() above, but for fluent-sourced events
-    (mechanisms.roles.set_fact()/end_fact() calls carrying narration) rather
+    (roles.roles.set_fact()/end_fact() calls carrying narration) rather
     than an action's own memory_writes() hook. Called once per round, after
     every action for that round has finished — not per-action like
     write_memory_episodes() — because fact_memory_events() finds facts by
@@ -205,7 +208,7 @@ def write_fact_memory_events(state, round_number):
         return
     try:
         from engine.memory.write import write_episode
-        from mechanisms.roles import fact_memory_events
+        from roles.roles import fact_memory_events
 
         for spec in fact_memory_events(state["fluents"], round_number):
             write_episode(round_num=round_number, **spec)
@@ -241,8 +244,25 @@ def parse_opencode_jsonl(stdout):
     `messageID`-scoped `text` events, real multi-message sessions).
     Degrades gracefully on any parse failure (falls back to a zero count
     and the raw stdout) rather than raising, same as before — a schema
-    mismatch here costs telemetry, not the round itself."""
+    mismatch here costs telemetry, not the round itself.
+
+    Also counts `step_finish` events — added 2026-09-09, by request, to
+    plot actual step-budget usage (the `steps: 500`/`steps: 300` cap in
+    each agent's own frontmatter) separately from tool-call count, since
+    they measure different things: a `step` is one full model turn
+    (confirmed directly against a real run's raw JSONL — each carries a
+    `step_start`/`step_finish` pair keyed by the same `messageID`, with
+    `step_finish`'s own `reason` field showing `"tool-calls"` for a turn
+    that called a tool and `"stop"` for the final turn that didn't), while
+    `tool_calls` only counts turns that actually invoked one — a real
+    round showed 9 steps but only 8 tool calls, the ninth being the final
+    text-only response. Counting `step_finish` rather than `step_start`
+    is deliberate but interchangeable in practice — they're always paired
+    1:1 in every real session observed so far; `step_finish` was picked
+    only because it's the one carrying the extra `reason` field, in case
+    that's ever worth surfacing later."""
     tool_calls = 0
+    steps = 0
     texts_by_message = {}
     try:
         for line in stdout.splitlines():
@@ -252,15 +272,17 @@ def parse_opencode_jsonl(stdout):
             event = json.loads(line)
             if event.get("type") == "tool_use":
                 tool_calls += 1
+            elif event.get("type") == "step_finish":
+                steps += 1
             elif event.get("type") == "text":
                 part = event.get("part", {})
                 text = part.get("text")
                 if text:
                     texts_by_message[part.get("messageID")] = text
     except (json.JSONDecodeError, AttributeError):
-        return 0, stdout
+        return 0, 0, stdout
     final_text = "\n\n".join(texts_by_message.values())
-    return tool_calls, final_text or stdout
+    return tool_calls, steps, final_text or stdout
 
 
 def extract_json_report(text, required_keys=()):
@@ -405,12 +427,12 @@ def run_norm_implementer(round_number, extra_message=None):
             call="norm_implementer", agent_id=None, round=round_number, action=None,
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
-            tool_call_count=None, report=None, error="timeout after 3600s",
+            tool_call_count=None, step_count=None, report=None, error="timeout after 3600s",
         )
         return False
 
     duration_s = time.monotonic() - start
-    tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
+    tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
     report = extract_json_report(final_text, required_keys={"classification"})
 
     log_call(
@@ -425,6 +447,7 @@ def run_norm_implementer(round_number, extra_message=None):
         raw_response=result.stdout,
         parsed_response=None,
         tool_call_count=tool_call_count,
+        step_count=step_count,
         report=report,
         error=None if result.returncode == 0 else result.stderr.strip(),
     )
@@ -487,12 +510,12 @@ def run_norm_evaluator(round_number, extra_message=None):
             call="norm_evaluator", agent_id=None, round=round_number, action=None,
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
-            tool_call_count=None, report=None, error="timeout after 1800s",
+            tool_call_count=None, step_count=None, report=None, error="timeout after 1800s",
         )
         return None
 
     duration_s = time.monotonic() - start
-    tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
+    tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
     verdict = extract_evaluation_result(final_text)
 
     log_call(
@@ -507,6 +530,7 @@ def run_norm_evaluator(round_number, extra_message=None):
         raw_response=result.stdout,
         parsed_response=None,
         tool_call_count=tool_call_count,
+        step_count=step_count,
         # Not the full response text (that's already in raw_response/
         # final_text via parse_opencode_jsonl) — just the one-word decision
         # actually extracted, so a log scan can see the outcome without
@@ -665,7 +689,7 @@ def norm_implementation_runtime_errors():
         "import importlib, os\n"
         "from engine.action_base import Action\n"
         "protected_action_names = {'harvest', 'propose', 'critique', 'vote', 'discuss'}\n"
-        "schedule = json.loads(open('schedule.json').read())\n"
+        "schedule = json.loads(open('state/schedule.json').read())\n"
         "for py_file in sorted(os.listdir('actions')):\n"
         "    if not py_file.endswith('.py') or py_file == '__init__.py':\n"
         "        continue\n"
@@ -680,7 +704,7 @@ def norm_implementation_runtime_errors():
         "        if action.name != stem:\n"
         "            raise ValueError(f'actions.{stem}.ACTION.name is {action.name!r}, must match the filename stem {stem!r}')\n"
         "        if stem not in schedule:\n"
-        "            raise ValueError(f'actions.{stem} exists but has no schedule.json entry')\n"
+        "            raise ValueError(f'actions.{stem} exists but has no state/schedule.json entry')\n"
         "    except Exception as exc:\n"
         "        errors.append(f'actions/{py_file}: {type(exc).__name__}: {exc}')\n"
         "if errors:\n"
@@ -771,7 +795,7 @@ def norm_implementation_institution_errors():
     except json.JSONDecodeError:
         return []  # already reported by norm_implementation_compile_errors()'s generic JSON check
 
-    schedule = json.loads((ROOT / "schedule.json").read_text())
+    schedule = json.loads((ROOT / "state" / "schedule.json").read_text())
     protected_action_names = {"harvest", "propose", "critique", "vote", "discuss"}
     on_disk = {
         p.stem for p in (ROOT / "actions").glob("*.py")
@@ -789,7 +813,7 @@ def norm_implementation_institution_errors():
         errors.append(f"state/institution.json lists action {name!r} but actions/{name}.py doesn't exist")
     for name in sorted(declared & on_disk):
         if name not in schedule:
-            errors.append(f"state/institution.json lists action {name!r} but schedule.json has no entry for it")
+            errors.append(f"state/institution.json lists action {name!r} but state/schedule.json has no entry for it")
 
     # Same drift-check pattern, applied to norm_types (added 2026-09-09):
     # a documented catalog entry claiming a norms/*.py file backs it is
@@ -906,8 +930,8 @@ def norm_implementation_orphaned_norm_errors():
 
 def discard_norm_implementation(round_number, errors):
     """Roll back everything the norm-implementer touched this round — a
-    partially-broken change (a working mechanisms/effort.py alongside a
-    broken actions/harvest.py, say) is exactly as unsafe to leave on disk as
+    partially-broken change (a working norms/reserve.py alongside a
+    broken norms/catch_limit.py, say) is exactly as unsafe to leave on disk as
     a fully broken one, since reload_project_modules() re-imports all of it
     regardless. Safe to do unconditionally here: commit_round() hasn't run
     yet, so nothing from this round has been committed —
@@ -1244,7 +1268,13 @@ ROUND_ARTIFACT_PATHS = [
     "norm.txt",
     "plots",
     "state/runtime.json",
-    "state/agents.json",
+    # constants/agents.json deliberately NOT here (removed 2026-09-09,
+    # moved out of state/ into constants/ the same day) — this list is for
+    # data that changes every round; the roster is fixed for the life of a
+    # run (only generate_agents.py, run manually between runs, ever
+    # rewrites it), so it doesn't need repeated re-staging here. It's
+    # still a normal tracked file — committed whenever it's actually
+    # created/regenerated, just not through this per-round mechanism.
     # The norm-implementer's institutional design requirement list — always preserved,
     # same forensic reasoning as logs/norm.txt above: it's what the
     # norm-evaluator judged the round against, and it's still useful
@@ -1429,7 +1459,7 @@ def refresh_knowledge_graph(round_number):
         return
 
     duration_s = time.monotonic() - start
-    tool_call_count, final_text = parse_opencode_jsonl(result.stdout)
+    tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
     # Exit code alone isn't trustworthy — the same silent-no-op failure
     # above returned 0. Verify the graph's own stored commit hash actually
     # caught up to HEAD rather than trusting the process's own report.
@@ -1456,6 +1486,7 @@ def refresh_knowledge_graph(round_number):
         call="knowledge_graph_refresh", agent_id=None, round=round_number, action=None,
         model=model, duration_s=round(duration_s, 3), returncode=result.returncode,
         prompt=" ".join(cmd), raw_response=result.stdout, tool_call_count=tool_call_count,
+        step_count=step_count,
         parsed_response=final_text, error=error,
     )
 
@@ -1482,14 +1513,14 @@ def knowledge_graph_matches_head():
 
 def reload_project_modules():
     """Python caches imported modules for the life of the process — without
-    this, a norm-implementer edit to mechanisms/*.py, norms/*.py, or
+    this, a norm-implementer edit to roles/*.py, norms/*.py, or
     actions/*.py on disk never actually takes effect within a single
     continuous simulate.py run, only the very first round's version of
     that code ever executes. Modules not yet imported (a brand new plugin
     or action file) don't need reloading — the plain import a few lines
     down already gets them fresh.
 
-    norms/ needs more than the mechanisms/actions pattern: engine.norms.
+    norms/ needs more than the roles/actions pattern: engine.norms.
     registry's NORM_TYPES is a module-level statement
     (`NORM_TYPES = _discover_norm_types()`), computed exactly once at
     first import, not recomputed lazily — reloading norms/*.py alone
@@ -1502,14 +1533,14 @@ def reload_project_modules():
     dependencies before their dependents, so each already-imported
     module's own `from x import y` name bindings get refreshed to the
     newly reloaded objects, not left pointing at stale ones —
-    mechanisms/norms first (no project-internal deps of their own),
+    roles/norms first (no project-internal deps of their own),
     then engine.norms.registry (rebinds its own NORM_TYPES against the
     freshly reloaded norms/*.py classes), then engine.norms.engine
     (rebinds its own `from engine.norms.registry import load_norms` to
     the fresh function registry.py's reload just created), then actions
     (rebinds actions/harvest.py's own `from engine.norms.engine import
-    NormEngine` the same way, and mechanisms.x imports same as before)."""
-    for prefix in ("mechanisms", "norms"):
+    NormEngine` the same way, and roles.x imports same as before)."""
+    for prefix in ("roles", "norms"):
         for name in sorted(n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")):
             importlib.reload(sys.modules[name])
     for module_name in ("engine.norms.registry", "engine.norms.engine"):
@@ -1520,7 +1551,7 @@ def reload_project_modules():
 
 
 def run_cycle(round_number):
-    """Run every schedule.json action gated on for this round, in file order.
+    """Run every state/schedule.json action gated on for this round, in file order.
     Skips actions already recorded for this round (resuming after a crash
     mid-round) instead of re-running or skipping past them. Returns False
     if the lake collapsed this round (stop the simulation)."""

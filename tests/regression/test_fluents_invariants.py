@@ -33,7 +33,7 @@ def test_narrated_facts_declare_visibility_and_event_type():
             )
             assert record.get("event_type"), (
                 f"{record['fluent']}/{record['args']} has a narration but no "
-                f"event_type — it won't reach memory (mechanisms.roles.set_fact() "
+                f"event_type — it won't reach memory (roles.roles.set_fact() "
                 f"always sets one; a record missing it was written by hand)"
             )
         if record.get("end_narration"):
@@ -44,6 +44,6 @@ def test_narrated_facts_declare_visibility_and_event_type():
             )
             assert record.get("end_event_type"), (
                 f"{record['fluent']}/{record['args']} has an end_narration but no "
-                f"end_event_type — it won't reach memory (mechanisms.roles.end_fact() "
+                f"end_event_type — it won't reach memory (roles.roles.end_fact() "
                 f"always sets one; a record missing it was written by hand)"
             )

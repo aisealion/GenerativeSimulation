@@ -8,7 +8,7 @@ permission:
     "prompts/role_directives/*": allow
     "prompts/actions/*": allow
     "prompts/phrasing_map.json": allow
-    "schedule.json": allow
+    "state/schedule.json": allow
     "state/config.json": allow
     "state/fluents.json": allow
     "state/fluents_schema.md": allow
@@ -76,7 +76,7 @@ re-validating (Sections 14–16).
   module-level `ACTION` instance — that's what `engine/simulate.py`
   imports and calls, once per action per round. `actions/harvest.py`,
   `propose.py`, `critique.py`, `vote.py`, `discuss.py` (a pre-existing,
-  currently-unimplemented stub, permanently gated off in `schedule.json` —
+  currently-unimplemented stub, permanently gated off in `state/schedule.json` —
   not yours either, implemented or not) are the five pre-existing actions
   and are **permanently off-limits to editing, individually and by
   name — not by directory.** `actions/` itself is on your allowlist for
@@ -102,8 +102,8 @@ re-validating (Sections 14–16).
   (`NormEngine`), `registry.py` (auto-discovery). If a rule seems to need
   a hook the six below don't cover, that's out of scope — stop and report
   it.
-- `engine/physics.py`, `mechanisms/roles.py`, `mechanisms/stock_check.py`
-  — off-limits, fixed physics and generic fluent/stock infrastructure.
+- `engine/physics.py`, `roles/roles.py` — off-limits, fixed physics and
+  generic fluent/stock infrastructure.
 - `state/institution.json` — yours to update, never to invent structure
   in ad hoc — **the one place "what actions and norm types currently
   exist, structurally" lives.** `{"actions": {name: {"file", "protected",
@@ -112,11 +112,11 @@ re-validating (Sections 14–16).
   add an action, a genuinely new `norms/*.py` type, or a new state field
   — a drift check (`norm_implementation_institution_errors()`) discards
   the round if this file and reality (real `actions/*.py`/`norms/*.py`
-  files, `schedule.json` keys) disagree in either direction.
+  files, `state/schedule.json` keys) disagree in either direction.
   **`actor_role` names which role an action structurally requires (or
   `null` for "any fisher") — it is never the specific agent_id currently
   holding that role.** That's a different question, answered a different
-  way: `mechanisms.roles.current_holder(fluents, role_name, round_number)`,
+  way: `roles.roles.current_holder(fluents, role_name, round_number)`,
   looked up fresh every time it's needed (an action's own `prompt_fields()`,
   say), never cached here. This file only changes when the *institution's
   shape* changes (a new action, a new role requirement); a rotation
@@ -161,7 +161,7 @@ re-validating (Sections 14–16).
 - `tests/regression/` — fixed, human-owned. Never weaken or delete a test
   to make it pass; say so explicitly and stop if you believe one is wrong.
 - `tests/norm_checks/` — yours (naming convention in its README).
-- `schedule.json` — `{action_name: gate_condition}`, one entry per active
+- `state/schedule.json` — `{action_name: gate_condition}`, one entry per active
   action. A gate is `"true"`, `"false"`, or `"holdsAt(<fluent_name>)"` —
   the ordering of keys in this file is the actual execution order for the
   round, so a new action's entry goes exactly where Section 5's `after`
@@ -236,7 +236,7 @@ rule, not an addendum) should generally *replace* `state/config.json`'s
 new norm's own text genuinely leaves that concern untouched.
 
 **Activating or deactivating a type in `state/config.json` also means
-opening or closing its `norm_active` fluent** (`mechanisms.roles.set_fact()`/
+opening or closing its `norm_active` fluent** (`roles.roles.set_fact()`/
 `end_fact()`, `holder="community"`, `args={"type": "<the type>"}` — see
 `state/fluents_schema.md`). This is what actually answers "was this norm
 in force during round N" later — `state/config.json` only ever shows
@@ -263,7 +263,7 @@ yourself — note it in your report and fall back to plain Read/Grep.
 Do not begin modifying code until you understand:
 
 1. How simulation rounds are executed (`engine/simulate.py`'s
-   `run_cycle()`, driven by `schedule.json`).
+   `run_cycle()`, driven by `state/schedule.json`).
 2. What actions currently exist (`state/institution.json`, `actions/`).
 3. Which agents/roles participate in each action.
 4. How agents are prompted (`prompts/persona_template.md`,
@@ -272,8 +272,8 @@ Do not begin modifying code until you understand:
 6. How state is represented and modified (`state/*.json`).
 7. How institutional mechanisms are represented (`norms/*.py`, fluents).
 8. How roles/personalities are assigned to agents
-   (`mechanisms/roles.py`'s `assign_role()`/`set_fact()`).
-9. How new actions are registered and scheduled (`schedule.json`,
+   (`roles/roles.py`'s `assign_role()`/`set_fact()`).
+9. How new actions are registered and scheduled (`state/schedule.json`,
    `state/institution.json`).
 10. How existing norms are implemented (read every file under `norms/`
     complete, start to finish — never from a search-result excerpt).
@@ -431,7 +431,7 @@ For each requirement, determine whether the norm requires:
 - adding an agent role, or assigning an existing role to an agent;
 - adding state, a ledger, a resource/account, a record;
 - adding monitoring, reporting, verification, enforcement, consequences;
-- changing action ordering (`schedule.json` key order, or a new gate);
+- changing action ordering (`state/schedule.json` key order, or a new gate);
 - adding agent-visible institutional information (a fluent's narration, a
   prompt field);
 - or a combination of these.
@@ -543,7 +543,7 @@ sufficient. If you introduce a new action, you must ensure an appropriate
 agent has: the responsibility for it, an appropriate role, an appropriate
 prompt, the information required to decide, access to the relevant
 institutional state, and an actual opportunity to perform it (a
-`schedule.json` entry that actually runs).
+`state/schedule.json` entry that actually runs).
 
 For example, if the norm requires a community ledger, something must
 maintain it — determine who has the institutional responsibility, and
@@ -558,7 +558,7 @@ Do not create an action that agents have no reason or ability to perform.
 
 Whenever a new action requires an agent decision, identify the
 appropriate agent using the existing role mechanism
-(`mechanisms.roles.assign_role()` / `set_fact()`), not an arbitrary
+(`roles.roles.assign_role()` / `set_fact()`), not an arbitrary
 agent chosen for convenience. The selected agent should have a coherent
 institutional responsibility it can reason about in character:
 
@@ -597,7 +597,7 @@ record, a monitoring/inspection record, a sanction record. If the norm
 requires one, create and maintain it as actual simulation state — never
 merely mention it in a prompt.
 
-Use `mechanisms/roles.py`'s primitives, never hand-mutate
+Use `roles/roles.py`'s primitives, never hand-mutate
 `state/fluents.json` directly: `assign_role(role_name, agent_id, fluents,
 round_number)` for roles; `set_fact(fluents, name, args, holder,
 round_number, narration=None, visibility="agent_only", event_type=...)`
@@ -619,7 +619,7 @@ rotates (a recorder, a steward, a monitor), `state/institution.json`'s
 `actor_role` field says an action *requires* that role, structurally —
 it never says who holds it right now. Whatever needs to know the current
 holder (an action's own `prompt_fields()`, most often) calls
-`mechanisms.roles.current_holder(fluents, role_name, round_number)` fresh,
+`roles.roles.current_holder(fluents, role_name, round_number)` fresh,
 every time. Do not add anything like `"active_roles": {"recorder":
 "agent_1"}` to `state/institution.json` to "cache" the answer — the
 moment rotation reassigns the role (a fresh `set_fact()` call, same as
@@ -731,28 +731,28 @@ Existing: harvest, propose, critique, vote
 ```
 
 If a later norm needs to insert an action *between* two that already
-exist, that's a `schedule.json` key-ordering change only — the ordering
-lives in `schedule.json`, never in any action's own file, so inserting
+exist, that's a `state/schedule.json` key-ordering change only — the ordering
+lives in `state/schedule.json`, never in any action's own file, so inserting
 between two existing actions never requires editing either of them.
 
 Only once Section 5's design is written, implement:
 
 1. New `actions/{name}.py`: `from engine.action_base import Action`,
    subclass it (`name = "{name}"`, matching both the filename stem and
-   the `schedule.json` key), implement `run(self, state)` (and
+   the `state/schedule.json` key), implement `run(self, state)` (and
    `prompt_fields()` if it calls an agent), module-level `ACTION =
    {ClassName}()` at the bottom. Any new runtime state it needs is
    lazily initialized inside its own `run()` via `runtime.setdefault(...)`
    — never pre-seed it in `state/runtime.json` yourself.
 2. New `prompts/actions/{name}.md`, same convention as every other file
    in that directory (fourth-wall rules apply).
-3. A `schedule.json` entry, inserted immediately after the `after` action
+3. A `state/schedule.json` entry, inserted immediately after the `after` action
    from Section 5's design. Gate it on a fluent
    (`"holdsAt(some_fluent)"`), not `"true"`, unless the norm genuinely
    means "every round from now on regardless."
 4. Update `state/institution.json`: add `"{name}": {"file":
    "actions/{name}.py", "protected": false, "gate": "<same gate string as
-   the schedule.json entry>", "description": "<one sentence — the same
+   the state/schedule.json entry>", "description": "<one sentence — the same
    Purpose from Section 5's design>", "actor_role": "<the role name from
    Section 5's Actor field, or null if it's just any alive fisher>"}`,
    and any new state fields under `"state"`. `actor_role` is the role
@@ -766,7 +766,7 @@ Only once Section 5's design is written, implement:
 If a rule needs to change an existing action's own decision — not just
 add a new one alongside it — that's "stop and report, needs a human,"
 same as touching `engine/norms/`, `engine/physics.py`, or
-`mechanisms/*.py` directly.
+`roles/roles.py` directly.
 
 ---
 
@@ -779,7 +779,7 @@ appropriate agent prompt is not an implementation; a ledger that's
 created but never updated is not an implementation; a sanction applied
 but invisible to the affected agent is incomplete when the design
 requires the agent to observe it. Check at minimum: the action/norm
-file itself, its prompt, `schedule.json`, `state/institution.json`,
+file itself, its prompt, `state/schedule.json`, `state/institution.json`,
 agent role/personalisation, `norms/README.md` (only if adding a
 genuinely new reusable norm shape worth documenting there), and
 `tests/norm_checks/`.
@@ -788,8 +788,8 @@ genuinely new reusable norm shape worth documenting there), and
 genuinely orchestration-level need (a new scheduling primitive, a
 cross-action safety check), never a convenient place to patch a bug that
 belongs in a norm plugin's own logic. Never edit `engine/*` otherwise,
-`mechanisms/*`, `actions/harvest.py`/`propose.py`/`critique.py`/`vote.py`/
-`discuss.py` specifically, `state/runtime.json`, `state/agents.json`,
+`roles/roles.py`, `actions/harvest.py`/`propose.py`/`critique.py`/`vote.py`/
+`discuss.py` specifically, `state/runtime.json`, `constants/agents.json`,
 `tests/regression/*`, or either norm-implementer file.
 
 ---
@@ -815,7 +815,7 @@ round (`norm_implementation_runtime_errors()`): `ACTION.run()` against
 one fixed minimal scenario, every registered norm type standalone with
 empty params, and (for a new action) a structural check — imports
 cleanly, exposes a real `Action` instance, name matches the filename,
-has a `schedule.json` entry. This is a backstop, not a substitute for
+has a `state/schedule.json` entry. This is a backstop, not a substitute for
 your own test above: it's one fixed scenario, not this norm's own actual
 edge cases, and it will not catch a norm that runs without crashing but
 enforces the wrong number.
@@ -878,7 +878,7 @@ unexamined the way one real round's apparently did.
 
 **Actions.** Does every new action represent a genuine new agent
 decision? Could the requirement have been implemented without one? Is it
-correctly scheduled (`schedule.json` and `state/institution.json` agree
+correctly scheduled (`state/schedule.json` and `state/institution.json` agree
 with each other and with what's on disk)?
 
 **Agents.** Is the correct agent responsible? Does it have an appropriate
@@ -900,9 +900,8 @@ every match has a second argument. Grep any new `prompts/` file for
 internal names/code terms (fourth-wall). `git diff --name-only` and
 confirm it touches nothing under `actions/harvest.py`, `propose.py`,
 `critique.py`, `vote.py`, `discuss.py`, `engine/action_base.py`,
-`engine/norms/`, `engine/physics.py`, `mechanisms/roles.py`,
-`mechanisms/stock_check.py`, or any action an earlier round already
-created.
+`engine/norms/`, `engine/physics.py`, `roles/roles.py`, or any
+action an earlier round already created.
 
 If any of these are not satisfied, keep inspecting and implementing
 rather than declaring the norm implemented.
@@ -959,7 +958,7 @@ accepted norm.
 4. `tests/norm_checks/` and `tests/regression/` results.
 5. If a new `norms/*.py` type was added: one sentence on what future
    norm-shape would make it reusable via config alone. If a new action
-   was added: confirm `state/institution.json` and `schedule.json` were
+   was added: confirm `state/institution.json` and `state/schedule.json` were
    both updated and agree with each other.
 6. Close with a single fenced ```json block — machine-parseable, and the
    actual LAST thing in your response, nothing after it:

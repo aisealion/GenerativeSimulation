@@ -8,7 +8,7 @@ import litellm
 
 from engine.call_log import log_call
 from engine.physics import alive_agent_ids, catch_from_effort, CONSUMPTION_KG
-from mechanisms.roles import role_holder, visible_facts
+from roles.roles import role_holder, visible_facts
 
 
 def _patch_litellm_message_rebuild():
@@ -62,7 +62,7 @@ FISHER_SYSTEM_PROMPT = _load_fisher_system_prompt()
 
 
 def render_persona(agent_id, round_number, action_name):
-    agents = json.loads((ROOT / "state" / "agents.json").read_text())
+    agents = json.loads((ROOT / "constants" / "agents.json").read_text())
     fluents = json.loads((ROOT / "state" / "fluents.json").read_text())
     runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
     config = json.loads((ROOT / "state" / "config.json").read_text())
@@ -363,7 +363,7 @@ def _critique_context():
     evaluator, so plain internal names are fine here. Degrades gracefully
     (empty-but-valid summary) if state/institution.json doesn't exist yet
     rather than raising — this call must never be the reason a round fails."""
-    agents = json.loads((ROOT / "state" / "agents.json").read_text())
+    agents = json.loads((ROOT / "constants" / "agents.json").read_text())
     runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
     config = json.loads((ROOT / "state" / "config.json").read_text())
     institution_path = ROOT / "state" / "institution.json"

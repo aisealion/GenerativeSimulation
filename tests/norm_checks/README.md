@@ -1,7 +1,7 @@
 # tests/norm_checks/
 
 Implementer-authored unit tests, one file per round that touches
-`mechanisms/*.py` or `actions/*.py` (a structural or `new_action` change) —
+`norms/*.py` or `actions/*.py` (a structural or `new_action` change) —
 covering the specific behavior that round's norm asked for.
 
 Distinct from `tests/regression/`: that directory is a fixed, human-owned

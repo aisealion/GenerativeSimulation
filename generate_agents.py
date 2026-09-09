@@ -6,7 +6,7 @@ Assigns personalities the same way Gupta et al.'s CPRModel does
 repo): agent i is altruistic iff i < agent_count * altruism_ratio (a
 deterministic index threshold, not a per-agent coin flip), then a
 specific norm sentence is picked at random from the matching pool in
-prompts/personality_norms.json. Overwrites state/agents.json and
+prompts/personality_norms.json. Overwrites constants/agents.json and
 state/fluents.json, and resets state/runtime.json to a fresh round 0 —
 switching agent count/mechanics makes the previous run's history not
 meaningfully continuable.
@@ -52,7 +52,7 @@ def generate():
             }
         )
 
-    (ROOT / "state" / "agents.json").write_text(json.dumps(agents, indent=2) + "\n")
+    (ROOT / "constants" / "agents.json").write_text(json.dumps(agents, indent=2) + "\n")
     (ROOT / "state" / "fluents.json").write_text(json.dumps(fluents, indent=2) + "\n")
 
     runtime = {"round": 0, "stock_kg": CARRYING_CAPACITY_KG, "rounds": []}

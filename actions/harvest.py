@@ -11,7 +11,7 @@
 
 from engine.norms.context import HarvestContext
 from engine.norms.engine import NormEngine
-from mechanisms.roles import set_fact, end_fact
+from roles.roles import set_fact, end_fact
 from engine.physics import (
     catch_from_effort,
     apply_regrowth,

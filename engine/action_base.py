@@ -1,9 +1,9 @@
 class Action:
-    """Base class for one entry in schedule.json. A module under actions/
+    """Base class for one entry in state/schedule.json. A module under actions/
     defines exactly one subclass and exposes a module-level `ACTION` instance
     of it — that's what engine/simulate.py imports and calls."""
 
-    name = None  # must match the filename stem and the schedule.json key
+    name = None  # must match the filename stem and the state/schedule.json key
 
     def run(self, state):
         """Execute this action's mechanism logic (and any agent calls this
