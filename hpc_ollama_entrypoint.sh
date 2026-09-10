@@ -174,18 +174,27 @@ done
 # hitting, not a random transient hiccup — this repo's prompts grow every
 # round (history window, codegraph_explore output, and now a 10-agent
 # proposals list for the vote action). Create an extended-context variant
-# of each model rather than relying on the 4096 default. Override
-# OLLAMA_NUM_CTX if 32768 isn't enough for either.
-OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-32768}"
-OLLAMA_20B_CTX_MODEL_ID="gpt-oss-20b-${OLLAMA_NUM_CTX}ctx"
-OLLAMA_120B_CTX_MODEL_ID="gpt-oss-120b-${OLLAMA_NUM_CTX}ctx"
+# of each model rather than relying on the 4096 default.
+#
+# Two independent sizes, not one shared value: the 120b norm-implementer's
+# sessions accumulate a long multi-turn tool-call history (a real session
+# has hit 80+ tool calls) and benefit from real headroom; the 20b fisher
+# makes far more calls per round (up to agent_count x ~4) but each one is
+# a single short persona+action prompt with no growing tool-call
+# history, so doubling its context too would just cost KV-cache memory on
+# every one of those many calls for no benefit. Override either
+# independently if needed.
+OLLAMA_NUM_CTX_20B="${OLLAMA_NUM_CTX_20B:-32768}"
+OLLAMA_NUM_CTX_120B="${OLLAMA_NUM_CTX_120B:-65536}"
+OLLAMA_20B_CTX_MODEL_ID="gpt-oss-20b-${OLLAMA_NUM_CTX_20B}ctx"
+OLLAMA_120B_CTX_MODEL_ID="gpt-oss-120b-${OLLAMA_NUM_CTX_120B}ctx"
 
-echo "Creating extended-context variant ${OLLAMA_20B_CTX_MODEL_ID} (num_ctx=${OLLAMA_NUM_CTX}) from gpt-oss:20b..."
-printf 'FROM gpt-oss:20b\nPARAMETER num_ctx %s\n' "$OLLAMA_NUM_CTX" > /tmp/fishery-20b.Modelfile
+echo "Creating extended-context variant ${OLLAMA_20B_CTX_MODEL_ID} (num_ctx=${OLLAMA_NUM_CTX_20B}) from gpt-oss:20b..."
+printf 'FROM gpt-oss:20b\nPARAMETER num_ctx %s\n' "$OLLAMA_NUM_CTX_20B" > /tmp/fishery-20b.Modelfile
 ollama create "$OLLAMA_20B_CTX_MODEL_ID" -f /tmp/fishery-20b.Modelfile
 
-echo "Creating extended-context variant ${OLLAMA_120B_CTX_MODEL_ID} (num_ctx=${OLLAMA_NUM_CTX}) from gpt-oss:120b..."
-printf 'FROM gpt-oss:120b\nPARAMETER num_ctx %s\n' "$OLLAMA_NUM_CTX" > /tmp/fishery-120b.Modelfile
+echo "Creating extended-context variant ${OLLAMA_120B_CTX_MODEL_ID} (num_ctx=${OLLAMA_NUM_CTX_120B}) from gpt-oss:120b..."
+printf 'FROM gpt-oss:120b\nPARAMETER num_ctx %s\n' "$OLLAMA_NUM_CTX_120B" > /tmp/fishery-120b.Modelfile
 ollama create "$OLLAMA_120B_CTX_MODEL_ID" -f /tmp/fishery-120b.Modelfile
 
 # Point opencode's "ollama" provider at THIS job's actual (randomly-assigned)
@@ -209,7 +218,7 @@ cat > .opencode/opencode.json << EOF
       },
       "models": {
         "gpt-oss:120b": { "name": "GPT-OSS 120B (Aoraki Ollama)" },
-        "${OLLAMA_120B_CTX_MODEL_ID}": { "name": "GPT-OSS 120B, ${OLLAMA_NUM_CTX}-token context (Aoraki Ollama)" }
+        "${OLLAMA_120B_CTX_MODEL_ID}": { "name": "GPT-OSS 120B, ${OLLAMA_NUM_CTX_120B}-token context (Aoraki Ollama)" }
       }
     }
   }
