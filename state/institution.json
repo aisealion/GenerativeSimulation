@@ -6,7 +6,12 @@
     "vote": {"file": "actions/vote.py", "protected": true, "gate": "true", "description": "each alive fisher votes on the refined proposals", "actor_role": null},
     "discuss": {"file": "actions/discuss.py", "protected": true, "gate": "false", "description": "a pre-existing, currently-unimplemented stub", "actor_role": null}
   },
-  "norm_types": {},
+  "norm_types": {
+    "catch_cap_10pct": {
+      "file": "norms/catch_cap_10pct.py",
+      "description": "10% catch cap with 1kg sustenance floor - Round 1 adopted norm"
+    }
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

@@ -1,0 +1,10 @@
+Policy: Each fisher may take no more than 10 % of the lake’s current total weight per trip, but must keep at least 1 kg for sustenance; any excess must be returned to the lake or a fee equal to the excess weight in fish value must be paid, and the council may adjust the 10 % limit only with a majority vote when the lake stock changes dramatically.
+
+Operationalization: 1. At the start of each month, the rotating council of five fishers, elected by simple majority, convenes and orders the Stock Watchers to conduct a calibrated trawl‑net survey at representative sites.
+2. The survey yields a total fish‑weight estimate, which the council records in the shared logbook as the “current total weight” for that month and posts it in the community folder.
+3. Before each trip, a fisher reads that number from the logbook and calculates the allowable catch as 10 % of it, with a floor of 1 kg.
+4. The fisher records the actual catch weight in the logbook using the shared hand‑held scale, and takes a timestamped photo of the net and weigh‑in.
+5. After every trip, a random member of the community spot‑checks the weigh‑in; if the discrepancy exceeds 10 %, the case is reviewed.
+6. At the monthly council meeting, all entries are reviewed; fishers who exceeded the 10 % limit must either return the excess fish to the lake or pay a fee calculated as excess weight × current fish‑value per kg, paid in coin or credit.
+7. If the council votes to change the 10 % figure, the new figure takes effect at the next meeting.
+8. The council may consider adjusting the limit only when a “dramatic” change occurs: a >20 % drop in the monthly estimate, a drop below 2,000 kg, or two consecutive months of >10 % declines.
