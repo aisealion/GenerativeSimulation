@@ -108,6 +108,15 @@
     },
     "holder": "community",
     "initiated_round": 2,
+    "terminated_round": 3
+  },
+  {
+    "fluent": "norm_active",
+    "args": {
+      "type": "tiered_catch_limit_with_forfeiture"
+    },
+    "holder": "community",
+    "initiated_round": 3,
     "terminated_round": null
   }
 ]

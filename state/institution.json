@@ -14,6 +14,10 @@
     "catch_limit_with_tax_and_ban": {
       "description": "Enforces a catch limit (percent of stock or kg, whichever is less) with 5kg tax on next catch and one-trip ban for violations, plus minimum reserve requirement",
       "owner": "norms/catch_limit_with_tax_and_ban.py"
+    },
+    "tiered_catch_limit_with_forfeiture": {
+      "description": "Enforces tiered catch limits based on reserve levels: high reserves (≥20kg) get 25%/30kg limit, low reserves (<20kg) get 12%/15kg limit, with immediate forfeiture of excess and one-trip bans",
+      "owner": "norms/tiered_catch_limit_with_forfeiture.py"
     }
   },
   "state": {
