@@ -17,3 +17,5 @@ genuinely new one, as part of that same round's edit.
 | `seasonal_reserve_active` | Indicates a seasonal reserve accumulation period is in effect — tracks periods where fishers contribute a percentage of their catch to a shared communal reserve that must meet a season-end target. |
 | `reserve_deposit` | Records a specific fisher's contribution to the shared seasonal reserve, typically a percentage (e.g., 10%) of their allowed catch. |
 | `proportional_debt` | Indicates a fisher owes an additional deposit from a season-end reserve shortfall, calculated proportionally based on their seasonal catch relative to total community catch. |
+| `penalty_trip_assigned` | Indicates a fisher has been assigned a penalty trip for violating catch limits (exceeding 5kg or violating 15% stock rule). Each penalty requires the fisher to take a mandatory 1kg trip. |
+| `penalty_trip_served` | Indicates a fisher has served/completed a penalty trip, counting toward clearing their pending penalty obligations. |

@@ -4,13 +4,12 @@
   "history_window_rounds": 5,
   "norms": [
     {
-      "type": "catch_limit_with_seasonal_reserve",
-      "id": "round_4_limit",
-      "max_kg_per_trip": 6.0,
-      "reserve_deposit_percent": 0.10,
-      "min_stock_percent_remaining": 0.10,
-      "season_end_reserve_percent": 0.12,
-      "ban_rounds": 1
+      "type": "catch_limit_with_penalty_trips",
+      "id": "round_5_limit",
+      "max_kg_per_trip": 5.0,
+      "reserve_deposit_percent": 0.12,
+      "min_stock_percent_remaining": 0.15,
+      "penalty_trip_kg": 1.0
     }
   ]
 }

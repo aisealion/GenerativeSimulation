@@ -1,11 +1,3 @@
-Policy: Each fisher may take up to 6 kg per trip, must leave at least 10 % of the lake’s current stock untouched, and 10 % of every catch each season is deposited into a shared reserve that must reach at least 12 % of the lake’s final stock; any excess or non‑deposit triggers a transfer to the reserve and a ban on the next trip.
+Policy: Each fisher may take a maximum of 5 kg per trip, must leave at least 15% of the lake’s current stock untouched, and 12% of every catch each season will be deposited into a shared reserve for future generations.
 
-Operationalization: 1. Before each trip the record‑keeper logs the lake stock L in the communal ledger.
-2. A fisher may take no more than min(6 kg, 0.9×L).
-3. After catching, the fisher records catch C, deposits 10 %×C into the reserve column, and updates the lake stock to L‑C.
-4. If C exceeds the 6 kg limit or the 10 % rule, the excess is physically moved to the reserve by the record‑keeper and logged.
-5. The record‑keeper updates the ledger after every trip, and the council verifies totals at season’s end.
-6. At season’s end, the ledger sums all catches and deposits; the council calculates the required reserve R = 0.12×L_final.
-7. If R is not met, the shortfall S is divided proportionally by each fisher’s season‑total catch.
-8. Those additional deposits are recorded in the ledger by the record‑keeper within seven days of the first council meeting after the season.
-9. Any fisher who fails to make a required deposit or who exceeded limits has the excess transferred to the reserve and is barred from the next trip; the council enforces the ban and may seize un‑reserved fish.
+Operationalization: A trip starts when a fisher departs the dock or boat for fishing and ends when the fisher returns to the dock/boat or takes a break longer than 30 minutes. The fisher records the total catch for that trip in the shared ledger upon return. After each trip the observer, elected as the Lake Monitor each season, measures the lake stock and verifies the 15% untouched rule against the post‑trip stock; if the fisher’s catch exceeds 5 kg or the remaining stock falls below 15%, the excess fish are returned to the lake and a penalty of one extra 1 kg trip is added to the ledger. The 12% of the season’s total catch is calculated at the end of the season, added to the reserve ledger, and the corresponding kilograms are physically placed in a communal reserve container at the dock. The Lake Monitor guards the container, ensures the ledger matches the physical stock, and reports any discrepancies at the monthly meeting. No fisher may take from the reserve until the fishing council adopts a rule for access by majority vote.

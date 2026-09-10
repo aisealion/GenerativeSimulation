@@ -126,6 +126,15 @@
     },
     "holder": "community",
     "initiated_round": 4,
+    "terminated_round": 5
+  },
+  {
+    "fluent": "norm_active",
+    "args": {
+      "type": "catch_limit_with_penalty_trips"
+    },
+    "holder": "community",
+    "initiated_round": 5,
     "terminated_round": null
   }
 ]
