@@ -10,6 +10,10 @@
     "catch_limit_with_forfeiture": {
       "description": "Enforces a catch limit (percent of stock or kg, whichever is less) with forfeiture of excess and temporary bans for violations",
       "owner": "norms/catch_limit_with_forfeiture.py"
+    },
+    "catch_limit_with_tax_and_ban": {
+      "description": "Enforces a catch limit (percent of stock or kg, whichever is less) with 5kg tax on next catch and one-trip ban for violations, plus minimum reserve requirement",
+      "owner": "norms/catch_limit_with_tax_and_ban.py"
     }
   },
   "state": {

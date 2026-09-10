@@ -4,11 +4,12 @@
   "history_window_rounds": 5,
   "norms": [
     {
-      "type": "catch_limit_with_forfeiture",
-      "id": "round_1_limit",
+      "type": "catch_limit_with_tax_and_ban",
+      "id": "round_2_limit",
       "percent_limit": 0.15,
       "kg_limit": 20.0,
-      "ban_days": 1
+      "tax_kg": 5.0,
+      "min_reserve_kg": 1.0
     }
   ]
 }

@@ -100,5 +100,14 @@
     "narration": "Toa has died \u2014 they hadn't been catching enough fish to survive.",
     "visibility": "public",
     "event_type": "fact_initiated"
+  },
+  {
+    "fluent": "norm_active",
+    "args": {
+      "type": "catch_limit_with_tax_and_ban"
+    },
+    "holder": "community",
+    "initiated_round": 2,
+    "terminated_round": null
   }
 ]
