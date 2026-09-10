@@ -7,14 +7,15 @@
     "discuss": {"file": "actions/discuss.py", "protected": true, "gate": "false", "description": "a pre-existing, currently-unimplemented stub", "actor_role": null}
   },
   "norm_types": {
-    "lake_watcher": {"description": "Manages rotating lake-watcher role, stock estimation, communal ledger archiving, and community fund", "owner": "norms/lake_watcher.py"},
-    "percent_stock_cap": {"description": "Enforces 12% catch limit relative to estimated stock; excess returned to lake", "owner": "norms/percent_stock_cap.py"},
-    "reserve_verification": {"description": "Verifies 1kg reserve with lake-watcher and enforces shortfall consequences", "owner": "norms/reserve_verification.py"},
-    "violation_fine": {"description": "Imposes 2% of lake stock fine for violations, collected to community fund by lake-watcher", "owner": "norms/violation_fine.py"}
+    "lake_watcher": {"description": "Manages Kai's role as lake-watcher, communal ledger with deposit tracking, and violation recording", "owner": "norms/lake_watcher.py"},
+    "catch_cap": {"description": "Enforces 4kg per-trip catch limit; violations require surplus deposit to communal reserve", "owner": "norms/catch_cap.py"},
+    "mandatory_reserve": {"description": "Ensures each fisher maintains 1kg personal reserve for sustenance", "owner": "norms/mandatory_reserve.py"},
+    "communal_reserve": {"description": "Manages communal reserve capped at 70kg; monitors lake mass and triggers automatic release to raise lake to 190kg when below 140kg", "owner": "norms/communal_reserve.py"}
   },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg", "communal_fund_kg"],
-    "lake_watcher": ["stock_estimate", "communal_ledger", "community_fund_kg"]
+    "community": ["stock_kg", "communal_reserve_kg"],
+    "lake_watcher": ["communal_ledger", "deposit_history"],
+    "communal_reserve": ["reserve_balance_kg", "deposits", "releases", "distributions"]
   }
 }

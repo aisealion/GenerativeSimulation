@@ -1,6 +1,6 @@
 {
-  "round": 3,
-  "stock_kg": 134.59125005674028,
+  "round": 4,
+  "stock_kg": 96.22604051343124,
   "rounds": [
     {
       "round": 1,
@@ -2290,19 +2290,730 @@
       },
       "winner_index": 6,
       "winning_proposer": "agent_5"
+    },
+    {
+      "round": 4,
+      "action": "harvest",
+      "agents": {
+        "agent_0": {
+          "effort": 0.7,
+          "harvested_kg": 4.71069375198591,
+          "reasoning": "I\u2019ll take a moderate effort to preserve the lake\u2019s modest stock, keeping my catch under the 16.2kg limit and maintaining my 1kg reserve.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        },
+        "agent_1": {
+          "effort": 0.6,
+          "harvested_kg": 4.037737501702209,
+          "reasoning": "I\u2019ll fish at moderate effort, staying well under the 6\u202fkg limit to preserve the lake for future trips.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.4,
+          "harvested_kg": 2.6918250011348057,
+          "reasoning": "I will fish at moderate effort to secure enough for my food and keep the lake healthy.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 1.0,
+          "harvested_kg": 6.729562502837014,
+          "reasoning": "I\u2019ll fish at full effort to secure the 2\u202fkg limit imposed by Solo\u2019s rule and keep the lake above the 120\u202fkg threshold while ensuring I get my 1\u202fkg for self\u2011sustainability.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 0.4,
+          "harvested_kg": 2.6918250011348057,
+          "reasoning": "I\u2019ll take a modest effort to net roughly 5kg\u2014just enough for my needs and a reserve, while keeping the lake healthy for the future.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        },
+        "agent_5": {
+          "effort": 0.85,
+          "harvested_kg": 5.720128127411462,
+          "reasoning": "I\u2019ll work hard but stay well below the 12% cap to keep my 1kg reserve and avoid fines.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        },
+        "agent_6": {
+          "effort": 1.0,
+          "harvested_kg": 6.729562502837014,
+          "reasoning": "I\u2019ll put in full effort\u201416.2\u202fkg is my ceiling and it keeps my reserves well above the 1\u202fkg minimum.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        },
+        "agent_7": {
+          "effort": 1.0,
+          "harvested_kg": 6.729562502837014,
+          "reasoning": "I\u2019ll push full effort to grab the biggest haul; even if I slip over the 12\u202f% cap I\u2019ll pay the small fine and still keep well above my 1\u202fkg need.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        },
+        "agent_8": {
+          "effort": 0.75,
+          "harvested_kg": 5.047171877127761,
+          "reasoning": "I\u2019ll push hard to grab a decent haul\u2014around 10\u201312\u202fkg\u2014while staying under the 12\u202f% cap and keeping my 1\u202fkg reserve intact.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        },
+        "agent_9": {
+          "effort": 0.8,
+          "harvested_kg": 5.383650002269611,
+          "reasoning": "I aim to catch roughly 12.5kg, staying well below the 16.2kg limit and keeping my 1kg reserve intact.",
+          "note": "Reserve kept: 1kg \u2013 verified by Kai.",
+          "participated": true
+        }
+      },
+      "stock_kg_before": 134.59125005674028,
+      "stock_kg_after_harvest": 84.11953128546267,
+      "stock_kg_after_regrowth": 96.22604051343124
+    },
+    {
+      "round": 4,
+      "action": "propose",
+      "proposals": {
+        "agent_0": {
+          "policy": "No fisher may take more than 4\u202fkg per trip, must keep 1\u202fkg for personal sustenance, and any surplus is deposited into a communal reserve capped at 70\u202fkg; if the lake mass falls below 140\u202fkg, the reserve is automatically released to replenish the lake until it reaches 190\u202fkg.",
+          "operationalization": "All catches are logged in a shared ledger immediately after each trip. Fishers who bring in more than 4\u202fkg must deposit the excess into the reserve; the reserve is tracked separately and never exceeds 70\u202fkg. At the end of each month the lake\u2019s mass is measured (e.g., by a simple weigh\u2011and\u2011count method). If the mass is below 140\u202fkg, the reserve is released proportionally to all fishers until the lake reaches 190\u202fkg. Any fisher who exceeds the 4\u202fkg limit, fails to record the catch, or fails to deposit surplus fish will lose the right to fish for the following month. The community holds a monthly meeting to review reserve and lake status, adjust quotas if needed, and resolve any disputes.",
+          "reasoning": "I\u2019ve watched the lake dwindle over these rounds, and the reserve has helped rebuild it. A fixed 4\u202fkg limit with a personal 1\u202fkg keeps us fed but prevents over\u2011harvesting. The capped reserve gives us a safety net, and releasing it only when the lake falls below 140\u202fkg ensures we\u2019re always restoring the lake before it gets too low. Clear record\u2011keeping and monthly reviews give everyone accountability, so no one can take advantage and we keep enough fish for the next generation. This rule balances personal need, community fairness, and long\u2011term sustainability."
+        },
+        "agent_1": {
+          "policy": "Each fisher may take at most 5\u202fkg per trip, and the community\u2019s total catch per trip is capped at 80\u202fkg, with 10\u202f% of the total catch set aside as a reserve fish to be released back into the lake after the trip.",
+          "operationalization": "After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher, who tallies the totals; if any individual exceeds 5\u202fkg, the excess must be released immediately, and if the group total exceeds 80\u202fkg, the community must release the excess from the 10\u202f% reserve portion; any fisher who violates the rule will forfeit a fishing pass for the next month and will be required to volunteer in lake maintenance; the reserve fish will be returned to the lake and protected until the next trip; all fishers will meet monthly to review catches and adjust quotas if needed.",
+          "reasoning": "I care about keeping the lake healthy for future trips, so limiting each catch and setting aside a reserve fish reduces over\u2011exploitation, ensures we maintain a sustainable population, and gives the community a clear, fair system to protect our shared resource."
+        },
+        "agent_2": {
+          "policy": "Each fisher may take no more than 8kg per trip, keep only fish larger than 30cm, and deposit 25% of the total catch into a communal reserve that must never fall below 90kg.",
+          "operationalization": "On every trip each fisher records the weight of the fish they take, noting that 1kg is reserved for personal consumption. The fisher keeps the remaining weight, and 25% of that keepable portion is deposited into a communal reserve held in a shared ledger maintained by Kai. Kai tracks the reserve daily and will announce if it falls below 90kg. If the reserve drops below the threshold, all fishing is suspended until the reserve is replenished to at least 90kg; repeat violations will result in a temporary fishing ban for the offender. Compliance is verified by random checks and self-reporting, with community members encouraged to flag discrepancies.",
+          "reasoning": "I propose this rule to balance my need to survive with the lake\u2019s long\u2011term health. Limiting each trip to 8kg and enforcing a 30cm size cut keeps the population\u2019s young fish from being over\u2011harvested. The 25% reserve deposit and 90kg minimum provide a robust buffer against seasonal depletion and unexpected losses, ensuring that future generations of fish, and thus future harvests, remain viable. Kai\u2019s role as watcher gives the rule authority and accountability, while the clear penalties discourage rule\u2011breaking. This plan keeps the lake productive without sacrificing my daily sustenance."
+        },
+        "agent_3": {
+          "policy": "Each fisherman may keep no more than 1.5\u202fkg per trip, and the collective daily take may not exceed 10\u202f% of the lake\u2019s current stock.",
+          "operationalization": "On each fishing day, every fisher reports catch to Kai. Kai tallies the total; if it exceeds 10\u202f% of the lake\u2019s current stock, each fisher returns the excess proportionally to the lake. The lake\u2019s minimum stock is set at 120\u202fkg; if the stock falls below this, all fishing is suspended until it recovers. Anyone who fails to comply must deposit the excess into a communal maintenance pot and receives a warning from the watcher.",
+          "reasoning": "This keeps the lake healthy while still allowing me to meet my basic 1\u202fkg need per trip. A 1.5\u202fkg cap balances personal livelihood and conservation, and a 10\u202f% daily limit prevents large spikes. The 120\u202fkg minimum protects the lake\u2019s core stock, and the enforcement mechanism (Kai\u2019s oversight and a fine pot) gives the community a clear, fair way to stay on track."
+        },
+        "agent_4": {
+          "policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season.",
+          "operationalization": "Every fishing trip the fisher will log their catch on the communal ledger and hand it to the designated lake\u2011watcher (Kai for this season). The watcher will calculate the season\u2019s biomass and enforce the 6\u202f% rule and 6\u202fkg cap; if a fisher exceeds the limit they must return the excess catch or pay a communal fine. All fishers will rotate as watcher every season to keep accountability, and repeated violations will result in a temporary fishing ban until a communal reconciliation meeting.",
+          "reasoning": "I propose this because it keeps the total harvest below the level that could deplete the lake, caps individual haul so no one can deplete the resource, ensures fairness, and gives the community a clear, enforceable system that protects our future and sustains our food supply."
+        },
+        "agent_5": {
+          "policy": "Each fisher may take up to 12% of the lake\u2019s current stock per trip, keeping a personal 1\u202fkg reserve; any catch beyond that must be returned to the lake.",
+          "operationalization": "Before a trip the fisher notes the lake\u2019s stock; after catching, the catch is weighed and compared to 12% of that stock. If the catch exceeds the limit, the surplus is returned to the lake within 24\u202fh and logged by Kai the lake\u2011watcher. Kai verifies the numbers and, if a fisher fails to return excess, imposes a fine of 2\u202fkg of his next catch. The lake stock must never fall below 70\u202f% of its pre\u2011trip value; if it does, fishing is suspended until the stock recovers. This keeps the lake healthy while giving every fisher a fair, enforceable share.",
+          "reasoning": "I need the lake to stay productive so I can keep fishing, but I also want to get the biggest share I can within a rule that others will accept. A 12\u202f% cap is higher than the 10\u202f% rule we used before, so I can haul more fish each trip, yet the 1\u202fkg reserve keeps me fed. The return rule and fines make people honest, and the 70\u202f% floor stops the lake from being over\u2011exploited, protecting everyone\u2014myself included."
+        },
+        "agent_6": {
+          "policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+          "operationalization": "Each fisher records his catch on a shared logbook; Kai reviews daily totals at 18:00 and alerts the group if limits are breached. If a fisher exceeds 10\u202fkg, the excess is returned to the lake or placed in a community pot to be redistributed. The daily total cap is enforced by Kai tallying the log; any overage results in a temporary fishing ban for that fisher the next day. The reserve is monitored weekly by measuring lake level; if reserve falls below 25\u202f%, fishing is suspended until levels recover.",
+          "reasoning": "I want a rule that protects the lake for future trips while still letting me keep enough fish to survive. A 10\u202fkg per trip limit keeps individual harvests small, the 180\u202fkg daily cap keeps the whole community from over\u2011fishing, and a 25\u202f% reserve keeps the lake healthy. Logging and Kai\u2019s oversight give us accountability and a simple way to punish non\u2011compliance."
+        },
+        "agent_7": {
+          "policy": "Each fisher may take up to 15kg per trip, but no more than 10% of the lake\u2019s current stock, and must leave at least 1kg per trip.",
+          "operationalization": "At the start of each round, Kai calculates 10% of the lake\u2019s current stock and announces it. Each fisher records their catch on a shared ledger and submits the weight to Kai within 24h. Kai verifies the weights; any excess over 15kg or 10% is returned to the lake, and the fisher must pay a community fee equal to 10% of the excess. If a fisher fails to submit their catch record, they forfeit that round\u2019s catch and receive a 20% fine on future rounds until compliance is restored.",
+          "reasoning": "I need enough fish each trip to survive, so I set a reasonable 15kg cap while keeping the lake healthy with a strict 10% limit. The 1kg minimum guarantees everyone can stay fed. Kai\u2019s enforcement keeps us honest and protects the stock for the long haul. This rule balances my own livelihood with the community\u2019s survival and fairness."
+        },
+        "agent_8": {
+          "policy": "Each fisher may take at most 8% of the lake\u2019s current stock per trip, must keep at least 1kg for themselves, and must deposit 5% of their catch into a communal emergency reserve.",
+          "operationalization": "Before each trip the fisher records the lake\u2019s current stock in a communal log. After catching, they weigh their haul; they may keep up to 8% of the logged stock minus 5% to the reserve. The 5% goes into a reserve bin marked by the lake\u2011watcher. Anyone exceeding the limit must return the excess to the lake and forfeits the right to fish for the next two trips. The lake\u2011watcher confirms weights and updates the log; the reserve is used only if it falls below 30kg, otherwise no penalty is imposed.",
+          "reasoning": "I need enough fish each trip to survive and still keep the lake productive. 8% allows me to catch a healthy amount while protecting the stock, and the 5% deposit creates a safety net that holds everyone accountable and keeps the lake sustainable for future trips."
+        },
+        "agent_9": {
+          "policy": "Each fisher may keep up to 12\u202fkg per trip; any weight beyond that must be deposited into the communal lake pool.",
+          "operationalization": "After each trip, the fisher signs a catch ledger noting the total weight. If the weight exceeds 12\u202fkg, the excess is measured and placed in the communal bin. The lake\u2011watcher reviews the ledger weekly and checks that no one has exceeded the limit. If a fisher fails to comply, they must forfeit 1\u202fkg of their next catch into the pool. The communal pool is used for lake maintenance or shared community projects.",
+          "reasoning": "I need to be able to fish for profit while still protecting the lake. A 12\u202fkg limit gives me enough room to keep more than the minimum 1\u202fkg and to benefit the community, yet the deposit ensures we do not deplete the stock. The rule is simple, enforceable, and builds on the community\u2019s past experience with quotas."
+        }
+      }
+    },
+    {
+      "round": 4,
+      "action": "critique",
+      "proposals": {
+        "agent_0": {
+          "policy": "No fisher may take more than 4\u202fkg per trip, must keep 1\u202fkg for personal sustenance; surplus is deposited into a communal reserve capped at 70\u202fkg, which is automatically released to raise the lake to 190\u202fkg when its mass falls below 140\u202fkg.",
+          "operationalization": "1. **Catch limits** \u2013 Every fisher may keep a maximum of 4\u202fkg per trip, reserving 1\u202fkg for themselves; any extra must be deposited into the communal reserve. 2. **Reserve management** \u2013 Kai, the designated lake\u2011watcher, holds the reserve and records its current stock in the shared ledger. The reserve may never exceed 70\u202fkg. 3. **Ledger entry** \u2013 After each trip the fisher logs: name, trip date, catch amount, deposit status (yes/no). Kai records the deposit amount if applicable. 4. **Monthly lake measurement** \u2013 The community measures the lake\u2019s mass at the start of each month and records the value in the ledger. 5. **Reserve release rule** \u2013 If the lake mass is <\u202f140\u202fkg, calculate the required release: `required = 190\u202fkg \u2013 currentMass`. Release amount = `min(required, reserve)`. 6. **Proportional distribution** \u2013 Using the total catch from the previous month, compute each fisher\u2019s share: `share_i = catch_i / totalCatch`. Their release: `release_i = share_i * release`. Add `release_i` to each fisher\u2019s credit balance; deduct `release` from reserve. 7. **Termination of release** \u2013 Stop releasing once the lake reaches 190\u202fkg or the reserve is exhausted. 8. **Violation detection** \u2013 Any ledger entry showing catch\u202f>\u202f4\u202fkg without a corresponding deposit, or any missing ledger entry for a trip, triggers a \u201cviolation\u201d flag tied to the fisher and date. 9. **Violation recording** \u2013 Kai logs the violation in the shared ledger. 10. **Revocation process** \u2013 The next day the community council (all nine other fishers plus Kai) reviews violations. A simple majority vote revokes the fisher\u2019s right to fish for the following month. The ledger records a \u201crevoked\u201d flag and notes that the fisher cannot log a trip until a new vote at the next monthly meeting. 11. **Appeal** \u2013 A revoked fisher may appeal at the next monthly meeting; the council can overturn the revocation with a simple majority. 12. **Transparency** \u2013 All ledger entries, reserve balances, and voting results are publicly posted for community review.",
+          "reasoning": "This version keeps the lake healthy by limiting individual catch and using a communal reserve that automatically restores the lake when needed. It balances personal sustenance, fair contribution to the reserve, and accountability through transparent ledgering and voting. Kai\u2019s role as lake\u2011watcher ensures consistent tracking, while the council\u2019s voting safeguards democratic enforcement."
+        },
+        "agent_1": {
+          "policy": "No fisher may take more than 5\u202fkg per trip; the community\u2019s total catch per trip must not exceed 80\u202fkg, with 10\u202f% of the total catch reserved as fish that are released back into the lake immediately after the trip and protected until the next trip.",
+          "operationalization": "1. After each trip, each fisher records the weight of their catch and submits a written report to Kai, the designated lake\u2011watcher. 2. Kai tallies all individual catches; if any fisher\u2019s haul exceeds 5\u202fkg, the excess is released immediately into the lake and logged. 3. Kai computes the total community catch after individual excesses have been released. 4. 10\u202f% of this total is set aside as reserve fish. 5. If the adjusted total exceeds 80\u202fkg, Kai first releases enough fish from the reserve portion to bring the total down to 80\u202fkg. 6. If the reserve portion is insufficient, the remaining excess is released directly from the catch; all releases are recorded by Kai and marked on the lake map. 7. The remaining reserve fish are returned to a designated reserve zone in the lake, marked by Kai, and protected from fishing until the next trip. 8. Kai issues and tracks fishing passes; any fisher who exceeds the 5\u202fkg individual limit or the 80\u202fkg community limit forfeits their pass for the following month and must volunteer a minimum of 10 hours of lake maintenance work, as assigned by Kai, before regaining the pass. 9. All fishers meet on the first Saturday of each month to review catch reports, verify compliance, discuss any reserve or quota adjustments, and vote on any changes. 10. Kai reports the finalized catch totals, reserve status, and any infractions to the community; these records are entered into the communal ledger and reviewed each month to guide future quota decisions.",
+          "reasoning": "This version consolidates the community\u2019s concerns about reserve protection, enforcement, pass management, and monthly review while keeping the core sustainability limits clear and enforceable. The 10\u202f% reserve is now explicitly set aside, returned, and protected, and the operational steps ensure transparency, accountability, and a clear path to corrective action when limits are breached."
+        },
+        "agent_2": {
+          "policy": "Each fisher may take a maximum of 8\u202fkg per trip, keep only fish larger than 30\u202fcm, and deposit 25\u202f% of the keepable portion into the communal reserve, which must never fall below 90\u202fkg.",
+          "operationalization": "On each trip the fisher records the total catch, subtracts 1\u202fkg for personal sustenance, calculates the keepable portion, and deposits 25\u202f% of that into the shared ledger. Kai, the lake\u2011watcher, verifies compliance, issues a written warning and a 1\u202fkg donation for a first violation, and records the violation. A repeat violation results in a 7\u2011day temporary fishing ban. If the reserve dips below 90\u202fkg, Kai suspends only the fisher(s) whose actions caused the drop, revokes their daily authorization, and lifts the suspension automatically once the ledger shows the reserve is back at or above 90\u202fkg, updating the ledger and notifying the community.",
+          "reasoning": "This version consolidates all agreed points, balances individual rights with long\u2011term sustainability, and gives clear, enforceable steps for record\u2011keeping, penalties, and reserve management."
+        },
+        "agent_3": {
+          "policy": "Each fisher may keep a maximum of 1.5\u202fkg per trip and the collective daily take may not exceed 10\u202f% of the lake\u2019s current stock; the lake\u2019s minimum stock is set at 120\u202fkg, and if it falls below this, fishing is suspended until recovery.",
+          "operationalization": "1. Each fisher logs every individual trip in the communal logbook, noting the weight of fish kept. 2. Kai, the designated lake\u2011watcher, verifies each trip against the 1.5\u202fkg per\u2011trip cap; if a trip exceeds the cap, the excess weight is returned to the lake, recorded as a deposit to communal_fund_kg, and the fisher receives a formal warning. 3. At the end of the day, Kai sums all trips for each fisher and for the community. 4. If the total daily catch exceeds 10\u202f% of the lake\u2019s current stock, Kai proportionally requires each fisher to return the excess; the returned fish are physically placed back into the lake and the weight of those fish is added to communal_fund_kg. 5. Kai monitors the lake\u2019s stock daily; if it falls below 120\u202fkg, he declares a fishing suspension that remains in effect until the next daily measurement shows a stock of 120\u202fkg or more, at which point he announces fishing may resume. 6. Any fisher who receives a second warning for a per\u2011trip or daily violation triggers the community\u2019s existing violation_fine rule, which may impose a fine or temporary ban. 7. All returns and deposits are recorded in the communal ledger, and the communal_fund_kg tracks the cumulative weight of fish deposited for maintenance or communal use.",
+          "reasoning": "This version consolidates the community\u2019s concerns, clarifies the role of Kai, defines how excess fish are handled both physically and accounting\u2011wise, specifies the suspension mechanism, and links warnings to the fine regime, ensuring transparency and enforceability."
+        },
+        "agent_4": {
+          "policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass or 6\u202fkg in any season; excess must be returned or fined double the excess in communal currency, with repeat violations resulting in a one\u2011season ban, and enforcement handled by the next watcher or an elected committee.",
+          "operationalization": "1. After each trip, the fisher records haul (date, kg, identity) on the shared ledger. 2. At season end, all hauls are summed, and the lake\u2019s current biomass is updated on the ledger. 3. The designated watcher (or next in rotation) reviews each fisher\u2019s haul against the 6\u202f% and 6\u202fkg limits using the updated biomass. 4. If a violation is found: a. The fisher reports the excess. b. If the watcher is not the violator, the watcher calculates a fine of twice the excess (fish units = communal currency units) and records a Fine entry, debiting the fisher\u2019s account and crediting the \u201cFines & Penalties\u201d reserve. c. If the violator is the watcher, enforcement is transferred to the next scheduled watcher or a community\u2011elected enforcement committee, which performs steps a\u2013b. 5. If the violator already has a Fine entry for the season (repeat violation), the watcher records a Ban entry listing the fisher, the season of the ban, and the reason; the enforcer marks the fisher\u2019s account as \u201cbanned\u201d and prohibits any future fish record until the ban season ends. 6. Returned fish are deposited into the communal reserve; a Return entry credits the fisher\u2019s account and increases the community pool, and the lake biomass is updated accordingly. 7. All entries (harvest, fine, ban, return) are timestamped and kept in the communal ledger for transparency and audit. 8. At the start of each new season, the ledger is checked for active bans; if none, the fisher may fish again.",
+          "reasoning": "This version consolidates all prior discussions: it maintains long\u2011term sustainability with clear limits, provides transparent and timely enforcement, ensures fairness for watchers, and ties economic consequences to actual fish units, keeping the community accountable while protecting resources."
+        },
+        "agent_5": {
+          "policy": "Each fisher may keep up to 12\u202f% of the lake\u2019s current stock per trip, with a mandatory 1\u202fkg personal reserve included in that 12\u202f%; any excess must be returned within 24\u202fh or deposited in the communal pool, and a 2\u202fkg fine is imposed on the next catch if the excess is not returned; if that catch is less than 2\u202fkg the entire catch is forfeited and a 2\u202fkg debt recorded; the lake stock may never fall below 70\u202f% of its pre\u2011trip value, and Kai the lake\u2011watcher may suspend fishing until the stock rises above 70\u202f%.",
+          "operationalization": "Before each trip Kai records the lake\u2019s current stock (S) via a quick inventory or weighted sample. The fisher may take at most 0.12\u202f\u00d7\u202fS\u202fkg, but must keep 1\u202fkg as a personal reserve; the 1\u202fkg reserve is part of the 12\u202f% limit. After the trip the fisher records the catch in Kai\u2019s ledger, noting any excess above the limit. Excess is returned to the lake or deposited in the communal pool within 24\u202fh; if the fisher fails to return excess, a 2\u202fkg debt is entered against the fisher\u2019s account in the ledger. On the next trip, 2\u202fkg is deducted from the fisher\u2019s catch; if the catch is less than 2\u202fkg, the entire catch is forfeited, the full 2\u202fkg debt is recorded, and the debt remains until the fisher\u2019s subsequent catch exceeds 2\u202fkg. Kai checks the lake stock before each trip; if the current stock is below 70\u202f% of the stock recorded at the end of the previous trip, Kai suspends all fishing until the stock rises above 70\u202f%. All transactions and debts are logged in the communal ledger for transparency.",
+          "reasoning": "This version integrates the community\u2019s concerns about fine enforcement, stock measurement, debt recording, and the 12\u202f% limit\u2019s relationship to the personal reserve, ensuring clarity and fairness for all fishers."
+        },
+        "agent_6": {
+          "policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+          "operationalization": "At 18:00 each day Kai reviews the shared logbook. If a fisher\u2019s trip exceeds 10\u202fkg or the daily total exceeds 180\u202fkg, Kai sets that fisher\u2019s temp_ban flag for the next day, preventing that fisher from casting and recording the ban in the logbook. All excess catch beyond the limits is trimmed and placed into the community pot; after tallying, Kai distributes the pot equally among compliant fishers and, if no one complied, adds it to the reserve. Kai also checks the lake reserve; if it drops below 25\u202f% of capacity, he sets the fishing_allowed flag to false, suspending all fishing until the reserve rises back to at least 25\u202f%. The flag is cleared automatically the next day when the reserve condition is met. All actions are recorded in the logbook, and the community follows Kai\u2019s notices and the rules set in the policy.",
+          "reasoning": "This version balances personal harvest limits with a communal reserve threshold to preserve lake sustainability, ensures clear enforcement through Kai\u2019s daily review and ban flag, and maintains fairness via the community pot redistribution while allowing automatic resumption of fishing when conditions improve."
+        },
+        "agent_7": {
+          "policy": "Each fisher may take no more than 15\u202fkg per trip and no more than 10\u202f% of the lake\u2019s current stock in a single round; after all catches the lake must retain at least 1\u202fkg of fish.",
+          "operationalization": "1. At round start, Kai records stock_kg. 2. Per\u2011trip limit: 15\u202fkg; round cap: 0.10\u202f\u00d7\u202fstock_kg. 3. After all fishers log their catch, Kai sums totals. 4. For any fisher who records >15\u202fkg, trim to 15\u202fkg, calculate 10\u202f% of the trimmed amount as a fee, and deposit that weight into the community reserve. 5. If the summed catch exceeds round cap or would leave the lake <1\u202fkg, trim the last fisher\u2019s haul so that total catch = min(round cap, stock_kg\u20111). 6. The trimmed amount in step\u202f5 is used as the base for a 20\u202f% fine that is deducted from the last fisher\u2019s proceeds for the next round. 7. If a fisher fails to submit a catch record within 24\u202fh, all catch is forfeited, the fisher is flagged non\u2011compliant, and a 20\u202f% fine is applied to that fisher\u2019s proceeds in every subsequent round until compliance resumes. 8. All fines (10\u202f% on excess catch and 20\u202f% on non\u2011compliance) are recorded in kilograms and added to the community reserve variable. 9. Kai verifies all calculations against the tracked stock_kg, enforces the 1\u202fkg remaining rule after the round, and deposits fees directly into the shared reserve chest.",
+          "reasoning": "This version unifies the 15\u202fkg trip limit, 10\u202f% round cap, and 1\u202fkg lake safety net, and clearly defines the two fine mechanisms (10\u202f% on excess catch and 20\u202f% on non\u2011compliance) and their administrative process, ensuring transparent, enforceable rules for the community."
+        },
+        "agent_8": {
+          "policy": "Each fisher may harvest up to 10% of the lake\u2019s current stock per trip, must keep at least 1\u202fkg (unless the lake holds less than 1\u202fkg), and must deposit 5% of the net catch into the emergency reserve. Any catch exceeding the 10% limit triggers the lake\u2011watcher to record a rights_forfeit action suspending the fisher\u2019s harvest rights for the next two trips.",
+          "operationalization": "Harvest: The fisher records the net catch with a \"harvest\" action, which subtracts that amount from lake_stock_kg. Reserve deposit: Immediately after harvesting, the fisher logs a \"reserve_deposit\" action that adds 5% of the harvested catch to emergency_reserve_kg. Exceeding 10% limit: If the fisher\u2019s intended catch would be >10% of the logged lake stock, they harvest only up to the 10% cap; the excess remains in lake_stock_kg. After the harvest, the lake\u2011watcher (Kai) reviews the record; if the fisher exceeded the 10% limit, Kai logs a \"rights_forfeit\" action setting rounds_remaining=2, which blocks that fisher from using the harvest action for the next two rounds. 1\u202fkg minimum: If lake_stock_kg < 1\u202fkg, the fisher may harvest the entire remaining stock; the 1\u202fkg rule is waived in that case. All actions are recorded in the communal ledger, updating lake_stock_kg and emergency_reserve_kg accordingly. The lake\u2011watcher authorizes reserve withdrawals only when emergency_reserve_kg is below 30\u202fkg, recording each withdrawal. Violations are logged by the lake\u2011watcher, and rights forfeiture is enforced by preventing harvest actions until the counter reaches zero.",
+          "reasoning": "This final version consolidates the community\u2019s concerns about proportional harvest limits, personal sustenance, emergency funding, and enforcement, ensuring clear, enforceable, and transparent operations."
+        },
+        "agent_9": {
+          "policy": "Each fisher may keep up to 12 kg per trip; any weight beyond that must be deposited into the communal lake pool.",
+          "operationalization": "When a fisher logs a trip, the system computes excess = max(0, catch \u2013 12). The excess is automatically deducted from the fisher\u2019s take and added to communal_pool. If the excess is not returned in the next trip, a forfeit_pending flag is set. On the following trip the system deducts 1 kg from the fisher\u2019s take, credits it to communal_pool, and clears the flag. All ledger entries record the take, forfeiture, and communal contribution. Kai, as lake\u2011watcher, reviews the ledger weekly to ensure compliance and that the communal_pool balance is updated.",
+          "reasoning": "This version keeps the 12 kg limit consistent, clarifies how excess is handled and tracked, and gives Kai clear authority to enforce forfeitures, ensuring fairness and preventing over\u2011fishing."
+        }
+      },
+      "dialogues": {
+        "agent_0": [
+          {
+            "question": "Who is responsible for holding the communal reserve and tracking its current stock?",
+            "answer": "I, Kai, as the designated lake\u2011watcher for this round, will hold the communal reserve and track its current stock.",
+            "revised_policy": "No fisher may take more than 4\u202fkg per trip, must keep 1\u202fkg for personal sustenance, and any surplus is deposited into a communal reserve capped at 70\u202fkg; if the lake mass falls below 140\u202fkg, the reserve is automatically released to replenish the lake until it reaches 190\u202fkg.",
+            "revised_operationalization": "All catches are logged in a shared ledger immediately after each trip. Fishers who bring in more than 4\u202fkg must deposit the excess into the reserve; the reserve is tracked separately and never exceeds 70\u202fkg. At the end of each month the lake\u2019s mass is measured. If the mass is below 140\u202fkg, the reserve is released proportionally to all fishers until the lake reaches 190\u202fkg. Any fisher who exceeds the 4\u202fkg limit, fails to record the catch, or fails to deposit surplus fish will lose the right to fish for the following month. The community holds a monthly meeting to review reserve and lake status, adjust quotas if needed, and resolve disputes."
+          },
+          {
+            "question": "How is the proportional release of the reserve to fishers calculated and implemented?",
+            "answer": "When the lake\u2019s mass falls below 140\u202fkg, we first calculate how much reserve we need to bring it up to 190\u202fkg. If the reserve holds 70\u202fkg but we only need 50\u202fkg, we release 50\u202fkg. Each fisher\u2019s share of that released amount is based on the proportion of the total catch they took last month. For example, if the total catch last month was 200\u202fkg and a fisher took 40\u202fkg, their share is 40/200\u202f=\u202f0.20; 20\u202f% of the released reserve goes to that fisher. The release is recorded in the ledger as a credit to each fisher\u2019s account, which they can withdraw when they go out to fish again. The reserve is never replenished during the release; it simply distributes what we had stored. This keeps the lake healthy while still rewarding those who caught more during the previous month.",
+            "revised_policy": "No fisher may take more than 4\u202fkg per trip, must keep 1\u202fkg for personal sustenance, and any surplus is deposited into a communal reserve capped at 70\u202fkg; if the lake mass falls below 140\u202fkg, the reserve is automatically released to replenish the lake until it reaches 190\u202fkg. All catches are logged in a shared ledger immediately after each trip. Fishers who bring in more than 4\u202fkg must deposit the excess into the reserve; the reserve is tracked separately and never exceeds 70\u202fkg. At the end of each month the lake\u2019s mass is measured. If the mass is below 140\u202fkg, the reserve is released proportionally to all fishers until the lake reaches 190\u202fkg. Any fisher who exceeds the 4\u202fkg limit, fails to record the catch, or fails to deposit surplus fish will lose the right to fish for the following month. The community holds a monthly meeting to review reserve and lake status, adjust quotas if needed, and resolve disputes.",
+            "revised_operationalization": "1. Measure lake mass at month\u2019s end.\n2. If mass <\u202f140\u202fkg, compute required reserve release: required = 190\u202fkg \u2013 current mass.\n3. Cap the release at the reserve\u2019s current level (max 70\u202fkg). The amount released is release = min(required, reserve).\n4. Sum total catch from all fishers last month: totalCatch.\n5. For each fisher i, compute share = catch_i / totalCatch.\n6. Allocate to fisher i: release_i = share * release.\n7. Update ledger: add release_i to fisher i\u2019s credit balance; deduct release from reserve.\n8. If lake reaches 190\u202fkg before all reserve is used, stop release.\n9. Record all actions in the shared ledger for transparency."
+          },
+          {
+            "question": "Who is responsible for revoking a fisher\u2019s right to fish for the following month when a violation (exceeding 4\u202fkg, failing to record the catch, or failing to deposit surplus fish) occurs, and how is that revocation recorded and enforced?",
+            "answer": "As the lake\u2011watcher I am first to notice a breach \u2013 a fisher exceeding 4\u202fkg, failing to log, or neglecting to deposit surplus.  I record the offence in the shared ledger as a \"violation\" entry tied to the fisher\u2019s name and date.  The next day the community council (the nine other fishers plus myself) meets to review the ledger.  A simple majority votes to revoke that fisher\u2019s right for the following month.  The revocation is entered in the ledger as a \"revoked\" flag and a note that the fisher cannot log a trip until the next meeting, where they may appeal.  The lake\u2019s mass and reserve remain unchanged until the revocation is enforced, and the fisher is prevented from fishing in the next cycle by the ledger\u2019s rule enforcement software.  This process keeps the system transparent, fair, and enforceable by all members.",
+            "revised_policy": "No fisher may take more than 4\u202fkg per trip, must keep 1\u202fkg for personal sustenance; any surplus is deposited into a communal reserve capped at 70\u202fkg.  If the lake mass falls below 140\u202fkg, the reserve is automatically released to replenish the lake until it reaches 190\u202fkg.  All catches are logged in a shared ledger immediately after each trip.  Fishers who bring in more than 4\u202fkg must deposit the excess into the reserve; the reserve is tracked separately and never exceeds 70\u202fkg.  At the end of each month the lake\u2019s mass is measured.  If the mass is below 140\u202fkg, the reserve is released proportionally to all fishers until the lake reaches 190\u202fkg.  Any fisher who exceeds the 4\u202fkg limit, fails to record the catch, or fails to deposit surplus fish will lose the right to fish for the following month.  The community holds a monthly meeting to review reserve and lake status, adjust quotas if needed, and resolve disputes.",
+            "revised_operationalization": "1. Record each trip in the ledger with fisher name, catch amount, and deposit status.\n2. Monthly lake mass measurement is entered in the ledger.\n3. If lake mass <\u202f140\u202fkg, compute required reserve release: required = 190\u202fkg \u2013 current mass.\n4. Release amount = min(required, reserve).\n5. Calculate each fisher\u2019s share = catch_i / totalCatch, then release_i = share * release.\n6. Update ledger: add release_i to each fisher\u2019s credit balance; deduct release from reserve.\n7. If lake reaches 190\u202fkg before reserve is used, stop release.\n8. Detect violations: any entry showing catch >\u202f4\u202fkg without proper deposit, or missing ledger entry, triggers a \"violation\" flag.\n9. The lake\u2011watcher records the violation in the ledger.\n10. The community council votes to revoke fishing rights for the violating fisher for the next month; the ledger records the revocation and the fisher is barred from logging trips until a new vote at the next monthly meeting."
+          }
+        ],
+        "agent_1": [
+          {
+            "question": "Who holds the reserve fish until the next trip and how is it protected?",
+            "answer": "Kai will keep the reserve fish in a designated reserve zone within the lake itself. After each trip, he will mark this area on the lake map and ensure that no one fishes there until the next trip. By keeping the reserve fish in the lake and marking the area, the fish are protected from being taken again and are allowed to return to the lake ecosystem to spawn and contribute to future fishery sustainability.",
+            "revised_policy": "No fisher may take more than 5\u202fkg per trip, and the community\u2019s total catch per trip must not exceed 80\u202fkg. 10\u202f% of the total catch is set aside as reserve fish, which is released back into the lake after the trip. After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher, who tallies the totals; if any individual exceeds 5\u202fkg, the excess must be released immediately, and if the group total exceeds 80\u202fkg, the community must release the excess from the 10\u202f% reserve portion. Any fisher who violates the rule forfeits a fishing pass for the next month and must volunteer in lake maintenance. The reserve fish will be returned to the lake and protected until the next trip. All fishers will meet monthly to review catches and adjust quotas if needed.",
+            "revised_operationalization": "Kai holds the reserve fish in a designated reserve zone within the lake, marked on the map and marked off by signage. He ensures no fishing occurs there until the next trip, and records the reserve catch so it can be released back into the lake safely. The rest of the operational steps remain unchanged."
+          },
+          {
+            "question": "Who is responsible for enforcing the release of excess reserve fish and for deciding whether a fisher has violated the rule and must forfeit a fishing pass?",
+            "answer": "Kai, the designated lake\u2011watcher, is responsible for enforcing the release of excess reserve fish and for determining whether a fisher has violated the rule and must forfeit a fishing pass.",
+            "revised_policy": "No fisher may take more than 5\u202fkg per trip, and the community\u2019s total catch per trip must not exceed 80\u202fkg. 10\u202f% of the total catch is set aside as reserve fish, which is released back into the lake after the trip. After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher, who tallies the totals; if any individual exceeds 5\u202fkg, the excess must be released immediately, and if the group total exceeds 80\u202fkg, the community must release the excess from the 10\u202f% reserve portion. Any fisher who violates the rule forfeits a fishing pass for the next month and must volunteer in lake maintenance. The reserve fish will be returned to the lake and protected until the next trip. All fishers will meet monthly to review catches and adjust quotas if needed.",
+            "revised_operationalization": "Kai records all individual catches, tallies the total, enforces immediate release of any individual excess over 5\u202fkg, releases the excess reserve portion if the group total exceeds 80\u202fkg, and adjudicates any violations, resulting in forfeiture of a fishing pass and mandatory lake\u2011maintenance volunteer work for the offender."
+          },
+          {
+            "question": "Who is responsible for issuing, tracking, and revoking fishing passes for fishers?",
+            "answer": "Kai, the lake\u2011watcher, is the authority who issues fishing passes, keeps track of each fisher\u2019s compliance, and revokes a pass if a fisher violates the quota rules.",
+            "revised_policy": "No fisher may take more than 5 kg per trip, and the community\u2019s total catch per trip must not exceed 80 kg. 10% of the total catch is set aside as reserve fish, which is released back into the lake after the trip. After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher, who tallies the totals; if any individual exceeds 5 kg, the excess must be released immediately, and if the group total exceeds 80 kg, the community must release the excess from the 10% reserve portion. Any fisher who violates the rule forfeits a fishing pass for the next month and must volunteer in lake maintenance. The reserve fish will be returned to the lake and protected until the next trip. All fishers will meet monthly to review catches and adjust quotas if needed.",
+            "revised_operationalization": "After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher. Kai tallies the individual catches and the total group catch. If any individual exceeds 5 kg, Kai releases the excess immediately. If the group total exceeds 80 kg, Kai releases the excess from the 10% reserve portion. Kai records any violations, revokes the offending fisher\u2019s pass for the next month, and assigns mandatory lake\u2011maintenance volunteer work. The reserve fish are returned to the lake and protected until the next trip. All fishers meet monthly to review catches and adjust quotas if needed."
+          },
+          {
+            "question": "During the monthly meeting, how are quota adjustments decided\u2014do fishers need to propose and vote on changes, or is the process handled informally?",
+            "answer": "We decide in the monthly meeting by having each fisher who thinks the quota should change raise a proposal, then we vote on it. If a majority agrees, the quota is adjusted for the next round. The process stays formal so everyone knows the rule and can plan sustainably.",
+            "revised_policy": "No fisher may take more than 5 kg per trip, and the community\u2019s total catch per trip must not exceed 80 kg. 10% of the total catch is set aside as reserve fish, which is released back into the lake after the trip. After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher, who tallies the totals; if any individual exceeds 5 kg, the excess must be released immediately, and if the group total exceeds 80 kg, the community must release the excess from the 10% reserve portion. Any fisher who violates the rule forfeits a fishing pass for the next month and must volunteer in lake maintenance. The reserve fish will be returned to the lake and protected until the next trip. All fishers will meet monthly to review catches and adjust quotas if needed.",
+            "revised_operationalization": "Kai tallies the individual catches and the total group catch. If any individual exceeds 5 kg, Kai releases the excess immediately. If the group total exceeds 80 kg, Kai releases the excess from the 10% reserve portion. Kai records any violations, revokes the offending fisher\u2019s pass for the next month, and assigns mandatory lake\u2011maintenance volunteer work. The reserve fish are returned to the lake and protected until the next trip."
+          },
+          {
+            "question": "On which day of each month does the monthly meeting to review catches and adjust quotas take place?",
+            "answer": "The first Saturday of each month.",
+            "revised_policy": "No fisher may take more than 5\u202fkg per trip, and the community\u2019s total catch per trip must not exceed 80\u202fkg. 10% of the total catch is set aside as reserve fish, which is released back into the lake after the trip. After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher, who tallies the totals; if any individual exceeds 5\u202fkg, the excess must be released immediately, and if the group total exceeds 80\u202fkg, the community must release the excess from the 10% reserve portion. Any fisher who violates the rule forfeits a fishing pass for the next month and must volunteer in lake maintenance. The reserve fish will be returned to the lake and protected until the next trip. All fishers will meet monthly on the first Saturday to review catches and adjust quotas if needed.",
+            "revised_operationalization": "Kai tallies the individual catches and the total group catch. If any individual exceeds 5\u202fkg, Kai releases the excess immediately. If the group total exceeds 80\u202fkg, Kai releases the excess from the 10% reserve portion. Kai records any violations, revokes the offending fisher\u2019s pass for the next month, and assigns mandatory lake\u2011maintenance volunteer work. The reserve fish are returned to the lake and protected until the next trip."
+          },
+          {
+            "question": "When is the reserve fish released back into the lake after each trip?",
+            "answer": "After each trip, once Kai has tallied the catches and released any excess, the 10% reserve fish are returned to the lake immediately\u2014right before the next trip begins.",
+            "revised_policy": "No fisher may take more than 5\u202fkg per trip, and the community\u2019s total catch per trip must not exceed 80\u202fkg. 10% of the total catch is set aside as reserve fish, which is released back into the lake after the trip. After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher, who tallies the totals; if any individual exceeds 5\u202fkg, the excess must be released immediately, and if the group total exceeds 80\u202fkg, the community must release the excess from the 10% reserve portion. Any fisher who violates the rule forfeits a fishing pass for the next month and must volunteer in lake maintenance. The reserve fish will be returned to the lake and protected until the next trip. All fishers will meet monthly on the first Saturday to review catches and adjust quotas if needed.",
+            "revised_operationalization": "Kai tallies the catches at the end of each trip, releases any excess immediately, and then returns the 10% reserve fish to the lake before the next trip begins. The reserve fish remain protected until the next trip."
+          },
+          {
+            "question": "What is the procedure for scheduling and monitoring the lake maintenance volunteer work that offenders must perform?",
+            "answer": "After the trip, any fisher who exceeded the limits will be called to the lake\u2011watcher\u2019s office on the same day. Kai will give them a list of maintenance tasks that week\u2014cleaning nets, inspecting shore line, or fixing bait\u2011storage. They must sign the list and Kai will record the hours in the communal ledger. Offenders then perform the work before the next trip. Kai checks the ledger each month at the Saturday meeting to confirm the hours were completed. If a person has not logged the required hours, they lose their pass for that month and are required to volunteer again next month.",
+            "revised_policy": "No fisher may take more than 5 kg per trip, and the community\u2019s total catch per trip must not exceed 80 kg. 10% of the total catch is set aside as reserve fish, which is released back into the lake after the trip. After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher, who tallies the totals; if any individual exceeds 5 kg, the excess must be released immediately, and if the group total exceeds 80 kg, the community must release the excess from the 10% reserve portion. Any fisher who violates the rule forfeits a fishing pass for the next month and must volunteer in lake maintenance. The reserve fish will be returned to the lake and protected until the next trip. All fishers will meet monthly on the first Saturday to review catches and adjust quotas if needed.",
+            "revised_operationalization": "Kai tallies the catches at the end of each trip, releases any excess immediately, and then returns the 10% reserve fish to the lake before the next trip begins. The reserve fish remain protected until the next trip."
+          },
+          {
+            "question": "If the 10% reserve fish is insufficient to cover the excess required to bring the group catch below 80\u202fkg, what action is taken?",
+            "answer": "If the 10% reserve fish does not cover the excess needed to bring the community catch below 80\u202fkg, the community must release the remaining excess fish directly from the catch into the lake until the total is at or below the limit. This release is immediate, done by the fishers who caught the excess, and recorded by Kai before the next trip. The lake\u2011watcher will then return the 10% reserve fish to the lake and keep it protected until the following trip.  After each release, the new totals are documented, and the monthly review will consider whether the quota or reserve proportion should be adjusted for sustainability.",
+            "revised_policy": "No fisher may take more than 5\u202fkg per trip, and the community\u2019s total catch per trip must not exceed 80\u202fkg. 10% of the total catch is set aside as reserve fish, which is released back into the lake after the trip. After each trip, each fisher records their catch and submits it to Kai, the lake\u2011watcher, who tallies the totals; if any individual exceeds 5\u202fkg, the excess must be released immediately, and if the group total exceeds 80\u202fkg, the community must release the excess from the 10% reserve portion. If the 10% reserve is insufficient, the remaining excess fish are released directly into the lake from the catch. Any fisher who violates the rule forfeits a fishing pass for the next month and must volunteer in lake maintenance. The reserve fish will be returned to the lake and protected until the next trip. All fishers will meet monthly on the first Saturday to review catches and adjust quotas if needed.",
+            "revised_operationalization": "After each trip, each fisher submits their catch to Kai. Kai tallies the totals, calculates the 10% reserve, and releases any excess immediately. If the 10% reserve is insufficient to bring the group catch below 80\u202fkg, the remaining excess fish are released directly into the lake from the catch. All fishers record the releases and the new totals are noted. Kai reports these numbers to the group. The monthly meetings review the recorded data, assess the adequacy of the reserve, and adjust quotas or reserve proportions as needed to ensure long\u2011term sustainability."
+          }
+        ],
+        "agent_2": [
+          {
+            "question": "Who is responsible for enforcing the temporary fishing ban on offenders after repeat violations?",
+            "answer": "Kai, the lake\u2011watcher, is responsible for enforcing the temporary fishing ban after repeat violations.",
+            "revised_policy": "Each fisher may take no more than 8kg per trip, keep only fish larger than 30cm, and deposit 25% of the total catch into a communal reserve that must never fall below 90kg.",
+            "revised_operationalization": "On every trip each fisher records the weight of the fish they take, noting that 1kg is reserved for personal consumption. The fisher keeps the remaining weight, and 25% of that keepable portion is deposited into a communal reserve held in a shared ledger maintained by Kai. Kai tracks the reserve daily and will announce if it falls below 90kg. If the reserve drops below the threshold, all fishing is suspended until the reserve is replenished to at least 90kg; repeat violations will result in a temporary fishing ban for the offender. Compliance is verified by random checks and self\u2011reporting, with community members encouraged to flag discrepancies."
+          },
+          {
+            "question": "What is the duration of the temporary fishing ban for an offender after a repeat violation?",
+            "answer": "The temporary fishing ban for a repeat violator lasts 7 days from the date of the violation, after which the fisher may resume normal activity.",
+            "revised_policy": "Each fisher may take a maximum of 8kg per trip, must keep only fish larger than 30cm, and 25% of the keepable portion of every catch must be deposited into a communal reserve that must never fall below 90kg. A repeat violation of this rule results in a temporary fishing ban of 7 days for the offender.",
+            "revised_operationalization": "On every trip each fisher records the weight of the fish they take, noting that 1kg is reserved for personal consumption. The fisher keeps the remaining weight, and 25% of that keepable portion is deposited into a communal reserve held in a shared ledger maintained by Kai. Kai tracks the reserve daily and will announce if it falls below 90kg. If the reserve drops below the threshold, all fishing is suspended until the reserve is replenished to at least 90kg; repeat violations will result in a temporary fishing ban of 7 days for the offender. Compliance is verified by random checks and self\u2011reporting, with community members encouraged to flag discrepancies."
+          },
+          {
+            "question": "How will the communal reserve be replenished to at least 90kg after it drops below that threshold?",
+            "answer": "If the reserve drops below 90\u202fkg, we\u2019ll suspend fishing for that day and each fisher will bring back any fish that has already been kept or donate the full keepable portion of any new catch until the reserve reaches 90\u202fkg again. Once the reserve is back to the required level we resume the normal 8\u202fkg per trip rule and 25\u202f% deposit.",
+            "revised_policy": "Each fisher may take a maximum of 8kg per trip, must keep only fish larger than 30cm, and 25% of the keepable portion of every catch must be deposited into a communal reserve that must never fall below 90kg. A repeat violation of this rule results in a temporary fishing ban of 7 days for the offender.",
+            "revised_operationalization": "On every trip each fisher records the weight of the fish they take, noting that 1kg is reserved for personal consumption. The fisher keeps the remaining weight, and 25% of that keepable portion is deposited into a communal reserve held in a shared ledger maintained by Kai. Kai tracks the reserve daily and will announce if it falls below 90kg. If the reserve drops below the threshold, all fishing is suspended until the reserve is replenished to at least 90kg; repeat violations will result in a temporary fishing ban of 7 days for the offender. Compliance is verified by random checks and self\u2011reporting, with community members encouraged to flag discrepancies."
+          },
+          {
+            "question": "How will Kai update the communal reserve ledger when fishers bring back kept fish to replenish the reserve?",
+            "answer": "When I finish a trip I record the total weight I took, note that 1kg is set aside for me, and subtract that from the total to find the keepable portion. I then calculate 25% of that keepable portion and write that number into the communal ledger. Kai receives the ledger entry and simply adds the 25% deposit to the current reserve balance in the shared ledger. Kai checks the reserve each day; if the ledger shows the reserve is below 90kg, he announces a suspension until the reserve is at least 90kg. This way the reserve is replenished each time fishers keep fish.\n",
+            "revised_policy": "Each fisher may take a maximum of 8kg per trip, must keep only fish larger than 30cm, and 25% of the keepable portion of every catch must be deposited into a communal reserve that must never fall below 90kg. A repeat violation of this rule results in a temporary fishing ban of 7 days for the offender.",
+            "revised_operationalization": "On every trip each fisher records the weight of the fish they take, noting that 1kg is reserved for personal consumption. The fisher keeps the remaining weight, and 25% of that keepable portion is deposited into a communal reserve held in a shared ledger maintained by Kai. Kai tracks the reserve daily and will announce if it falls below 90kg. If the reserve drops below the threshold, all fishing is suspended until the reserve is replenished to at least 90kg; repeat violations will result in a temporary fishing ban of 7 days for the offender. Compliance is verified by random checks and self\u2011reporting, with community members encouraged to flag discrepancies."
+          },
+          {
+            "question": "What penalty is imposed for a fisher who keeps fish smaller than 30\u202fcm?",
+            "answer": "A repeat violation of the rule \u2013 that is, a second or subsequent instance of keeping fish smaller than 30\u202fcm \u2013 triggers a temporary fishing ban of 7 days.",
+            "revised_policy": "Each fisher may take a maximum of 8kg per trip, must keep only fish larger than 30cm, and 25% of the keepable portion of every catch must be deposited into a communal reserve that must never fall below 90kg. A repeat violation of this rule results in a temporary fishing ban of 7 days for the offender.",
+            "revised_operationalization": "On every trip each fisher records the weight of the fish they take, noting that 1kg is reserved for personal consumption. The fisher keeps the remaining weight, and 25% of that keepable portion is deposited into a communal reserve held in a shared ledger maintained by Kai. Kai tracks the reserve daily and will announce if it falls below 90kg. If the reserve drops below the threshold, all fishing is suspended until the reserve is replenished to at least 90kg; repeat violations will result in a temporary fishing ban of 7 days for the offender. Compliance is verified by random checks and self\u2011reporting, with community members encouraged to flag discrepancies."
+          },
+          {
+            "question": "What penalty or consequence is imposed for a fisher's first violation of the 8\u2011kg per trip limit, the 30\u2011cm size rule, or the 25% deposit requirement?",
+            "answer": "For the first slip, I\u2019ll issue a clear warning and ask the fisher to donate 1kg of fish back to the reserve. That way we keep the spirit of the rule without immediately locking someone out. Repeat slips will trigger the 7\u2011day ban already in the proposal.",
+            "revised_policy": "Each fisher may take a maximum of 8kg per trip, must keep only fish larger than 30cm, and 25% of the keepable portion of every catch must be deposited into a communal reserve that must never fall below 90kg. A first violation of any of these limits will result in a formal warning and a donation of 1kg of fish to the reserve. A repeat violation results in a temporary fishing ban of 7 days for the offender.",
+            "revised_operationalization": "On each trip, the fisher records total catch, keepable portion, and deposit. Kai verifies compliance. For any first violation, Kai will issue a written warning, record the violation, and require the fisher to add 1kg of fish to the reserve. This is logged in the ledger. Subsequent violations trigger a 7\u2011day fishing ban. All penalties are tracked in the shared ledger."
+          },
+          {
+            "question": "What authority or mechanism is used to suspend and then resume fishing when the reserve falls below and rises back above the 90\u202fkg threshold?",
+            "answer": "When the communal reserve dips below 90\u202fkg, the lake\u2011watcher, Kai, has the authority to enforce a suspension. Kai checks the shared ledger, marks the offending fisher\u2019s record as \u2018Suspended\u2019 and removes the fisher\u2019s trip authorization for the day. The suspension is lifted automatically once the ledger shows the reserve has climbed back to 90\u202fkg or more; Kai then updates the record to \u2018Active\u2019 and informs the community so the fisher may resume work. This process is recorded in the ledger and reviewed during the next community meeting if any dispute arises.",
+            "revised_policy": "Each fisher may take a maximum of 8\u202fkg per trip, must keep only fish larger than 30\u202fcm, and 25\u202f% of the keepable portion of every catch must be deposited into a communal reserve that must never fall below 90\u202fkg. A first violation of any of these limits will result in a formal warning and a donation of 1\u202fkg of fish to the reserve. A repeat violation results in a temporary fishing ban of 7\u202fdays for the offender.",
+            "revised_operationalization": "On each trip the fisher records total catch, keepable portion, and deposit. Kai verifies compliance. For any first violation, Kai issues a written warning, records the violation in the ledger, and requires the fisher to add 1\u202fkg of fish to the reserve. Subsequent violations trigger a 7\u2011day fishing ban. All penalties are tracked in the shared ledger. If the communal reserve falls below 90\u202fkg, Kai suspends the offending fisher\u2019s authorization until the reserve rises back to 90\u202fkg or above, at which point Kai lifts the suspension and records the resumption."
+          },
+          {
+            "question": "When the communal reserve falls below 90\u202fkg, which fisher(s) does Kai suspend \u2013 all fishers or only those who caused the drop?",
+            "answer": "Kai will suspend only the fisher(s) whose actions caused the communal reserve to fall below 90\u202fkg. Other fishers continue to be authorized until the reserve is restored to 90\u202fkg or higher.",
+            "revised_policy": "Each fisher may take a maximum of 8\u202fkg per trip, must keep only fish larger than 30\u202fcm, and 25\u202f% of the keepable portion of every catch must be deposited into a communal reserve that must never fall below 90\u202fkg. A first violation of any of these limits will result in a formal warning and a donation of 1\u202fkg of fish to the reserve. A repeat violation results in a temporary fishing ban of 7\u202fdays for the offender. Kai verifies compliance, records violations, and suspends the offending fisher\u2019s authorization if the reserve falls below 90\u202fkg, lifting the suspension once the reserve is restored to 90\u202fkg or higher.",
+            "revised_operationalization": "On each trip the fisher records total catch, keepable portion, and deposit. Kai verifies compliance. For any first violation, Kai issues a written warning, records the violation in the ledger, and requires the fisher to add 1\u202fkg of fish to the reserve. Subsequent violations trigger a 7\u2011day fishing ban. All penalties are tracked in the shared ledger. If the communal reserve falls below 90\u202fkg, Kai suspends the offending fisher\u2019s authorization until the reserve rises back to 90\u202fkg or above, at which point Kai lifts the suspension and records the resumption."
+          }
+        ],
+        "agent_3": [
+          {
+            "question": "The proposal refers to a person named Kai who tallies the total catch and returns excess. Who is Kai, and what mechanism or role do they have within the existing institutional framework to hold or manage the returned fish or funds?",
+            "answer": "Kai is the lake\u2011watcher assigned for this round of fishing.  As watcher, Kai\u2019s duties are to receive each fisher\u2019s daily catch report, calculate the total take, compare it to the 10\u202f% threshold of the lake\u2019s current stock, and if the threshold is exceeded, proportionally require each fisher to return the excess back to the lake.  Kai also keeps an eye on the lake\u2019s minimum stock level (120\u202fkg); if the stock falls below this, Kai suspends all fishing until the stock recovers.  Anyone who fails to comply with the return requirement must deposit the excess amount into the communal maintenance pot and receives a formal warning from the watcher.  Kai\u2019s role is purely regulatory and administrative \u2013 he does not keep any fish for personal use, but he does hold the returned fish temporarily until it can be added back to the lake\u2019s stock and he records any funds collected in the communal pot for maintenance.",
+            "revised_policy": "Each fisherman may keep no more than 1.5\u202fkg per trip, and the collective daily take may not exceed 10\u202f% of the lake\u2019s current stock.  The lake\u2019s minimum stock is set at 120\u202fkg; if the stock falls below this, all fishing is suspended until it recovers.  Anyone who fails to comply must deposit the excess into a communal maintenance pot and receives a warning from the watcher.",
+            "revised_operationalization": "On each fishing day, every fisher reports catch to Kai.  Kai tallies the total; if it exceeds 10\u202f% of the lake\u2019s current stock, each fisher returns the excess proportionally to the lake.  The lake\u2019s minimum stock is set at 120\u202fkg; if the stock falls below this, all fishing is suspended until it recovers.  Anyone who fails to comply must deposit the excess into a communal maintenance pot and receives a warning from the watcher."
+          },
+          {
+            "question": "The rule specifies a communal maintenance pot for excess fish, but the existing state only tracks communal_fund_kg. Where is the communal maintenance pot recorded or tracked in the current institutional framework?",
+            "answer": "The communal maintenance pot is recorded in the state variable \"communal_fund_kg\". It is the same pool that holds fish returned by fishermen for maintenance purposes. The pot is not a separate variable, but the communal_fund_kg holds all fish that have been deposited into the maintenance pot, whether for maintenance or general communal use.",
+            "revised_policy": "Each fisherman may keep no more than 1.5\u202fkg per trip, and the collective daily take may not exceed 10\u202f% of the lake\u2019s current stock. The lake\u2019s minimum stock is set at 120\u202fkg; if the stock falls below this, all fishing is suspended until it recovers. Anyone who fails to comply must deposit the excess into the communal maintenance pot (tracked in communal_fund_kg) and receives a warning from the watcher.",
+            "revised_operationalization": "On each fishing day, every fisher reports catch to Kai. Kai tallies the total; if it exceeds 10\u202f% of the lake\u2019s current stock, each fisher returns the excess proportionally to the lake, and the excess fish is added to the communal_fund_kg pot. If the lake\u2019s stock falls below 120\u202fkg, fishing is suspended until the stock recovers. Any fisher who fails to return excess fish must deposit the excess into communal_fund_kg and receives a warning from the watcher."
+          },
+          {
+            "question": "The policy states that each fisher may keep no more than 1.5\u202fkg per trip, but the operationalization only deals with the collective 10\u202f% threshold. How is a fisher who exceeds the 1.5\u202fkg per\u2011trip limit handled, and which institutional actor enforces that rule?",
+            "answer": "If a fisher pulls more than 1.5\u202fkg on a trip, the excess must be returned to the lake immediately and the amount that exceeds 1.5\u202fkg is deposited into the communal maintenance pot. The fisher then receives a warning from the lake\u2011watcher, Kai, who records the correction. Kai is the institutional actor who enforces the per\u2011trip limit, and the rest of the community helps by cross\u2011checking reports and reminding each other of the rule.",
+            "revised_policy": "Each fisherman may keep a maximum of 1.5\u202fkg per trip; any fish taken beyond that must be returned to the lake and deposited into the communal maintenance pot (tracked in communal_fund_kg). The collective daily take may not exceed 10\u202f% of the lake\u2019s current stock. The lake\u2019s minimum stock is set at 120\u202fkg; if the stock falls below this, all fishing is suspended until it recovers. Anyone who fails to comply with either the per\u2011trip limit or the 10\u202f% rule must deposit the excess into communal_fund_kg and receives a warning from the watcher.",
+            "revised_operationalization": "On each fishing day, every fisher reports their catch to Kai. Kai tallies the total; if the collective take exceeds 10\u202f% of the lake\u2019s current stock, each fisher returns the excess proportionally to the lake, and the excess fish is added to the communal_fund_kg pot. Kai also checks each individual report to ensure no one keeps more than 1.5\u202fkg. If a fisher keeps more, Kai orders the return of the excess, the deposit into communal_fund_kg, and issues a warning. If the lake\u2019s stock falls below 120\u202fkg, fishing is suspended until it recovers."
+          },
+          {
+            "question": "What does the proposal leave unanswered about how excess fish that result from the collective daily take exceeding 10% of the lake\u2019s current stock are handled (e.g., returned to the lake, deposited into communal_fund_kg, or both)?",
+            "answer": "The wording says the excess fish must be \u201creturned to the lake and deposited into the communal maintenance pot.\u201d That reads as both \u2013 the fish are physically placed back in the lake and the weight of those fish is counted as a contribution to communal_fund_kg. The proposal does not spell out whether the fish are literally returned (i.e., tossed back into the water) or whether the return is simply an accounting of the excess that goes into the pot; it simply states both actions. To remove the ambiguity I\u2019ll revise the wording to say the excess fish are returned to the lake and that the weight of the returned fish is recorded as a contribution to communal_fund_kg.",
+            "revised_policy": "Each fisherman may keep a maximum of 1.5\u202fkg per trip; any fish taken beyond that must be returned to the lake and the weight of the returned fish is recorded as a contribution to the communal maintenance pot (tracked in communal_fund_kg). The collective daily take may not exceed 10\u202f% of the lake\u2019s current stock. The lake\u2019s minimum stock is set at 120\u202fkg; if the stock falls below this, all fishing is suspended until it recovers. Anyone who fails to comply with either the per\u2011trip limit or the 10\u202f% rule must deposit the excess into communal_fund_kg, return the fish to the lake, and receives a warning from the watcher.",
+            "revised_operationalization": "On each fishing day, every fisher reports their catch to Kai. Kai tallies the total; if the collective take exceeds 10\u202f% of the lake\u2019s current stock, each fisher returns the excess proportionally to the lake, and the weight of those returned fish is added to the communal_fund_kg pot. Kai also checks each individual report to ensure no one keeps more than 1.5\u202fkg. If a fisher keeps more, Kai orders the return of the excess to the lake, records the weight of the returned fish as a deposit into communal_fund_kg, and issues a warning. If the lake\u2019s stock falls below 120\u202fkg, fishing is suspended until it recovers."
+          },
+          {
+            "question": "The proposal says fishing is suspended when the lake\u2019s stock falls below 120\u202fkg and resumes when it recovers, but it doesn\u2019t specify who or what action triggers the lifting of the suspension\u2014how is the suspension ended?",
+            "answer": "Kai, as the designated watcher, ends the suspension automatically when the lake\u2019s measured stock rises to 120\u202fkg or more. Once the daily check shows the stock at or above the threshold, Kai announces that fishing may resume; the community need not take any additional action.",
+            "revised_policy": "Each fisherman may keep a maximum of 1.5\u202fkg per trip, with the remainder returned to the lake; the lake\u2019s stock must never fall below 120\u202fkg. The collective daily take may not exceed 10\u202f% of the lake\u2019s current stock. The lake\u2019s minimum stock is set at 120\u202fkg; if the stock falls below this, all fishing is suspended until it recovers. Anyone who fails to comply with either the per\u2011trip limit or the 10\u202f% rule must deposit the excess into communal_fund_kg, return the fish to the lake, and receives a warning from the watcher.\n\nOn each fishing day, every fisher reports their catch to Kai. Kai tallies the total; if the collective take exceeds 10\u202f% of the lake\u2019s current stock, each fisher returns the excess proportionally to the lake, and the weight of those returned fish is added to the communal_fund_kg pot. Kai also checks each individual report to ensure no one keeps more than 1.5\u202fkg. If a fisher keeps more, Kai orders the return of the excess to the lake, records the weight of the returned fish as a deposit into communal_fund_kg, and issues a warning. If the lake\u2019s stock falls below 120\u202fkg, fishing is suspended until it recovers.",
+            "revised_operationalization": "Kai, as the lake\u2011watcher, measures the lake\u2019s stock daily. If the measured stock is below 120\u202fkg, he announces a suspension and all fishing stops. Once the stock is measured at 120\u202fkg or more again, Kai announces that fishing may resume; no extra trigger is needed."
+          },
+          {
+            "question": "If a fisher makes multiple trips in a single day, does the 1.5\u202fkg limit apply to each individual trip or to the total catch that day, and how is that tracked within the reporting system?",
+            "answer": "The 1.5\u2011kg limit is a trip\u2011by\u2011trip rule. Whenever I pull fish from the lake, I count the weight I keep from that single haul and report it to Kai. Kai then checks that it is no more than 1.5\u202fkg. If I keep more, the extra must go back to the lake, is counted as a deposit to the communal fund, and I get a warning. On a single day I can make many trips, and each one is reported separately. Kai adds up the totals from all of my trips to compare the whole day\u2019s catch against the 10\u202f% limit. If the sum of all trips for the day is above 10\u202f% of the lake\u2019s current stock, then each fisher returns the excess proportionally and the weight of those fish goes into the communal fund.",
+            "revised_policy": "Each fisherman may keep a maximum of 1.5\u202fkg per trip, with the remainder returned to the lake; the lake\u2019s stock must never fall below 120\u202fkg of stock. The collective daily take may not exceed 10\u202f% of the lake\u2019s current stock. The lake\u2019s minimum stock is set at 120\u202fkg; if the stock falls below this, all fishing is suspended until it recovers. Anyone who fails to comply with either the per\u2011trip limit or the 10\u202f% rule must deposit the excess into communal_fund_kg, return the fish to the lake, and receives a warning from the watcher.",
+            "revised_operationalization": "Each fisher must record every individual trip in the log with the weight of fish kept. Kai tallies each trip against the 1.5\u202fkg cap. After the day ends, Kai sums all trips for each fisher and for the community to determine if the 10\u202f% of lake stock rule is broken. Excess fish are returned proportionally, and the returned weight is added to communal_fund_kg. Kai issues warnings for any per\u2011trip or daily violations."
+          },
+          {
+            "question": "The proposal says a fisher receives a warning from the watcher for any per\u2011trip or daily violation, but it does not specify what happens after the warning\u2014does a repeat violation trigger the existing violation_fine rule, or is that left unspecified?",
+            "answer": "A repeat violation does trigger the existing violation_fine rule. The watcher\u2019s warning is the first step; if a fisher is found to violate the per\u2011trip or daily limits again, the penalty prescribed by the community\u2019s violation_fine policy applies, such as a fine or temporary fishing ban. The warning alone does not remove the fisher from the fine regime.",
+            "revised_policy": "Each fisherman may keep a maximum of 1.5\u202fkg per trip, with the remainder returned to the lake; the lake\u2019s stock must never fall below 120\u202fkg of stock. The collective daily take may not exceed 10\u202f% of the lake\u2019s current stock. The lake\u2019s minimum stock is set at 120\u202fkg; if the stock falls below this, all fishing is suspended until it recovers. Anyone who fails to comply with either the per\u2011trip limit or the 10\u202f% rule must deposit the excess into communal_fund_kg, return the fish to the lake, and receives a warning from the watcher. A repeat violation triggers the community\u2019s existing violation_fine rule.",
+            "revised_operationalization": "Each fisher must record every individual trip in the log with the weight of fish kept. Kai tallies each trip against the 1.5\u202fkg cap. After the day ends, Kai sums all trips for each fisher and for the community to determine if the 10\u202f% of lake stock rule is broken. Excess fish are returned proportionally, and the returned weight is added to communal_fund_kg. Kai issues warnings for any per\u2011trip or daily violations. If a fisher receives a second warning for a violation, Kai applies the violation_fine penalty as defined by the community\u2019s fine policy."
+          }
+        ],
+        "agent_4": [
+          {
+            "question": "What is the amount of the communal fine for a fisher who exceeds the 6%/6kg limit?",
+            "answer": "The communal fine for exceeding the 6\u202f%/6\u202fkg limit is equal to twice the amount of the excess catch (measured in fish).",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season. If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units).",
+            "revised_operationalization": "Kai, as the lake\u2011watcher for this season, will record each fisher\u2019s total haul on the communal ledger. At season\u2019s end, Kai will calculate the lake\u2019s current biomass and enforce the 6\u202f% rule and the 6\u202fkg hard cap. For any fisher whose haul exceeds the limit, Kai will compute the excess amount, multiply it by two, and require the fisher to return that amount of fish or, if unable to do so, pay the equivalent fine in communal currency. Repeat violations will trigger a temporary fishing ban until a communal reconciliation meeting. All fishers will rotate as watcher each season to maintain accountability."
+          },
+          {
+            "question": "What is the duration of the temporary fishing ban for repeat violations?",
+            "answer": "The temporary fishing ban for repeat violations will last for one fishing season.",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season. If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units). Repeat violations trigger a temporary fishing ban for one season.",
+            "revised_operationalization": "Kai, as the lake\u2011watcher for this season, will record each fisher\u2019s total haul on the communal ledger. At season\u2019s end, Kai will calculate the lake\u2019s current biomass and enforce the 6\u202f% rule and the 6\u202fkg hard cap. For any fisher whose haul exceeds the limit, Kai will compute the excess amount, multiply it by two, and require the fisher to return that amount of fish or, if unable to do so, pay the equivalent fine in communal currency. Repeat violations will trigger a temporary fishing ban for one season. All fishers will rotate as watcher each season to maintain accountability."
+          },
+          {
+            "question": "Does the temporary fishing ban for repeat violations end after one season, or does it end after a communal reconciliation meeting?",
+            "answer": "The ban is set to last one full season; after that, the fisher is free to fish again unless another violation occurs. We will still convene at the end of the season to review all violations and discuss any additional actions, but the ban itself ends after the single season.",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season. If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units). Repeat violations trigger a temporary fishing ban for one season. All fishers will rotate as watcher each season to maintain accountability.",
+            "revised_operationalization": "Kai will record each fisher\u2019s total haul on the communal ledger. At season\u2019s end, Kai will calculate the lake\u2019s current biomass and enforce the 6\u202f% rule and the 6\u202fkg hard cap. For any fisher whose haul exceeds the limit, Kai will compute the excess amount, multiply it by two, and require the fisher to return that amount of fish or, if unable to do so, pay the equivalent fine in communal currency. Repeat violations will trigger a temporary fishing ban for one season."
+          },
+          {
+            "question": "What happens to the returned fish\u2014who holds them and how are they recorded in the communal ledger?",
+            "answer": "Returned fish are deposited into the communal reserve, which is the shared fish pool that everyone draws from when needed. On the ledger, the fisher\u2019s name is credited with the excess amount (e.g., \u201cReturned 1.2\u202fkg\u201d), which reduces their net haul for the season and increases the communal stock. The lake\u2019s biomass figure is then adjusted upward by that amount, reflecting the fish that have effectively been re\u2011entered into the lake via the communal pool. Kai records this entry as a \u201creturn\u201d and notes the change to the communal reserve.\n",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season. If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units). Repeat violations trigger a temporary fishing ban for one season. All fishers will rotate as watcher each season to maintain accountability.\n",
+            "revised_operationalization": "Returned fish are added to the communal reserve and recorded on the communal ledger as a credit to the fisher\u2019s account, reducing their net haul and increasing the community pool. The lake\u2019s current biomass is updated to reflect the added fish, and Kai notes the return on the ledger for accountability. If a fisher cannot return the fish, they pay the fine in communal currency.\n"
+          },
+          {
+            "question": "What is the conversion rate between fish units and communal currency for fines?",
+            "answer": "The conversion rate is one fish unit equals one communal currency unit.",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season. If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units). Repeat violations trigger a temporary fishing ban for one season. All fishers will rotate as watcher each season to maintain accountability. Returned fish are added to the communal reserve and recorded on the communal ledger as a credit to the fisher\u2019s account, reducing their net haul and increasing the community pool. The lake\u2019s current biomass is updated to reflect the added fish, and Kai notes the return on the ledger for accountability. If a fisher cannot return the fish, they pay the fine in communal currency.",
+            "revised_operationalization": "(Unchanged)"
+          },
+          {
+            "question": "Where are the fines paid in communal currency deposited, and how are they recorded in the communal ledger?",
+            "answer": "The communal fines are paid into the shared currency reserve that the community keeps in a dedicated ledger account called \"Fines & Penalties\". When a fisher pays a fine, that amount is credited to the communal reserve, and at the same time a debit is made against the fisher\u2019s personal account. The ledger entry records the fisher\u2019s name, the fine amount, the date, and the reason (excess harvest) so that anyone can audit it later.",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season. If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units). Repeat violations trigger a temporary fishing ban for one season. All fishers will rotate as watcher each season to maintain accountability. Returned fish are added to the communal reserve and recorded on the communal ledger as a credit to the fisher\u2019s account, reducing their net haul and increasing the community pool. The lake\u2019s current biomass is updated to reflect the added fish, and Kai notes the return on the ledger for accountability. If a fisher cannot return the fish, they pay the fine in communal currency, which is deposited into the communal currency reserve and recorded as a credit to the communal fund and a debit to the fisher\u2019s account.",
+            "revised_operationalization": "Fines paid in communal currency are deposited into the communal currency reserve account named \"Fines & Penalties\". Each fine transaction is recorded in the communal ledger with the fisher\u2019s name, the fine amount, date, and reason, crediting the communal reserve and debiting the fisher\u2019s account. Returned fish are added to the communal fish reserve, and the lake biomass is updated accordingly. Watchers (starting with Kai this season) note all returns and fines in the ledger for transparency."
+          },
+          {
+            "question": "If a fisher is also the watcher for the season, can they enforce the ban or fine on themselves, and if not, how is that handled?",
+            "answer": "No, the watcher cannot impose a ban or fine on themselves because that would create a conflict of interest and undermine trust. Instead, if a fisher who is also the current watcher violates the rule, the enforcement responsibility is passed to the next scheduled watcher in the rotation or, if a dispute arises, to a small committee of fishers elected by the community for that season. That person or committee records the violation, calculates the fine or ban, and notes it in the communal ledger. The original watcher simply reports the situation to the designated enforcer and remains passive during the enforcement process.",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season. If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units). Repeat violations trigger a temporary fishing ban for one season. All fishers will rotate as watcher each season to maintain accountability. Returned fish are added to the communal reserve and recorded on the communal ledger as a credit to the fisher\u2019s account, reducing their net haul and increasing the community pool. The lake\u2019s current biomass is updated to reflect the added fish, and the designated watcher notes the return on the ledger for accountability. If a fisher cannot return the fish, they pay the fine in communal currency, which is deposited into the communal currency reserve and recorded as a credit to the communal fund and a debit to the fisher\u2019s account. Fines paid in communal currency are deposited into the communal currency reserve account named \"Fines & Penalties\". Each fine transaction is recorded in the communal ledger with the fisher\u2019s name, the fine amount, date, and reason, crediting the communal reserve and debiting the fisher\u2019s account. Returned fish are added to the communal fish reserve, and the lake biomass is updated accordingly. **If the fisher is also the watcher for the season, the watcher cannot enforce the ban or fine on themselves. Instead, enforcement responsibility passes to the next scheduled watcher in the rotation or to a community\u2011elected enforcement committee, which records the fine or ban in the ledger.**",
+            "revised_operationalization": "1. During each season, a watcher is assigned according to the rotation schedule. 2. When a fisher harvests, they record their catch and compare it to 6\u202f% of the current lake biomass and the 6\u202fkg hard cap. 3. If a violation occurs, the fisher must report the excess to the watcher. 4. If the watcher is also the violating fisher, they immediately pass the enforcement duty to the next watcher in the rotation (or, if the next watcher is unavailable, to the community\u2011elected enforcement committee). 5. The designated enforcer calculates the fine (twice the excess catch in fish units) or the ban duration, records the transaction in the communal ledger, and updates the communal fish reserve and lake biomass accordingly. 6. The original watcher logs the violation and the action taken by the enforcer but does not participate in the enforcement decision. 7. All transactions are documented in the communal ledger with date, fisher name, fine amount or ban duration, and reason, ensuring transparency."
+          },
+          {
+            "question": "What is a \"fish unit\"\u2014how many kilograms or what standard measurement is used to quantify fish when calculating fines?",
+            "answer": "In our fishery, a \"fish unit\" is simply one kilogram of fish. So when we refer to excess in fish units, we\u2019re talking about kilograms of catch.",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season. If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units). Repeat violations trigger a temporary fishing ban for one season. All fishers will rotate as watcher each season to maintain accountability. Returned fish are added to the communal reserve and recorded on the communal ledger as a credit to the fisher\u2019s account, reducing their net haul and increasing the community pool. The lake\u2019s current biomass is updated to reflect the added fish, and the designated watcher notes the return on the ledger for accountability. If a fisher cannot return the fish, they pay the fine in communal currency, which is deposited into the communal currency reserve and recorded as a credit to the communal fund and a debit to the fisher\u2019s account. Fines paid in communal currency are deposited into the communal currency reserve account named \"Fines & Penalties\". Each fine transaction is recorded in the communal ledger with the fisher\u2019s name, the fine amount, date, and reason, crediting the communal reserve and debiting the fisher\u2019s account. Returned fish are added to the communal fish reserve, and the lake biomass is updated accordingly. **If the fisher is also the watcher for the season, the watcher cannot enforce the ban or fine on themselves. Instead, enforcement responsibility passes to the next scheduled watcher in the rotation or to a community\u2011elected enforcement committee, which records the fine or ban in the ledger.**",
+            "revised_operationalization": "During each season, a watcher is assigned according to the rotation schedule. When a fisher harvests, they record their catch and compare it to 6\u202f% of the current lake biomass and the 6\u202fkg hard cap. If a violation occurs, the fisher must report the excess to the watcher. If the watcher is also the violating fisher, they immediately pass the enforcement duty to the next watcher in the rotation (or, if the next watcher is unavailable, to the community\u2011elected enforcement committee). The designated enforcer calculates the fine (twice the excess catch in fish units) or the ban duration, records the transaction in the communal ledger, and updates the communal fish reserve and lake biomass accordingly. The original watcher logs the violation and the action taken by the enforcer but does not participate in the enforcement decision. All transactions are documented in the communal ledger with date, fisher name, fine amount or ban duration, and reason, ensuring transparency."
+          },
+          {
+            "question": "When is the 6\u202f%/6\u202fkg rule enforcement applied \u2013 immediately after a fisher records a harvest, or only at the end of the season when the watcher recalculates lake biomass?",
+            "answer": "Enforcement happens right after a fisher records a catch. The watcher (or next in rotation) checks the 6\u202f%/6\u202fkg limits immediately, then applies the fine or ban. It is not delayed until the end of the season.",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season. If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units). Repeat violations trigger a temporary fishing ban for one season. All fishers will rotate as watcher each season to maintain accountability. Returned fish are added to the communal reserve and recorded on the communal ledger as a credit to the fisher\u2019s account, reducing their net haul and increasing the community pool. The lake\u2019s current biomass is updated to reflect the added fish, and the designated watcher notes the return on the ledger for accountability. If a fisher cannot return the fish, they pay the fine in communal currency, which is deposited into the communal currency reserve and recorded as a credit to the communal fund and a debit to the fisher\u2019s account. Fines paid in communal currency are deposited into the communal currency reserve account named \"Fines & Penalties\". Each fine transaction is recorded in the communal ledger with the fisher\u2019s name, the fine amount, date, and reason, crediting the communal reserve and debiting the fisher\u2019s account. Returned fish are added to the communal fish reserve, and the lake biomass is updated accordingly. **If the fisher is also the watcher for the season, the watcher cannot enforce the ban or fine on themselves. Instead, enforcement responsibility passes to the next scheduled watcher in the rotation or to a community\u2011elected enforcement committee, which records the fine or ban in the ledger.**",
+            "revised_operationalization": "During each season, a watcher is assigned according to the rotation schedule. When a fisher harvests, they record their catch and compare it to 6\u202f% of the current lake biomass and the 6\u202fkg hard cap. If a violation occurs, the fisher must report the excess to the watcher. If the watcher is also the violating fisher, they immediately pass the enforcement duty to the next watcher in the rotation (or, if the next watcher is unavailable, to the community\u2011elected enforcement committee). The designated enforcer calculates the fine (twice the excess catch in fish units) or the ban duration, records the transaction in the communal ledger, and updates the communal fish reserve and lake biomass accordingly. The original watcher logs the violation and the action taken by the enforcer but does not participate in the enforcement decision. All transactions are documented in the communal ledger with date, fisher name, fine amount or ban duration, and reason, ensuring transparency."
+          },
+          {
+            "question": "How are repeat violations defined and tracked, and how is the one\u2011season fishing ban recorded and enforced?",
+            "answer": "In this rule, a repeat violation is any second (or subsequent) breach by the same fisher of the 6\u202f% or 6\u202fkg limit after the first violation has been recorded.  Each violation is logged in the communal ledger as a separate entry that lists the fisher\u2019s name, the date, the excess catch, the fine imposed (twice the excess in fish units), and whether a ban was applied.  The ledger therefore keeps a chronological history for every fisher, making it easy to see if someone has violated the rule more than once.\n\nThe one\u2011season ban is handled by the next scheduled watcher (or, if that watcher is unavailable, by the community\u2011elected enforcement committee).  Once the ban is decided, the enforcer writes a \u201cBan\u201d entry in the ledger that records the fisher\u2019s name, the season in which the ban takes effect, and the reason.  The watcher then marks the fisher\u2019s account as \u201cbanned\u201d for that season and prevents any fish record for that fisher until the ban season ends.  This is the only enforcement action that can be applied; all fines are monetary and recorded in the communal currency reserve.  Because the ban is a formal ledger entry, it is visible to all fishers and cannot be ignored.\n\nNo part of the policy changes based on this explanation, so the proposal remains the same as originally stated.\n",
+            "revised_policy": "No fisher may harvest more than 6\u202f% of the lake\u2019s current biomass in any season, with a hard cap of 6\u202fkg per season.  If a fisher exceeds the limit, they must return the excess catch or pay a communal fine equal to twice the amount of the excess catch (in fish units).  Repeat violations trigger a temporary fishing ban for one season.  All fishers will rotate as watcher each season to maintain accountability.  Returned fish are added to the communal reserve and recorded on the communal ledger as a credit to the fisher\u2019s account, reducing their net haul and increasing the community pool.  The lake\u2019s current biomass is updated to reflect the added fish, and the designated watcher notes the return on the ledger for accountability.  If a fisher cannot return the fish, they pay the fine in communal currency, which is deposited into the communal currency reserve and recorded as a credit to the communal fund and a debit to the fisher\u2019s account.  Fines paid in communal currency are deposited into the communal currency reserve account named \"Fines & Penalties\".  Each fine transaction is recorded in the communal ledger with the fisher\u2019s name, the fine amount, date, and reason, crediting the communal reserve and debiting the fisher\u2019s account.  Returned fish are added to the communal fish reserve, and the lake biomass is updated accordingly.  If the fisher is also the watcher for the season, the watcher cannot enforce the ban or fine on themselves.  Instead, enforcement responsibility passes to the next scheduled watcher in the rotation or to a community\u2011elected enforcement committee, which records the fine or ban in the ledger.",
+            "revised_operationalization": "1. After each trip, the fisher records their haul on a shared ledger, noting date, fish amount, and identity.\n2. The current lake biomass is updated on the ledger after all fishers have recorded their catches for the season.\n3. The watcher checks each fisher\u2019s haul against the 6\u202f% and 6\u202fkg limits using the biomass value from step 2.\n4. If a violation is found:\n   a. The fisher reports the excess to the watcher.\n   b. The watcher, if not the violator, calculates the fine (2\u00d7 excess) and records a Fine entry in the ledger, debiting the fisher\u2019s account and crediting the \"Fines & Penalties\" reserve.\n   c. If the violator is the watcher, the next watcher (or enforcement committee) takes over and performs step 4b.\n5. If the violation is a repeat (i.e., the fisher already has a prior Fine entry for this season), the watcher records a Ban entry in the ledger that lists the fisher, the ban season, and the reason.\n6. The enforcer marks the fisher\u2019s account as \"banned\" for the specified season and prevents any fish record for that fisher until the ban season ends.\n7. All entries (harvest, fine, ban) are timestamped and kept in a communal ledger for transparency and future reference.\n8. At the start of each new season, the ledger is checked for any active bans; if none, the fisher is free to fish again."
+          }
+        ],
+        "agent_5": [
+          {
+            "question": "If a fisher\u2019s next catch is less than 2\u202fkg, how is the 2\u202fkg fine applied or enforced?",
+            "answer": "The fine is a 2\u202fkg reduction taken from my next catch. If that catch is less than 2\u202fkg I simply forfeit the whole catch; no fish are taken to market and I record a 2\u202fkg debt to be cleared by my next trip.",
+            "revised_policy": "Each fisher may take up to 12\u202f% of the lake\u2019s current stock per trip, keeping a personal 1\u202fkg reserve; any catch beyond that must be returned. If a fisher fails to return excess, a fine of 2\u202fkg is imposed on the next catch. If the next catch is less than 2\u202fkg, the entire catch is forfeited as the fine and a 2\u202fkg debt is recorded.",
+            "revised_operationalization": "Before a trip the fisher notes the lake\u2019s stock; after catching, the catch is weighed and compared to 12\u202f% of that stock. If the catch exceeds the limit, the surplus is returned to the lake within 24\u202fh and logged by Kai the lake\u2011watcher. Kai verifies the numbers and, if a fisher fails to return excess, imposes a fine of 2\u202fkg of his next catch. If that next catch is less than 2\u202fkg, the fisher must forfeit that entire catch, no fish are taken to market, and a 2\u202fkg debt is recorded to be offset by a subsequent catch. The lake stock must never fall below 70\u202f% of its pre\u2011trip value; if it does, fishing is suspended until the stock recovers."
+          },
+          {
+            "question": "When and how is the lake\u2019s stock measured to check the 70% pre\u2011trip threshold, and who is authorized to suspend fishing if that threshold is breached?",
+            "answer": "We measure the lake\u2019s stock right before every trip. Kai, the lake\u2011watcher, takes a quick inventory \u2013 usually a weighted sample of the fish in the water or a count of the catchable biomass \u2013 and records that figure. The 70\u202f% rule is applied to that pre\u2011trip stock versus the stock recorded at the end of the previous trip. If the current stock falls below 70\u202f% of that earlier figure, Kai has the authority to halt fishing. He will suspend all trips until the lake has rebuilt enough fish so that the stock is back above 70\u202f%. That way everyone knows exactly when the limit is breached and who can stop fishing.",
+            "revised_policy": "Each fisher may take up to 12\u202f% of the lake\u2019s current stock per trip, keeping a personal 1\u202fkg reserve; any excess must be returned. If a fisher fails to return excess, a fine of 2\u202fkg is imposed on the next catch. If the next catch is less than 2\u202fkg, the entire catch is forfeited as the fine and a 2\u202fkg debt is recorded. The lake stock must never fall below 70\u202f% of its pre\u2011trip value; if it does, fishing is suspended until the stock recovers.",
+            "revised_operationalization": "Before each trip the lake stock is measured by Kai, the lake\u2011watcher, using a quick inventory of catchable fish. Kai compares this pre\u2011trip stock to the stock recorded at the end of the previous trip. If the current stock is less than 70\u202f% of that prior value, Kai suspends all fishing until the stock rises above 70\u202f%. During a trip, the fisher records the catch and the 12\u202f% limit. Excess is returned within 24\u202fh and logged by Kai. Fines are applied to the next trip as specified."
+          },
+          {
+            "question": "Where is the 2\u202fkg debt recorded, and how does a fisher clear that debt in future trips?",
+            "answer": "The 2\u202fkg debt is written into Kai\u2019s ledger that records every fisher\u2019s catches, fines, and obligations. When a fisher fails to return excess and the fine is imposed, Kai logs a negative 2\u202fkg entry against that fisher\u2019s account. The debt is cleared only when the fisher\u2019s next trip produces a catch that can cover it. The 2\u202fkg fine is deducted from the catch before the fisher is allowed to take any fish home. If the catch is still less than 2\u202fkg, the entire catch is forfeited and the debt is added to the ledger. Once the fisher\u2019s subsequent catch is at least 2\u202fkg, Kai subtracts the debt from the catch, leaving the net amount to be taken. If the debt remains after a catch, it carries forward until it is fully paid by future catches.",
+            "revised_policy": "Each fisher may take up to 12\u202f% of the lake\u2019s current stock per trip, keeping a personal 1\u202fkg reserve; any excess must be returned. If a fisher fails to return excess, a fine of 2\u202fkg is imposed on the next catch. If the next catch is less than 2\u202fkg, the entire catch is forfeited as the fine and a 2\u202fkg debt is recorded. The lake stock must never fall below 70\u202f% of its pre\u2011trip value; if it does, fishing is suspended until the stock rises above 70\u202f%. Before each trip the lake stock is measured by Kai, the lake\u2011watcher, using a quick inventory of catchable fish. Kai compares this pre\u2011trip stock to the stock recorded at the end of the previous trip. If the current stock is less than 70\u202f% of that prior value, Kai suspends all fishing until the stock rises above 70\u202f%. During a trip, the fisher records the catch and the 12\u202f% limit. Excess is returned within 24\u202fh and logged by Kai. Fines are applied to the next trip as specified.",
+            "revised_operationalization": ""
+          },
+          {
+            "question": "Does the 12\u202f% catch limit apply to the total amount the fisher takes, including the personal 1\u202fkg reserve, or is the 1\u202fkg reserve an addition to that limit?",
+            "answer": "As a fisher, I see the 12% limit as the total you may keep\u2014so the 1\u202fkg reserve is part of that 12% and not an extra addition.",
+            "revised_policy": "Each fisher may take up to 12% of the lake\u2019s current stock per trip, keeping a personal 1\u202fkg reserve; any excess must be returned. If a fisher fails to return excess, a fine of 2\u202fkg is imposed on the next catch. If the next catch is less than 2\u202fkg, the entire catch is forfeited as the fine and a 2\u202fkg debt is recorded. The lake stock must never fall below 70% of its pre\u2011trip value; if it does, fishing is suspended until the stock rises above 70%. Before each trip the lake stock is measured by Kai, the lake\u2011watcher, using a quick inventory of catchable fish. Kai compares this pre\u2011trip stock to the stock recorded at the end of the previous trip. If the current stock is less than 70% of that prior value, Kai suspends all fishing until the stock rises above 70%. During a trip, the fisher records the catch and the 12% limit. Excess is returned within 24\u202fh and logged by Kai. Fines are applied to the next trip as specified.",
+            "revised_operationalization": "Before each trip, Kai records the current lake stock S. The fisher may keep up to 0.12\u202f\u00d7\u202fS\u202fkg, but must always retain 1\u202fkg as personal reserve. Any catch above this limit must be returned to the lake or deposited in the communal pool within 24\u202fh, and Kai logs it. If a fisher does not return the excess, a 2\u202fkg fine is imposed on the next trip. If the next trip yields less than 2\u202fkg, that entire catch is forfeited and a 2\u202fkg debt is noted. If the current stock falls below 70% of the stock at the end of the previous trip, Kai suspends fishing until the stock rises above 70%."
+          }
+        ],
+        "agent_6": [
+          {
+            "question": "Who is authorized to impose a temporary fishing ban on a fisher, and through what existing action or mechanism is that ban enacted?",
+            "answer": "Kai, the designated lake\u2011watcher, is the one authorized to impose a temporary fishing ban. The ban is enacted by Kai\u2019s daily review of the shared logbook at 18:00 \u2013 if a fisher\u2019s total exceeds the 10\u202fkg per trip limit or the 180\u202fkg daily cap, Kai records the excess and issues a ban notice that the fisher must not fish the following day. The ban is enforced by the community\u2019s adherence to Kai\u2019s notice and the logbook record, which is treated as the official ruling for that day.",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": "Each fisher records his catch on a shared logbook; Kai reviews daily totals at 18:00 and alerts the group if limits are breached. If a fisher exceeds 10\u202fkg, the excess is returned to the lake or placed in a community pot to be redistributed. The daily total cap is enforced by Kai tallying the log; any overage results in a temporary fishing ban for that fisher the next day. The reserve is monitored weekly by measuring lake level; if reserve falls below 25\u202f%, fishing is suspended until levels recover."
+          },
+          {
+            "question": "Who is responsible for holding the community pot that receives excess catch and how is the redistribution of that pot\u2019s contents determined?",
+            "answer": "Kai, the lake\u2011watcher, is responsible for holding the community pot. After each day\u2019s logbook is tallied at 18:00, Kai opens the pot and redistributes its contents equally among all fishers who stayed within the 10\u202fkg per trip limit and the daily 180\u202fkg cap. If no one complied, the pot is added to the community reserve for the next season.",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": "Each fisher records his catch on the shared logbook. Kai reviews the logbook daily at 18:00. If a fisher exceeds 10\u202fkg, the excess is returned to the lake or placed in a community pot, which Kai holds. Kai records the pot\u2019s weight in the logbook. At 18:30 Kai tallies the daily totals; if the 180\u202fkg cap is breached, Kai imposes a temporary fishing ban on the offending fisher for the next day. The community pot\u2019s contents are then redistributed equally among all fishers who complied with the 10\u202fkg per trip limit and the daily cap that day. If no fishers complied, the pot is added to the community reserve for the next season. The lake\u2019s reserve is monitored weekly by measuring lake level; if reserve falls below 25\u202f%, fishing is suspended until levels recover."
+          },
+          {
+            "question": "What institutional mechanism (action, rule, or state) is used to enforce the temporary fishing ban on a fisher and the suspension of fishing when the reserve falls below 25%?",
+            "answer": "The mechanism is Kai\u2019s authority as lake\u2011watcher: he uses the shared logbook and his daily tally to record violations, then applies the rule that a violating fisher is banned for the next day, and if the reserve drops below 25\u202f% he suspends fishing for everyone until the reserve recovers.",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": "Kai reviews the logbook at 18:00 each day and records each fisher\u2019s catch. Any excess over 10\u202fkg is returned to the lake or placed in a community pot. At 18:30 Kai tallies the daily totals; if the 180\u202fkg cap is breached, Kai imposes a temporary fishing ban on the offending fisher for the next day, and the pot\u2019s contents are redistributed among compliant fishers. If the lake reserve falls below 25\u202f%, Kai suspends fishing for all fishers until the reserve recovers."
+          },
+          {
+            "question": "Which existing state or action is used to record a fisher\u2019s temporary ban, and how is that ban enacted and lifted in the system?",
+            "answer": "Kai uses a temporary ban flag in the fisher\u2019s record in his logbook.  When a fisher\u2019s daily total exceeds 180\u202fkg, Kai sets that flag to \u2018ban\u2019 for the next day.  The ban is enacted by denying the fisher permission to cast a line that morning; it is lifted automatically the following day if the lake\u2019s reserve is at least 25\u202f% of its capacity and the daily total catch for that day is within the 180\u202fkg cap.",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": "Kai records each fisher\u2019s catch in his logbook at 18:00.  If any fisher exceeds 10\u202fkg, the excess is returned or placed in the community pot.  At 18:30, Kai tallies the daily totals; if the 180\u202fkg cap is breached, Kai sets a temporary ban flag on the offending fisher\u2019s record for the next day, preventing them from fishing until the next morning.  The ban is lifted automatically when the next day\u2019s catch is within the cap and the lake reserve remains \u226525\u202f% of its capacity."
+          },
+          {
+            "question": "Which existing tracked state is used to store the temporary ban flag for a fisher, and through what existing action is that flag set or cleared?",
+            "answer": "The temporary ban flag is kept in each fisher\u2019s record under the field named \"temp_ban\". Kai\u2019s daily\u2011tally action (the one that runs at 18:30) is what sets or clears this flag \u2013 it sets it if the 180\u202fkg cap is exceeded and automatically clears it the next morning once the catch is within limits and the lake reserve stays \u226525\u202f%.",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": ""
+          },
+          {
+            "question": "Which existing action (critique, discuss, harvest, propose, or vote) is used to set or clear the temporary ban flag for a fisher?",
+            "answer": "The 'vote' action is used to set or clear the temporary ban flag for a fisher.",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": ""
+          },
+          {
+            "question": "What is the voting rule (threshold, participants, procedure) that the 'vote' action uses to set or clear a fisher's temporary ban flag?",
+            "answer": "The vote action uses a simple majority threshold \u2013 more than 50\u202f% of the fishers present must vote for the proposal. All fishers in the community are participants, and the procedure is: proposals are submitted, the community casts votes, and if the majority threshold is reached the rule is enacted (which can set or clear a fisher\u2019s temporary ban flag).",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": "Unchanged from the last description \u2013 the daily catch cap, trip limit, and reserve percentage are enforced as per the proposal\u2019s terms."
+          },
+          {
+            "question": "Which existing action (critique, discuss, harvest, propose, or vote) is used to enforce the suspension of all fishing when the reserve falls below 25%?",
+            "answer": "vote",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": ""
+          },
+          {
+            "question": "Which existing tracked state is used to indicate that fishing is suspended when the reserve falls below 25\u202f%, and through which action is that state set or cleared?",
+            "answer": "The lake keeps a boolean flag called 'fishing_allowed' that is set to false when the reserve drops below the 25\u202f% threshold. That flag is toggled by the policy enforcement action, specifically the 'enforce_reserve_rule' step that checks the reserve and updates the flag.",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": "When the lake reserve falls below 25\u202f% of its current capacity, the 'fishing_allowed' flag is set to false by the 'enforce_reserve_rule' action, suspending all fishing. When the reserve rises back to at least 25\u202f%, the flag is set back to true, allowing fishing to resume."
+          },
+          {
+            "question": "Which existing action (critique, discuss, harvest, propose, or vote) is used to set or clear the \u2018fishing_allowed\u2019 flag that indicates fishing is suspended when the reserve falls below 25\u202f%?",
+            "answer": "none of the listed actions; the \u2018enforce_reserve_rule\u2019 action automatically sets or clears the flag.",
+            "revised_policy": "No fisher may harvest more than 10\u202fkg per trip and the total daily catch may not exceed 180\u202fkg, while the lake must keep a reserve of at least 25\u202f% of its current capacity.",
+            "revised_operationalization": "The lake\u2011watcher (Kai) monitors the reserve each day. If the reserve falls below 25\u202f% of current capacity, the \u2018enforce_reserve_rule\u2019 action sets the fishing_allowed flag to false, suspending all fishing. When the reserve rises back to at least 25\u202f%, the flag is set to true, allowing fishing to resume. Each trip\u2019s catch is recorded, and the total daily catch is summed. Any catch exceeding the 10\u202fkg per trip or 180\u202fkg daily limit is trimmed accordingly."
+          }
+        ],
+        "agent_7": [
+          {
+            "question": "Who is Kai, the person who calculates the 10% limit and verifies catch records?",
+            "answer": "Kai is the lake\u2011watcher chosen by the community for this round. He is the person who calculates the 10\u202f% limit at the start of each round and checks every fisher\u2019s ledger entry to make sure no one exceeds the 15\u202fkg per\u2011trip ceiling or the 10\u202f% lake\u2011stock ceiling.",
+            "revised_policy": "Each fisher may take up to 15\u202fkg per trip, but no more than 10\u202f% of the lake\u2019s current stock, and must leave at least 1\u202fkg per trip.",
+            "revised_operationalization": "At the start of each round, Kai calculates 10\u202f% of the lake\u2019s current stock and announces it. Each fisher records their catch on a shared ledger and submits the weight to Kai within 24\u202fh. Kai verifies the weights; any excess over 15\u202fkg or the 10\u202f% limit is returned to the lake, and the fisher must pay a community fee equal to 10\u202f% of the excess. If a fisher fails to submit their catch record, they forfeit that round\u2019s catch and receive a 20\u202f% fine on future rounds until compliance is restored."
+          },
+          {
+            "question": "How is the requirement that each fisher must leave at least 1\u202fkg per trip enforced in practice?",
+            "answer": "Kai watches the lake\u2019s stock at the start of the round and tells everyone the 10\u202f% cap. After we\u2019re done, we all log our catch on the shared ledger and turn it over to Kai within 24\u202fh. Kai checks the numbers: he knows how much fish was in the lake and how much we claimed to have taken. If the recorded catch leaves the lake with less than 1\u202fkg, Kai can tell us that the numbers don\u2019t add up \u2013 we\u2019re claiming to have taken more than the lake can spare while still leaving a 1\u2011kg buffer. Kai will then return the excess weight back to the lake and we\u2019ll be hit with a 10\u202f% fee on that excess. If we don\u2019t submit at all, the whole round\u2019s catch is forfeited and we get a 20\u202f% fine on future rounds until we start keeping the ledger. That\u2019s how the \u201cleave at least 1\u202fkg\u201d rule is actually enforced: the ledger and Kai\u2019s checks make sure nobody takes all the fish and leaves nothing behind.",
+            "revised_policy": "Each fisher may take up to 15\u202fkg per trip, but no more than 10\u202f% of the lake\u2019s current stock, and must leave at least 1\u202fkg per trip.",
+            "revised_operationalization": "1. At the start of the round, Kai announces the lake\u2019s current stock and calculates 10\u202f% of that amount. 2. Each fisher records the weight of fish they take and submits this figure to Kai within 24\u202fh. 3. Kai verifies each submission against two limits: the 15\u202fkg maximum per trip, the 10\u202f% of lake stock limit, and the requirement that at least 1\u202fkg remain in the lake. 4. If a fisher\u2019s reported catch violates any limit, Kai returns the excess weight to the lake and levies a community fee equal to 10\u202f% of the excess. 5. Failure to submit a catch record forfeits that round\u2019s catch and triggers a 20\u202f% fine on all subsequent rounds until the fisher resumes compliance."
+          },
+          {
+            "question": "How and where is the community fee equal to 10% of the excess collected and deposited?",
+            "answer": "Kai takes the 10\u202f% of the excess weight in the form of fish (or its monetary equivalent) directly from the fisher. Once the fisher reports the catch, Kai checks the numbers. If the fisher exceeded the limit, Kai takes the calculated fee and places it in the community\u2019s communal reserve\u2014usually a shared chest or a designated spot at the dock where all fees are stored for community use. The fisher then returns the rest of the excess to the lake. In short, Kai collects the fee on the spot, records it, and deposits it into the community\u2019s shared reserve for maintenance or shared benefits.",
+            "revised_policy": "Each fisher may take no more than 15\u202fkg per trip, no more than 10\u202f% of the lake\u2019s current stock, and must bring at least 1\u202fkg per trip.",
+            "revised_operationalization": "1. At the start of the round, Kai announces the lake\u2019s current stock and calculates 10\u202f% of that amount. 2. Each fisher records the weight of fish they take and submits this figure to Kai within 24\u202fh. 3. Kai verifies each submission against two limits: the 15\u202fkg maximum per trip, the 10\u202f% of lake stock limit, and the requirement that at least 1\u202fkg remain in the lake. 4. If a fisher\u2019s reported catch violates any limit, Kai returns the excess weight to the lake and levies a community fee equal to 10\u202f% of the excess, taking that fee directly from the fisher and depositing it into the community\u2019s shared reserve. 5. Failure to submit a catch record forfeits that round\u2019s catch and triggers a 20\u202f% fine on all subsequent rounds until the fisher resumes compliance."
+          },
+          {
+            "question": "How and by whom is the 20% fine on subsequent rounds collected, enforced, and where is it deposited?",
+            "answer": "The 20\u202f% fine is collected and enforced by the lake\u2011watcher Kai. Kai keeps a record of every fisher\u2019s compliance status each round. If a fisher does not submit a catch record, Kai flags that fisher as non\u2011compliant. For every following round in which the fisher still fails to submit, Kai subtracts 20\u202f% of the fisher\u2019s catch value (or of any catch money received) from the fisher\u2019s proceeds and records that amount as a fine. Kai then deposits the collected fine directly into the community\u2019s shared reserve fund. The fine is therefore collected on a per\u2011round basis, enforced by Kai\u2019s monitoring role, and deposited into the same shared reserve that holds community fees and shared resources.",
+            "revised_policy": "Each fisher may take no more than 15\u202fkg per trip, no more than 10\u202f% of the lake\u2019s current stock, and must bring at least 1\u202fkg per trip.",
+            "revised_operationalization": "1. At the start of each round, Kai announces the lake\u2019s current stock and calculates 10\u202f% of that amount. 2. Each fisher records the weight of fish they take and submits this figure to Kai within 24\u202fh. 3. Kai verifies each submission against the three limits: the 15\u202fkg maximum per trip, the 10\u202f% of lake stock limit, and the requirement that at least 1\u202fkg remain in the lake. 4. If a fisher\u2019s reported catch violates any limit, Kai returns the excess weight to the lake and levies a community fee equal to 10\u202f% of the excess, taking that fee directly from the fisher and depositing it into the community\u2019s shared reserve. 5. Failure to submit a catch record forfeits that round\u2019s catch and triggers a 20\u202f% fine on all subsequent rounds until the fisher resumes compliance. The 20\u202f% fine is collected by Kai at the end of each round by deducting it from the fisher\u2019s catch proceeds and depositing the amount into the shared reserve."
+          },
+          {
+            "question": "How does Kai verify that the 1\u202fkg remaining requirement holds when multiple fishers are taking fish\u2014does the rule apply to each fisher individually or to the lake as a whole after all catches?",
+            "answer": "Kai will check the lake as a whole after all catches. He will add up every fisher\u2019s reported weight, subtract that from the lake\u2019s stock announced at the start, and make sure at least 1\u202fkg remains. If the total exceeds stock\u20111\u202fkg, Kai will return the excess to the lake and levy the fee on the fishers whose catch caused the shortfall. The 1\u202fkg rule is not applied per\u2011fisher but to the lake after the round.",
+            "revised_policy": "Each fisher may take no more than 15\u202fkg per trip, no more than 10\u202f% of the lake\u2019s current stock, and the lake must retain at least 1\u202fkg of fish after all fishers have taken their catch.",
+            "revised_operationalization": "1. Kai announces the lake\u2019s current stock at the start of each round and calculates 10\u202f% of that amount.\n2. Each fisher records the weight of fish they take and submits this figure to Kai within 24\u202fh.\n3. Kai verifies each submission against the two limits: 15\u202fkg per trip and 10\u202f% of lake stock. The 1\u202fkg remaining requirement is checked after all catches have been reported. Kai adds all reported catches, subtracts them from the announced stock, and if the remaining amount is less than 1\u202fkg, Kai returns the excess to the lake and levies a community fee equal to 10\u202f% of the excess from the fishers whose catch caused the shortfall.\n4. Failure to submit a catch record forfeits that round\u2019s catch and triggers a 20\u202f% fine on all subsequent rounds until the fisher resumes compliance. The 20\u202f% fine is collected by Kai at the end of each round by deducting it from the fisher\u2019s catch proceeds and depositing the amount into the shared reserve."
+          },
+          {
+            "question": "What is the basis for the 20% fine on subsequent rounds\u2014does it apply to the fisher\u2019s catch proceeds, or to some other measure?",
+            "answer": "The 20% fine applies to the money you earn from selling your catch \u2013 it is taken from your catch proceeds each subsequent round until you resume compliance. It does not apply to the weight of the fish or any other measure.",
+            "revised_policy": "Each fisher may take no more than 15\u202fkg per trip, no more than 10\u202f% of the lake\u2019s current stock, and the lake must retain at least 1\u202fkg of fish after all fishers have taken their catch.",
+            "revised_operationalization": "1. Kai announces the lake\u2019s current stock at the start of each round and calculates 10\u202f% of that amount. 2. Each fisher records the weight of fish they take and submits this figure to Kai within 24\u202fh. 3. Kai verifies each submission against the two limits: 15\u202fkg per trip and 10\u202f% of lake stock. The 1\u202fkg remaining requirement is checked after all catches have been reported. Kai adds all reported catches, subtracts them from the announced stock, and if the remaining amount is less than 1\u202fkg, Kai returns the excess to the lake and levies a community fee equal to 10\u202f% of the excess from the fishers whose catch caused the shortfall. 4. Failure to submit a catch record forfeits that round\u2019s catch and triggers a 20\u202f% fine on all subsequent rounds until the fisher resumes compliance. The 20\u202f% fine is collected by Kai at the end of each round by deducting it from the fisher\u2019s catch proceeds and depositing the amount into the shared reserve."
+          },
+          {
+            "question": "What happens if a fisher submits a catch record after the 24\u2011hour deadline?",
+            "answer": "If you slip past the 24\u2011hour window, Kai will treat you as a non\u2011compliant fisher \u2013 the catch you were hauling that round is forfeited and a 20\u202f% fine is applied to all future catches until you start submitting on time again.",
+            "revised_policy": "Each fisher may take no more than 15\u202fkg per trip, no more than 10\u202f% of the lake\u2019s current stock, and the lake must retain at least 1\u202fkg of fish after all fishers have taken their catch.",
+            "revised_operationalization": "1. Kai announces the lake\u2019s current stock at the start of each round and calculates 10\u202f% of that amount. 2. Each fisher records the weight of fish they take and submits this figure to Kai within 24\u202fh. 3. Kai verifies each submission against the two limits: 15\u202fkg per trip and 10\u202f% of lake stock. The 1\u202fkg remaining requirement is checked after all catches have been reported. Kai adds all reported catches, subtracts them from the announced stock, and if the remaining amount is less than 1\u202fkg, Kai returns the excess to the lake and levies a community fee equal to 10\u202f% of the excess from the fishers whose catch caused the shortfall. 4. Failure to submit a catch record within the 24\u2011hour deadline forfeits that round\u2019s catch and triggers a 20\u202f% fine on all subsequent rounds until the fisher resumes compliance. The 20\u202f% fine is collected by Kai at the end of each round by deducting it from the fisher\u2019s catch proceeds and depositing the amount into the shared reserve."
+          },
+          {
+            "question": "In what unit does Kai record and deposit the 10% fee on excess catch and the 20% fine into the community reserve, and how is that recorded in the shared reserve state variable?",
+            "answer": "Kilograms (kg)",
+            "revised_policy": "Each fisher may take no more than 15\u202fkg per trip, no more than 10\u202f% of the lake\u2019s current stock, and the lake must retain at least 1\u202fkg of fish after all fishers have taken their catch.",
+            "revised_operationalization": "Kai records the 10\u202f% fee on any excess catch and the 20\u202f% fine in kilograms, adding the weight to the shared reserve state variable, which is maintained as the total weight of fish in the reserve (kg)."
+          },
+          {
+            "question": "Which lake stock value does Kai use to calculate the 10% cap and enforce the 1\u202fkg remaining rule\u2014the tracked stock_kg, the lake_watcher\u2019s stock_estimate, or another measure?",
+            "answer": "I reckon Kai uses the officially tracked stock_kg; that\u2019s the number he relies on to compute the 10% limit and the 1\u2011kg safety net.",
+            "revised_policy": "Each fisher may take no more than 15\u202fkg per trip, no more than 10\u202f% of the lake\u2019s current stock, and the lake must retain at least 1\u202fkg of fish after all fishers have taken their catch.",
+            "revised_operationalization": "Kai applies the 10\u202f% cap based on the current tracked stock_kg. If a fisher exceeds 15\u202fkg, the excess is fined 10\u202f% of the excess weight. The 1\u202fkg remaining rule is enforced by ensuring that the sum of all catches in the round does not reduce the tracked stock_kg below 1\u202fkg; if it would, the last fisher\u2019s catch is trimmed so the reserve stays at 1\u202fkg. Fines for exceeding the 10\u202f% cap and the 20\u202f% fine for the 1\u202fkg rule are added to the shared reserve state variable."
+          },
+          {
+            "question": "What is the base amount from which the 20% fine for the 1\u202fkg remaining rule is calculated?",
+            "answer": "It\u2019s the amount that we trim off the last fisher\u2019s haul \u2013 the excess that would have dropped the lake\u2019s stock below 1\u202fkg.",
+            "revised_policy": "Each fisher may take no more than 15\u202fkg per trip, no more than 10\u202f% of the lake\u2019s current stock, and the lake must retain at least 1\u202fkg of fish after all fishers have taken their catch.",
+            "revised_operationalization": "Kai applies the 10\u202f% cap based on the current tracked stock_kg. If a fisher exceeds 15\u202fkg, the excess is fined 10\u202f% of the excess weight. The 1\u202fkg remaining rule is enforced by ensuring that the sum of all catches in the round does not reduce the tracked stock_kg below 1\u202fkg; if it would, the last fisher\u2019s catch is trimmed so the reserve stays at 1\u202fkg, and the trimmed amount is used as the base for the 20\u202f% fine. Fines for exceeding the 10\u202f% cap and the 20\u202f% fine for the 1\u202fkg rule are added to the shared reserve state variable."
+          }
+        ],
+        "agent_8": [
+          {
+            "question": "If 8% of the logged stock is less than 1kg, which rule\u2014 the 1kg minimum or the 8% limit\u2014takes precedence?",
+            "answer": "The 1\u202fkg minimum for the fisher\u2019s own sustenance overrides the 8\u202f% ceiling when the 8\u202f% of the logged stock would be less than 1\u202fkg. In that case the fisher must take at least 1\u202fkg, even if it exceeds 8\u202f% of the lake\u2019s current stock.",
+            "revised_policy": "Each fisher may take up to 8\u202f% of the lake\u2019s current stock per trip. If 8\u202f% of the logged stock is less than 1\u202fkg, the fisher must take at least 1\u202fkg, overriding the 8\u202f% limit. After catching, the fisher keeps at least 1\u202fkg for themselves and deposits 5\u202f% of the catch into the communal emergency reserve. Anyone exceeding the limit must return the excess to the lake and forfeits the right to fish for the next two trips. The reserve is used only if it falls below 30\u202fkg; otherwise no penalty is imposed.",
+            "revised_operationalization": "Before each trip the fisher records the lake\u2019s current stock in the communal log. After catching, they weigh their haul; if 8\u202f% of the logged stock is <1\u202fkg, they take 1\u202fkg. They deposit 5\u202f% of the catch into the reserve bin marked by the lake\u2011watcher. The lake\u2011watcher confirms weights, updates the log, and monitors the reserve level. If the reserve falls below 30\u202fkg, the reserve is used; otherwise it remains untouched."
+          },
+          {
+            "question": "The proposal states that the reserve is used only if it falls below 30\u202fkg, but it does not specify how the reserve is used or who is authorized to use it.",
+            "answer": "The reserve is meant to be an emergency fund that the community can tap into when the lake\u2019s stock falls below 30\u202fkg.  The lake\u2011watcher \u2013 in this round, Kai \u2013 has the authority to approve any request for funds from the reserve and to record that use.  The funds can be used for things like repairing nets, replacing gear, or other urgent community needs that arise when the lake is low.  No single fisher can claim it; all claims must go through the lake\u2011watcher and be documented in the communal log.",
+            "revised_policy": "Each fisher may take up to 8\u202f% of the lake\u2019s current stock per trip. If 8\u202f% of the logged stock is less than 1\u202fkg, the fisher must take at least 1\u202fkg, overriding the 8\u202f% limit. After catching, the fisher keeps at least 1\u202fkg for themselves and deposits 5\u202f% of the catch into the communal emergency reserve. Anyone exceeding the limit must return the excess to the lake and forfeits the right to fish for the next two trips. The reserve is used only if it falls below 30\u202fkg; otherwise no penalty is imposed.",
+            "revised_operationalization": "The lake\u2011watcher is authorized to approve any use of the reserve and to document that use in the communal log.  Reserve funds may be withdrawn for emergency repairs of fishing gear, replacement of essential equipment, or other urgent community needs when the lake\u2019s stock is below 30\u202fkg.  Each withdrawal must be justified, recorded, and approved by the lake\u2011watcher.  The reserve is replenished by the 5\u202f% deposit from every fisher\u2019s catch as per the policy.  No fisher may use the reserve without the lake\u2011watcher\u2019s approval.  If the reserve level is below 30\u202fkg and a need is identified, the lake\u2011watcher may authorize use; otherwise the reserve remains untouched."
+          },
+          {
+            "question": "Who records the violation and enforces the forfeiture of fishing rights for the next two trips when a fisher exceeds the 8% limit?",
+            "answer": "Kai, the lake\u2011watcher, records the violation in the communal log and enforces the two\u2011trip forfeiture.",
+            "revised_policy": "Each fisher may take up to 8\u202f% of the lake\u2019s current stock per trip. If 8\u202f% of the logged stock is less than 1\u202fkg, the fisher must take at least 1\u202fkg, overriding the 8\u202f% limit. After catching, the fisher keeps at least 1\u202fkg for themselves and deposits 5\u202f% of the catch into the communal emergency reserve. Anyone exceeding the limit must return the excess to the lake and forfeits the right to fish for the next two trips. The reserve is used only if it falls below 30\u202fkg; otherwise no penalty is imposed. The lake\u2011watcher is authorized to approve any use of the reserve and to document that use in the communal log. Reserve funds may be withdrawn for emergency repairs of fishing gear, replacement of essential equipment, or other urgent community needs when the lake\u2019s stock is below 30\u202fkg. Each withdrawal must be justified, recorded, and approved by the lake\u2011watcher. The reserve is replenished by the 5\u202f% deposit from every fisher\u2019s catch as per the policy. No fisher may use the reserve without the lake\u2011watcher\u2019s approval. If the reserve level is below 30\u202fkg and a need is identified, the lake\u2011watcher may authorize use; otherwise the reserve remains untouched.",
+            "revised_operationalization": "Each fisher may take up to 8\u202f% of the lake\u2019s current stock per trip. If 8\u202f% of the logged stock is less than 1\u202fkg, the fisher must take at least 1\u202fkg, overriding the 8\u202f% limit. After catching, the fisher keeps at least 1\u202fkg for themselves and deposits 5\u202f% of the catch into the communal emergency reserve. Anyone exceeding the limit must return the excess to the lake and forfeits the right to fish for the next two trips. The reserve is used only if it falls below 30\u202fkg; otherwise no penalty is imposed. The lake\u2011watcher is authorized to approve any use of the reserve and to document that use in the communal log. Reserve funds may be withdrawn for emergency repairs of fishing gear, replacement of essential equipment, or other urgent community needs when the lake\u2019s stock is below 30\u202fkg. Each withdrawal must be justified, recorded, and approved by the lake\u2011watcher. The reserve is replenished by the 5\u202f% deposit from every fisher\u2019s catch as per the policy. No fisher may use the reserve without the lake\u2011watcher\u2019s approval. If the reserve level is below 30\u202fkg and a need is identified, the lake\u2011watcher may authorize use; otherwise the reserve remains untouched."
+          },
+          {
+            "question": "What happens if the lake\u2019s current stock is less than 1\u202fkg\u2014can the fisher still be required to take 1\u202fkg, or is there an alternative rule for that situation?",
+            "answer": "If the lake\u2019s stock falls below 1\u202fkg, the 8\u202f% limit is already lower than 1\u202fkg. In that situation I can\u2019t be forced to take a full kilogram because there isn\u2019t enough fish to do so. The rule should therefore allow a fisher to take whatever remains \u2013 up to the total stock \u2013 and the 1\u202fkg \u201cminimum\u201d is understood as a survival target rather than a hard requirement when the lake holds less than 1\u202fkg.",
+            "revised_policy": "Each fisher may take up to 8\u202f% of the lake\u2019s current stock per trip. If 8\u202f% of the logged stock is less than 1\u202fkg, the fisher must take at least 1\u202fkg, overriding the 8\u202f% limit. After catching, the fisher keeps at least 1\u202fkg for themselves and deposits 5\u202f% of the catch into the communal emergency reserve. Anyone exceeding the limit must return the excess to the lake and forfeits the right to fish for the next two trips. The reserve is used only if it falls below 30\u202fkg; otherwise no penalty is imposed. The lake\u2011watcher is authorized to approve any use of the reserve and to document that use in the communal log. Reserve funds may be withdrawn for emergency repairs of fishing gear, replacement of essential equipment, or other urgent community needs when the lake\u2019s stock is below 30\u202fkg. Each withdrawal must be justified, recorded, and approved by the lake\u2011watcher. The reserve is replenished by the 5\u202f% deposit from every fisher\u2019s catch as per the policy. No fisher may use the reserve without the lake\u2011watcher\u2019s approval. If the reserve level is below 30\u202fkg and a need is identified, the lake\u2011watcher may authorize use; otherwise the reserve remains untouched. **If the lake\u2019s current stock is less than 1\u202fkg, a fisher may take all remaining fish, but cannot exceed the available stock; the 1\u202fkg minimum is not enforceable when the lake holds less than 1\u202fkg.**",
+            "revised_operationalization": ""
+          },
+          {
+            "question": "Which action is used to return excess fish to the lake, and how is the lake\u2019s stock updated to reflect that return?",
+            "answer": "The action used is the return of excess fish to the lake; the lake\u2019s stock is increased by the amount returned.",
+            "revised_policy": "Each fisher may take up to 8\u202f% of the lake\u2019s current stock per trip. If 8\u202f% of the logged stock is less than 1\u202fkg, the fisher must take at least 1kg, overriding the 8\u202f% limit. After catching, the fisher keeps at least 1kg for themselves and deposits 5% of the catch into a communal emergency reserve. Anyone exceeding the limit must return the excess to the lake and forfeits the right to fish for the next two trips. The reserve is used only if it falls below 30\u202fkg; otherwise no penalty is imposed. The lake\u2011watcher is authorized to approve any use of the reserve and to document that use in the communal log. Reserve funds may be withdrawn for emergency repairs of fishing gear, replacement of essential equipment, or other urgent community needs when the lake\u2019s stock is below 30\u202fkg. Each withdrawal must be justified, recorded, and approved by the lake\u2011watcher. The reserve is replenished by the 5\u202f% deposit from every fisher\u2019s catch as per the policy. No fisher may use the reserve without the lake\u2011watcher\u2019s approval. If the reserve level is below 30\u202fkg and a need is identified, the lake\u2011watcher may authorize use; otherwise the reserve remains untouched. **If the lake\u2019s current stock is less than 1\u202fkg, a fisher may take all remaining fish, but cannot exceed the available stock; the 1\u202fkg minimum is not enforceable when the lake holds less than 1\u202fkg.**",
+            "revised_operationalization": "Unchanged. The excess fish return action is performed by the fisher, adding the returned amount to the lake\u2019s stock, and the fisher forfeits fishing rights for the next two trips."
+          },
+          {
+            "question": "Where is the reserve level recorded in the community's state\u2014does it use the existing communal_fund_kg variable, or is it tracked in a separate ledger or variable that the proposal has not defined?",
+            "answer": "I\u2019m tracking the emergency reserve in a separate ledger called emergency_reserve_kg. It isn\u2019t the same as the communal_fund_kg, which is for other communal expenses. This way we keep the reserve clear and tied directly to the policy\u2019s 5\u202f% deposits and emergency withdrawals.",
+            "revised_policy": "Each fisher may take up to 10% of the lake\u2019s current stock per trip, keep at least 1kg for themselves, and deposit 5% of their catch into a communal emergency reserve. The reserve is tracked in the community ledger under the variable emergency_reserve_kg. If the reserve falls below 30\u202fkg, no penalty is imposed on the fisher; the lake\u2011watcher may authorize withdrawals for emergency repairs or essential community needs, provided the withdrawal is justified, recorded, and approved. Any fisher exceeding the 10% limit must return the excess to the lake and forfeits fishing rights for the next two trips. If the lake\u2019s current stock is less than 1\u202fkg, a fisher may take all remaining fish, but cannot exceed the available stock; the 1\u202fkg minimum is not enforceable when the lake holds less than 1\u202fkg.",
+            "revised_operationalization": "After each trip, the fisher adds 5% of their catch to emergency_reserve_kg. If the fisher returns excess fish, the returned amount is added back to the lake\u2019s stock. The lake\u2011watcher records any withdrawal from emergency_reserve_kg in the communal log and updates the variable accordingly."
+          },
+          {
+            "question": "Which institutional action updates the lake\u2019s current stock after a fisher takes fish (including any returned excess), and how is that update recorded in the community state?",
+            "answer": "The institutional action that updates the lake\u2019s current stock is the fisher\u2019s \"Catch & Return\" action. After a fisher takes fish, the lake_stock_kg variable is adjusted by subtracting the net catch (total catch minus any excess that must be returned). If excess fish is returned, that amount is added back to lake_stock_kg before the final update. The lake\u2011watcher records the new lake_stock_kg in the communal log and updates the community state variable accordingly, ensuring the ledger reflects the updated lake stock.",
+            "revised_policy": "Each fisher may take up to 10% of the lake\u2019s current stock per trip, keep at least 1kg for themselves, and deposit 5% of their catch into a communal reserve. The reserve is tracked in the community ledger under the variable emergency_reserve_kg. If the reserve falls below 30\u202fkg, no penalty is imposed on the fisher; the lake\u2011watcher may authorize withdrawals for emergency repairs or essential community needs, provided the withdrawal is justified, recorded, and approved. Any fisher exceeding the 10% limit must return the excess to the lake and forfeits fishing rights for the next two trips. If the lake\u2019s current stock is less than 1\u202fkg, a fisher may take all remaining fish, but cannot exceed the available stock; the 1\u202fkg minimum is not enforceable when the lake holds less than 1\u202fkg.",
+            "revised_operationalization": "1. Fisher logs their catch and calculates the 10% limit based on the lake_stock_kg at the start of the trip. 2. If catch exceeds the 10% limit, the excess is returned to the lake and added back to lake_stock_kg. 3. Fisher keeps at least 1kg for themselves (unless lake_stock_kg < 1\u202fkg). 4. 5% of the actual catch is transferred to emergency_reserve_kg and recorded in the communal ledger. 5. The lake\u2011watcher updates lake_stock_kg in the communal log after the net catch (including any returned excess) is applied, and records any changes to emergency_reserve_kg. 6. All updates are logged in the communal ledger so the community state reflects the current lake stock and reserve levels."
+          },
+          {
+            "question": "The policy references a fisher\u2019s \"Catch & Return\" action to update lake_stock_kg, but the existing set of institutional actions (critique, discuss, harvest, propose, vote) does not contain such an action. Which institutional action is the fisher supposed to use to record catching and returning fish, and how is that action defined or recorded in the community\u2019s state?",
+            "answer": "I should use the existing \"harvest\" action to record my net catch. The policy\u2019s \"Catch & Return\" is just the harvest action: I log the amount I actually keep from the lake. Any fish that would put me over the 10\u202f% limit is simply not harvested \u2013 it stays in the lake \u2013 so I don\u2019t need a separate action to return it.",
+            "revised_policy": "Each fisher may take up to 10% of the lake\u2019s current stock per trip, keep at least 1\u202fkg for themselves, and deposit 5% of their catch into a communal reserve. The reserve is tracked in the community ledger under the variable emergency_reserve_kg. If the reserve falls below 30\u202fkg, no penalty is imposed on the fisher; the lake\u2011watcher may authorize withdrawals for emergency repairs or essential community needs, provided the withdrawal is justified, recorded, and approved. Any fisher exceeding the 10% limit must return the excess to the lake and forfeits fishing rights for the next two trips. If the lake\u2019s current stock is less than 1\u202fkg, a fisher may take all remaining fish, but cannot exceed the available stock; the 1\u202fkg minimum is not enforceable when the lake holds less than 1\u202fkg. The fisher records the net catch with the existing \"harvest\" action. Excess beyond the 10\u202f% limit is implicitly returned to the lake by simply not harvesting it.",
+            "revised_operationalization": "1. Fisher logs their net catch with the \"harvest\" action, which subtracts that amount from lake_stock_kg. 2. If the catch would exceed the 10% limit, the fisher simply does not harvest the excess; it remains in lake_stock_kg. 3. Fisher keeps at least 1\u202fkg for themselves (unless lake_stock_kg < 1\u202fkg). 4. 5% of the actual catch is transferred to emergency_reserve_kg and recorded in the communal ledger. 5. The lake\u2011watcher updates lake_stock_kg in the communal log after the net catch (including any returned excess, which is already accounted for by not harvesting it) and records any changes to emergency_reserve_kg. 6. All updates are logged in the communal ledger so the community state reflects the current lake stock and reserve levels."
+          },
+          {
+            "question": "Which institutional action records the 5\u202f% deposit of a fisher\u2019s catch into emergency_reserve_kg, and how is that ledger updated to reflect the new reserve balance?",
+            "answer": "The fisher uses a \"reserve_deposit\" entry right after the \"harvest\" action. That entry takes 5% of the net catch and adds it to the communal variable emergency_reserve_kg in the ledger. The ledger then updates the reserve balance by adding that 5% amount to the previous reserve total, so emergency_reserve_kg = old_reserve + 0.05 * net_catch. The lake_stock_kg remains decreased only by the net catch, not the deposit.",
+            "revised_policy": "Each fisher may take up to 10% of the lake\u2019s current stock per trip, keep at least 1\u202fkg for themselves, and deposit 5% of their catch into a communal reserve. The reserve is tracked in the community ledger under the variable emergency_reserve_kg. If the reserve falls below 30\u202fkg, no penalty is imposed on the fisher; the lake\u2011watcher may authorize withdrawals for emergency repairs or essential community needs, provided the withdrawal is justified, recorded, and approved. Any fisher exceeding the 10% limit must return the excess to the lake and forfeits fishing rights for the next two trips. If the lake\u2019s current stock is less than 1\u202fkg, a fisher may take all remaining fish, but cannot exceed the available stock; the 1\u202fkg minimum is not enforceable when the lake holds less than 1\u202fkg. The fisher records the net catch with the existing \"harvest\" action. Excess beyond the 10\u202f% limit is implicitly returned to the lake by simply not harvesting it.",
+            "revised_operationalization": "1. The fisher logs their net catch with the \"harvest\" action, which subtracts that amount from lake_stock_kg. 2. If the catch would exceed the 10% limit, the fisher simply does not harvest the excess; it remains in lake_stock_kg. 3. Fisher keeps at least 1\u202fkg for themselves (unless lake_stock_kg < 1\u202fkg). 4. Immediately after harvesting, the fisher records a \"reserve_deposit\" action that transfers 5% of the actual catch to emergency_reserve_kg, updating the communal ledger. 5. The lake\u2011watcher updates lake_stock_kg in the communal log after the net catch (including any returned excess, which is already accounted for by not harvesting it) and records the new emergency_reserve_kg value. 6. All updates are logged in the communal ledger so the community state reflects the current lake stock and reserve levels."
+          },
+          {
+            "question": "Which institutional action records the forfeiture of a fisher\u2019s fishing rights for the next two trips when they exceed the 10% limit, and how is that state change recorded?",
+            "answer": "The forfeiture is recorded by the lake\u2011watcher with a dedicated \"rights_forfeit\" action. After a fisher\u2019s catch is verified to exceed the 10\u202f% limit, the watcher issues a \"rights_forfeit\" entry in the communal ledger that lists the fisher\u2019s name and sets a counter of \"2\" rounds during which that fisher\u2019s \"harvest\" rights are suspended. The ledger entry might look like: {\"action\":\"rights_forfeit\",\"fisher\":\"Nadia\",\"rounds_remaining\":2}. This action is applied immediately after the excess catch has been returned, and it blocks the fisher from invoking the \"harvest\" action until the counter reaches zero.",
+            "revised_policy": "Each fisher may take up to 10\u202f% of the lake\u2019s current stock per trip, keep at least 1\u202fkg for themselves, and deposit 5\u202f% of their catch into a communal reserve. If a fisher exceeds the 10\u202f% limit, the lake\u2011watcher records a \"rights_forfeit\" action that suspends that fisher\u2019s fishing rights for the next two trips. The 5\u202f% deposit is still taken from the actual catch that was harvested. If the lake\u2019s current stock is less than 1\u202fkg, a fisher may take all remaining fish, but cannot exceed the available stock; the 1\u202fkg minimum is not enforceable when the lake holds less than 1\u202fkg. The fisher records the net catch with the \"harvest\" action. Any fisher exceeding the 10\u202f% limit must return the excess to the lake and forfeits fishing rights for the next two trips, as recorded by the \"rights_forfeit\" action. The reserve is tracked in the community ledger under the variable emergency_reserve_kg.",
+            "revised_operationalization": "1. The fisher logs the net catch with the \"harvest\" action, which subtracts that amount from lake_stock_kg. 2. If the catch would exceed the 10\u202f% limit, the fisher simply does not harvest the excess; it remains in lake_stock_kg. 3. Fisher keeps at least 1\u202fkg for themselves (unless lake_stock_kg < 1\u202fkg). 4. Immediately after harvesting, the fisher records a \"reserve_deposit\" action that transfers 5\u202f% of the actual catch to emergency_reserve_kg, updating the communal ledger. 5. If the fisher\u2019s catch exceeds the 10\u202f% limit, the lake\u2011watcher issues a \"rights_forfeit\" action: an entry in the communal ledger that records the fisher\u2019s name and sets \"rounds_remaining\":2, indicating that the fisher is barred from the \"harvest\" action for the next two rounds. 6. The lake\u2011watcher updates lake_stock_kg in the communal log after the net catch (including any returned excess, which is already accounted for by not harvesting it) and records the new emergency_reserve_kg value. 7. All updates are logged in the communal ledger so the community state reflects the current lake stock, reserve levels, and any forfeited fishing rights."
+          }
+        ],
+        "agent_9": [
+          {
+            "question": "Who is empowered to enforce the requirement that a non\u2011compliant fisher forfeit 1\u202fkg of their next catch into the communal pool?",
+            "answer": "Kai, the lake\u2011watcher, is empowered to enforce the forfeiture.",
+            "revised_policy": "Each fisher may keep up to 12\u202fkg per trip; any weight beyond that must be deposited into the communal lake pool.",
+            "revised_operationalization": "After each trip the fisher signs a catch ledger noting total weight. If the weight exceeds 12\u202fkg, the excess is measured and placed in the communal bin. Kai, as lake\u2011watcher, reviews the ledger weekly and checks compliance. If a fisher fails to comply, they must forfeit 1\u202fkg of their next catch into the communal pool."
+          },
+          {
+            "question": "Where is the communal lake pool held, and how is its balance tracked in the state variables?",
+            "answer": "The communal lake pool is a shared ledger entry kept by the community\u2019s fishery database; it lives as a variable named 'communal_pool' that holds the total kg of fish returned by all fishers. Every time a fisher signs his ledger after a trip, the system checks if the signed weight exceeds 12\u202fkg. If it does, the excess weight is deducted from that fisher\u2019s personal take and added to the communal_pool variable. Kai, as the lake\u2011watcher, reviews the ledger entries each week and can see the updated communal_pool balance in the same database. If a fisher is found non\u2011compliant, the rule dictates that 1\u202fkg of the fisher\u2019s next catch is automatically moved to the communal_pool.",
+            "revised_policy": "Each fisher may keep up to 12\u202fkg per trip; any weight beyond that must be deposited into the communal lake pool.",
+            "revised_operationalization": "The communal lake pool is tracked by a shared variable 'communal_pool' that aggregates all excess catches. After each trip the fisher records the total weight in the personal ledger. The system automatically calculates excess = max(0, catch \u2013 12). The excess is subtracted from the fisher\u2019s take and added to communal_pool. Kai verifies the ledger entries weekly, and if a fisher fails to return excess, 1\u202fkg of the fisher\u2019s next catch is automatically moved into communal_pool."
+          },
+          {
+            "question": "How does the system identify a fisher\u2019s next catch for the 1\u202fkg forfeiture, and how is the automatic transfer of that kilogram recorded in the state variables?",
+            "answer": "The system uses the timestamped ledger of each fisher\u2019s trips to know which catch is the next one. Whenever a fisher still owes excess, a flag called 'forfeit_pending' is set for that fisher. When the fisher logs the following trip, the system sees the flag, automatically subtracts 1\u202fkg from that trip\u2019s take, credits 1\u202fkg to the communal_pool variable, and clears the flag. The ledger entry for that trip records the take, the forfeited kilogram, and the communal contribution. Thus the state variables updated are the fisher\u2019s personal ledger (take reduced by 1\u202fkg), communal_pool (+1\u202fkg), and the fisher\u2019s forfeit_pending flag reset.",
+            "revised_policy": "Each fisher may keep up to 12\u202fkg per trip; any weight beyond that must be deposited into the communal lake pool.",
+            "revised_operationalization": "When a fisher logs a trip, the system computes excess = max(0, catch \u2013 12). The excess is subtracted from the fisher\u2019s take and added to communal_pool. If the excess is not returned by the fisher in the next trip, a flag 'forfeit_pending' is set. On the next trip, the system automatically deducts 1\u202fkg from the fisher\u2019s catch, credits it to communal_pool, and clears the flag. All ledger entries record the take, any forfeiture, and the communal contribution. Kai verifies weekly and ensures all flags are addressed."
+          }
+        ]
+      }
+    },
+    {
+      "round": 4,
+      "action": "vote",
+      "votes": {
+        "agent_0": {
+          "vote": 1,
+          "reasoning": "I want a rule that keeps my catch modest enough to protect the lake yet still lets me survive. The 4\u202fkg limit with a 1\u202fkg personal reserve is what I\u2019ve been using, and a communal reserve capped at 70\u202fkg that is automatically released to lift the lake to 190\u202fkg when it falls below 140\u202fkg gives us a safety net. It balances fairness, accountability, and long\u2011term stewardship, which is why I vote for proposal\u202f1."
+        },
+        "agent_1": {
+          "vote": 1,
+          "reasoning": "As a fisher who values the long\u2011term health of the lake, I prefer the most restrictive yet transparent framework. Policy\u00a01 caps individual take at 4\u202fkg, guarantees each of us a minimum 1\u202fkg for sustenance, and channels any excess into a communal reserve that never exceeds 70\u202fkg. The automatic release rule that restores the lake to 190\u202fkg when it dips below 140\u202fkg ensures we never deplete the stock below a safe level. This balance of strict limits, clear record\u2011keeping, and community\u2011wide reserve management aligns best with a sustainable future for the lake and the community."
+        },
+        "agent_2": {
+          "vote": 1,
+          "reasoning": "The lake must stay healthy, and I can't risk running out of fish. Proposal 1 keeps the catch per trip capped at 4\u202fkg, with 1\u202fkg set aside for my own sustenance. The surplus goes into a communal reserve that is never larger than 70\u202fkg, and the lake is automatically topped up to 190\u202fkg whenever it falls below 140\u202fkg. This gives the lake a safety net and forces us to maintain a healthy stock. It also fits my current fishing volume (about 4\u202fkg per trip) so I can keep earning enough to survive without over\u2011exploiting the lake. This policy balances my needs with the long\u2011term survival of the fishery."
+        },
+        "agent_3": {
+          "vote": 3,
+          "reasoning": "I prefer policy 3 because it lets me keep up to 6\u202fkg of fish (8\u202fkg max minus the 25\u202f% deposit), encourages keeping larger fish that help sustain the population, and builds a communal reserve that never falls below 90\u202fkg \u2013 a safeguard for the lake and for all of us. The rule is straightforward, protects the community\u2019s long\u2011term harvest, and gives me a good personal catch to stay fed."
+        },
+        "agent_4": {
+          "vote": 3,
+          "reasoning": "In my view, policy 3 best balances personal livelihood with the lake\u2019s long\u2011term health. It limits each trip to 8\u202fkg, ensures I keep 1\u202fkg for sustenance, and forces a substantial 25\u202f% deposit of the keepable catch into a communal reserve that must never fall below 90\u202fkg. The 30\u202fcm size cut keeps larger, breeding fish out of the catch, promoting recovery. The reserve requirement and clear enforcement (ban for repeat violations) give the community a strong safety net while still letting me earn a respectable haul each trip."
+        },
+        "agent_5": {
+          "vote": 6,
+          "reasoning": "As a fisher I need a big haul each trip. Policy 6 allows me to keep up to 12% of the lake, which with a 135\u202fkg stock gives about 15\u202fkg after the 1\u202fkg personal reserve. That's larger than the 10% caps in other rules and the 12\u202fkg flat limits elsewhere. No deposit or fines unless I exceed the limit, which I can avoid. This gives me the most freedom to harvest and keep my reserves while staying under the watcher\u2019s watch."
+        },
+        "agent_6": {
+          "vote": 10,
+          "reasoning": "I want the highest personal take per trip with minimal restrictions. Policy 10 lets me keep up to 12\u202fkg, no daily quota or extra deposit except for the excess beyond 12. That\u2019s the biggest allowance, easy to follow, and still respects the lake\u2011watcher. The 1\u202fkg sustenance rule is easy to meet. Other policies either cap me lower (7, 8, 3) or add daily or seasonal limits. So I choose 10."
+        },
+        "agent_7": {
+          "vote": 6,
+          "reasoning": "I need a rule that lets me keep a decent haul each trip so my reserves grow, but still protects the lake from being drained. Policy 6 caps me at 12% of the current stock per trip (about 15\u202fkg at 135\u202fkg), which is higher than most other options. It includes a 1\u202fkg personal reserve (kept automatically), and any excess must be returned or deposited, but I can manage that. The lake\u2011stock\u201170% safeguard will keep everyone, including me, from overfishing too aggressively, while allowing the community to fish fairly. The other policies either limit me to too little per trip (1.5\u20135\u202fkg), force heavy deposits, or impose strict community totals that would make it hard to maintain my own reserves. Policy 6 gives me the best balance of catch, survival, and community\u2011safety. "
+        },
+        "agent_8": {
+          "vote": 7,
+          "reasoning": "Policy 7 lets me keep up to 10kg per trip without any fines or mandatory deposits, while the lake must maintain a 25% reserve of its capacity. That balance gives me enough to survive each trip, keeps the lake healthy, and avoids the strict limits or fine mechanisms that would make fishing too risky or too restrictive."
+        },
+        "agent_9": {
+          "vote": 10,
+          "reasoning": "I need to keep as much fish as I can while still getting my 1kg for sustenance. Proposal\u00a010 is the simplest: I can keep up to 12\u202fkg per trip, and only anything above that gets deposited. That gives me 11\u202fkg to sell (after keeping 1\u202fkg). No release rules or fines will erode my haul, and it doesn't push the lake toward a minimum reserve that could trigger a suspension. With the lake at 135\u202fkg, taking 12\u202fkg leaves 123\u202fkg\u2014well above any 70%\u2011of\u2011pre\u2011trip or daily\u2011take limit that other rules impose. The rule also keeps enforcement straightforward\u2014just log what you took, deposit the excess if you go over. It\u2019s the most favorable for maximizing my income and keeping my reserve from dipping below zero."
+        }
+      },
+      "tally": {
+        "1": 3,
+        "2": 0,
+        "3": 2,
+        "4": 0,
+        "5": 0,
+        "6": 2,
+        "7": 1,
+        "8": 0,
+        "9": 0,
+        "10": 2
+      },
+      "winner_index": 1,
+      "winning_proposer": "agent_0"
     }
   ],
   "payoff": {
-    "agent_0": 10.953266106547158,
-    "agent_1": 10.554971316591974,
-    "agent_2": 20.123313053273577,
-    "agent_3": 10.794974789955184,
-    "agent_4": 12.054971316591974,
-    "agent_5": 26.31658263318395,
-    "agent_6": 26.31658263318395,
-    "agent_7": 23.521607843228765,
-    "agent_8": 18.81658263318395,
-    "agent_9": 17.88492436986555
+    "agent_0": 14.663959858533069,
+    "agent_1": 13.592708818294183,
+    "agent_2": 21.815138054408383,
+    "agent_3": 16.524537292792196,
+    "agent_4": 13.74679631772678,
+    "agent_5": 31.036710760595412,
+    "agent_6": 32.04614513602096,
+    "agent_7": 29.251170346065777,
+    "agent_8": 22.863754510311708,
+    "agent_9": 22.268574372135163
   },
   "dead_agents": [],
   "norms": {
@@ -2463,6 +3174,76 @@
           "agent_id": "agent_9",
           "round": 3,
           "harvested_kg": 8.384924369865553,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_0",
+          "round": 4,
+          "harvested_kg": 4.71069375198591,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_1",
+          "round": 4,
+          "harvested_kg": 4.037737501702209,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_2",
+          "round": 4,
+          "harvested_kg": 2.6918250011348057,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_3",
+          "round": 4,
+          "harvested_kg": 6.729562502837014,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_4",
+          "round": 4,
+          "harvested_kg": 2.6918250011348057,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_5",
+          "round": 4,
+          "harvested_kg": 5.720128127411462,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_6",
+          "round": 4,
+          "harvested_kg": 6.729562502837014,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_7",
+          "round": 4,
+          "harvested_kg": 6.729562502837014,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_8",
+          "round": 4,
+          "harvested_kg": 5.047171877127761,
+          "reserve_kg": 1.0,
+          "violated": false
+        },
+        {
+          "agent_id": "agent_9",
+          "round": 4,
+          "harvested_kg": 5.383650002269611,
           "reserve_kg": 1.0,
           "violated": false
         }
@@ -2651,9 +3432,15 @@
           "watcher_id": "agent_0",
           "watcher_name": "Kai",
           "stock_estimate_kg": 186.33165266367894
+        },
+        {
+          "round": 4,
+          "watcher_id": "agent_0",
+          "watcher_name": "Kai",
+          "stock_estimate_kg": 134.59125005674028
         }
       ],
-      "current_estimate_kg": 186.33165266367894,
+      "current_estimate_kg": 134.59125005674028,
       "catch_log": [
         {
           "round": 3,
@@ -2764,6 +3551,116 @@
           "excess_returned_kg": 0.0,
           "violation": false,
           "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_0",
+          "agent_name": "Kai",
+          "catch_kg": 4.71069375198591,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_1",
+          "agent_name": "Mara",
+          "catch_kg": 4.037737501702209,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_2",
+          "agent_name": "Toa",
+          "catch_kg": 2.6918250011348057,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_3",
+          "agent_name": "Rina",
+          "catch_kg": 6.729562502837014,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_4",
+          "agent_name": "Beti",
+          "catch_kg": 2.6918250011348057,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_5",
+          "agent_name": "Solo",
+          "catch_kg": 5.720128127411462,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_6",
+          "agent_name": "Lani",
+          "catch_kg": 6.729562502837014,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_7",
+          "agent_name": "Miro",
+          "catch_kg": 6.729562502837014,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_8",
+          "agent_name": "Nadia",
+          "catch_kg": 5.047171877127761,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_9",
+          "agent_name": "Tevita",
+          "catch_kg": 5.383650002269611,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "excess_returned_kg": 0.0,
+          "violation": false,
+          "sanction": null
         }
       ],
       "round_summaries": [
@@ -2773,6 +3670,158 @@
           "agent_count": 10,
           "violation_count": 0,
           "stock_estimate_kg": 186.33165266367894
+        },
+        {
+          "round": 4,
+          "total_catch_kg": 50.4717187712776,
+          "agent_count": 10,
+          "violation_count": 0,
+          "fines_collected_kg": 0,
+          "community_fund_total_kg": 0.0,
+          "stock_estimate_kg": 134.59125005674028
+        }
+      ],
+      "community_fund_kg": 0.0,
+      "communal_ledger": [
+        {
+          "round": 4,
+          "agent_id": "agent_0",
+          "agent_name": "Kai",
+          "total_catch_kg": 4.71069375198591,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 4.71069375198591,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_1",
+          "agent_name": "Mara",
+          "total_catch_kg": 4.037737501702209,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 4.037737501702209,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_2",
+          "agent_name": "Toa",
+          "total_catch_kg": 2.6918250011348057,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 2.6918250011348057,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_3",
+          "agent_name": "Rina",
+          "total_catch_kg": 6.729562502837014,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 6.729562502837014,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_4",
+          "agent_name": "Beti",
+          "total_catch_kg": 2.6918250011348057,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 2.6918250011348057,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_5",
+          "agent_name": "Solo",
+          "total_catch_kg": 5.720128127411462,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 5.720128127411462,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_6",
+          "agent_name": "Lani",
+          "total_catch_kg": 6.729562502837014,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 6.729562502837014,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_7",
+          "agent_name": "Miro",
+          "total_catch_kg": 6.729562502837014,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 6.729562502837014,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_8",
+          "agent_name": "Nadia",
+          "total_catch_kg": 5.047171877127761,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 5.047171877127761,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_9",
+          "agent_name": "Tevita",
+          "total_catch_kg": 5.383650002269611,
+          "reserve_kept_kg": 1.0,
+          "net_taken_kg": 5.383650002269611,
+          "verified_by": "Kai",
+          "watcher_id": "agent_0",
+          "violation": false,
+          "violation_type": null,
+          "fine_kg": 0.0,
+          "excess_returned_kg": 0.0
         }
       ]
     },
@@ -2859,9 +3908,90 @@
           "required_kg": 1.0,
           "verified_by": "Kai",
           "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_0",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_1",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_2",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_3",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_4",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_5",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_6",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_7",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_8",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
+        },
+        {
+          "round": 4,
+          "agent_id": "agent_9",
+          "reserve_kg": 1.0,
+          "required_kg": 1.0,
+          "verified_by": "Kai",
+          "passed": true
         }
       ]
     },
-    "percent_stock_cap": {}
+    "percent_stock_cap": {},
+    "violation_fine": {}
   }
 }
