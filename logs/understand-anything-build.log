@@ -1,0 +1,14 @@
+[0m
+> build · gpt-oss-120b-32768ctx
+[0m
+Listing skill directory.
+[0m✱ [0mGlob "**/*"[90m in /home/magha601/.agents/skills/understand · 50 matches[0m
+[0m✱ [0mGlob "**/.ua"[90m in . · 0 matches[0m
+[0m✗ [0mGlob "" failed[90m in /home/magha601[0m
+[91m[1mError: [0mThe glob tool was called with invalid arguments: SchemaError(Missing key
+  at ["pattern"]).
+Please rewrite the input so it satisfies the expected schema.
+We need to run the understand skill with full analysis. We'll invoke the skill via its script. The main entry is likely a CLI. Let's see if there's an entry point. Look at package.json in plugin root?
+[0m✱ [0mGlob "package.json"[90m in /home/magha601 · 0 matches[0m
+[0m→ [0mRead /home/magha601/.agents/skills/understand/SKILL.md[90m [limit=2000][0m
+The `understand` skill is fully described. It defines a comprehensive multi‑phase pipeline for generating a knowledge graph of a codebase, including scanning, batching, analysis, merging, review, architecture extraction, tour building, validation, and final saving with fingerprints. The skill also handles work‑tree redirection, configuration, language/framework context injection, incremental updates, and error handling. The documentation includes all scripts, environment variables, and expected JSON schemas for nodes, edges, layers, and tours.
