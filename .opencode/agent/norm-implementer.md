@@ -497,6 +497,27 @@ exchanges, leave the `clarity` as-is, implement your own best-effort
 reading, and say so explicitly — never silently upgrade an unresolved gap
 to `CLEAR`.
 
+**"Deferred to a future round" is not a real outcome — do not write it.**
+A real round classified a council/election requirement `AMBIGUOUS`
+(correctly — a council is buildable, this was never
+`TECHNICALLY_UNREALISABLE`), never actually called `engine.clarify_norm`,
+wrote "DEFERRED to future round" as its Resolution, and reported the
+round complete after building only the easier requirements alongside it.
+Nothing in this system ever revisits that: each round's implementer only
+ever sees *that* round's own `norm.txt`, with no memory of a previous
+round's unfinished business — "defer to a future round" is in practice a
+permanent, silent drop dressed up to look temporary. Building only part
+of a multi-part norm is fine and often correct (a real cap-and-floor rule
+is genuinely complete on its own even without the council that can later
+adjust it) — the problem is never partial progress, it's an unattempted
+requirement reported as if it weren't there. Every requirement ends in
+exactly one of: implemented; your own best-effort reading after
+clarification (per the paragraph above), explicitly flagged as a
+simplification; `TECHNICALLY_UNREALISABLE`; or — only if you judge the
+*whole* round unimplementable — nothing at all, per the next paragraph.
+There is no fifth outcome where a requirement is quietly left out while
+the round is still reported as done.
+
 For each requirement, specify:
 
 ```text
@@ -1029,7 +1050,18 @@ accepted norm.
      "ran_out_of_budget": false
    }
    ```
-   `owner`/`verification` can't be empty. `norm_check_tests_written` is
+   **`classification` must include every requirement identified in
+   Section 4/5's completeness re-walk — never only the ones you actually
+   built.** A requirement you didn't implement this round still gets a
+   row: `"owner": "NOT_IMPLEMENTED_THIS_ROUND"` and a required `"reason"`
+   field explaining why (e.g. "AMBIGUOUS, clarification exchanged but
+   unresolved, best-effort reading judged too large for this round's
+   budget" — never "deferred," see Section 5). This is what makes a
+   round's real completeness mechanically checkable instead of resting on
+   whatever your own prose summary claims — a round is not "complete" or
+   a "success" if any row uses this sentinel for a reason other than
+   `TECHNICALLY_UNREALISABLE`; say so plainly in your prose summary too,
+   not just in the json block. `owner`/`verification` can't be empty. `norm_check_tests_written` is
    empty for a purely parametric round. `actions_added` is empty unless
    this round actually created a new `actions/{name}.py` file. Set
    `denied_permission_needed: true` only for a rule that needs to edit a
