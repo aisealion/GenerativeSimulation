@@ -88,5 +88,15 @@
     "holder": "agent_9",
     "initiated_round": 0,
     "terminated_round": null
+  },
+  {
+    "fluent": "lake_watcher",
+    "args": [],
+    "holder": "agent_0",
+    "initiated_round": 3,
+    "terminated_round": null,
+    "narration": "Kai has been designated as the lake-watcher for this round.",
+    "visibility": "public",
+    "event_type": "fact_initiated"
   }
 ]

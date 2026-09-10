@@ -7,15 +7,14 @@
     "discuss": {"file": "actions/discuss.py", "protected": true, "gate": "false", "description": "a pre-existing, currently-unimplemented stub", "actor_role": null}
   },
   "norm_types": {
-    "lake_watcher": {"description": "Manages rotating lake-watcher role, stock estimation, and catch verification logging", "owner": "norms/lake_watcher.py"},
-    "percent_stock_cap": {"description": "Enforces percentage-based catch limit relative to estimated stock", "owner": "norms/percent_stock_cap.py"},
+    "lake_watcher": {"description": "Manages rotating lake-watcher role, stock estimation, communal ledger archiving, and community fund", "owner": "norms/lake_watcher.py"},
+    "percent_stock_cap": {"description": "Enforces 12% catch limit relative to estimated stock; excess returned to lake", "owner": "norms/percent_stock_cap.py"},
     "reserve_verification": {"description": "Verifies 1kg reserve with lake-watcher and enforces shortfall consequences", "owner": "norms/reserve_verification.py"},
-    "next_trip_ban": {"description": "Imposes one-round ban for non-compliance violations", "owner": "norms/next_trip_ban.py"},
-    "excess_redistribution": {"description": "Redistributes excess catch from violators equally to compliant fishers", "owner": "norms/excess_redistribution.py"}
+    "violation_fine": {"description": "Imposes 2% of lake stock fine for violations, collected to community fund by lake-watcher", "owner": "norms/violation_fine.py"}
   },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg"],
-    "lake_watcher": ["stock_estimate", "catch_log"]
+    "community": ["stock_kg", "communal_fund_kg"],
+    "lake_watcher": ["stock_estimate", "communal_ledger", "community_fund_kg"]
   }
 }

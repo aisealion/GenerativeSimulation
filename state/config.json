@@ -4,10 +4,9 @@
   "history_window_rounds": 5,
   "norms": [
     {"type": "lake_watcher", "role_name": "lake_watcher"},
-    {"type": "percent_stock_cap", "percent_limit": 0.10, "watcher_norm_key": "lake_watcher"},
+    {"type": "percent_stock_cap", "percent_limit": 0.12, "watcher_norm_key": "lake_watcher"},
     {"type": "mandatory_reserve", "reserve_kg": 1.0},
     {"type": "reserve_verification", "reserve_kg": 1.0, "watcher_norm_key": "lake_watcher", "reserve_norm_key": "mandatory_reserve"},
-    {"type": "next_trip_ban", "stock_cap_key": "percent_stock_cap", "reserve_verification_key": "reserve_verification"},
-    {"type": "excess_redistribution", "stock_cap_key": "percent_stock_cap"}
+    {"type": "violation_fine", "fine_percent": 0.02, "watcher_norm_key": "lake_watcher"}
   ]
 }

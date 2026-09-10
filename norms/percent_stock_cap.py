@@ -66,16 +66,17 @@ class PercentStockCapNorm(Norm):
 
         # Record the violation for redistribution calculations
         violations = state.setdefault("violations", [])
+        excess_kg = float(decision.note.split("Excess of ")[1].split("kg")[0]) if "Excess of " in (decision.note or "") else 0.0
+        attempted_kg = harvested_kg + excess_kg
         violations.append({
             "round": context.round_number,
             "agent_id": agent_id,
-            "attempted_kg": harvested_kg + (decision.note.split("Excess of ")[1].split("kg")[0] if "Excess of " in (decision.note or "") else 0),
+            "attempted_kg": attempted_kg,
             "allowed_kg": harvested_kg,
-            "excess_kg": harvested_kg - limit_kg if harvested_kg > limit_kg else 0,
+            "excess_kg": excess_kg,
             "stock_estimate_kg": stock_estimate,
         })
 
         # Track total excess for redistribution
         total_excess = state.get("total_excess_this_round", 0.0)
-        excess_this_violation = max(0.0, harvested_kg - limit_kg) if harvested_kg > limit_kg else 0.0
-        state["total_excess_this_round"] = total_excess + excess_this_violation
+        state["total_excess_this_round"] = total_excess + excess_kg
