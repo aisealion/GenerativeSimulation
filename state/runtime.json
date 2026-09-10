@@ -1,6 +1,6 @@
 {
-  "round": 1,
-  "stock_kg": 220.526625,
+  "round": 2,
+  "stock_kg": 171.5450929429905,
   "rounds": [
     {
       "round": 1,
@@ -725,19 +725,91 @@
       },
       "winner_index": 6,
       "winning_proposer": "agent_6"
+    },
+    {
+      "round": 2,
+      "action": "harvest",
+      "agents": {
+        "agent_0": {
+          "effort": 0.5,
+          "harvested_kg": 5.513165625,
+          "reasoning": "I need a few kilos to survive and respect future fish, so I\u2019ll aim for 4\u20115\u202fkg with moderate effort.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.2,
+          "harvested_kg": 2.20526625,
+          "reasoning": "I\u2019m taking a modest effort so I get the 1\u202fkg I need but leave plenty of fish for the next season.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 0.8,
+          "harvested_kg": 8.821065,
+          "reasoning": "I\u2019ll fish at a moderate effort to net about 4kg, staying under the 2% rule and keeping enough reserves for myself and the community.",
+          "note": null,
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 0.4,
+          "harvested_kg": 4.4105325,
+          "reasoning": "I\u2019ll fish only lightly today, just enough to feed myself and leave the bulk of the lake for the community\u2019s long\u2011term health.",
+          "note": null,
+          "participated": true
+        },
+        "agent_5": {
+          "effort": 1.0,
+          "harvested_kg": 11.02633125,
+          "reasoning": "I'm pulling the full 25% of the lake to maximize my haul, while keeping plenty of fish in reserve for future trips.",
+          "note": null,
+          "participated": true
+        },
+        "agent_6": {
+          "effort": 0.75,
+          "harvested_kg": 8.2697484375,
+          "reasoning": "I\u2019ll aim for a solid haul while keeping the lake healthy\u20140.75 effort should get me around 11kg, satisfying my need and respecting the 15kg limit we set.",
+          "note": null,
+          "participated": true
+        },
+        "agent_7": {
+          "effort": 1.0,
+          "harvested_kg": 11.02633125,
+          "reasoning": "I go all out today, hauling the 12kg limit while keeping the lake above 200kg to stay in line with Lani's rule and keep my reserves safe.",
+          "note": null,
+          "participated": true
+        },
+        "agent_8": {
+          "effort": 0.3,
+          "harvested_kg": 3.307899375,
+          "reasoning": "I need a light haul to keep my reserves, but I don\u2019t want to ruffle feathers or deplete the lake.",
+          "note": null,
+          "participated": true
+        },
+        "agent_9": {
+          "effort": 0.85,
+          "harvested_kg": 9.372381562500001,
+          "reasoning": "Today the lake\u2019s 221kg is healthy, so I\u2019ll put in 85% effort to hit my 1kg survival need and try to catch as much profit as the rules allow, staying mindful not to deplete the stock.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_before": 220.526625,
+      "stock_kg_after_harvest": 156.57390375,
+      "stock_kg_after_regrowth": 171.5450929429905
     }
   ],
   "payoff": {
-    "agent_0": 5.0,
+    "agent_0": 9.513165625,
     "agent_1": -0.25,
-    "agent_2": 8.0,
-    "agent_3": 2.0,
-    "agent_4": 5.0,
-    "agent_5": 14.0,
-    "agent_6": 14.0,
-    "agent_7": 11.0,
-    "agent_8": 11.0,
-    "agent_9": 12.5
+    "agent_2": 9.205266250000001,
+    "agent_3": 9.821065,
+    "agent_4": 8.4105325,
+    "agent_5": 24.02633125,
+    "agent_6": 21.2697484375,
+    "agent_7": 21.02633125,
+    "agent_8": 13.307899375,
+    "agent_9": 20.872381562500003
   },
   "dead_agents": [
     "agent_1"
