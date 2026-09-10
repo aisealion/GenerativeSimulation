@@ -1,0 +1,12 @@
+[0m
+> build · gpt-oss-120b-65536ctx
+[0m
+Loading the `understand` skill to get its execution instructions.
+[0m→ [0mSkill "understand"
+[0m
+[0m$ [0mtest -d .ua && echo exists || echo no
+no
+[0m
+[0m$ [0mls -R . | grep -i understand | head -n 20
+understand-anything-build.log
+[0m
