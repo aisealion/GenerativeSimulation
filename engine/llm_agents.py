@@ -230,7 +230,7 @@ def render_history(agent_id, round_number, runtime, agents, window):
 
 
 def render_action(action_name, **fields):
-    template = (ROOT / "prompts" / "actions" / f"{action_name}.md").read_text()
+    template = (ROOT / "actions" / "prompts" / f"{action_name}.md").read_text()
     return template.format(**fields).strip()
 
 

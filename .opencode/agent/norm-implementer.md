@@ -6,7 +6,7 @@ permission:
     "*": deny
     "norms/*": allow
     "prompts/role_directives/*": allow
-    "prompts/actions/*": allow
+    "actions/prompts/*": allow
     "prompts/phrasing_map.json": allow
     "state/schedule.json": allow
     "state/config.json": allow
@@ -157,8 +157,9 @@ re-validating (Sections 14–16).
 - `prompts/persona_template.md` — human-owned, essentially never yours.
 - `prompts/role_directives/{role}.md` — one per role_name, in-world
   phrasing only.
-- `prompts/actions/{action}.md` — one per action, filled from
-  runtime/config at render time.
+- `actions/prompts/{action}.md` — one per action, filled from
+  runtime/config at render time. Colocated with the action's own `.py`
+  file (one directory up), not under top-level `prompts/`.
 - `prompts/phrasing_map.json` — the fourth-wall boundary: no internal key
   names, code identifiers, or "mechanism"/"norm"/"fluent"/"penalty
   function" ever in rendered text, only their mapped phrasing.
@@ -287,7 +288,7 @@ Do not begin modifying code until you understand:
 2. What actions currently exist (`state/institution.json`, `actions/`).
 3. Which agents/roles participate in each action.
 4. How agents are prompted (`prompts/persona_template.md`,
-   `prompts/role_directives/`, `prompts/actions/`).
+   `prompts/role_directives/`, `actions/prompts/`).
 5. How agent decisions are obtained (`engine.llm_agents.call_fisher_agent`).
 6. How state is represented and modified (`state/*.json`).
 7. How institutional mechanisms are represented (`norms/*.py`, fluents).
@@ -769,14 +770,29 @@ between two existing actions never requires editing either of them.
 
 Only once Section 5's design is written, implement:
 
-1. New `actions/{name}.py`: `from engine.action_base import Action`,
-   subclass it (`name = "{name}"`, matching both the filename stem and
-   the `state/schedule.json` key), implement `run(self, state)` (and
-   `prompt_fields()` if it calls an agent), module-level `ACTION =
-   {ClassName}()` at the bottom. Any new runtime state it needs is
-   lazily initialized inside its own `run()` via `runtime.setdefault(...)`
-   — never pre-seed it in `state/runtime.json` yourself.
-2. New `prompts/actions/{name}.md`, same convention as every other file
+1. New `actions/{name}.py` (`name = "{name}"`, matching both the filename
+   stem and the `state/schedule.json` key), module-level `ACTION =
+   {ClassName}()` at the bottom. **Two base classes to choose between:**
+   - If this action is one fisher-agent call per participating alive
+     agent, optionally granting a role or recording a visible
+     institutional fact from the response — the common case — subclass
+     `engine.action_base.SimpleAgentAction` and only implement
+     `build_fields()`, `call_agent()` (just
+     `return call_fisher_agent(agent_id, round_number, self.name, **fields)`),
+     and `record_result()`. See that class's own docstring for the full
+     override list (`participants`, `is_eligible`/`ineligible_result`,
+     `after_participants`, `role_grant`, `institutional_fact` — all
+     optional, defaulted for the common case) and `actions/propose.py`
+     for a real, working example of exactly this shape.
+   - Only if the shape is genuinely different — a bounded multi-turn
+     dialogue, more than one model role per participant, a step that
+     isn't per-agent at all — subclass `engine.action_base.Action`
+     directly and write your own `run(self, state)` (and `prompt_fields()`
+     if it calls an agent), the same as `actions/critique.py` does.
+   Any new runtime state it needs is lazily initialized inside its own
+   `run()`/`setup()` via `runtime.setdefault(...)` — never pre-seed it in
+   `state/runtime.json` yourself.
+2. New `actions/prompts/{name}.md`, same convention as every other file
    in that directory (fourth-wall rules apply).
 3. A `state/schedule.json` entry, inserted immediately after the `after` action
    from Section 5's design. Gate it on a fluent

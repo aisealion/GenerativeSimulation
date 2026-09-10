@@ -2,18 +2,23 @@
 # Writes: state/runtime.json (proposals for the round).
 
 from engine.llm_agents import call_fisher_agent
-from engine.action_base import Action
-from engine.physics import alive_agent_ids
+from engine.action_base import SimpleAgentAction
 
 
-class ProposeAction(Action):
+class ProposeAction(SimpleAgentAction):
     name = "propose"
 
-    def prompt_fields(self, state, agent_id):
-        runtime = state["runtime"]
-        agents = state["agents"]
-        agent_ids = alive_agent_ids(agents, runtime)
-        last_harvest = next(r for r in reversed(runtime["rounds"]) if r["action"] == "harvest")
+    def setup(self, state):
+        """The most recent harvest round record — hoisted to once per round
+        instead of being recomputed on every agent's own prompt_fields()
+        call, since it only reads history strictly before this round, never
+        mutated by this round's own proposal loop."""
+        return next(r for r in reversed(state["runtime"]["rounds"]) if r["action"] == "harvest")
+
+    def build_fields(self, state, setup_ctx, agent_id):
+        last_harvest = setup_ctx
+        runtime, agents = state["runtime"], state["agents"]
+        agent_ids = self.participants(state, setup_ctx)
 
         others_summary = "\n".join(
             f"- {agents[other_id]['name']} brought in {last_harvest['agents'][other_id]['harvested_kg']:.0f}kg."
@@ -27,32 +32,18 @@ class ProposeAction(Action):
             "stock_kg": runtime["stock_kg"],
         }
 
-    def run(self, state):
-        runtime = state["runtime"]
-        agents = state["agents"]
-        round_number = state["round_number"]
-        agent_ids = alive_agent_ids(agents, runtime)
+    def call_agent(self, agent_id, round_number, fields):
+        return call_fisher_agent(agent_id, round_number, self.name, **fields)
 
-        proposals = {}
-        for agent_id in agent_ids:
-            response = call_fisher_agent(
-                agent_id, round_number, "propose", **self.prompt_fields(state, agent_id)
-            )
-            proposals[agent_id] = {
-                "policy": response["policy"],
-                "operationalization": response["operationalization"],
-                "reasoning": response.get("reasoning", ""),
-            }
-
-        round_record = {
-            "round": round_number,
-            "action": "propose",
-            "proposals": proposals,
+    def record_result(self, state, setup_ctx, agent_id, response):
+        return {
+            "policy": response["policy"],
+            "operationalization": response["operationalization"],
+            "reasoning": response.get("reasoning", ""),
         }
 
-        runtime["round"] = round_number
-        runtime["rounds"].append(round_record)
-        return round_record
+    def per_agent_key(self):
+        return "proposals"
 
     def memory_writes(self, state, round_record):
         return [

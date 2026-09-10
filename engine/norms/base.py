@@ -79,7 +79,7 @@ class Norm(ABC):
         in state["config"]["norms"] order, into one constraints_line prompt
         field — the generic replacement for the old hardcoded cap_line: it
         works for any combination of active norms without actions/harvest.py
-        or prompts/actions/harvest.md ever needing to know which are active."""
+        or actions/prompts/harvest.md ever needing to know which are active."""
         return None
 
     def on_round_start(self, context):

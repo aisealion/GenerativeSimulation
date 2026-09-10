@@ -17,30 +17,44 @@ from engine.physics import (
     apply_regrowth,
     apply_consumption,
     is_dead,
-    alive_agent_ids,
     CARRYING_CAPACITY_KG,
 )
 from engine.llm_agents import call_fisher_agent
-from engine.action_base import Action
+from engine.action_base import SimpleAgentAction
 
 
-class HarvestAction(Action):
+class HarvestAction(SimpleAgentAction):
     name = "harvest"
 
-    def prompt_fields(self, state, agent_id):
-        """Action-interface method (no current caller outside run() itself —
-        confirmed by repo-wide grep — but kept for interface compliance and
-        for tests/norms/ that may want to preview a single agent's prompt
-        in isolation). Builds its own fresh context/engine, so a norm whose
-        describe() depends on this-round scratch already mutated by earlier
-        agents (a community-wide running tally, say) won't reflect that
-        here — only run()'s own shared context does."""
+    def setup(self, state):
+        """Built once per real round (see run()'s shared setup_ctx) — the
+        public prompt_fields(state, agent_id) contract calls this fresh on
+        demand instead, so a preview won't reflect this-round scratch
+        state already mutated by earlier agents (a community-wide running
+        tally, say) the way run()'s own shared context does."""
+        state["runtime"].setdefault("payoff", {})
+        state["runtime"].setdefault("dead_agents", [])
         context = HarvestContext.from_state(state)
         norm_engine = NormEngine.from_config(state["config"])
         norm_engine.start_round(context)
-        return self._prompt_fields(context, norm_engine, state, agent_id)
+        return context, norm_engine
 
-    def _prompt_fields(self, context, norm_engine, state, agent_id):
+    def is_eligible(self, state, setup_ctx, agent_id):
+        context, norm_engine = setup_ctx
+        return norm_engine.is_eligible(context, agent_id)
+
+    def ineligible_result(self, state, setup_ctx, agent_id):
+        context, norm_engine = setup_ctx
+        return {
+            "effort": None,
+            "harvested_kg": 0.0,
+            "reasoning": "",
+            "note": norm_engine.ineligibility_note(context, agent_id),
+            "participated": False,
+        }
+
+    def build_fields(self, state, setup_ctx, agent_id):
+        context, norm_engine = setup_ctx
         constraints_line = norm_engine.describe_constraints(context, agent_id)
         return {
             "stock_kg": context.stock_before,
@@ -69,93 +83,62 @@ class HarvestAction(Action):
         levels = ", ".join(f"{r['stock_kg_after_regrowth']:.0f}kg" for r in past_harvests)
         return f"The last few counts, oldest to most recent, were: {levels}."
 
-    def run(self, state):
-        config = state["config"]
-        fluents = state["fluents"]
-        runtime = state["runtime"]
-        agents = state["agents"]
-        round_number = state["round_number"]
+    def call_agent(self, agent_id, round_number, fields):
+        return call_fisher_agent(agent_id, round_number, self.name, **fields)
 
-        runtime.setdefault("payoff", {})
-        runtime.setdefault("dead_agents", [])
+    def record_result(self, state, setup_ctx, agent_id, response):
+        context, norm_engine = setup_ctx
+        runtime, fluents, agents = state["runtime"], state["fluents"], state["agents"]
 
-        context = HarvestContext.from_state(state)
-        norm_engine = NormEngine.from_config(config)
-        norm_engine.start_round(context)
+        effort = min(1.0, max(0.0, float(response["effort"])))
+        raw_kg = catch_from_effort(effort, context.stock_before)
+        decision = norm_engine.apply(context, agent_id, raw_kg)
 
-        results = {}
-        for agent_id in alive_agent_ids(agents, runtime):
-            if not norm_engine.is_eligible(context, agent_id):
-                results[agent_id] = {
-                    "effort": None,
-                    "harvested_kg": 0.0,
-                    "reasoning": "",
-                    "note": norm_engine.ineligibility_note(context, agent_id),
-                    "participated": False,
-                }
-                continue
+        new_payoff = apply_consumption(runtime["payoff"].get(agent_id, 0.0), decision.kept_kg)
+        runtime["payoff"][agent_id] = new_payoff
 
-            fields = self._prompt_fields(context, norm_engine, state, agent_id)
-            response = call_fisher_agent(agent_id, round_number, "harvest", **fields)
-            effort = min(1.0, max(0.0, float(response["effort"])))
-            raw_kg = catch_from_effort(effort, context.stock_before)
-            decision = norm_engine.apply(context, agent_id, raw_kg)
+        if is_dead(new_payoff):
+            runtime["dead_agents"].append(agent_id)
+            name = agents[agent_id]["name"]
+            set_fact(
+                fluents, "dead", [agent_id], agent_id, state["round_number"],
+                narration=f"{name} has died — they hadn't been catching enough fish to survive.",
+                visibility="public",
+            )
+            end_fact(fluents, "fisher", [agent_id], state["round_number"])
 
-            new_payoff = apply_consumption(runtime["payoff"].get(agent_id, 0.0), decision.kept_kg)
-            runtime["payoff"][agent_id] = new_payoff
+        return {
+            "effort": effort,
+            "harvested_kg": decision.kept_kg,
+            "reasoning": response.get("reasoning", ""),
+            "note": decision.note,
+            "participated": True,
+        }
 
-            results[agent_id] = {
-                "effort": effort,
-                "harvested_kg": decision.kept_kg,
-                "reasoning": response.get("reasoning", ""),
-                "note": decision.note,
-                "participated": True,
-            }
-
-            if is_dead(new_payoff):
-                runtime["dead_agents"].append(agent_id)
-                name = agents[agent_id]["name"]
-                set_fact(
-                    fluents, "dead", [agent_id], agent_id, round_number,
-                    narration=f"{name} has died — they hadn't been catching enough fish to survive.",
-                    visibility="public",
-                )
-                end_fact(fluents, "fisher", [agent_id], round_number)
+    def after_participants(self, state, setup_ctx, agent_records):
+        context, norm_engine = setup_ctx
 
         # No proportional rationing here — matches Gupta et al.'s CPRAgent.harvest(),
         # which subtracts each agent's independently-computed catch (all against the
         # same pre-harvest stock) directly, letting the stock go negative if
-        # oversubscribed. The existing collapse check below (stock <= 0) is this
+        # oversubscribed. The existing collapse check (stock <= 0) is this
         # project's equivalent of their stop-the-simulation condition.
-        stock_after_harvest = context.stock_before - sum(r["harvested_kg"] for r in results.values())
+        stock_after_harvest = context.stock_before - sum(
+            r["harvested_kg"] for r in agent_records.values()
+        )
         stock_after_regrowth = apply_regrowth(stock_after_harvest)
 
-        norm_engine.end_round(context, results)
+        norm_engine.end_round(context, agent_records)
         if context.stock_override_kg is not None:
             stock_after_regrowth = context.stock_override_kg
 
-        round_record = {
-            "round": round_number,
-            "action": "harvest",
+        state["runtime"]["stock_kg"] = stock_after_regrowth
+
+        return {
             "stock_kg_before": context.stock_before,
-            "agents": {
-                agent_id: {
-                    "effort": result["effort"],
-                    "harvested_kg": result["harvested_kg"],
-                    "reasoning": result["reasoning"],
-                    "note": result["note"],
-                    "participated": result["participated"],
-                }
-                for agent_id, result in results.items()
-            },
             "stock_kg_after_harvest": stock_after_harvest,
             "stock_kg_after_regrowth": stock_after_regrowth,
         }
-
-        runtime["round"] = round_number
-        runtime["stock_kg"] = stock_after_regrowth
-        runtime["rounds"].append(round_record)
-        return round_record
 
 
 ACTION = HarvestAction()

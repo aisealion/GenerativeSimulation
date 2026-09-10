@@ -179,23 +179,34 @@ def _memory_spec(holder, visibility, event_type, text):
     return {"event_type": event_type, "text": text, "agent_id": agent_id, "group_id": group_id}
 
 
-def assign_role(role_name, agent_id, fluents, round_number, args=None):
+def assign_role(
+    role_name, agent_id, fluents, round_number, args=None,
+    exclusive=False, narration=None, visibility="public", event_type="fact_initiated",
+):
     """The default `args=None` (-> `[agent_id]`) is correct only for a role
     every eligible agent holds *simultaneously and independently* (e.g.
     "fisher" — one open record per agent, all coexisting on purpose).
 
     For a role only one agent holds *at a time* (a rotating recorder,
-    steward, monitor), pass a fixed, agent-independent `args` instead
-    (`args=[]` is the simplest choice) — set_fact()'s own termination
-    logic only closes a previous record when `(fluent_name, args)`
-    matches exactly, so leaving `args` defaulted to `[agent_id]` for an
-    exclusive role means each new holder's assignment uses different args
-    than the last, never terminates the previous holder's record, and
-    leaves multiple simultaneously-"open" holders for the same role —
-    confirmed directly: `current_holder()` then returns whichever one
-    happens to appear first in `fluents`, silently wrong the instant a
-    rotation happens. Get this right by choosing `args` for what it
-    actually controls (which records `set_fact()` treats as "the same
-    slot"), not by agent identity."""
-    args = args if args is not None else [agent_id]
-    return set_fact(fluents, role_name, args, agent_id, round_number)
+    steward, monitor), pass `exclusive=True` instead of trying to get
+    `args` right yourself — set_fact()'s own termination logic only closes
+    a previous record when `(fluent_name, args)` matches exactly, so a
+    plain `args=[agent_id]` for an exclusive role means each new holder's
+    assignment uses different args than the last, never terminates the
+    previous holder's record, and leaves multiple simultaneously-"open"
+    holders for the same role — confirmed directly: `current_holder()`
+    then returns whichever one happens to appear first in `fluents`,
+    silently wrong the instant a rotation happens. `exclusive=True` forces
+    a fixed `args=[]` regardless of whatever `args` was passed, making
+    that mistake structurally unreachable through this parameter rather
+    than something the caller has to remember to get right.
+
+    `narration`/`visibility`/`event_type` let a role grant also be a
+    visible, memory-worthy event (e.g. "Kai has become the pot keeper") —
+    same contract as `set_fact()`, since this is just its role-shaped
+    convenience wrapper; previously always silent (`narration=None`)."""
+    resolved_args = [] if exclusive else (args if args is not None else [agent_id])
+    return set_fact(
+        fluents, role_name, resolved_args, agent_id, round_number,
+        narration=narration, visibility=visibility, event_type=event_type,
+    )

@@ -4,11 +4,11 @@
 # Writes: state/runtime.json (vote tallies), state/fluents.json (adopted rules).
 
 from engine.llm_agents import call_fisher_agent
-from engine.action_base import Action
+from engine.action_base import SimpleAgentAction
 from engine.physics import alive_agent_ids
 
 
-class VoteAction(Action):
+class VoteAction(SimpleAgentAction):
     name = "vote"
 
     def _proposals(self, state):
@@ -22,7 +22,10 @@ class VoteAction(Action):
         propose's own raw proposals — falls back to propose's when no
         critique round record exists for this round, so an older
         state/schedule.json with critique gated off (or a round resumed from
-        before this action existed) still works unchanged."""
+        before this action existed) still works unchanged.
+
+        Kept as its own public method (not folded into setup()) because
+        tests/regression/test_critique_action.py calls this directly."""
         runtime = state["runtime"]
         agents = state["agents"]
         round_number = state["round_number"]
@@ -40,48 +43,40 @@ class VoteAction(Action):
             for agent_id in alive_agent_ids(agents, runtime)
         ]
 
-    def prompt_fields(self, state, agent_id):
-        proposals = self._proposals(state)
+    def setup(self, state):
+        """Hoists the previously-per-agent _proposals() call to once per
+        round — the ballot doesn't change while votes are being cast."""
+        return self._proposals(state)
+
+    def build_fields(self, state, setup_ctx, agent_id):
+        proposals = setup_ctx
         proposals_block = "\n\n".join(
             f"{i}. Policy: {proposal['policy']}\n   In practice: {proposal['operationalization']}"
             for i, (_proposer_id, proposal) in enumerate(proposals, start=1)
         )
         return {"num_proposals": len(proposals), "proposals_block": proposals_block}
 
-    def run(self, state):
-        runtime = state["runtime"]
-        agents = state["agents"]
-        round_number = state["round_number"]
-        agent_ids = alive_agent_ids(agents, runtime)
+    def call_agent(self, agent_id, round_number, fields):
+        return call_fisher_agent(agent_id, round_number, self.name, **fields)
 
-        proposals = self._proposals(state)
+    def record_result(self, state, setup_ctx, agent_id, response):
+        choice = int(str(response["vote"]).strip())
+        return {"vote": choice, "reasoning": response.get("reasoning", "")}
 
-        votes = {}
+    def per_agent_key(self):
+        return "votes"
+
+    def after_participants(self, state, setup_ctx, agent_records):
+        proposals = setup_ctx
         tally = {i: 0 for i in range(1, len(proposals) + 1)}
-        for agent_id in agent_ids:
-            response = call_fisher_agent(
-                agent_id, round_number, "vote", **self.prompt_fields(state, agent_id)
-            )
-            choice = int(str(response["vote"]).strip())
-            votes[agent_id] = {"vote": choice, "reasoning": response.get("reasoning", "")}
-            tally[choice] += 1
+        for record in agent_records.values():
+            tally[record["vote"]] += 1
 
         winner_index = max(tally, key=lambda i: tally[i])
         winning_proposer, winning_proposal = proposals[winner_index - 1]
-
-        round_record = {
-            "round": round_number,
-            "action": "vote",
-            "votes": votes,
-            "tally": tally,
-            "winner_index": winner_index,
-            "winning_proposer": winning_proposer,
-        }
-
-        runtime["round"] = round_number
-        runtime["rounds"].append(round_record)
         state["adopted_norm"] = winning_proposal
-        return round_record
+
+        return {"tally": tally, "winner_index": winner_index, "winning_proposer": winning_proposer}
 
     def memory_writes(self, state, round_record):
         adopted = state.get("adopted_norm")
