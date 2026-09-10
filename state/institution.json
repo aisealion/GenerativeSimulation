@@ -18,6 +18,10 @@
     "tiered_catch_limit_with_forfeiture": {
       "description": "Enforces tiered catch limits based on reserve levels: high reserves (≥20kg) get 25%/30kg limit, low reserves (<20kg) get 12%/15kg limit, with immediate forfeiture of excess and one-trip bans",
       "owner": "norms/tiered_catch_limit_with_forfeiture.py"
+    },
+    "catch_limit_with_seasonal_reserve": {
+      "description": "Enforces 6kg per-trip limit, 90% collective stock limit, 10% reserve deposit per catch, and 12% season-end reserve target with proportional shortfall redistribution",
+      "owner": "norms/catch_limit_with_seasonal_reserve.py"
     }
   },
   "state": {

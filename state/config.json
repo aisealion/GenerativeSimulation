@@ -4,13 +4,12 @@
   "history_window_rounds": 5,
   "norms": [
     {
-      "type": "tiered_catch_limit_with_forfeiture",
-      "id": "round_3_limit",
-      "high_reserve_threshold": 20.0,
-      "high_reserve_percent": 0.25,
-      "high_reserve_kg_cap": 30.0,
-      "low_reserve_percent": 0.12,
-      "low_reserve_kg_cap": 15.0,
+      "type": "catch_limit_with_seasonal_reserve",
+      "id": "round_4_limit",
+      "max_kg_per_trip": 6.0,
+      "reserve_deposit_percent": 0.10,
+      "min_stock_percent_remaining": 0.10,
+      "season_end_reserve_percent": 0.12,
       "ban_rounds": 1
     }
   ]

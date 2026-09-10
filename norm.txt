@@ -1,14 +1,11 @@
-Policy: Each fisher may take up to 25% of the lake’s current stock per trip, capped at 30 kg; if reserves drop below 20 kg, the catch is limited to 12% of lake stock or 15 kg, whichever is lower. All fishers must record reserves in the shared ledger before departure, log their actual catch after the trip, return excess immediately, and any non‑compliance triggers a one‑trip ban enforced by the monthly rotating lake monitor.
+Policy: Each fisher may take up to 6 kg per trip, must leave at least 10 % of the lake’s current stock untouched, and 10 % of every catch each season is deposited into a shared reserve that must reach at least 12 % of the lake’s final stock; any excess or non‑deposit triggers a transfer to the reserve and a ban on the next trip.
 
-Operationalization: 1. **Reserve Tracking** – Every fisher’s state now contains a "reserves" field. Before each trip, the fisher writes their current reserves into the shared ledger. If no reserve is recorded or it is wrong, the fisher is flagged non‑compliant, must return all fish taken that trip, and receives a one‑trip ban.
-2. **Catch Logging** – After a trip, the fisher logs the exact catch in the ledger. The lake monitor checks this against the allowed amount: 
-   * allowed = min(0.25 × lakeStock, 30 kg) if reserves ≥ 20 kg; 
-   * allowed = min(0.12 × lakeStock, 15 kg) if reserves < 20 kg. 
-   Any catch above the allowed amount is considered excess and must be returned immediately.
-3. **Lake Stock Update** – The monitor subtracts the allowed catch from the current lake stock and writes the new lake stock to the ledger. The fisher’s reserves are increased by the allowed catch amount.
-4. **Ban Process** – If a fisher logs a catch that exceeds the allowed amount, or fails to record reserves or log the catch, the monitor records a ban in the ledger with status "Banned" and a ban period that lasts until the next trip is logged by the monitor. The ban takes effect immediately; the fisher is blocked from logging a new trip.
-5. **Ban Lift** – A banned fisher must bring the excess catch to the monitor’s office. The monitor logs the trip, updates the fisher’s reserves, removes the "Banned" flag, and broadcasts the new lake stock and reserves. The ban is therefore lifted after the next trip is logged.
-6. **Monitor Selection** – Each month, the community draws a name from a hat among fishers who have taken at least two trips in the last 30 days and are not currently banned. That fisher becomes the rotating lake monitor for the month. The monitor verifies ledger entries weekly, enforces excess returns, records bans, and broadcasts updates.
-7. **Ledger Broadcast** – After every logged trip, the monitor updates the ledger and posts the new lake stock and all fishers’ reserves to the community notice board (physical or digital). This keeps every fisher aware of current limits.
-8. **Enforcement of Non‑Compliance** – If a fisher fails to log a catch, the monitor will flag the trip as non‑compliant, require the fisher to return all fish taken, and impose a one‑trip ban until the catch is properly logged.
-9. **Transparency** – All ledger entries, including reserves, catches, bans, and lake stock updates, are publicly visible to all fishers to ensure accountability.
+Operationalization: 1. Before each trip the record‑keeper logs the lake stock L in the communal ledger.
+2. A fisher may take no more than min(6 kg, 0.9×L).
+3. After catching, the fisher records catch C, deposits 10 %×C into the reserve column, and updates the lake stock to L‑C.
+4. If C exceeds the 6 kg limit or the 10 % rule, the excess is physically moved to the reserve by the record‑keeper and logged.
+5. The record‑keeper updates the ledger after every trip, and the council verifies totals at season’s end.
+6. At season’s end, the ledger sums all catches and deposits; the council calculates the required reserve R = 0.12×L_final.
+7. If R is not met, the shortfall S is divided proportionally by each fisher’s season‑total catch.
+8. Those additional deposits are recorded in the ledger by the record‑keeper within seven days of the first council meeting after the season.
+9. Any fisher who fails to make a required deposit or who exceeded limits has the excess transferred to the reserve and is barred from the next trip; the council enforces the ban and may seize un‑reserved fish.
