@@ -6,9 +6,16 @@
     "vote": {"file": "actions/vote.py", "protected": true, "gate": "true", "description": "each alive fisher votes on the refined proposals", "actor_role": null},
     "discuss": {"file": "actions/discuss.py", "protected": true, "gate": "false", "description": "a pre-existing, currently-unimplemented stub", "actor_role": null}
   },
-  "norm_types": {},
+  "norm_types": {
+    "lake_watcher": {"description": "Manages rotating lake-watcher role, stock estimation, and catch verification logging", "owner": "norms/lake_watcher.py"},
+    "percent_stock_cap": {"description": "Enforces percentage-based catch limit relative to estimated stock", "owner": "norms/percent_stock_cap.py"},
+    "reserve_verification": {"description": "Verifies 1kg reserve with lake-watcher and enforces shortfall consequences", "owner": "norms/reserve_verification.py"},
+    "next_trip_ban": {"description": "Imposes one-round ban for non-compliance violations", "owner": "norms/next_trip_ban.py"},
+    "excess_redistribution": {"description": "Redistributes excess catch from violators equally to compliant fishers", "owner": "norms/excess_redistribution.py"}
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg"]
+    "community": ["stock_kg"],
+    "lake_watcher": ["stock_estimate", "catch_log"]
   }
 }

@@ -3,10 +3,11 @@
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
   "norms": [
-    {"type": "catch_cap", "limit_kg": 5.0},
+    {"type": "lake_watcher", "role_name": "lake_watcher"},
+    {"type": "percent_stock_cap", "percent_limit": 0.10, "watcher_norm_key": "lake_watcher"},
     {"type": "mandatory_reserve", "reserve_kg": 1.0},
-    {"type": "violation_handler", "penalty_kg": 2.0},
-    {"type": "repeated_violation_ban", "violation_threshold": 2, "ban_duration_rounds": 7},
-    {"type": "monthly_stock_suspension", "threshold_kg": 200.0, "measurement_interval_rounds": 30, "suspension_duration_rounds": 7}
+    {"type": "reserve_verification", "reserve_kg": 1.0, "watcher_norm_key": "lake_watcher", "reserve_norm_key": "mandatory_reserve"},
+    {"type": "next_trip_ban", "stock_cap_key": "percent_stock_cap", "reserve_verification_key": "reserve_verification"},
+    {"type": "excess_redistribution", "stock_cap_key": "percent_stock_cap"}
   ]
 }
