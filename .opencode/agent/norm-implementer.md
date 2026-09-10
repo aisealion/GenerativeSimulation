@@ -295,7 +295,10 @@ Do not begin modifying code until you understand:
 8. How roles/personalities are assigned to agents
    (`roles/roles.py`'s `assign_role()`/`set_fact()`).
 9. How new actions are registered and scheduled (`state/schedule.json`,
-   `state/institution.json`).
+   `state/institution.json`) and what one actually costs to write —
+   read `engine/action_base.py` in full, including `SimpleAgentAction`'s
+   own docstring, before judging anything "too much new infrastructure"
+   (see Section 3's own note on this).
 10. How existing norms are implemented (read every file under `norms/`
     complete, start to finish — never from a search-result excerpt).
 11. How tests verify norms (`tests/norm_checks/`, `tests/norms/`).
@@ -378,6 +381,28 @@ it was routed entirely into a deterministic comparison instead; nobody
 was ever actually banned, because the "decision" the norm described was
 never really made by anyone.)
 
+**A second, easier-to-miss trigger-verb shape: an actor *producing* a
+value through their own perception, sampling, or judgment — estimates,
+samples, surveys, reports, observes, testifies — is action-shaped even
+when the simulation already knows the "true" number internally.** The
+whole institutional point of a role that estimates or reports something
+is that their reported value is *theirs* — potentially wrong, biased, or
+dishonest — not a mirror of ground truth; silently substituting the
+simulation's own known value and labeling it "their estimate" doesn't
+approximate that institution, it deletes it. A real round explicitly did
+exactly this: `"The watcher 'estimates' stock (using the actual physics
+stock value as their estimate, representing their sampling/scaling)"`,
+classified `CLEAR`, routed straight into a `norms/*.py` plugin — no
+fisher was ever actually asked anything, for three rounds running, as
+later rounds kept extending the same fake mechanism. If norm.txt has a
+role *estimate*, *report*, *survey*, or *verify against a claim*
+something, that value must come from a real `call_fisher_agent()`
+response this round — never read off `context.stock_before` or another
+already-known value and relabeled. (Contrast this with "verifies whether
+X exceeds Y" where X and Y are both already known — that one really is
+arithmetic; the difference is whether the value being judged already
+exists anywhere in the simulation before this actor produces it.)
+
 Once the scan above finds no positive trigger — or to confirm one you did
 find should stay action-shaped rather than dissolve into arithmetic —
 reason about the requirement in this order:
@@ -409,6 +434,26 @@ cost difference is never itself a legitimate reason to pick the cheaper
 route. Existing actions are never edited to reach outcome 1 or 2 — not
 the five originally-protected ones, and not one an earlier round of
 yours created either (Section 13).
+
+**Before treating that five-artifact cost as a reason to defer or skip a
+genuine new-action requirement, verify the real cost — don't price it
+from memory.** For the common case (one fisher-agent call per
+participating agent, optionally granting a role or recording a visible
+fact from the response), `engine.action_base.SimpleAgentAction` (Section
+13) makes the code artifact three small method overrides, not a custom
+loop — you must have actually read that file (Section 1) before judging
+otherwise. A real round classified a council/election requirement as
+needing "new institutional infrastructure" and deferred it without ever
+opening `engine/action_base.py` to check what that infrastructure
+actually costs, and without asking the proposer (via
+`engine.clarify_norm`, Section 5) whether the requirement could be scoped
+down to something smaller this round. If a requirement is still
+genuinely larger than one round's budget after actually checking the
+real cost — a role *plus* a new election action *plus* wiring an
+existing norm to consult it, say — that is exactly the case for
+`engine.clarify_norm` to ask about scope, or for implementing the
+smallest real piece (e.g. the role alone, honestly reported as partial)
+rather than silently implementing nothing for it (Section 5).
 
 ---
 
