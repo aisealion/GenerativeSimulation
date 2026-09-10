@@ -300,26 +300,25 @@ mkdir -p logs
 #
 # NORM_IMPLEMENTER_MODEL routes the norm-implementer's (and norm-evaluator's
 # — it shares this same fallback) opencode invocations specifically.
-# Was litellm/Kimi-K2.5 over the Otago LiteLLM proxy; switched to the local
-# gpt-oss-120b model 2026-09-04, by request, after the Kimi-K2.5 quota was
-# exhausted. Switched back to litellm/Kimi-K2.5 2026-09-10, by request,
-# after analyzing a real 12-round run on the local model found a real,
-# concrete reliability cost of its own: roughly half of all norm-implementer
-# invocations never reached a genuine, deliberate stop (either a
-# zero-token/empty completion from Ollama, or a session that just ended
-# mid-task right after a tool call), and 3 separate calls (2
-# norm-implementer, 1 Understand-Anything build) hung for their full
-# timeout with literally zero output ever captured — most consistent with
-# the local Ollama server itself occasionally not responding to a
-# completion request at all, not a model reasoning failure. Trades the
-# GPU-contention picture this var was originally introduced to escape
-# (norm-implementer/evaluator calls no longer touch the GPU at all now —
-# only the fisher's own 20b calls and, when BUILD_KNOWLEDGE_GRAPH=1, the
-# build agent's 120b calls still do) for a real quota-cost dependency
-# again — see LITELLM_API_KEY's own check right below, now enforced again
-# since this is back to a litellm/* model. Revert to the local model again
-# (the line below, back to `"ollama/${OLLAMA_120B_CTX_MODEL_ID}"`) if quota
-# becomes the binding constraint before the reliability one does.
+# History: litellm/Kimi-K2.5 -> local gpt-oss-120b (2026-09-04, Kimi-K2.5
+# quota exhausted) -> litellm/Kimi-K2.5 again (2026-09-10, after a 12-round
+# local run showed its own real reliability cost: roughly half of all
+# norm-implementer invocations never reached a genuine stop, and 3 calls
+# hung for their full timeout with zero output — see the local-model entry
+# still below this one). Back to local gpt-oss-120b again (2026-09-11),
+# after the litellm path failed even harder in the very next real run: round
+# 1 completed fine (654s, 82 tool calls, a real genuine stop), then every
+# single implementer call from round 2 onward — 6 in a row across 3
+# rounds — hung for the exact full 3600s timeout with zero output. Not a
+# gradual flakiness pattern like the local model's; a hard, total,
+# starts-at-one-clean-point failure, consistent with the Otago proxy
+# hitting a quota/rate limit or going unresponsive partway through round
+# 1's own real usage (98 tool-call round-trips), with opencode's own
+# retry/backoff against that stuck rather than failing fast. Both local
+# and remote paths now have a real, directly-observed failure mode on
+# record — pick based on which cost is more tolerable for a given run:
+# local risks silent early truncation, litellm/Kimi-K2.5 risks a total
+# multi-hour stall once quota/rate-limit is hit.
 #
 # UNDERSTAND_MODEL was briefly routed to Kimi-K2.5 too (2026-09-03, same
 # day) after the local gpt-oss-120b model running the UA build-agent calls
@@ -336,7 +335,7 @@ mkdir -p logs
 # model via OPENCODE_MODEL directly; the two known failure modes above are
 # accepted as a live, unresolved limitation of running UA unattended on
 # that model rather than paid over.
-export NORM_IMPLEMENTER_MODEL="litellm/Kimi-K2.5"
+export NORM_IMPLEMENTER_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
 
