@@ -1,0 +1,1353 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "louvain",
+  "totalFiles": 113,
+  "totalBatches": 9,
+  "exportsByPath": {
+    ".DS_Store": [],
+    ".ua/.understandignore": [],
+    "actions/handlers/__init__.py": [],
+    "actions/handlers/critique.py": [
+      "run",
+      "memory_writes"
+    ],
+    "actions/handlers/discuss.py": [
+      "run"
+    ],
+    "actions/handlers/harvest.py": [
+      "run",
+      "_stock_trend"
+    ],
+    "actions/handlers/propose.py": [
+      "run",
+      "memory_writes"
+    ],
+    "actions/handlers/vote.py": [
+      "proposals_for_round",
+      "run",
+      "memory_writes"
+    ],
+    "actions/rules/__init__.py": [],
+    "actions/rules/critique/__init__.py": [],
+    "actions/rules/discuss/__init__.py": [],
+    "actions/rules/harvest/__init__.py": [],
+    "actions/rules/propose/__init__.py": [],
+    "actions/rules/vote/__init__.py": [],
+    "conftest.py": [],
+    "engine/__init__.py": [],
+    "engine/call_log.py": [
+      "log_call"
+    ],
+    "engine/clarify_norm.py": [
+      "_winning_proposer_and_proposal",
+      "main"
+    ],
+    "engine/institution/__init__.py": [],
+    "engine/institution/agent_loop.py": [
+      "default_ineligible_record",
+      "per_agent_decision"
+    ],
+    "engine/institution/builtin_handlers.py": [
+      "generic_agent_decision",
+      "_resolve_field",
+      "_dotted_get",
+      "_map_response"
+    ],
+    "engine/institution/context.py": [
+      "AgentCaller",
+      "resolve_participants",
+      "ActionContext"
+    ],
+    "engine/institution/events.py": [
+      "Visibility",
+      "Event",
+      "EventEmitter",
+      "visible_events",
+      "event_memory_specs"
+    ],
+    "engine/institution/history.py": [
+      "diff_institution",
+      "_diff_catalog"
+    ],
+    "engine/institution/lifecycle.py": [
+      "default_lifecycle",
+      "_resolved_expiry",
+      "is_active",
+      "LifecycleEvent",
+      "tick",
+      "renew",
+      "terminate"
+    ],
+    "engine/institution/objects.py": [
+      "ObjectPermissionError",
+      "ObjectRuntime"
+    ],
+    "engine/institution/registry.py": [
+      "discover_subclasses",
+      "discover_handlers"
+    ],
+    "engine/institution/rules.py": [
+      "Rule",
+      "RuleSet",
+      "discover_rule_types",
+      "all_configured_rules",
+      "tick_rule_lifecycles"
+    ],
+    "engine/institution/runtime.py": [
+      "resolve_handler",
+      "resolve_memory_writes",
+      "ActionRuntime"
+    ],
+    "engine/institution/scheduler.py": [
+      "SchedulingConflictError",
+      "compile_schedule"
+    ],
+    "engine/llm_agents.py": [
+      "_patch_litellm_message_rebuild",
+      "_load_fisher_system_prompt",
+      "render_persona",
+      "render_role_directives",
+      "render_survival_status",
+      "render_notices",
+      "render_relevant_memories",
+      "_harvest_shortfall_clause",
+      "render_history",
+      "render_action",
+      "_action_template",
+      "_resolve_completion_kwargs",
+      "call_fisher_agent",
+      "_critique_context",
+      "call_critique_agent",
+      "_parse_json_object"
+    ],
+    "engine/memory/__init__.py": [],
+    "engine/memory/client.py": [
+      "_resolve_provider",
+      "_default_memory_model",
+      "_build_graphiti",
+      "run_async",
+      "ensure_indices",
+      "round_reference_time"
+    ],
+    "engine/memory/query.py": [
+      "_search_relevance",
+      "_search_importance",
+      "_retrieve",
+      "retrieve_memories"
+    ],
+    "engine/memory/write.py": [
+      "_write_episode",
+      "write_episode"
+    ],
+    "engine/monitoring.py": [
+      "_current_branch",
+      "_plot_dir",
+      "_read_call_log",
+      "_harvest_rounds",
+      "_config_footer",
+      "_new_figure",
+      "_save",
+      "_plot_effort",
+      "_plot_harvest",
+      "_plot_stock",
+      "_plot_active_agents",
+      "_plot_tool_calls",
+      "_agent_step_budget",
+      "_plot_steps",
+      "_plot_commits",
+      "_plot_tests",
+      "update_plots"
+    ],
+    "engine/physics.py": [
+      "catch_from_effort",
+      "apply_regrowth",
+      "apply_consumption",
+      "is_dead",
+      "alive_agent_ids",
+      "available_stock"
+    ],
+    "engine/simulate.py": [
+      "load_state",
+      "load_object_types",
+      "load_objects",
+      "load_action_spec",
+      "load_institution",
+      "load_schedule",
+      "compile_and_write_schedule",
+      "evaluate_gate",
+      "save_runtime",
+      "save_fluents",
+      "save_events",
+      "write_memory_episodes",
+      "write_fact_memory_events",
+      "write_event_memory_episodes",
+      "parse_opencode_jsonl",
+      "extract_tool_trace",
+      "extract_last_step_reason",
+      "extract_json_report",
+      "extract_evaluation_result",
+      "run_norm_implementer",
+      "run_norm_evaluator",
+      "norm_already_committed",
+      "find_adopted_norm",
+      "norm_implementation_compile_errors",
+      "norm_implementation_runtime_errors",
+      "_actions_protected_as_of_head",
+      "norm_implementation_protected_path_violations",
+      "norm_implementation_institution_errors",
+      "norm_implementation_orphaned_norm_errors",
+      "norm_implementation_missing_spec_errors",
+      "norm_implementation_no_code_changes_errors",
+      "discard_norm_implementation",
+      "_norm_activation_summary",
+      "record_institution_changes",
+      "stage_norm_implementation",
+      "run_norm_implementer_with_retry",
+      "implement_and_evaluate_norm",
+      "commit_round",
+      "refresh_knowledge_graph",
+      "knowledge_graph_matches_head",
+      "reload_project_modules",
+      "run_cycle",
+      "round_is_complete",
+      "ensure_run_branch",
+      "main"
+    ],
+    "generate_agents.py": [
+      "generate"
+    ],
+    "inspect_session.py": [
+      "list_sessions",
+      "find_norm_implementer_sessions",
+      "export_session",
+      "print_trace",
+      "main"
+    ],
+    "logs/model_calls.jsonl": [],
+    "logs/norm_implementer.jsonl": [],
+    "objects/__init__.py": [],
+    "objects/handlers/__init__.py": [],
+    "prompts/memory_phrasing.py": [
+      "phrase_memory"
+    ],
+    "roles/roles.py": [
+      "role_holder",
+      "current_holder",
+      "set_fact",
+      "end_fact",
+      "_visible_to",
+      "visible_facts",
+      "fact_memory_events",
+      "_memory_spec",
+      "assign_role"
+    ],
+    "run_simulation.slurm": [],
+    "tests/institution/fixtures/handlers_missing_run/broken.py": [],
+    "tests/institution/fixtures/handlers_missing_run/handler_one.py": [
+      "run"
+    ],
+    "tests/institution/fixtures/handlers_ok/handler_one.py": [
+      "run"
+    ],
+    "tests/institution/fixtures/handlers_ok/handler_two.py": [
+      "run"
+    ],
+    "tests/institution/fixtures/subclass_collision/base.py": [
+      "FakeBase"
+    ],
+    "tests/institution/fixtures/subclass_collision/dup_a.py": [
+      "DupA"
+    ],
+    "tests/institution/fixtures/subclass_collision/dup_b.py": [
+      "DupB"
+    ],
+    "tests/institution/fixtures/subclass_ok/base.py": [
+      "FakeBase"
+    ],
+    "tests/institution/fixtures/subclass_ok/plugin_one.py": [
+      "One"
+    ],
+    "tests/institution/fixtures/subclass_ok/plugin_two.py": [
+      "Two"
+    ],
+    "tests/institution/test_agent_loop.py": [
+      "_state",
+      "_ctx",
+      "test_calls_every_participant_and_defaults_participated",
+      "test_ineligible_agent_never_gets_called_and_uses_default_record",
+      "test_custom_ineligible_record_overrides_the_default",
+      "test_after_settle_sees_the_rule_patched_record_not_the_raw_one",
+      "test_settle_agent_hook_runs_after_after_settle_callback_is_wired_in_between"
+    ],
+    "tests/institution/test_builtin_handlers.py": [
+      "_state",
+      "test_generic_agent_decision_resolves_state_fields_and_calls_every_participant",
+      "test_generic_agent_decision_excludes_dead_agents",
+      "test_generic_agent_decision_with_no_field_map_copies_response_verbatim",
+      "test_generic_agent_decision_reads_an_object_field_as_a_prompt_field",
+      "test_action_runtime_run_action_via_the_generic_builtin",
+      "test_unresolvable_handler_raises_a_clear_error"
+    ],
+    "tests/institution/test_events.py": [
+      "_emitter",
+      "test_global_event_is_visible_to_anyone_with_visible_to_none",
+      "test_agent_event_is_visible_only_to_that_agent",
+      "test_agent_set_event_is_visible_to_every_named_agent",
+      "test_participants_event_resolves_against_the_emitting_action_participants",
+      "test_role_holders_event_resolves_the_current_holder",
+      "test_role_holders_event_with_no_current_holder_is_visible_to_nobody",
+      "test_role_holders_event_without_a_role_raises",
+      "test_event_is_visible_only_for_its_own_round",
+      "test_a_multi_agent_event_is_stored_exactly_once_not_duplicated",
+      "test_event_memory_specs_for_a_global_event_writes_one_community_spec",
+      "test_event_memory_specs_for_a_restricted_event_writes_one_spec_per_visible_agent",
+      "test_event_memory_specs_ignores_events_from_other_rounds"
+    ],
+    "tests/institution/test_generic_registry.py": [
+      "test_discover_subclasses_on_a_real_ships_empty_package",
+      "test_discover_handlers_on_a_real_ships_empty_package",
+      "test_discover_subclasses_finds_every_matching_subclass",
+      "test_discover_subclasses_never_returns_the_base_class_itself",
+      "test_discover_subclasses_raises_on_key_collision",
+      "test_discover_handlers_finds_every_run_function",
+      "test_discover_handlers_raises_on_a_module_missing_run"
+    ],
+    "tests/institution/test_harvest_handler_baseline.py": [
+      "_fake_call_fisher_agent",
+      "_state",
+      "_run",
+      "test_baseline_empty_rules_matches_hand_computed_physics",
+      "test_baseline_no_rules_state_key_created_when_rules_empty",
+      "_FakeCap",
+      "_FakeBan",
+      "_fake_discover",
+      "test_a_configured_rule_actually_constrains_the_result",
+      "test_ineligible_agent_skips_the_llm_call_entirely"
+    ],
+    "tests/institution/test_history.py": [
+      "test_no_changes_yields_empty_diff",
+      "test_added_action_is_detected",
+      "test_removed_norm_type_is_detected",
+      "test_changed_role_entry_is_detected",
+      "test_added_object_type_and_state_field_together",
+      "test_diff_is_order_independent_and_sorted_by_name"
+    ],
+    "tests/institution/test_lifecycle.py": [
+      "test_missing_or_default_lifecycle_is_always_active",
+      "test_active_from_round_gates_the_start",
+      "test_duration_rounds_expires_relative_to_active_from",
+      "test_duration_rounds_defaults_active_from_to_zero",
+      "test_explicit_expires_at_round_wins_over_duration_rounds",
+      "test_terminated_round_ends_it_immediately",
+      "test_tick_fires_exactly_once_on_expiry",
+      "test_tick_never_fires_for_an_indefinite_lifecycle",
+      "test_renew_clears_termination_and_extends_duration",
+      "test_renew_extends_expires_at_round_when_that_form_was_used",
+      "test_renew_raises_when_not_renewable",
+      "test_terminate_closes_immediately_regardless_of_duration"
+    ],
+    "tests/institution/test_objects.py": [
+      "_runtime",
+      "test_deposit_and_withdraw_adjust_balance_seeded_from_the_type_default",
+      "test_declaration_never_needs_to_carry_field_values",
+      "test_role_gated_write_denied_to_a_non_holder",
+      "test_permission_who_none_always_denies",
+      "test_append_and_read_on_a_role_gated_field",
+      "test_read_returns_none_for_a_who_none_field_without_raising",
+      "test_narration_emits_an_event_visible_this_round_only",
+      "test_deposit_with_no_narration_emits_no_event",
+      "test_unknown_object_id_raises_keyerror",
+      "test_custom_handler_dispatch",
+      "test_custom_handler_missing_declaration_raises"
+    ],
+    "tests/institution/test_ported_actions.py": [
+      "_state_with_harvest",
+      "_state_with_proposals",
+      "test_propose_computes_others_summary_and_records_policy",
+      "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+      "test_critique_one_question_then_sufficient_applies_finalized_revision",
+      "test_critique_loop_is_bounded",
+      "test_vote_prefers_critique_proposals_when_present",
+      "test_vote_falls_back_to_propose_when_no_critique_record",
+      "test_vote_tallies_and_sets_adopted_norm",
+      "test_discuss_still_raises_not_implemented",
+      "test_action_runtime_dispatches_to_a_handler_module_and_finalizes_the_record"
+    ],
+    "tests/institution/test_scheduler.py": [
+      "test_compiles_a_satisfiable_after_chain_in_order",
+      "test_before_constraint_is_equivalent_to_the_successors_after",
+      "test_ties_broken_by_declaration_order",
+      "test_default_gate_is_true_when_unspecified",
+      "test_a_new_action_can_be_inserted_between_two_existing_ones",
+      "test_cycle_raises_scheduling_conflict_error",
+      "test_unknown_after_target_raises_scheduling_conflict_error"
+    ],
+    "tests/regression/test_fluents_invariants.py": [
+      "load_fluents",
+      "test_exclusive_role_has_one_open_holder",
+      "test_narrated_facts_declare_visibility_and_event_type"
+    ],
+    "tests/regression/test_institution_role_drift.py": [
+      "_write",
+      "_setup",
+      "test_a_registered_role_with_a_matching_directive_file_is_clean",
+      "test_a_registered_role_with_no_directive_file_is_flagged",
+      "test_clearing_the_gap_makes_the_check_clean_again"
+    ],
+    "tests/regression/test_render_action.py": [
+      "test_render_action_reads_the_owning_spec_own_template",
+      "test_render_action_finds_a_sub_template_owned_by_a_different_specs_templates_dict",
+      "test_render_action_falls_back_to_a_prompts_md_file_when_no_spec_owns_the_name",
+      "test_render_action_raises_a_clear_error_for_an_unowned_and_fileless_name"
+    ],
+    "tests/regression/test_render_persona_roles.py": [
+      "_write",
+      "_setup",
+      "test_renders_every_currently_held_registered_role_in_catalog_order",
+      "test_only_renders_roles_this_specific_agent_actually_holds",
+      "test_raises_for_a_held_role_with_no_directive_file",
+      "test_a_fluent_that_isnt_a_registered_role_is_never_treated_as_one",
+      "test_a_role_no_agent_holds_yet_needs_no_directive_file"
+    ],
+    "tests/regression/test_roles.py": [
+      "test_exclusive_role_rotation_closes_the_previous_holder",
+      "test_non_exclusive_role_lets_every_agent_hold_it_simultaneously",
+      "test_end_fact_closes_without_opening_a_replacement"
+    ],
+    "tests/rules/test_lifecycle_aware_loading.py": [
+      "_FakeType",
+      "_fake_rule_types",
+      "test_for_action_without_round_number_ignores_lifecycle",
+      "test_for_action_with_round_number_filters_out_not_yet_active",
+      "test_for_action_with_round_number_filters_out_expired",
+      "test_for_action_still_validates_an_inactive_entrys_type_and_duplicate_key",
+      "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+      "test_tick_rule_lifecycles_is_a_noop_for_rules_with_no_lifecycle"
+    ],
+    "tests/rules/test_note_and_participated.py": [
+      "_entry",
+      "test_explicit_note_is_preferred_verbatim",
+      "test_participated_false_wins_over_a_note",
+      "test_falls_back_to_inferred_sentence_when_no_note",
+      "test_no_shortfall_no_note_is_silent",
+      "test_render_history_includes_the_note_via_round_record"
+    ],
+    "tests/rules/test_rule_loading.py": [
+      "_FakeType",
+      "_fake_rule_types",
+      "test_for_action_empty_config",
+      "test_for_action_builds_correct_instances",
+      "test_for_action_explicit_id",
+      "test_for_action_unknown_type_raises",
+      "test_for_action_duplicate_key_raises",
+      "test_for_action_duplicate_type_ok_with_explicit_ids",
+      "test_for_action_only_sees_rules_configured_for_its_own_action"
+    ],
+    "tests/rules/test_rule_object_access.py": [
+      "_DepositsOverflow",
+      "_state",
+      "_ctx",
+      "test_a_rule_can_deposit_into_an_institutional_object",
+      "test_no_overflow_means_no_deposit"
+    ],
+    "tests/rules/test_ruleset_after_action.py": [
+      "_RecordsRoundResults",
+      "_OverridesStock",
+      "_ctx",
+      "test_after_action_receives_the_full_round_record",
+      "test_a_rule_can_override_the_round_stock_directly",
+      "test_no_override_leaves_the_original_round_record_value_alone",
+      "test_last_rule_in_config_order_wins_when_two_both_override"
+    ],
+    "tests/rules/test_ruleset_composition.py": [
+      "_TrimByOne",
+      "_ViolateIfOver",
+      "_RecordsSettled",
+      "_ctx",
+      "_entry",
+      "test_apply_after_agent_threads_the_patch_through_rules_in_order",
+      "test_apply_after_agent_concatenates_notes_from_every_contributing_rule",
+      "test_apply_after_agent_is_last_patch_wins_for_non_note_fields",
+      "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+      "test_describe_constraints_joins_only_non_none",
+      "test_no_rules_is_a_pure_passthrough"
+    ],
+    "tests/rules/test_ruleset_eligibility.py": [
+      "_AlwaysEligible",
+      "_NeverEligible",
+      "_CountsCalls",
+      "_ctx",
+      "test_is_eligible_true_when_all_rules_agree",
+      "test_is_eligible_false_if_any_rule_vetoes",
+      "test_is_eligible_no_rules_defaults_true",
+      "test_every_rule_is_eligible_still_runs_after_a_veto",
+      "test_ineligibility_note_falls_back_to_generic_when_rules_say_nothing",
+      "test_ineligibility_note_prefers_a_rules_own_description"
+    ]
+  },
+  "batches": [
+    {
+      "batchIndex": 1,
+      "files": [
+        {
+          "path": ".opencode/agent/fisher.md",
+          "language": "markdown",
+          "sizeLines": 17,
+          "fileCategory": "docs"
+        },
+        {
+          "path": ".opencode/agent/norm-evaluator.md",
+          "language": "markdown",
+          "sizeLines": 388,
+          "fileCategory": "docs"
+        },
+        {
+          "path": ".opencode/agent/norm-implementer.md",
+          "language": "markdown",
+          "sizeLines": 1579,
+          "fileCategory": "docs"
+        }
+      ],
+      "batchImportData": {
+        ".opencode/agent/fisher.md": [],
+        ".opencode/agent/norm-evaluator.md": [],
+        ".opencode/agent/norm-implementer.md": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 2,
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "language": "markdown",
+          "sizeLines": 10,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "hpc_ollama_entrypoint.sh",
+          "language": "shell",
+          "sizeLines": 877,
+          "fileCategory": "script"
+        },
+        {
+          "path": "norm.txt",
+          "language": "txt",
+          "sizeLines": 3,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "opencode.jsonc",
+          "language": "jsonc",
+          "sizeLines": 64,
+          "fileCategory": "config"
+        },
+        {
+          "path": "pyproject.toml",
+          "language": "toml",
+          "sizeLines": 31,
+          "fileCategory": "config"
+        }
+      ],
+      "batchImportData": {
+        "AGENTS.md": [],
+        "hpc_ollama_entrypoint.sh": [],
+        "norm.txt": [],
+        "opencode.jsonc": [],
+        "pyproject.toml": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 3,
+      "files": [
+        {
+          "path": "prompts/persona_template.md",
+          "language": "markdown",
+          "sizeLines": 10,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "prompts/personality_norms.json",
+          "language": "json",
+          "sizeLines": 22,
+          "fileCategory": "config"
+        },
+        {
+          "path": "prompts/phrasing_map.json",
+          "language": "json",
+          "sizeLines": 1,
+          "fileCategory": "config"
+        }
+      ],
+      "batchImportData": {
+        "prompts/persona_template.md": [],
+        "prompts/personality_norms.json": [],
+        "prompts/phrasing_map.json": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 4,
+      "files": [
+        {
+          "path": "state/actions/critique.json",
+          "language": "json",
+          "sizeLines": 25,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/actions/discuss.json",
+          "language": "json",
+          "sizeLines": 9,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/actions/harvest.json",
+          "language": "json",
+          "sizeLines": 22,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/actions/propose.json",
+          "language": "json",
+          "sizeLines": 22,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/actions/vote.json",
+          "language": "json",
+          "sizeLines": 22,
+          "fileCategory": "config"
+        }
+      ],
+      "batchImportData": {
+        "state/actions/critique.json": [],
+        "state/actions/discuss.json": [],
+        "state/actions/harvest.json": [],
+        "state/actions/propose.json": [],
+        "state/actions/vote.json": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 5,
+      "files": [
+        {
+          "path": "state/config.json",
+          "language": "json",
+          "sizeLines": 6,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/events.json",
+          "language": "json",
+          "sizeLines": 1,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/fluents.json",
+          "language": "json",
+          "sizeLines": 92,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/fluents_schema.md",
+          "language": "markdown",
+          "sizeLines": 16,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "state/institution.json",
+          "language": "json",
+          "sizeLines": 20,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/objects.json",
+          "language": "json",
+          "sizeLines": 1,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/runtime.json",
+          "language": "json",
+          "sizeLines": 821,
+          "fileCategory": "config"
+        },
+        {
+          "path": "state/schedule.json",
+          "language": "json",
+          "sizeLines": 7,
+          "fileCategory": "config"
+        }
+      ],
+      "batchImportData": {
+        "state/config.json": [],
+        "state/events.json": [],
+        "state/fluents.json": [],
+        "state/fluents_schema.md": [],
+        "state/institution.json": [],
+        "state/objects.json": [],
+        "state/runtime.json": [],
+        "state/schedule.json": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 6,
+      "files": [
+        {
+          "path": ".DS_Store",
+          "language": "unknown",
+          "sizeLines": 2,
+          "fileCategory": "code"
+        },
+        {
+          "path": ".ua/.understandignore",
+          "language": "unknown",
+          "sizeLines": 74,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/handlers/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/handlers/critique.py",
+          "language": "python",
+          "sizeLines": 124,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/handlers/discuss.py",
+          "language": "python",
+          "sizeLines": 6,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/handlers/harvest.py",
+          "language": "python",
+          "sizeLines": 108,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/handlers/propose.py",
+          "language": "python",
+          "sizeLines": 54,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/handlers/vote.py",
+          "language": "python",
+          "sizeLines": 79,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/prompts/README.md",
+          "language": "markdown",
+          "sizeLines": 37,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "actions/prompts/clarify.md",
+          "language": "markdown",
+          "sizeLines": 8,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "actions/rules/README.md",
+          "language": "markdown",
+          "sizeLines": 135,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "actions/rules/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/rules/critique/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/rules/discuss/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/rules/harvest/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/rules/propose/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "actions/rules/vote/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "conftest.py",
+          "language": "python",
+          "sizeLines": 2,
+          "fileCategory": "code"
+        },
+        {
+          "path": "constants/agents.json",
+          "language": "json",
+          "sizeLines": 52,
+          "fileCategory": "config"
+        },
+        {
+          "path": "engine/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/call_log.py",
+          "language": "python",
+          "sizeLines": 26,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/clarify_norm.py",
+          "language": "python",
+          "sizeLines": 66,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/agent_loop.py",
+          "language": "python",
+          "sizeLines": 52,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/builtin_handlers.py",
+          "language": "python",
+          "sizeLines": 64,
+          "fileCategory": "code"
+        }
+      ],
+      "batchImportData": {
+        ".DS_Store": [],
+        ".ua/.understandignore": [],
+        "actions/handlers/__init__.py": [],
+        "actions/handlers/critique.py": [],
+        "actions/handlers/discuss.py": [],
+        "actions/handlers/harvest.py": [],
+        "actions/handlers/propose.py": [],
+        "actions/handlers/vote.py": [],
+        "actions/prompts/README.md": [],
+        "actions/prompts/clarify.md": [],
+        "actions/rules/README.md": [],
+        "actions/rules/__init__.py": [],
+        "actions/rules/critique/__init__.py": [],
+        "actions/rules/discuss/__init__.py": [],
+        "actions/rules/harvest/__init__.py": [],
+        "actions/rules/propose/__init__.py": [],
+        "actions/rules/vote/__init__.py": [],
+        "conftest.py": [],
+        "constants/agents.json": [],
+        "engine/__init__.py": [],
+        "engine/call_log.py": [],
+        "engine/clarify_norm.py": [],
+        "engine/institution/__init__.py": [],
+        "engine/institution/agent_loop.py": [],
+        "engine/institution/builtin_handlers.py": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 7,
+      "files": [
+        {
+          "path": "engine/institution/context.py",
+          "language": "python",
+          "sizeLines": 101,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/events.py",
+          "language": "python",
+          "sizeLines": 127,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/history.py",
+          "language": "python",
+          "sizeLines": 42,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/lifecycle.py",
+          "language": "python",
+          "sizeLines": 117,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/objects.py",
+          "language": "python",
+          "sizeLines": 178,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/registry.py",
+          "language": "python",
+          "sizeLines": 54,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/rules.py",
+          "language": "python",
+          "sizeLines": 258,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/runtime.py",
+          "language": "python",
+          "sizeLines": 78,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/institution/scheduler.py",
+          "language": "python",
+          "sizeLines": 73,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/llm_agents.py",
+          "language": "python",
+          "sizeLines": 565,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/memory/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/memory/client.py",
+          "language": "python",
+          "sizeLines": 172,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/memory/query.py",
+          "language": "python",
+          "sizeLines": 101,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/memory/write.py",
+          "language": "python",
+          "sizeLines": 80,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/monitoring.py",
+          "language": "python",
+          "sizeLines": 260,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/physics.py",
+          "language": "python",
+          "sizeLines": 76,
+          "fileCategory": "code"
+        },
+        {
+          "path": "engine/simulate.py",
+          "language": "python",
+          "sizeLines": 1739,
+          "fileCategory": "code"
+        },
+        {
+          "path": "generate_agents.py",
+          "language": "python",
+          "sizeLines": 70,
+          "fileCategory": "code"
+        },
+        {
+          "path": "inspect_session.py",
+          "language": "python",
+          "sizeLines": 89,
+          "fileCategory": "code"
+        },
+        {
+          "path": "logs/model_calls.jsonl",
+          "language": "jsonl",
+          "sizeLines": 218,
+          "fileCategory": "code"
+        },
+        {
+          "path": "logs/norm_implementer.jsonl",
+          "language": "jsonl",
+          "sizeLines": 3,
+          "fileCategory": "code"
+        },
+        {
+          "path": "objects/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "objects/handlers/README.md",
+          "language": "markdown",
+          "sizeLines": 41,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "objects/handlers/__init__.py",
+          "language": "python",
+          "sizeLines": 0,
+          "fileCategory": "code"
+        },
+        {
+          "path": "prompts/memory_phrasing.py",
+          "language": "python",
+          "sizeLines": 51,
+          "fileCategory": "code"
+        }
+      ],
+      "batchImportData": {
+        "engine/institution/context.py": [],
+        "engine/institution/events.py": [],
+        "engine/institution/history.py": [],
+        "engine/institution/lifecycle.py": [],
+        "engine/institution/objects.py": [],
+        "engine/institution/registry.py": [],
+        "engine/institution/rules.py": [],
+        "engine/institution/runtime.py": [],
+        "engine/institution/scheduler.py": [],
+        "engine/llm_agents.py": [],
+        "engine/memory/__init__.py": [],
+        "engine/memory/client.py": [],
+        "engine/memory/query.py": [],
+        "engine/memory/write.py": [],
+        "engine/monitoring.py": [],
+        "engine/physics.py": [],
+        "engine/simulate.py": [],
+        "generate_agents.py": [],
+        "inspect_session.py": [],
+        "logs/model_calls.jsonl": [],
+        "logs/norm_implementer.jsonl": [],
+        "objects/__init__.py": [],
+        "objects/handlers/README.md": [],
+        "objects/handlers/__init__.py": [],
+        "prompts/memory_phrasing.py": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 8,
+      "files": [
+        {
+          "path": "prompts/role_directives/README.md",
+          "language": "markdown",
+          "sizeLines": 25,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "prompts/role_directives/fisher.md",
+          "language": "markdown",
+          "sizeLines": 1,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "roles/roles.py",
+          "language": "python",
+          "sizeLines": 212,
+          "fileCategory": "code"
+        },
+        {
+          "path": "run_simulation.slurm",
+          "language": "slurm",
+          "sizeLines": 131,
+          "fileCategory": "code"
+        },
+        {
+          "path": "state/norm_specs/round_1.md",
+          "language": "markdown",
+          "sizeLines": 24,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "state/object_types/README.md",
+          "language": "markdown",
+          "sizeLines": 66,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "tests/institution/fixtures/handlers_missing_run/broken.py",
+          "language": "python",
+          "sizeLines": 1,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/fixtures/handlers_missing_run/handler_one.py",
+          "language": "python",
+          "sizeLines": 2,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/fixtures/handlers_ok/handler_one.py",
+          "language": "python",
+          "sizeLines": 2,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/fixtures/handlers_ok/handler_two.py",
+          "language": "python",
+          "sizeLines": 2,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/fixtures/subclass_collision/base.py",
+          "language": "python",
+          "sizeLines": 2,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/fixtures/subclass_collision/dup_a.py",
+          "language": "python",
+          "sizeLines": 5,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/fixtures/subclass_collision/dup_b.py",
+          "language": "python",
+          "sizeLines": 5,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/fixtures/subclass_ok/base.py",
+          "language": "python",
+          "sizeLines": 2,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/fixtures/subclass_ok/plugin_one.py",
+          "language": "python",
+          "sizeLines": 5,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/fixtures/subclass_ok/plugin_two.py",
+          "language": "python",
+          "sizeLines": 5,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/test_agent_loop.py",
+          "language": "python",
+          "sizeLines": 148,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/test_builtin_handlers.py",
+          "language": "python",
+          "sizeLines": 129,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/test_events.py",
+          "language": "python",
+          "sizeLines": 114,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/test_generic_registry.py",
+          "language": "python",
+          "sizeLines": 53,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/test_harvest_handler_baseline.py",
+          "language": "python",
+          "sizeLines": 131,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/test_history.py",
+          "language": "python",
+          "sizeLines": 53,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/test_lifecycle.py",
+          "language": "python",
+          "sizeLines": 104,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/test_objects.py",
+          "language": "python",
+          "sizeLines": 176,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/institution/test_ported_actions.py",
+          "language": "python",
+          "sizeLines": 208,
+          "fileCategory": "code"
+        }
+      ],
+      "batchImportData": {
+        "prompts/role_directives/README.md": [],
+        "prompts/role_directives/fisher.md": [],
+        "roles/roles.py": [],
+        "run_simulation.slurm": [],
+        "state/norm_specs/round_1.md": [],
+        "state/object_types/README.md": [],
+        "tests/institution/fixtures/handlers_missing_run/broken.py": [],
+        "tests/institution/fixtures/handlers_missing_run/handler_one.py": [],
+        "tests/institution/fixtures/handlers_ok/handler_one.py": [],
+        "tests/institution/fixtures/handlers_ok/handler_two.py": [],
+        "tests/institution/fixtures/subclass_collision/base.py": [],
+        "tests/institution/fixtures/subclass_collision/dup_a.py": [],
+        "tests/institution/fixtures/subclass_collision/dup_b.py": [],
+        "tests/institution/fixtures/subclass_ok/base.py": [],
+        "tests/institution/fixtures/subclass_ok/plugin_one.py": [],
+        "tests/institution/fixtures/subclass_ok/plugin_two.py": [],
+        "tests/institution/test_agent_loop.py": [],
+        "tests/institution/test_builtin_handlers.py": [],
+        "tests/institution/test_events.py": [],
+        "tests/institution/test_generic_registry.py": [],
+        "tests/institution/test_harvest_handler_baseline.py": [],
+        "tests/institution/test_history.py": [],
+        "tests/institution/test_lifecycle.py": [],
+        "tests/institution/test_objects.py": [],
+        "tests/institution/test_ported_actions.py": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 9,
+      "files": [
+        {
+          "path": "tests/institution/test_scheduler.py",
+          "language": "python",
+          "sizeLines": 64,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/norm_checks/README.md",
+          "language": "markdown",
+          "sizeLines": 19,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "tests/regression/test_fluents_invariants.py",
+          "language": "python",
+          "sizeLines": 49,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/regression/test_institution_role_drift.py",
+          "language": "python",
+          "sizeLines": 41,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/regression/test_render_action.py",
+          "language": "python",
+          "sizeLines": 32,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/regression/test_render_persona_roles.py",
+          "language": "python",
+          "sizeLines": 83,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/regression/test_roles.py",
+          "language": "python",
+          "sizeLines": 48,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/rules/test_lifecycle_aware_loading.py",
+          "language": "python",
+          "sizeLines": 82,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/rules/test_note_and_participated.py",
+          "language": "python",
+          "sizeLines": 56,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/rules/test_rule_loading.py",
+          "language": "python",
+          "sizeLines": 79,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/rules/test_rule_object_access.py",
+          "language": "python",
+          "sizeLines": 79,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/rules/test_ruleset_after_action.py",
+          "language": "python",
+          "sizeLines": 68,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/rules/test_ruleset_composition.py",
+          "language": "python",
+          "sizeLines": 111,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/rules/test_ruleset_eligibility.py",
+          "language": "python",
+          "sizeLines": 77,
+          "fileCategory": "code"
+        }
+      ],
+      "batchImportData": {
+        "tests/institution/test_scheduler.py": [],
+        "tests/norm_checks/README.md": [],
+        "tests/regression/test_fluents_invariants.py": [],
+        "tests/regression/test_institution_role_drift.py": [],
+        "tests/regression/test_render_action.py": [],
+        "tests/regression/test_render_persona_roles.py": [],
+        "tests/regression/test_roles.py": [],
+        "tests/rules/test_lifecycle_aware_loading.py": [],
+        "tests/rules/test_note_and_participated.py": [],
+        "tests/rules/test_rule_loading.py": [],
+        "tests/rules/test_rule_object_access.py": [],
+        "tests/rules/test_ruleset_after_action.py": [],
+        "tests/rules/test_ruleset_composition.py": [],
+        "tests/rules/test_ruleset_eligibility.py": []
+      },
+      "neighborMap": {}
+    }
+  ]
+}
