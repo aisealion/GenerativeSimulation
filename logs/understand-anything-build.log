@@ -1,0 +1,12 @@
+[0m
+> build · gpt-oss-120b-65536ctx
+[0m
+[0m✱ [0mGlob "**/*"[90m in /home/magha601/.agents/skills/understand · 50 matches[0m
+[0m✱ [0mGlob "agents/*"[90m in /home/magha601/.agents/skills/understand · 0 matches[0m
+[0m
+[0m$ [0mgit -C "/home/magha601/code/GenerativeSimulation" rev-parse --git-common-dir
+.git
+[0m
+[0m$ [0mgit -C "/home/magha601/code/GenerativeSimulation" rev-parse --git-dir
+.git
+[0m
