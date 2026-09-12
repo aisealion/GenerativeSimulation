@@ -2,8 +2,21 @@
   "name": "vote",
   "description": "each alive fisher votes on the refined proposals",
   "protected": true,
-  "scheduling": {"gate": "true", "after": "critique", "before": null},
-  "participation": {"policy": "all_alive_fishers"},
-  "roles": {"actor_role": null},
-  "execution": {"handler": "vote"}
+  "scheduling": {
+    "gate": "true",
+    "after": "critique",
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": null
+  },
+  "execution": {
+    "handler": "vote"
+  },
+  "prompt": {
+    "template": "The community has {num_proposals} proposed rules for how the lake gets fished going forward. Vote for the one you'd rather live under.\n\n{proposals_block}\n\nRespond with ONLY this JSON object, nothing else:\n{{\"vote\": <the number of your chosen proposal>, \"reasoning\": \"<why, in character>\"}}\n"
+  }
 }

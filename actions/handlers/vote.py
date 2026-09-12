@@ -1,5 +1,4 @@
-# Ported 1:1 from the old actions/vote.py.
-
+from engine.institution.agent_loop import per_agent_decision
 from engine.physics import alive_agent_ids
 
 
@@ -28,8 +27,10 @@ def proposals_for_round(state):
         last_propose = next(r for r in reversed(runtime["rounds"]) if r["action"] == "propose")
         proposals_source = last_propose["proposals"]
     return [
-        (agent_id, proposals_source[agent_id])
-        for agent_id in alive_agent_ids(agents, runtime)
+        (agent_id, proposal) for agent_id, proposal in (
+            (agent_id, proposals_source.get(agent_id, {})) for agent_id in alive_agent_ids(agents, runtime)
+        )
+        if "policy" in proposal
     ]
 
 
@@ -42,15 +43,16 @@ def run(ctx):
     )
     fields = {"num_proposals": len(proposals), "proposals_block": proposals_block}
 
-    votes = {}
-    for agent_id in ctx.participants:
-        response = ctx.agents.call(agent_id, **fields)
+    def build_record(agent_id, response):
         choice = int(str(response["vote"]).strip())
-        votes[agent_id] = {"vote": choice, "reasoning": response.get("reasoning", "")}
+        return {"vote": choice, "reasoning": response.get("reasoning", "")}
+
+    votes = per_agent_decision(ctx, lambda agent_id: fields, build_record)
 
     tally = {i: 0 for i in range(1, len(proposals) + 1)}
     for record in votes.values():
-        tally[record["vote"]] += 1
+        if record.get("participated", True) and "vote" in record:
+            tally[record["vote"]] += 1
 
     winner_index = max(tally, key=lambda i: tally[i])
     winning_proposer, winning_proposal = proposals[winner_index - 1]

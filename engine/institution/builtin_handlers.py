@@ -1,13 +1,24 @@
 # The zero-code execution path for a declarative ActionSpec (Level 2: "a
 # new action assembled from existing generic components"). Deliberately
-# small in scope — this covers exactly "ask each participating agent one
+# small in scope — this covers "ask each eligible participating agent one
 # question and record their answer" (optionally renaming response fields),
-# nothing more. The moment a new action needs a role grant, an
-# institutional fact, custom eligibility, or a field computed by
+# with any rule attached to this action (state["config"]["rules"][name])
+# automatically applied — eligibility (a rule can skip an agent's call
+# entirely) and after_agent field patches both happen for free, the exact
+# same way harvest's own hand-written loop applies them. The moment an
+# action needs a role grant, an institutional fact, or a field computed by
 # aggregating across other agents, it needs a small
-# actions/handlers/{name}.py instead — that's Level 3, still far smaller
+# actions/handlers/{name}.py instead — that's Level 3/4, still far smaller
 # than a full custom Action subclass used to be, never a cliff back to
 # "write everything yourself."
+#
+# Uses engine.institution.agent_loop.per_agent_decision() for the actual
+# per-agent loop — the same helper actions/handlers/{harvest,propose,
+# vote}.py use — so this zero-code path and every hand-written handler
+# get identical rule/eligibility semantics from one place.
+
+from engine.institution.agent_loop import per_agent_decision
+
 
 def generic_agent_decision(ctx):
     spec = ctx.spec
@@ -16,15 +27,16 @@ def generic_agent_decision(ctx):
     field_map = outputs.get("fields")  # optional {response_key: record_key}; None copies every key
     prompt_fields_spec = spec.get("prompt", {}).get("fields", {})
 
-    records = {}
-    for agent_id in ctx.participants:
-        fields = {
+    def build_fields(agent_id):
+        return {
             field_name: _resolve_field(field_spec, ctx, agent_id)
             for field_name, field_spec in prompt_fields_spec.items()
         }
-        response = ctx.agents.call(agent_id, **fields)
-        records[agent_id] = _map_response(response, field_map)
 
+    def build_record(agent_id, response):
+        return _map_response(response, field_map)
+
+    records = per_agent_decision(ctx, build_fields, build_record)
     return {"round": ctx.round_number, "action": spec["name"], per_agent_key: records}
 
 

@@ -13,6 +13,7 @@ from engine.call_log import log_call
 from engine.institution.runtime import ActionRuntime
 from engine.institution.scheduler import compile_schedule
 from engine.institution.history import diff_institution
+from engine.institution.rules import tick_rule_lifecycles, all_configured_rules
 
 try:
     # matplotlib may be missing from a minimal venv; monitoring is optional.
@@ -41,14 +42,17 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # artifact (engine.institution.scheduler.compile_schedule(), rebuilt
     # every round from state/actions/*.json's own scheduling.after/before)
     # rather than something hand-edited — see ROUND_ARTIFACT_PATHS below.
-    "norms",
+    # "actions" covers both actions/handlers/*.py AND
+    # actions/rules/{action_name}/*.py — rule plugins moved under actions/
+    # entirely (no more standalone top-level norms/ directory) since a
+    # rule is always about one specific action.
     "actions",
     "objects",
     "prompts",
-    # Implementer-authored tests for its own norm/action changes.
+    # Implementer-authored tests for its own rule/action changes.
     "tests/norm_checks",
     # The norm-evaluator's own generated tests — must revert alongside the
-    # norms/*.py code they test if this round is discarded.
+    # rule/action code they test if this round is discarded.
     "tests/norm_evaluation",
     "state/config.json",
     "state/fluents.json",
@@ -86,7 +90,6 @@ PROTECTED_PATHS = [
     "actions/handlers/critique.py",
     "actions/handlers/discuss.py",
     "engine/institution",
-    "engine/norms",
     "engine/physics.py",
     "roles/roles.py",
 ]
@@ -108,7 +111,7 @@ def load_state(round_number):
         # state/object_types/*.json directly (keyed by each file's own
         # type_name) — same "the directory itself is the source of truth,
         # institution.json is drift-checked documentation, never the load
-        # path" principle norms/*.py already uses. Object INSTANCE
+        # path" principle actions/rules/*/*.py already uses. Object INSTANCE
         # declarations (id/type only — never mutable field values, see
         # engine/institution/objects.py's own module docstring) come from
         # state/objects.json.
@@ -137,7 +140,7 @@ def load_action_spec(action_name):
     "spec" field, which stays purely informational/drift-checked (see
     norm_implementation_institution_errors()) rather than a live load
     path — the same relationship institution.json already has with
-    norms/*.py and state/object_types/*.json."""
+    actions/rules/**/*.py and state/object_types/*.json."""
     return json.loads((ROOT / "state" / "actions" / f"{action_name}.json").read_text())
 
 
@@ -600,9 +603,10 @@ def find_adopted_norm(runtime, round_number):
 
 def norm_implementation_compile_errors():
     # Syntax-checks every touched .py file, validates every touched .json
-    # file, and confirms every norm "type" referenced in state/config.json
-    # resolves to a real registered class (checked in a fresh subprocess so
-    # a stale in-process NORM_TYPES snapshot can't hide a type just added).
+    # file, and confirms every rule "type" referenced in
+    # state/config.json's "rules" (for every action, not just harvest)
+    # resolves to a real registered class (checked in a fresh subprocess
+    # so a stale in-process discovery cache can't hide a type just added).
     errors = []
     py_files = set()
     json_files = set()
@@ -636,16 +640,17 @@ def norm_implementation_compile_errors():
             [sys.executable, "-c", (
                 "import json, sys\n"
                 "sys.path.insert(0, '.')\n"
-                "from engine.norms.registry import load_norms\n"
+                "from engine.institution.rules import RuleSet\n"
                 "config = json.loads(open('state/config.json').read())\n"
-                "load_norms(config)\n"
+                "for action_name in config.get('rules', {}):\n"
+                "    RuleSet.for_action(config, action_name)\n"
             )],
             cwd=ROOT,
             capture_output=True,
             text=True,
         )
         if check.returncode != 0:
-            errors.append(f"state/config.json (norm type check):\n{check.stderr.strip()}")
+            errors.append(f"state/config.json (rule type check):\n{check.stderr.strip()}")
     return errors
 
 
@@ -653,8 +658,10 @@ def norm_implementation_runtime_errors():
     # Actually runs the harvest action through the new declarative
     # ActionContext/ActionRuntime (no real LLM call, monkeypatched fisher
     # response) — once using whatever config.json currently activates,
-    # then once per registered norm type standalone with generic params,
-    # so a type that's never wired into config still gets exercised. Also
+    # then once per registered rule type standalone with generic params,
+    # for EVERY action's own actions/rules/{action}/ directory (not just
+    # harvest's) — so a type that's never wired into config still gets
+    # exercised, no matter which action it's meant to attach to. Also
     # structurally validates every new state/actions/*.json spec (its
     # execution.handler must resolve) and every state/object_types/*.json
     # type (its optional custom_handler, if any, must resolve). Run in a
@@ -667,9 +674,8 @@ def norm_implementation_runtime_errors():
         "import engine.llm_agents as llm_agents_module\n"
         "from engine.institution.context import ActionContext\n"
         "from engine.institution.runtime import resolve_handler\n"
+        "from engine.institution.rules import discover_rule_types\n"
         "import actions.handlers.harvest as harvest_handler\n"
-        "from engine.norms.registry import NORM_TYPES\n"
-        "from engine.norms.context import HarvestContext\n"
         "\n"
         "def _fake_call_fisher_agent(agent_id, round_number, action_name, **fields):\n"
         "    return {'effort': 0.5, 'reasoning': 'orchestrator smoke test'}\n"
@@ -691,25 +697,29 @@ def norm_implementation_runtime_errors():
         "ctx = ActionContext.build({'name': 'harvest'}, state, 1)\n"
         "harvest_handler.run(ctx)\n"
         "\n"
-        "context = HarvestContext.from_state({\n"
-        "    'config': {}, 'fluents': [], 'runtime': {'stock_kg': 200.0},\n"
-        "    'agents': {}, 'round_number': 1,\n"
-        "})\n"
+        "smoke_state = {\n"
+        "    'config': {}, 'fluents': [], 'runtime': {'stock_kg': 200.0, 'rounds': [], 'objects': {}},\n"
+        "    'agents': {}, 'object_types': {}, 'objects': [], 'round_number': 1,\n"
+        "}\n"
         "errors = []\n"
-        "for type_name, cls in sorted(NORM_TYPES.items()):\n"
-        "    try:\n"
-        "        norm = cls(key=type_name, params={})\n"
-        "        norm.on_round_start(context)\n"
-        "        norm.is_eligible(context, 'agent_0')\n"
-        "        norm.describe(context, 'agent_0')\n"
-        "        decision = norm.evaluate(context, 'agent_0', raw_kg=20.0, proposed_kg=20.0)\n"
-        "        norm.on_agent_settled(context, 'agent_0', decision, decision.kept_kg)\n"
-        "        norm.on_round_end(context, {'agent_0': {\n"
-        "            'harvested_kg': decision.kept_kg, 'effort': 0.5,\n"
-        "            'participated': True, 'note': decision.note,\n"
-        "        }})\n"
-        "    except Exception as exc:\n"
-        "        errors.append(f'{type_name}: {type(exc).__name__}: {exc}')\n"
+        "for action_name in sorted(os.listdir('actions/rules')) if os.path.isdir('actions/rules') else []:\n"
+        "    action_rules_dir = f'actions/rules/{action_name}'\n"
+        "    if not os.path.isdir(action_rules_dir) or action_name == '__pycache__':\n"
+        "        continue\n"
+        "    smoke_ctx = ActionContext.build({'name': action_name}, smoke_state, 1)\n"
+        "    for type_name, cls in sorted(discover_rule_types(action_name).items()):\n"
+        "        try:\n"
+        "            rule = cls(key=type_name, params={})\n"
+        "            rule.before_round(smoke_state, 1)\n"
+        "            rule.before_action(smoke_ctx)\n"
+        "            rule.is_eligible(smoke_ctx, 'agent_0')\n"
+        "            rule.describe(smoke_ctx, 'agent_0')\n"
+        "            record_entry = {'harvested_kg': 20.0, 'effort': 0.5, 'participated': True, 'note': None}\n"
+        "            rule.after_agent(smoke_ctx, 'agent_0', record_entry)\n"
+        "            rule.after_action(smoke_ctx, {'agents': {'agent_0': record_entry}})\n"
+        "            rule.after_round(smoke_state, 1)\n"
+        "        except Exception as exc:\n"
+        "            errors.append(f'actions/rules/{action_name}/ ({type_name}): {type(exc).__name__}: {exc}')\n"
         "\n"
         "protected_action_names = {'harvest', 'propose', 'critique', 'vote', 'discuss'}\n"
         "institution = json.loads(open('state/institution.json').read())\n"
@@ -766,9 +776,10 @@ def norm_implementation_runtime_errors():
     if check.returncode != 0:
         detail = check.stdout.strip() or check.stderr.strip()
         return (
-            "Institution runtime check (active config + every registered norm type + "
-            "every new state/actions/*.json spec's execution.handler + every "
-            f"state/object_types/*.json type's custom_handler, if any):\n{detail}"
+            "Institution runtime check (active config + every registered rule type, for "
+            "every action's own actions/rules/ directory + every new state/actions/*.json "
+            "spec's execution.handler + every state/object_types/*.json type's "
+            f"custom_handler, if any):\n{detail}"
         )
     return None
 
@@ -832,7 +843,7 @@ def norm_implementation_protected_path_violations():
 def norm_implementation_institution_errors():
     """Drift check between state/institution.json and reality: an action or
     object type on disk with no institution.json entry, or vice versa, or
-    a norm_types/object_types entry whose owner file doesn't exist — any
+    a rule_types/object_types entry whose owner file doesn't exist — any
     of these means institution.json can no longer be trusted as "the
     current institution" for next round's understanding step.
 
@@ -876,12 +887,27 @@ def norm_implementation_institution_errors():
     for name in sorted(declared_object_types - on_disk_object_types):
         errors.append(f"state/institution.json lists object type {name!r} but state/object_types/{name}.json doesn't exist")
 
-    # Same drift-check pattern for norm_types/object_types: only checks
+    # Every registered role needs a matching prompts/role_directives/*.md
+    # file — engine.llm_agents.render_role_directives() renders every
+    # role_directives/{role}.md whose role a given agent currently holds
+    # (generalized from what used to be a hardcoded fisher.md-only read;
+    # see that function's own docstring). A role registered here with no
+    # directive file would raise FileNotFoundError the first round anyone
+    # actually holds it, deep inside a real fisher call — catch it before
+    # commit instead.
+    for role_name in institution.get("roles", {}):
+        if not (ROOT / "prompts" / "role_directives" / f"{role_name}.md").is_file():
+            errors.append(
+                f"state/institution.json declares role {role_name!r} but "
+                f"prompts/role_directives/{role_name}.md doesn't exist"
+            )
+
+    # Same drift-check pattern for rule_types/object_types: only checks
     # path existence, not that the file's own type_name matches — that
     # stronger check is norm_implementation_orphaned_norm_errors() below
-    # (norm_types only, for now — see CLAUDE.md-equivalent notes on
+    # (rule_types only, for now — see CLAUDE.md-equivalent notes on
     # object-type orphan checking being deferred).
-    for catalog_key in ("norm_types", "object_types"):
+    for catalog_key in ("rule_types", "object_types"):
         for name, entry in institution.get(catalog_key, {}).items():
             owner = entry.get("owner")
             if owner and not (ROOT / owner).is_file():
@@ -893,19 +919,20 @@ def norm_implementation_institution_errors():
 
 
 def norm_implementation_orphaned_norm_errors():
-    """Catches a norm-implementer round that creates a new norms/{name}.py
-    plugin (a real, correctly-written Norm subclass) without adding its
-    type_name to state/config.json's "norms" list — the class compiles and
-    passes every other check, but NormEngine.from_config() never loads it,
-    so it silently never runs. Only checks norms/*.py files this round
-    actually touched (an existing, deliberately unreferenced plugin from
-    an earlier round is not an error).
+    """Catches a norm-implementer round that creates a new
+    actions/rules/{action_name}/{name}.py plugin (a real,
+    correctly-written Rule subclass) without adding its type_name to
+    state["config"]["rules"][action_name] — the class compiles and passes
+    every other check, but RuleSet.for_action() never loads it, so it
+    silently never runs. Only checks files this round actually touched
+    (an existing, deliberately unreferenced plugin from an earlier round
+    is not an error).
 
     Uses `git status --porcelain`, not `git diff --name-only HEAD` — a
     brand-new file is untracked at this point in the pipeline, and `git
     diff` never shows untracked files."""
     result = subprocess.run(
-        ["git", "status", "--porcelain", "--", "norms"],
+        ["git", "status", "--porcelain", "--", "actions/rules"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     )
     touched = [
@@ -922,20 +949,30 @@ def norm_implementation_orphaned_norm_errors():
         config = json.loads(config_path.read_text())
     except json.JSONDecodeError:
         return []  # already reported by norm_implementation_compile_errors()
-    active_types = {spec.get("type") for spec in config.get("norms", [])}
+    active_types_by_action = {
+        action_name: {spec.get("type") for spec in specs}
+        for action_name, specs in config.get("rules", {}).items()
+    }
 
     # Re-discover fresh in a subprocess — this runs before
     # reload_project_modules() would pick up what this round just wrote.
+    # module_path -> (action_name, [type_names]), grouped by the action
+    # each touched file's own rule directory belongs to (parsed from
+    # actions/rules/{action_name}/... rather than assumed).
     script = (
-        "import sys, json\n"
+        "import sys, json, os\n"
         "sys.path.insert(0, '.')\n"
-        "from engine.norms.registry import NORM_TYPES\n"
+        "from engine.institution.rules import discover_rule_types\n"
         "touched = json.loads(sys.argv[1])\n"
+        "action_names = sorted(os.listdir('actions/rules')) if os.path.isdir('actions/rules') else []\n"
         "out = {}\n"
-        "for type_name, cls in NORM_TYPES.items():\n"
-        "    module_path = cls.__module__.replace('.', '/') + '.py'\n"
-        "    if module_path in touched:\n"
-        "        out.setdefault(module_path, []).append(type_name)\n"
+        "for action_name in action_names:\n"
+        "    if not os.path.isdir(f'actions/rules/{action_name}') or action_name == '__pycache__':\n"
+        "        continue\n"
+        "    for type_name, cls in discover_rule_types(action_name).items():\n"
+        "        module_path = cls.__module__.replace('.', '/') + '.py'\n"
+        "        if module_path in touched:\n"
+        "            out.setdefault(module_path, [action_name, []])[1].append(type_name)\n"
         "print(json.dumps(out))\n"
     )
     check = subprocess.run(
@@ -944,22 +981,23 @@ def norm_implementation_orphaned_norm_errors():
     )
     if check.returncode != 0:
         detail = check.stdout.strip() or check.stderr.strip()
-        return [f"norm-type discovery for orphan check failed:\n{detail}"]
+        return [f"rule-type discovery for orphan check failed:\n{detail}"]
     try:
         types_by_file = json.loads(check.stdout.strip())
     except json.JSONDecodeError:
         return []  # discovery itself is exercised separately by the runtime check
 
     errors = []
-    for module_path, type_names in sorted(types_by_file.items()):
+    for module_path, (action_name, type_names) in sorted(types_by_file.items()):
+        active_types = active_types_by_action.get(action_name, set())
         if not any(t in active_types for t in type_names):
             errors.append(
                 f"{module_path} defines type_name(s) {type_names} but none of them "
-                f'appear in state/config.json\'s "norms" list — this plugin will '
+                f'appear in state["config"]["rules"][{action_name!r}] — this rule will '
                 f"never actually run in the simulation until one is added there. "
                 f'Add {{"type": "{type_names[0]}", ...}} (with whatever params it '
-                f"needs) to state/config.json's \"norms\" list, or remove the file "
-                f"if it was never meant to be active yet."
+                f'needs) to state/config.json\'s "rules"[{action_name!r}] list, or '
+                f"remove the file if it was never meant to be active yet."
             )
     return errors
 
@@ -1030,9 +1068,10 @@ def norm_implementation_no_code_changes_errors():
         return []
     return [
         "You wrote a real institutional design specification but made zero actual "
-        "code/config/fluent changes — norms/*.py, actions/*.py, state/config.json, "
-        "state/fluents.json, and state/institution.json are all untouched. Writing the "
-        "specification is not the end of your task, it's the halfway point: you must now "
+        "code/config/fluent changes — actions/rules/**/*.py, actions/*.py, "
+        "state/config.json, state/fluents.json, and state/institution.json are all "
+        "untouched. Writing the specification is not the end of your task, it's the "
+        "halfway point: you must now "
         "implement every requirement in your own classification table, in this same "
         "response, before finishing. A closing report claiming success with no files "
         "touched is not a legitimate success."
@@ -1090,21 +1129,30 @@ def discard_norm_implementation(round_number, errors):
 
 def _norm_activation_summary():
     """Purely informational (never gates anything) — printed after every
-    real commit so a human watching a live run can see norms/ accumulating
-    unactivated files, without needing a full log post-mortem."""
-    norm_files = sorted(
-        p.stem for p in (ROOT / "norms").glob("*.py") if p.stem != "__init__"
+    real commit so a human watching a live run can see actions/rules/
+    accumulating unactivated files, without needing a full log
+    post-mortem."""
+    rules_root = ROOT / "actions" / "rules"
+    rule_files = sorted(
+        f"{action_dir.name}/{p.stem}"
+        for action_dir in (rules_root.iterdir() if rules_root.is_dir() else [])
+        if action_dir.is_dir() and action_dir.name != "__pycache__"
+        for p in action_dir.glob("*.py") if p.stem != "__init__"
     )
     try:
         config = json.loads((ROOT / "state" / "config.json").read_text())
     except (OSError, json.JSONDecodeError):
-        return "  [norm activation summary unavailable: state/config.json unreadable]"
-    active_types = sorted({spec.get("type") for spec in config.get("norms", [])})
-    # A norm file's stem isn't necessarily its type_name — this comparison
+        return "  [rule activation summary unavailable: state/config.json unreadable]"
+    active_types = sorted(
+        f"{action_name}:{spec.get('type')}"
+        for action_name, specs in config.get("rules", {}).items()
+        for spec in specs
+    )
+    # A rule file's stem isn't necessarily its type_name — this comparison
     # is approximate/observational, not the authoritative check (that's
     # norm_implementation_orphaned_norm_errors()).
     return (
-        f"  Norm plugin inventory: {len(norm_files)} file(s) in norms/, "
+        f"  Rule plugin inventory: {len(rule_files)} file(s) under actions/rules/, "
         f"{len(active_types)} type(s) currently active in state/config.json "
         f"({', '.join(active_types) if active_types else 'none'})."
     )
@@ -1518,31 +1566,28 @@ def knowledge_graph_matches_head():
 
 def reload_project_modules():
     """Python caches imported modules for the life of the process — without
-    this, a norm-implementer edit to roles/*.py, norms/*.py,
-    actions/handlers/*.py, or objects/handlers/*.py never takes effect
-    within a single continuous run. engine.norms.registry's NORM_TYPES is
-    computed once at first import, so reloading norms/*.py alone doesn't
-    re-scan it — reload order matters: roles/norms first, then
-    engine.norms.registry (rebinds NORM_TYPES), then engine.norms.engine
-    (rebinds its own import of load_norms), then actions/objects (rebinds
-    their own imports).
+    this, a norm-implementer edit to roles/*.py, actions/handlers/*.py,
+    actions/rules/{action}/*.py, or objects/handlers/*.py never takes
+    effect within a single continuous run.
+
+    Unlike the old norms/-based design, no eager, computed-once registry
+    needs a separate rebind step any more: rule/action-handler/
+    object-handler discovery (engine.institution.rules.discover_rule_types(),
+    engine.institution.runtime.resolve_handler(),
+    ObjectRuntime.custom()'s discover_handlers() call) is always a fresh
+    importlib.import_module() call, never cached at module-import time —
+    so reloading the module that DEFINES a plugin is sufficient on its
+    own; there's no second module holding a stale snapshot of what it
+    found. This is a genuine simplification over the old design, not just
+    a rename: the whole "reload order matters, rebind NORM_TYPES, then
+    rebind engine.norms.engine's own import of it" dance that NORM_TYPES's
+    eager caching used to require doesn't have an equivalent problem to
+    solve any more.
 
     engine/institution/*.py itself is deliberately never reloaded here —
     it's off-limits to the norm-implementer by construction (nothing in
-    it is on any tracked-path list), so nothing there can change mid-run.
-    Action/object *handler* resolution (engine.institution.runtime.
-    resolve_handler(), ObjectRuntime.custom()'s discover_handlers() call)
-    is always a fresh importlib.import_module() rather than an
-    eagerly-cached registry, precisely so those two pluggable kinds don't
-    need their own equivalent of NORM_TYPES's re-scan step — reloading
-    actions.handlers.*/objects.handlers.* below is enough on its own."""
-    for prefix in ("roles", "norms"):
-        for name in sorted(n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")):
-            importlib.reload(sys.modules[name])
-    for module_name in ("engine.norms.registry", "engine.norms.engine"):
-        if module_name in sys.modules:
-            importlib.reload(sys.modules[module_name])
-    for prefix in ("actions", "objects"):
+    it is on any tracked-path list), so nothing there can change mid-run."""
+    for prefix in ("roles", "actions", "objects"):
         for name in sorted(n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")):
             importlib.reload(sys.modules[name])
 
@@ -1556,6 +1601,11 @@ def run_cycle(round_number):
     state = load_state(round_number)
     schedule = compile_and_write_schedule()
     already_ran = {r["action"] for r in state["runtime"]["rounds"] if r["round"] == round_number}
+
+    tick_rule_lifecycles(state["config"], state["fluents"], round_number)
+    round_rules = all_configured_rules(state["config"], round_number)
+    for rule in round_rules:
+        rule.before_round(state, round_number)
 
     for action_name, gate in schedule.items():
         if action_name in already_ran:
@@ -1584,6 +1634,9 @@ def run_cycle(round_number):
             # the run is exactly the one that must not lose its data.
             commit_round(round_number, None)
             return False
+
+    for rule in round_rules:
+        rule.after_round(state, round_number)
 
     write_fact_memory_events(state, round_number)
     write_event_memory_episodes(state, round_number)

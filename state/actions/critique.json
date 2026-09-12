@@ -2,8 +2,24 @@
   "name": "critique",
   "description": "each proposal is refined through a bounded critique-and-revise dialogue before the vote",
   "protected": true,
-  "scheduling": {"gate": "true", "after": "propose", "before": null},
-  "participation": {"policy": "all_alive_fishers"},
-  "roles": {"actor_role": null},
-  "execution": {"handler": "critique"}
+  "scheduling": {
+    "gate": "true",
+    "after": "propose",
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": null
+  },
+  "execution": {
+    "handler": "critique"
+  },
+  "prompt": {
+    "templates": {
+      "critique_response": "Someone in the community has a question about the rule you proposed: \"{current_policy}\" — {current_operationalization}\n\nTheir question: {question}\n\nAnswer it, and restate your proposal in full — revised if your answer changes anything about it, otherwise exactly as it was.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"answer\": \"<your answer, in character>\", \"revised_policy\": \"<your policy, revised if needed, otherwise unchanged>\", \"revised_operationalization\": \"<your operationalization, revised if needed, otherwise unchanged>\", \"reasoning\": \"<optional, why you answered this way>\"}}\n",
+      "critique_finalize": "The community has been discussing gaps in the rule you proposed. Here's what came up:\n{dialogue_summary}\n\nYour current draft: \"{current_policy}\" — {current_operationalization}\n\nGive your final, complete policy and operationalization now, incorporating everything from the discussion above — this is what the whole community will actually vote on next.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"policy\": \"<your final policy, one or two sentences>\", \"operationalization\": \"<your final operationalization, incorporating the discussion>\", \"reasoning\": \"<optional, why this is your final version>\"}}\n"
+    }
+  }
 }

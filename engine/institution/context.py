@@ -8,6 +8,7 @@
 from engine.physics import alive_agent_ids
 from engine.institution.events import EventEmitter
 from engine.institution.objects import ObjectRuntime
+from engine.institution.rules import RuleSet
 
 
 class AgentCaller:
@@ -50,12 +51,17 @@ class ActionContext:
     resolved participant list, `.agents` (AgentCaller), `.events`
     (EventEmitter — appends a point-in-time occurrence to
     state["events"], never a fact with a duration; see
-    engine.institution.events), and `.objects` (ObjectRuntime, built from
+    engine.institution.events), `.objects` (ObjectRuntime, built from
     state.get("object_types", {}) — loaded by engine.simulate.load_state()
     — plus state["objects"] (declarations) and state["runtime"]["objects"]
     (mutable field values, kept separate from the declaration exactly as
-    runtime["norms"][key] is kept separate from a norm's own config
-    entry)."""
+    runtime["rules"][key] is kept separate from a rule's own config
+    entry)), and `.rules` (a RuleSet — every Rule configured for THIS
+    action, in state["config"]["rules"][spec["name"]] order; see
+    engine.institution.rules). Every action gets the identical `.rules`
+    access — nothing about this class treats any one action specially,
+    which is the whole point: a rule attaches the same way to any action,
+    not just harvest."""
 
     def __init__(self, spec, state, round_number, participants):
         self.spec = spec
@@ -71,6 +77,23 @@ class ActionContext:
             state["runtime"].setdefault("objects", {}),
             state["fluents"], round_number, self.events,
         )
+        self.rules = RuleSet.for_action(state["config"], spec["name"], round_number)
+        self._scratch = {}
+
+    def rule_state(self, key):
+        """Cross-round-persistent state for the rule with this key — a
+        reserve balance, a ban countdown. Backed by runtime["rules"][key],
+        saved to state/runtime.json like everything else the simulation
+        writes — never pre-seeded by the norm-implementer directly."""
+        return self.state["runtime"].setdefault("rules", {}).setdefault(key, {})
+
+    def round_scratch(self, key):
+        """This-round-only state for the rule with this key (a running
+        per-action tally, say) — lives only on this ActionContext
+        instance, never persisted. A fresh ActionContext is built for
+        every action call, so this always starts empty; use rule_state()
+        for anything that must survive to a later round."""
+        return self._scratch.setdefault(key, {})
 
     @classmethod
     def build(cls, spec, state, round_number):

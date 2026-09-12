@@ -141,10 +141,11 @@ def test_unknown_object_id_raises_keyerror():
 
 
 def test_custom_handler_dispatch(monkeypatch):
-    """objects/handlers/ ships empty by design (same principle as norms/),
-    so this exercises the dispatch mechanism against a monkeypatched
-    handler map rather than a real file on disk — the same pattern
-    tests/norms/test_registry.py already uses for NORM_TYPES."""
+    """objects/handlers/ ships empty by design (same principle as
+    actions/rules/), so this exercises the dispatch mechanism against a
+    monkeypatched handler map rather than a real file on disk — the same
+    pattern tests/rules/test_rule_loading.py already uses for
+    discover_rule_types()."""
     calls = []
 
     def _fake_split(*, object_id, operation, by_agent_id, **kwargs):

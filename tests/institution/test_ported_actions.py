@@ -85,7 +85,9 @@ def test_critique_sufficient_on_first_pass_leaves_proposal_unchanged(monkeypatch
     record = critique_handler.run(ctx)
 
     assert fisher_calls == []
-    assert record["proposals"] == PROPOSALS
+    assert record["proposals"] == {
+        agent_id: {**proposal, "participated": True} for agent_id, proposal in PROPOSALS.items()
+    }
     assert record["dialogues"]["agent_0"] == []
 
 
@@ -119,7 +121,7 @@ def test_critique_one_question_then_sufficient_applies_finalized_revision(monkey
 
     assert finalize_calls == ["agent_0"]
     assert record["proposals"]["agent_0"]["policy"] == "cap catches, community holds any deposit"
-    assert record["proposals"]["agent_1"] == PROPOSALS["agent_1"]
+    assert record["proposals"]["agent_1"] == {**PROPOSALS["agent_1"], "participated": True}
 
     memory = critique_handler.memory_writes(state, record)
     assert [m["agent_id"] for m in memory] == ["agent_0"]

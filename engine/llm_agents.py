@@ -73,7 +73,7 @@ def render_persona(agent_id, round_number, action_name):
     if record is None:
         raise RuntimeError(f"{agent_id} holds no 'fisher' role fluent at round {round_number}")
 
-    role_directives = (ROOT / "prompts" / "role_directives" / "fisher.md").read_text().strip()
+    role_directives = render_role_directives(agent_id, fluents, round_number)
     persona_template = (ROOT / "prompts" / "persona_template.md").read_text()
     daily_status = f"This is round {round_number}."
     survival_status = render_survival_status(agent_id, runtime)
@@ -93,6 +93,44 @@ def render_persona(agent_id, round_number, action_name):
         notices=notices,
         relevant_memories=relevant_memories,
     ).strip()
+
+
+def render_role_directives(agent_id, fluents, round_number):
+    """Every `prompts/role_directives/{role}.md` whose role `agent_id`
+    currently holds, concatenated in `state/institution.json`'s own
+    `"roles"` catalog order — generalizes what used to be a hardcoded
+    `fisher.md`-only read. Every agent holds `"fisher"` from round 0 (see
+    `generate_agents.py`), which stays first in that catalog, so this
+    always includes at least the same text render_persona() always
+    rendered; a role a norm-implementer later registers and assigns (a
+    rotating recorder/treasurer/steward/monitor) now gets its own
+    directive rendered too, with no code change required — this is the
+    actual mechanism `.opencode/agent/norm-implementer.md`'s "the
+    recorder's own role_directives/recorder.md must make this
+    responsibility explicit" instruction depends on; before this function
+    existed, that file was written but never read for anything but
+    `fisher`.
+
+    Raises FileNotFoundError for a role this agent actually holds but
+    that has no directive file — deliberately not a silent skip, since a
+    role assigned with no way for its holder to learn what it means is
+    exactly the gap this function exists to close (see also
+    `engine.simulate.norm_implementation_institution_errors()`'s matching
+    pre-commit drift check, which catches this before a round ever
+    commits, not just the first time the role is actually held)."""
+    institution = json.loads((ROOT / "state" / "institution.json").read_text())
+    texts = []
+    for role_name in institution.get("roles", {}):
+        if role_holder(role_name, agent_id, fluents, round_number) is None:
+            continue
+        path = ROOT / "prompts" / "role_directives" / f"{role_name}.md"
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"{agent_id} holds role {role_name!r} but prompts/role_directives/"
+                f"{role_name}.md doesn't exist"
+            )
+        texts.append(path.read_text().strip())
+    return " ".join(texts)
 
 
 def render_survival_status(agent_id, runtime):
@@ -157,23 +195,24 @@ def render_relevant_memories(agent_id, action_name, round_number):
 
 
 def _harvest_shortfall_clause(mine_record, entry):
-    """Norm plugins (norms/*.py, orchestrated by engine/norms/engine.py)
-    enforce themselves by reducing/zeroing an agent's harvested_kg (a cap, a
-    ban, a reserve draw) — this is what makes sure the affected agent
-    actually learns that, rather than only ever seeing the resulting kg
-    number with no way to tell an enforced outcome apart from one they
-    freely chose. A NormDecision.note (round_record["agents"][agent_id]
-    ["note"]) is preferred verbatim when a norm authored one — it's the
-    specific, in-world sentence that norm chose (an over-cap trim, a reserve
-    top-up). Falls back to a generic derived sentence when no norm bothered
-    to explain itself: catch_from_effort() is pure and mechanism-agnostic,
-    so re-running it on the agent's own recorded effort against that
-    round's starting stock gives what their effort alone would have
-    produced with nothing else in play. If the agent wasn't even asked that
-    round (a live ban, via some norm's own is_eligible() hook — not
-    something inferable from numbers alone), "participated": False is set
-    explicitly by actions/handlers/harvest.py; anything else defaults to
-    participated.
+    """Rules (actions/rules/harvest/*.py, orchestrated by a harvest-scoped
+    RuleSet — engine/institution/rules.py) enforce themselves by
+    reducing/zeroing an agent's harvested_kg (a cap, a ban, a reserve
+    draw) — this is what makes sure the affected agent actually learns
+    that, rather than only ever seeing the resulting kg number with no way
+    to tell an enforced outcome apart from one they freely chose. A rule's
+    own after_agent()-patched note (round_record["agents"][agent_id]
+    ["note"]) is preferred verbatim when a rule authored one — it's the
+    specific, in-world sentence that rule chose (an over-cap trim, a
+    reserve top-up). Falls back to a generic derived sentence when no rule
+    bothered to explain itself: catch_from_effort() is pure and
+    mechanism-agnostic, so re-running it on the agent's own recorded
+    effort against that round's starting stock gives what their effort
+    alone would have produced with nothing else in play. If the agent
+    wasn't even asked that round (a live ban, via some rule's own
+    is_eligible() hook — not something inferable from numbers alone),
+    "participated": False is set explicitly by actions/handlers/harvest.py;
+    anything else defaults to participated.
     """
     if mine_record.get("participated") is False:
         return " You weren't able to fish at all this round — something about the community's current rules held you back."
@@ -239,8 +278,43 @@ def render_history(agent_id, round_number, runtime, agents, window):
 
 
 def render_action(action_name, **fields):
-    template = (ROOT / "actions" / "prompts" / f"{action_name}.md").read_text()
+    """The template for `action_name` is looked up in this order:
+
+    1. `state/actions/{action_name}.json`'s own `prompt.template` — the
+       normal case for a real action (harvest/propose/vote/...). This is
+       where a new action's prompt lives: no separate file, edited right
+       alongside the spec that names it.
+    2. Any `state/actions/*.json` spec's `prompt.templates` dict, if it
+       has a key matching `action_name` — for a sub-step of a multi-call
+       action that isn't itself a top-level action (critique's own
+       "critique_response"/"critique_finalize" dialogue steps, owned by
+       critique.json but not critique's own action_name).
+    3. `actions/prompts/{action_name}.md`, if none of the above match —
+       for a prompt that genuinely isn't owned by any one action (e.g.
+       "clarify", used by the standalone engine/clarify_norm.py tool,
+       outside the round action pipeline entirely).
+
+    Raises FileNotFoundError if none of the three resolve — same failure
+    mode `.read_text()` on a missing .md file already had.
+    """
+    template = _action_template(action_name)
+    if template is None:
+        template = (ROOT / "actions" / "prompts" / f"{action_name}.md").read_text()
     return template.format(**fields).strip()
+
+
+def _action_template(action_name):
+    actions_dir = ROOT / "state" / "actions"
+    own_spec_path = actions_dir / f"{action_name}.json"
+    if own_spec_path.exists():
+        own_template = json.loads(own_spec_path.read_text()).get("prompt", {}).get("template")
+        if own_template is not None:
+            return own_template
+    for spec_path in sorted(actions_dir.glob("*.json")):
+        templates = json.loads(spec_path.read_text()).get("prompt", {}).get("templates", {})
+        if action_name in templates:
+            return templates[action_name]
+    return None
 
 
 MAX_ATTEMPTS = 3

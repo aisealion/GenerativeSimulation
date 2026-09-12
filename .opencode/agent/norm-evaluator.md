@@ -62,19 +62,21 @@ the running code.
   says, note that in your report, but you still write tests against the
   spec as written — you are not authorized to reinterpret norm.txt
   yourself or override the spec's own classification.
-- `norms/README.md`, `engine/norms/base.py` — the `Norm` plugin contract
-  (read-only to you, same as to the norm-implementer). Read these before
-  writing a test — a test that misunderstands `evaluate()`'s chaining
-  (`raw_kg` vs `proposed_kg`) or `is_eligible()`'s once-per-round-per-agent
-  contract will produce a false `IMPLEMENTATION_ERROR`.
+- `actions/rules/README.md`, `engine/institution/rules.py` — the `Rule`/
+  `RuleSet` contract (read-only to you, same as to the norm-implementer).
+  Read these before writing a test — a test that misunderstands the
+  per-agent hook order (`is_eligible` → `describe` → the agent call →
+  `after_agent` → `on_agent_settled`) or the whole-action/round-boundary
+  hooks (`before_action`/`after_action`, `before_round`/`after_round`)
+  will produce a false `IMPLEMENTATION_ERROR`.
 - `state/actions/harvest.json`, `actions/handlers/harvest.py` — read-only.
   The actual per-agent loop your tests exercise through
   `actions.handlers.harvest.run(ctx)` (build `ctx` with
   `engine.institution.context.ActionContext.build({"name": "harvest"},
   state, round_number)`) — read the handler to know what a minimal
   fabricated `state` dict needs (see `tests/norm_checks/README.md` and
-  `tests/norms/test_harvest_action_baseline.py`-equivalent fixtures under
-  `tests/institution/` for the exact shape).
+  `tests/institution/test_harvest_handler_baseline.py`'s fixtures for the
+  exact shape).
 - `state/actions/{name}.json`, `actions/handlers/{name}.py` — read-only,
   same as harvest's, for any requirement whose `owner` is a brand-new
   action this round added (per the norm-implementer's Decision
@@ -90,7 +92,7 @@ the running code.
   object. `engine/institution/objects.py` (`ObjectRuntime`) is the fixed
   contract — read it before writing a test that exercises `deposit`/
   `withdraw`/`set`/`append`/`read`/`custom`, the same reason you'd read
-  `engine/norms/base.py` before testing a `Norm`.
+  `engine/institution/rules.py` before testing a `Rule`.
 - `state/objects.json` — read-only. Instance declarations only
   (`id`/`type`/`lifecycle`) — the mutable field values a test observes
   live in whatever fabricated `state["runtime"]["objects"]` dict you
@@ -104,7 +106,7 @@ the running code.
   requirements), never touching anything outside this one round's
   subdirectory.
 - `tests/norm_checks/`, `tests/regression/`, `tests/institution/`,
-  `tests/norms/` — read-only reference for the harness convention; never
+  `tests/rules/` — read-only reference for the harness convention; never
   edit any of them.
 - `state/config.json`, `state/runtime.json`, `state/fluents.json`,
   `state/events.json` — read the on-disk versions (the norm-implementer's
@@ -142,16 +144,19 @@ plain Read/Grep.
   time at the correct path). If a direct `read` of that exact path fails,
   run `glob "**/round_{N}.md"` before concluding it's missing — don't
   guess a different path from memory.
-- `git diff -- norms actions objects prompts state/config.json state/fluents.json state/fluents_schema.md state/events.json state/institution.json state/actions state/object_types state/objects.json engine/simulate.py`
-  to see exactly what the norm-implementer changed this round (this list
-  is the same set of paths the norm-implementer is allowed to touch —
-  `state/actions`/`actions/handlers` only ever gain new files here, never
-  a modified existing one; if the diff shows any of the five protected
-  `state/actions/*.json`/`actions/handlers/*.py` pairs touched, or shows
-  `state/schedule.json` touched at all (it's compiled, never a legitimate
-  edit target any more), that's disqualifying on its own — say so plainly
-  in your report; the orchestrator's own check will have already caught
-  it by the time you run, but flag it if you somehow still see it).
+- `git diff -- actions objects prompts state/config.json state/fluents.json state/fluents_schema.md state/events.json state/institution.json state/actions state/object_types state/objects.json engine/simulate.py`
+  plus `git status --porcelain -- actions/rules` (a brand-new
+  `actions/rules/{action_name}/*.py` file is untracked, and `git diff`
+  never shows an untracked file) to see exactly what the norm-implementer
+  changed this round (this list is the same set of paths the
+  norm-implementer is allowed to touch — `state/actions`/`actions/handlers`
+  only ever gain new files here, never a modified existing one; if the
+  diff shows any of the five protected `state/actions/*.json`/
+  `actions/handlers/*.py` pairs touched, or shows `state/schedule.json`
+  touched at all (it's compiled, never a legitimate edit target any
+  more), that's disqualifying on its own — say so plainly in your report;
+  the orchestrator's own check will have already caught it by the time
+  you run, but flag it if you somehow still see it).
 - For each requirement, note which file/function the norm-implementer's
   own classification table (in its report, if available) or the diff
   itself says implements it — for anything routed to a new action, this
@@ -166,9 +171,9 @@ plain Read/Grep.
 - One test per requirement (a tightly related pair — e.g. "resets at a
   day boundary" and "is cumulative across trips within a day" — may share
   one file if that's clearer). Build the fabricated `state` dict from the
-  round's **actual** `state/config.json["norms"]` entries, not a
-  synthetic config — you are testing what's really configured, the same
-  way `tests/norm_checks/` does. Exercise it through
+  round's **actual** `state/config.json["rules"][action_name]` entries,
+  not a synthetic config — you are testing what's really configured, the
+  same way `tests/norm_checks/` does. Exercise it through
   `actions.handlers.harvest.run(ActionContext.build({"name": "harvest"},
   state, round_number))` with `engine.llm_agents.call_fisher_agent`
   monkeypatched to fixed effort values chosen to actually hit the
@@ -177,7 +182,7 @@ plain Read/Grep.
   test that only exercises the common case proves nothing about a
   boundary the spec cares about.
 - If a requirement is genuinely not exercisable through the harvest
-  action or the `Norm`/`ObjectRuntime` hook contracts as they exist
+  action or the `Rule`/`ObjectRuntime` hook contracts as they exist
   today (needs real wall-clock/day boundaries the simulation doesn't
   model, say), don't force a test — write down why in one line; this
   becomes a `NOT_TESTABLE` verdict, not a skipped requirement.
@@ -259,27 +264,31 @@ The same two-level split applies to a requirement whose `owner` is a
 - **Level 2 (functional, object type)** — only once Level 1 passes: the
   deposit/withdraw/permission/visibility tests from STEP 2.
 
-The same two-level split applies to a requirement whose `owner` is a
-`norms/*.py` type, new or reused — **and this is the one real runs have
-gotten wrong repeatedly**, so treat it as seriously as the action/object
-cases above, not as a lighter-weight formality:
+The same two-level split applies to a requirement whose `owner` is an
+`actions/rules/{action_name}/*.py` type, new or reused — **and this is
+the one real runs have gotten wrong repeatedly**, so treat it as
+seriously as the action/object cases above, not as a lighter-weight
+formality:
 
-- **Level 1 (structural, norm-type)** — is the type actually loadable in
+- **Level 1 (structural, rule-type)** — is the type actually loadable in
   a real round: read `state/config.json` **directly off disk** and
-  confirm the requirement's type appears in its `"norms"` list. Do not
-  accept a fabricated `state["config"]["norms"]` you constructed by hand
-  for your own test as evidence of this — that only proves the class
-  works when directly instantiated, never that `NormEngine.from_config()`
+  confirm the requirement's type appears under `"rules"[action_name]`. Do
+  not accept a fabricated `state["config"]["rules"]` you constructed by
+  hand for your own test as evidence of this — that only proves the class
+  works when directly instantiated, never that `RuleSet.for_action()`
   would ever actually load it in the real round loop. A real 23-round run
-  had 10 of 11 committed rounds create a correctly-written, fully
-  class-compliant `Norm` subclass that was **never once referenced in the
-  real config** — every one of those was incorrectly marked `COMPLIANT`
-  by an earlier version of this check, because the fabricated test state
-  papered over the exact gap that mattered. A type missing from the real
-  config is `IMPLEMENTATION_ERROR`, full stop, regardless of how
-  correctly the class behaves when you exercise it directly.
-- **Level 2 (functional, norm-type)** — only once Level 1 passes: the
-  usual `evaluate()`/hook-chain test from STEP 2.
+  (back when every rule lived in one flat `norms` list) had 10 of 11
+  committed rounds create a correctly-written, fully class-compliant
+  plugin that was **never once referenced in the real config** — every
+  one of those was incorrectly marked `COMPLIANT` by an earlier version
+  of this check, because the fabricated test state papered over the
+  exact gap that mattered; the same failure is just as possible per-action
+  now. A type missing from the real config is `IMPLEMENTATION_ERROR`,
+  full stop, regardless of how correctly the class behaves when you
+  exercise it directly.
+- **Level 2 (functional, rule-type)** — only once Level 1 passes: the
+  usual per-agent/whole-action/round-boundary hook-chain test from
+  STEP 2.
 
 Separately: if the requirement's design names a role performing a
 decision (a monitor, verifier, recorder, steward, committee), check

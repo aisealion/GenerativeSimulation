@@ -1,16 +1,16 @@
 # ObjectRuntime: the institutional-object layer (pools, ledgers, tools).
 # Backed by three things, deliberately kept as separate as
-# state/config.json's norms are from their own runtime state:
+# state/config.json's rules are from their own runtime state:
 #
 #   - state/object_types/*.json — the declarative ObjectSpec (ownership/
 #     fields/operations/permissions/visibility). Ships empty by default,
-#     same "no seed content" principle as norms/.
+#     same "no seed content" principle as actions/rules/.
 #   - state/objects.json — DECLARATIONS only ({"id", "type", "lifecycle"?}),
-#     norm-implementer-owned, exactly like state/config.json["norms"]'s own
-#     entries — never mutated by the running simulation.
+#     norm-implementer-owned, exactly like state/config.json["rules"][action_name]'s
+#     own entries — never mutated by the running simulation.
 #   - state["runtime"]["objects"][object_id]["fields"] — the actual mutable
-#     field values, simulation-owned, mirroring runtime["norms"][key]'s own
-#     role as a norm's cross-round-persistent state. Lazily seeded from the
+#     field values, simulation-owned, mirroring runtime["rules"][key]'s own
+#     role as a rule's cross-round-persistent state. Lazily seeded from the
 #     type's own field defaults the first time an object is touched.
 #
 # Conflating declaration and mutable state in one implementer-writable file

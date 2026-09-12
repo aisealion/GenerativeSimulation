@@ -11,7 +11,7 @@
   "roles": {
     "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
   },
-  "norm_types": {},
+  "rule_types": {},
   "object_types": {},
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],

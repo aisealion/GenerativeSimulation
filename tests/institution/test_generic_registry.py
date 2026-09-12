@@ -1,8 +1,8 @@
 import pytest
 
-import norms as real_norms_package
+import actions.rules.harvest as real_rules_package
 import objects.handlers as real_object_handlers_package
-from engine.norms.base import Norm
+from engine.institution.rules import Rule
 from engine.institution.registry import discover_subclasses, discover_handlers
 from tests.institution.fixtures.subclass_ok.base import FakeBase as OkBase
 from tests.institution.fixtures.subclass_collision.base import FakeBase as CollisionBase
@@ -13,14 +13,14 @@ import tests.institution.fixtures.handlers_missing_run as handlers_missing_run_p
 
 
 def test_discover_subclasses_on_a_real_ships_empty_package():
-    """norms/ ships with zero plugins by design (see norms/README.md) —
-    discovery against a real, currently-empty package must return {},
-    never raise."""
-    assert discover_subclasses(real_norms_package, Norm, "type_name") == {}
+    """Every actions/rules/{action}/ ships with zero plugins by design
+    (see actions/rules/README.md) — discovery against a real,
+    currently-empty package must return {}, never raise."""
+    assert discover_subclasses(real_rules_package, Rule, "type_name") == {}
 
 
 def test_discover_handlers_on_a_real_ships_empty_package():
-    """objects/handlers/ ships empty for the same reason norms/ does."""
+    """objects/handlers/ ships empty for the same reason."""
     assert discover_handlers(real_object_handlers_package) == {}
 
 

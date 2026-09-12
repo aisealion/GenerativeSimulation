@@ -1,17 +1,16 @@
 import pytest
 
-import engine.norms.registry as registry
+import engine.institution.rules as rules_module
 import engine.llm_agents as llm_agents_module
 import actions.handlers.harvest as harvest_handler
 from engine.institution.context import ActionContext
-from engine.norms.base import Norm, NormDecision
+from engine.institution.rules import Rule
 from engine.physics import apply_consumption, apply_regrowth, catch_from_effort
 
-# The exact same scenarios as tests/norms/test_harvest_action_baseline.py
-# (which still exercises the old actions/harvest.py, kept in place until
-# the Phase 3 cutover) — this is the deterministic proof that porting
-# harvest's logic into actions/handlers/harvest.py, run through the new
-# generic ActionRuntime/ActionContext, produces byte-identical output.
+# The deterministic proof that harvest's own physics, plus the generic
+# per-agent rule hooks (is_eligible/after_agent) every action now exposes,
+# produce the exact numbers they always have — with no rule configured at
+# all, and with one actually attached.
 
 EFFORTS = {"agent_0": 0.5, "agent_1": 0.2}
 SPEC = {"name": "harvest"}
@@ -21,9 +20,9 @@ def _fake_call_fisher_agent(agent_id, round_number, action_name, **fields):
     return {"effort": EFFORTS[agent_id], "reasoning": "test"}
 
 
-def _state(norms_config=None):
+def _state(rules_config=None):
     return {
-        "config": {"norms": norms_config or []},
+        "config": {"rules": {"harvest": rules_config or []}},
         "fluents": [],
         "runtime": {"stock_kg": 300.0, "rounds": []},
         "agents": {
@@ -39,7 +38,7 @@ def _run(state):
     return harvest_handler.run(ctx)
 
 
-def test_baseline_empty_norms_matches_hand_computed_physics(monkeypatch):
+def test_baseline_empty_rules_matches_hand_computed_physics(monkeypatch):
     monkeypatch.setattr(llm_agents_module, "call_fisher_agent", _fake_call_fisher_agent)
     state = _state()
 
@@ -64,34 +63,41 @@ def test_baseline_empty_norms_matches_hand_computed_physics(monkeypatch):
     assert state["runtime"]["dead_agents"] == []
 
 
-def test_baseline_no_norm_state_key_created_when_norms_empty(monkeypatch):
+def test_baseline_no_rules_state_key_created_when_rules_empty(monkeypatch):
     monkeypatch.setattr(llm_agents_module, "call_fisher_agent", _fake_call_fisher_agent)
     state = _state()
     _run(state)
-    assert "norms" not in state["runtime"]
+    assert "rules" not in state["runtime"]
 
 
-class _FakeCap(Norm):
+class _FakeCap(Rule):
     type_name = "_fake_cap_for_handler_test"
 
-    def evaluate(self, context, agent_id, raw_kg, proposed_kg):
-        limit = self.params["limit_kg"]
-        if proposed_kg <= limit:
-            return NormDecision.allow(proposed_kg)
-        return NormDecision.violation(kept_kg=limit, note=f"trimmed to the {limit}kg limit")
+    def after_agent(self, ctx, agent_id, record_entry):
+        limit = self.params.get("limit_kg", 999999)
+        if record_entry["harvested_kg"] > limit:
+            return {"harvested_kg": limit, "note": f"trimmed to the {limit}kg limit"}
+        return None
 
 
-class _FakeBan(Norm):
+class _FakeBan(Rule):
     type_name = "_fake_ban_for_handler_test"
 
-    def is_eligible(self, context, agent_id):
-        return not context.norm_state(self.key).get(agent_id, False)
+    def is_eligible(self, ctx, agent_id):
+        return not ctx.rule_state(self.key).get(agent_id, False)
 
 
-def test_a_configured_norm_actually_constrains_the_result(monkeypatch):
+def _fake_discover(rule_types_by_action):
+    return lambda action_name: rule_types_by_action.get(action_name, {})
+
+
+def test_a_configured_rule_actually_constrains_the_result(monkeypatch):
     monkeypatch.setattr(llm_agents_module, "call_fisher_agent", _fake_call_fisher_agent)
-    monkeypatch.setattr(registry, "NORM_TYPES", {"_fake_cap_for_handler_test": _FakeCap})
-    state = _state(norms_config=[{"type": "_fake_cap_for_handler_test", "limit_kg": 1.0}])
+    monkeypatch.setattr(
+        rules_module, "discover_rule_types",
+        _fake_discover({"harvest": {"_fake_cap_for_handler_test": _FakeCap}}),
+    )
+    state = _state(rules_config=[{"type": "_fake_cap_for_handler_test", "limit_kg": 1.0}])
 
     record = _run(state)
 
@@ -108,9 +114,12 @@ def test_ineligible_agent_skips_the_llm_call_entirely(monkeypatch):
         return {"effort": EFFORTS[agent_id], "reasoning": "test"}
 
     monkeypatch.setattr(llm_agents_module, "call_fisher_agent", _tracking_call)
-    monkeypatch.setattr(registry, "NORM_TYPES", {"_fake_ban_for_handler_test": _FakeBan})
-    state = _state(norms_config=[{"type": "_fake_ban_for_handler_test"}])
-    state["runtime"].setdefault("norms", {}).setdefault("_fake_ban_for_handler_test", {})["agent_0"] = True
+    monkeypatch.setattr(
+        rules_module, "discover_rule_types",
+        _fake_discover({"harvest": {"_fake_ban_for_handler_test": _FakeBan}}),
+    )
+    state = _state(rules_config=[{"type": "_fake_ban_for_handler_test"}])
+    state["runtime"].setdefault("rules", {}).setdefault("_fake_ban_for_handler_test", {})["agent_0"] = True
 
     record = _run(state)
 

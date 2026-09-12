@@ -55,8 +55,8 @@ def test_generic_agent_decision_resolves_state_fields_and_calls_every_participan
     assert record == {
         "round": 3, "action": "favorite_spot",
         "answers": {
-            "agent_0": {"favorite_spot": "cove near agent_0", "reasoning": "nice and quiet"},
-            "agent_1": {"favorite_spot": "cove near agent_1", "reasoning": "nice and quiet"},
+            "agent_0": {"favorite_spot": "cove near agent_0", "reasoning": "nice and quiet", "participated": True},
+            "agent_1": {"favorite_spot": "cove near agent_1", "reasoning": "nice and quiet", "participated": True},
         },
     }
 
@@ -81,7 +81,7 @@ def test_generic_agent_decision_with_no_field_map_copies_response_verbatim(monke
 
     record = generic_agent_decision(ctx)
 
-    assert record["agents"]["agent_0"] == {"raw": 42}
+    assert record["agents"]["agent_0"] == {"raw": 42, "participated": True}
 
 
 def test_generic_agent_decision_reads_an_object_field_as_a_prompt_field(monkeypatch):

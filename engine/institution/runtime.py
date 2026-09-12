@@ -15,8 +15,9 @@ def resolve_handler(handler_name):
     """A builtin (an attribute of engine.institution.builtin_handlers)
     takes precedence by name; otherwise `handler_name` is a filename stem
     under actions/handlers/. Raises immediately, with a clear message, if
-    neither resolves — the same fail-fast posture engine/norms/registry.py
-    already has for an unknown norm type."""
+    neither resolves — the same fail-fast posture
+    engine.institution.rules.RuleSet.for_action() already has for an
+    unknown rule type."""
     builtin = getattr(builtin_handlers, handler_name, None)
     if callable(builtin):
         return builtin
@@ -54,14 +55,20 @@ class ActionRuntime:
     def run_action(spec, state, round_number):
         """Builds the ActionContext, dispatches to the resolved handler,
         and appends the result to state["runtime"]["rounds"] — a handler
-        returns the round_record's own content (whatever
-        SimpleAgentAction.run()'s fixed section or a custom Action.run()
-        used to build); "round"/"action" are filled in here if the handler
-        didn't already set them, so a handler never has to repeat that
-        boilerplate."""
+        returns the round_record's own content; "round"/"action" are
+        filled in here if the handler didn't already set them, so a
+        handler never has to repeat that boilerplate. Wraps the handler
+        call with this action's own RuleSet.before_action()/after_action()
+        — generic, identical for every action, whether or not anything is
+        actually configured to attach to it this round (an empty RuleSet's
+        before_action()/after_action() are no-ops)."""
         ctx = ActionContext.build(spec, state, round_number)
         handler = resolve_handler(spec["execution"]["handler"])
+
+        ctx.rules.before_action(ctx)
         round_record = handler(ctx)
+        ctx.rules.after_action(ctx, round_record)
+
         round_record.setdefault("round", round_number)
         round_record.setdefault("action", spec["name"])
 

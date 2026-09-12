@@ -3,14 +3,14 @@ regardless of what any norm asks for. Ported directly from Gupta et al.'s
 CPR-game codebase (Codes/Gupta/CPRG_fishing, branch origin/hiromu/llm-norm,
 ostrom3/Agent.py and Model.py), not this project's own design — a norm can
 change caps, deposits, bans, and schedules (all implementer-owned, in
-norms/ and actions/), but the underlying catch equation, regrowth
+actions/rules/ and actions/), but the underlying catch equation, regrowth
 rate, and survival economics below are the fixed rules of the world those
 choices play out against, not something a community vote should be able
 to rewrite.
 
 Lives under engine/ specifically so it's outside the norm-implementer's
-permission.edit allowlist (norms/*, actions/*, prompts/*, plus a few
-named files) by construction, the same way engine/simulate.py and
+permission.edit allowlist (actions/rules/*/*, actions/*, prompts/*, plus a
+few named files) by construction, the same way engine/simulate.py and
 engine/llm_agents.py already are. The rate constants below live here for
 the same reason the equations do, not in state/config.json (which the
 norm-implementer can freely edit) — a fixed formula reading a

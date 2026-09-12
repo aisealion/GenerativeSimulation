@@ -1,9 +1,10 @@
 # tests/norm_checks/
 
 Implementer-authored unit tests, one file per round that touches
-`norms/*.py`, `objects/handlers/*.py`, or `actions/handlers/*.py` +
-`state/actions/*.json` (a structural or new-action change) — covering the
-specific behavior that round's norm asked for.
+`actions/rules/{action_name}/*.py`, `objects/handlers/*.py`, or
+`actions/handlers/*.py` + `state/actions/*.json` (a structural or
+new-action change) — covering the specific behavior that round's norm
+asked for.
 
 Distinct from `tests/regression/`: that directory is a fixed, human-owned
 suite the norm-implementer must never edit or weaken. This directory is

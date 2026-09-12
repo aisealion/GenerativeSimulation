@@ -3,17 +3,17 @@
 Custom logic for an institutional-object *type* that the five generic
 operations (`deposit`/`withdraw`/`set`/`append`/`read`, see
 `engine/institution/objects.py::ObjectRuntime`) can't express — the
-Level-3 escape hatch for objects, mirroring `norms/`'s own role for
-harvest constraints.
+Level-3 escape hatch for objects, mirroring `actions/rules/{action_name}/`'s
+own role for per-action constraints.
 
-**Ships empty by design**, same principle as `norms/` (see that
+**Ships empty by design**, same principle as `actions/rules/` (see that
 directory's own README): most institutional objects a norm actually
 introduces (a pool, a ledger, a permit) are fully expressible through the
 generic operations plus a declarative `state/object_types/{type}.json`
 spec — reaching for a custom handler when a generic operation would do
 defeats the point of keeping the norm-implementer's object-code surface
-small, the same way a pre-built `norms/` plugin would defeat the point of
-studying whether a norm can be operationalized from scratch.
+small, the same way a pre-built rule would defeat the point of studying
+whether a norm can be operationalized from scratch.
 
 ## Contract
 

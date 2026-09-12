@@ -4,27 +4,29 @@ One `{type_name}.json` file per institutional-object *type* (a pool, a
 ledger, a permit, a tool) — the declarative `ObjectSpec` schema
 `engine/institution/objects.py::ObjectRuntime` reads. Instances of a type
 are *declared* in `state/objects.json` (`id`/`type`/an optional
-`lifecycle` — never a field value), mirroring `norms/`'s own type/instance
-split (`norms/{type}.py` defines a shape; `state/config.json["norms"]`
-lists which instances of it are active). This directory is only ever the
-catalog of what *kinds* of object exist.
+`lifecycle` — never a field value), mirroring `actions/rules/{action_name}/`'s
+own type/instance split (an `actions/rules/{action_name}/{type}.py` file
+defines a shape; `state/config.json["rules"][action_name]` lists which
+instances of it are active). This directory is only ever the catalog of
+what *kinds* of object exist.
 
 The actual mutable field values (a pool's current balance, a ledger's
 entries) live in neither of those files — they're simulation-owned, in
 `state["runtime"]["objects"][object_id]["fields"]`, seeded from this
 file's own `fields` defaults the first time anything touches the object.
 Keeping a declaration and its accumulating runtime values apart is
-deliberate: exactly the same reason `state/config.json["norms"]` entries
-never hold a norm's own running balance (that's `runtime["norms"][key]`)
-— a norm-implementer-writable file must never also be where the running
+deliberate: exactly the same reason `state/config.json["rules"][action_name]`
+entries never hold a rule's own running balance (that's
+`runtime["rules"][key]`, via `ctx.rule_state(key)`) — a
+norm-implementer-writable file must never also be where the running
 simulation's own numbers live.
 
-**Ships empty by design**, same principle and same reason as `norms/`
-(see that directory's own README): most norms that introduce a
-communal pool or a shared ledger are fully expressible by declaring a new
-type here — no seed content is included on purpose, so the first norm
-that ever needs one is genuinely operationalized from scratch, not just
-a pre-built shape with the numbers tuned.
+**Ships empty by design**, same principle and same reason as
+`actions/rules/` (see that directory's own README): most norms that
+introduce a communal pool or a shared ledger are fully expressible by
+declaring a new type here — no seed content is included on purpose, so
+the first norm that ever needs one is genuinely operationalized from
+scratch, not just a pre-built shape with the numbers tuned.
 
 ## Shape
 

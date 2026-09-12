@@ -1,10 +1,16 @@
-# Ported 1:1 from the old actions/critique.py — a bounded multi-turn
-# dialogue between a fixed critique role and the proposing fisher, never a
-# per-agent single-question loop, so it calls engine.llm_agents.
-# call_critique_agent()/call_fisher_agent() directly (module-level names,
-# exactly as before — kept this way specifically so existing-style
+# A bounded multi-turn dialogue between a fixed critique role and the
+# proposing fisher, never a single-call-per-agent loop, so this doesn't
+# use engine.institution.agent_loop.per_agent_decision() (built for
+# exactly one call per agent) — it calls
+# engine.llm_agents.call_critique_agent()/call_fisher_agent() directly
+# (module-level names — kept this way specifically so existing-style
 # monkeypatch tests still work) rather than through ctx.agents, which only
-# ever calls the fisher agent under this action's own fixed name.
+# ever calls the fisher agent under this action's own fixed name. Reuses
+# agent_loop.default_ineligible_record() for the one part that IS shared
+# with every other handler's loop (the ineligible-agent record shape).
+# Still calls ctx.rules around the loop, the same as every other handler,
+# so a future rule attached to state["config"]["rules"]["critique"] has
+# real effect.
 #
 # Runs after propose, before vote — every proposal gets an independent,
 # bounded critique-then-revise loop before anyone votes on it. See
@@ -12,8 +18,8 @@
 # critique role may only ask what a proposal leaves unspecified, never
 # prescribe an answer.
 
+from engine.institution.agent_loop import default_ineligible_record
 from engine.llm_agents import call_critique_agent, call_fisher_agent
-from engine.physics import alive_agent_ids
 
 MAX_CRITIQUE_EXCHANGES = 10
 
@@ -21,16 +27,25 @@ MAX_CRITIQUE_EXCHANGES = 10
 def run(ctx):
     state = ctx.state
     runtime = state["runtime"]
-    agents = state["agents"]
     round_number = ctx.round_number
-    agent_ids = alive_agent_ids(agents, runtime)
 
     last_propose = next(r for r in reversed(runtime["rounds"]) if r["action"] == "propose")
 
     refined_proposals = {}
     dialogues = {}
-    for agent_id in agent_ids:
-        proposal = dict(last_propose["proposals"][agent_id])
+    for agent_id in ctx.participants:
+        propose_record = last_propose["proposals"].get(agent_id, {})
+        if "policy" not in propose_record:
+            # This agent had no real proposal to critique (e.g. marked
+            # ineligible during propose) — nothing to refine.
+            continue
+
+        if not ctx.rules.is_eligible(ctx, agent_id):
+            refined_proposals[agent_id] = default_ineligible_record(ctx, agent_id)
+            dialogues[agent_id] = []
+            continue
+
+        proposal = dict(propose_record)
         dialogue = []
         for _exchange in range(MAX_CRITIQUE_EXCHANGES):
             critique = call_critique_agent(
@@ -84,6 +99,9 @@ def run(ctx):
                 "reasoning": finalize.get("reasoning", proposal.get("reasoning", "")),
             }
 
+        proposal["participated"] = True
+        ctx.rules.apply_after_agent(ctx, agent_id, proposal)
+        ctx.rules.settle_agent(ctx, agent_id, proposal)
         refined_proposals[agent_id] = proposal
         dialogues[agent_id] = dialogue
 
