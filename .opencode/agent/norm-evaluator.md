@@ -48,12 +48,13 @@ the running code.
   requirement list (`R1`, `R2`, ...) the norm-implementer wrote in its own
   institutional design step (Section 5 of `norm-implementer.md`), before
   it touched any code this round. Each requirement has a `clarity` tag
-  (`CLEAR`/`AMBIGUOUS`/`INCOMPLETE`/`TECHNICALLY_UNREALISABLE`) and, for
-  anything not `CLEAR`, whatever it resolved via `engine/clarify_norm.py`
-  — treat that resolution as part of the requirement's text, not as
-  something to re-litigate. A `TECHNICALLY_UNREALISABLE` requirement has
-  no code to test by design — skip it, don't mark it `NOT_TESTABLE` (that
-  label is for a `CLEAR`/resolved requirement you couldn't find a way to
+  (`CLEAR`/`AMBIGUOUS`/`INCOMPLETE`/`TECHNICALLY_UNREALISABLE`), a `level`
+  (1–4, see `norm-implementer.md`'s intro) and, for anything not `CLEAR`,
+  whatever it resolved via `engine/clarify_norm.py` — treat that
+  resolution as part of the requirement's text, not as something to
+  re-litigate. A `TECHNICALLY_UNREALISABLE` requirement has no code to
+  test by design — skip it, don't mark it `NOT_TESTABLE` (that label is
+  for a `CLEAR`/resolved requirement you couldn't find a way to
   exercise).
 - `norm.txt` — the original Policy + Operationalization text. Read it
   alongside the spec, not instead of it: if a requirement's stated
@@ -66,29 +67,52 @@ the running code.
   writing a test — a test that misunderstands `evaluate()`'s chaining
   (`raw_kg` vs `proposed_kg`) or `is_eligible()`'s once-per-round-per-agent
   contract will produce a false `IMPLEMENTATION_ERROR`.
-- `actions/harvest.py` — read-only. The actual per-agent loop your tests
-  exercise through `actions.harvest.ACTION.run(state)` — read it to know
-  what a minimal fabricated `state` dict needs (see `tests/norm_checks/README.md`
-  and `tests/norms/test_harvest_action_baseline.py` for the exact shape).
-- `actions/{name}.py` — read-only, same as `harvest.py`, for any requirement
-  whose `owner` is a brand-new action this round added (per the
-  norm-implementer's Decision Granularity Rule). Your test exercises
-  `actions.{name}.ACTION.run(state)` the same way, against that action's own
-  minimal fabricated state — not `actions.harvest`.
-- `state/institution.json`, `state/schedule.json` — read-only. For an
-  action-owned requirement, confirm the action is actually registered in
-  both (see STEP 1/4 below) before writing anything that exercises its
-  behavior — an action that isn't wired in yet has no behavior to test.
+- `state/actions/harvest.json`, `actions/handlers/harvest.py` — read-only.
+  The actual per-agent loop your tests exercise through
+  `actions.handlers.harvest.run(ctx)` (build `ctx` with
+  `engine.institution.context.ActionContext.build({"name": "harvest"},
+  state, round_number)`) — read the handler to know what a minimal
+  fabricated `state` dict needs (see `tests/norm_checks/README.md` and
+  `tests/norms/test_harvest_action_baseline.py`-equivalent fixtures under
+  `tests/institution/` for the exact shape).
+- `state/actions/{name}.json`, `actions/handlers/{name}.py` — read-only,
+  same as harvest's, for any requirement whose `owner` is a brand-new
+  action this round added (per the norm-implementer's Decision
+  Granularity Rule). If the spec named `execution.handler:
+  "generic_agent_decision"` (a Level-2, no-handler-file action), there is
+  no `actions/handlers/{name}.py` to read — the behavior is entirely
+  defined by the spec's own `prompt.fields`/`outputs.fields`; test it by
+  calling `engine.institution.runtime.ActionRuntime.run_action(spec,
+  state, round_number)` directly against the real spec dict, never a
+  hand-simplified stand-in for it.
+- `state/object_types/{type}.json`, `objects/handlers/{type}.py` —
+  read-only, for any requirement whose `owner` is an institutional
+  object. `engine/institution/objects.py` (`ObjectRuntime`) is the fixed
+  contract — read it before writing a test that exercises `deposit`/
+  `withdraw`/`set`/`append`/`read`/`custom`, the same reason you'd read
+  `engine/norms/base.py` before testing a `Norm`.
+- `state/objects.json` — read-only. Instance declarations only
+  (`id`/`type`/`lifecycle`) — the mutable field values a test observes
+  live in whatever fabricated `state["runtime"]["objects"]` dict you
+  build for the test, never in this file.
+- `state/institution.json` — read-only. For an action- or object-owned
+  requirement, confirm it's actually registered here (see STEP 1/4 below)
+  before writing anything that exercises its behavior — something that
+  isn't wired in yet has no behavior to test.
 - `tests/norm_evaluation/round_{N}/` — **your entire writing surface.**
   One test file per requirement (or per closely-related group of
   requirements), never touching anything outside this one round's
   subdirectory.
-- `tests/norm_checks/`, `tests/regression/`, `tests/norms/` — read-only
-  reference for the harness convention; never edit any of them.
-- `state/config.json`, `state/runtime.json`, `state/fluents.json` — read
-  the on-disk versions (the norm-implementer's diff is already applied to
-  the working tree by the time you run) to know what's actually
-  configured this round. Read-only.
+- `tests/norm_checks/`, `tests/regression/`, `tests/institution/`,
+  `tests/norms/` — read-only reference for the harness convention; never
+  edit any of them.
+- `state/config.json`, `state/runtime.json`, `state/fluents.json`,
+  `state/events.json` — read the on-disk versions (the norm-implementer's
+  diff is already applied to the working tree by the time you run) to
+  know what's actually configured this round. Read-only. `fluents.json`
+  holds facts with a duration (roles, bans); `events.json` holds
+  point-in-time occurrences (an object mutation, a one-off announcement)
+  — check the one the requirement's own design actually implies.
 
 ## STEP 1 — READ
 
@@ -118,19 +142,24 @@ plain Read/Grep.
   time at the correct path). If a direct `read` of that exact path fails,
   run `glob "**/round_{N}.md"` before concluding it's missing — don't
   guess a different path from memory.
-- `git diff -- norms actions prompts state/schedule.json state/config.json state/fluents.json state/fluents_schema.md state/institution.json engine/simulate.py`
+- `git diff -- norms actions objects prompts state/config.json state/fluents.json state/fluents_schema.md state/events.json state/institution.json state/actions state/object_types state/objects.json engine/simulate.py`
   to see exactly what the norm-implementer changed this round (this list
   is the same set of paths the norm-implementer is allowed to touch —
-  `actions` only ever gains new files here, never a modified existing one;
-  if the diff shows `actions/harvest.py`/`propose.py`/`critique.py`/`vote.py`/`discuss.py`
-  touched, that's disqualifying on its own — say so plainly in your
-  report, the orchestrator's own check will have already caught it by the
-  time you run, but flag it if you somehow still see it).
+  `state/actions`/`actions/handlers` only ever gain new files here, never
+  a modified existing one; if the diff shows any of the five protected
+  `state/actions/*.json`/`actions/handlers/*.py` pairs touched, or shows
+  `state/schedule.json` touched at all (it's compiled, never a legitimate
+  edit target any more), that's disqualifying on its own — say so plainly
+  in your report; the orchestrator's own check will have already caught
+  it by the time you run, but flag it if you somehow still see it).
 - For each requirement, note which file/function the norm-implementer's
   own classification table (in its report, if available) or the diff
   itself says implements it — for anything routed to a new action, this
-  means a specific `actions/{name}.py` file plus its `state/schedule.json` and
-  `state/institution.json` entries.
+  means a specific `state/actions/{name}.json` (and, unless it's Level 2,
+  `actions/handlers/{name}.py`) plus its `state/institution.json` entry;
+  for anything routed to a new institutional object, a specific
+  `state/object_types/{type}.json` plus its `state/objects.json`
+  instance and `state/institution.json` entry.
 
 ## STEP 2 — WRITE TESTS
 
@@ -139,15 +168,16 @@ plain Read/Grep.
   one file if that's clearer). Build the fabricated `state` dict from the
   round's **actual** `state/config.json["norms"]` entries, not a
   synthetic config — you are testing what's really configured, the same
-  way `tests/norm_checks/` and `tests/norms/test_harvest_action_baseline.py`
-  do. Exercise it through `actions.harvest.ACTION.run(state)` with
-  `call_fisher_agent` monkeypatched to fixed effort values chosen to
-  actually hit the requirement's boundary (e.g. an effort that produces
-  more than a stated cap, to check the excess is actually handled the way
-  the spec says) — a test that only exercises the common case proves
-  nothing about a boundary the spec cares about.
-- If a requirement is genuinely not exercisable through
-  `actions.harvest.ACTION.run()` or the `Norm` hook contract as it exists
+  way `tests/norm_checks/` does. Exercise it through
+  `actions.handlers.harvest.run(ActionContext.build({"name": "harvest"},
+  state, round_number))` with `engine.llm_agents.call_fisher_agent`
+  monkeypatched to fixed effort values chosen to actually hit the
+  requirement's boundary (e.g. an effort that produces more than a stated
+  cap, to check the excess is actually handled the way the spec says) — a
+  test that only exercises the common case proves nothing about a
+  boundary the spec cares about.
+- If a requirement is genuinely not exercisable through the harvest
+  action or the `Norm`/`ObjectRuntime` hook contracts as they exist
   today (needs real wall-clock/day boundaries the simulation doesn't
   model, say), don't force a test — write down why in one line; this
   becomes a `NOT_TESTABLE` verdict, not a skipped requirement.
@@ -155,20 +185,40 @@ plain Read/Grep.
   in the spec's `institutional_changes` — `purpose`, `actor`,
   `decision_or_action`, `inputs`, `output`, `state_changes`, `after`,
   `frequency`, `gate`, `enforcement`, `interaction`, `verification`):
-  first confirm the structural side — `actions/{name}.py` exists,
-  imports, is registered in `state/schedule.json` and `state/institution.json`
-  — before writing anything functional. Then write a test exercising
-  `actions.{name}.ACTION.run(state)` covering *both* the compliant path
-  (the actor makes the decision the norm calls for, using exactly the
-  `inputs`/`output` the design specifies — a test that fabricates
-  different inputs than the design actually claims to use isn't testing
-  the real requirement) and a non-compliance path where the requirement
-  implies one (the actor doesn't — is that detectable as a violation, per
-  the `enforcement` field?). If `interaction` is non-null, the test must
-  actually involve a second fabricated agent the way the design
-  describes, not just the one actor in isolation. A structural
-  requirement's test is incomplete if it only ever exercises the happy
-  path.
+  first confirm the structural side — `state/actions/{name}.json` exists
+  and is registered in `state/institution.json`, and either its
+  `execution.handler` is `"generic_agent_decision"` (Level 2, no handler
+  file expected) or `actions/handlers/{name}.py` exists, imports, and
+  exposes a callable `run` — before writing anything functional. Then
+  write a test exercising
+  `engine.institution.runtime.ActionRuntime.run_action(spec, state,
+  round_number)` covering *both* the compliant path (the actor makes the
+  decision the norm calls for, using exactly the `inputs`/`output` the
+  design specifies — a test that fabricates different inputs than the
+  design actually claims to use isn't testing the real requirement) and a
+  non-compliance path where the requirement implies one (the actor
+  doesn't — is that detectable as a violation, per the `enforcement`
+  field?). If `interaction` is non-null, the test must actually involve a
+  second fabricated agent the way the design describes, not just the one
+  actor in isolation. A structural requirement's test is incomplete if it
+  only ever exercises the happy path.
+- For a requirement whose `owner` is a new **institutional object**
+  (a full object design in the spec — `type_name`, `ownership`, `fields`,
+  `operations`, `permissions`, `visibility`, optional `custom_handler`,
+  `lifecycle`): first confirm `state/object_types/{type}.json` exists with
+  that exact `type_name`, is registered in `state/institution.json`'s
+  `object_types` catalog, and that any instance the design calls for has
+  a matching `state/objects.json` declaration — before writing anything
+  functional. Then write a test that builds a real
+  `engine.institution.objects.ObjectRuntime` against the actual type spec
+  and instance declaration (never a hand-simplified spec that happens to
+  pass) and exercises the specific operations/permissions/visibility the
+  design claims — a deposit that should succeed, one that should be
+  denied per the design's own `permissions`, a field that should be
+  visible to one role and not another. If `custom_handler` is set, the
+  test must actually dispatch through `ObjectRuntime.custom(...)`, not
+  call the handler function directly — that would prove the function
+  works in isolation, never that the object actually resolves to it.
 
 ## STEP 3 — RUN
 
@@ -181,24 +231,38 @@ For every requirement, exactly one verdict. For a requirement whose
 the same final verdict — don't skip Level 1 just because Level 2 happens
 to pass (a test can pass against an action that isn't actually wired
 into the round loop, if you built the fabricated `state` by hand instead
-of relying on real `state/schedule.json` gating):
+of relying on real `state/institution.json` registration):
 
 - **Level 1 (structural)** — does the required action actually exist:
-  `actions/{name}.py` importable, an `Action` subclass, `ACTION.name`
-  matching the filename stem, present in both `state/schedule.json` and
-  `state/institution.json`. Missing or broken at this level is
-  `IMPLEMENTATION_ERROR` regardless of what a hand-built test might show —
-  "the action runs correctly when I call it directly" doesn't count if
-  the simulation itself would never actually reach it.
+  `state/actions/{name}.json` present and valid, registered in
+  `state/institution.json`, its `execution.handler` resolving (a real
+  builtin, or a real `actions/handlers/{name}.py` exposing `run`).
+  Missing or broken at this level is `IMPLEMENTATION_ERROR` regardless of
+  what a hand-built test might show — "the handler runs correctly when I
+  call it directly" doesn't count if the simulation itself would never
+  actually reach it.
 - **Level 2 (functional)** — only once Level 1 passes: run the compliant
   and non-compliance tests from STEP 2. Wrong behavior here is also
   `IMPLEMENTATION_ERROR`, unless what "correct" means genuinely isn't
   pinned down (see `SPEC_GAP` below).
 
 The same two-level split applies to a requirement whose `owner` is a
+**new institutional object type**:
+
+- **Level 1 (structural, object type)** — does `state/object_types/{type}.json`
+  exist with the right `type_name`, is it registered in
+  `state/institution.json`'s `object_types` catalog, and does every
+  instance the design calls for have a real `state/objects.json`
+  declaration. A type with no instance, or an instance naming a type that
+  doesn't exist, is `IMPLEMENTATION_ERROR` regardless of how correctly
+  the type's own declared operations would behave if it existed.
+- **Level 2 (functional, object type)** — only once Level 1 passes: the
+  deposit/withdraw/permission/visibility tests from STEP 2.
+
+The same two-level split applies to a requirement whose `owner` is a
 `norms/*.py` type, new or reused — **and this is the one real runs have
-gotten wrong repeatedly**, so treat it as seriously as the action case
-above, not as a lighter-weight formality:
+gotten wrong repeatedly**, so treat it as seriously as the action/object
+cases above, not as a lighter-weight formality:
 
 - **Level 1 (structural, norm-type)** — is the type actually loadable in
   a real round: read `state/config.json` **directly off disk** and
@@ -224,19 +288,19 @@ via `assign_role()`/`set_fact()`) — a role the spec/diff describes but
 that was never actually assigned to any agent is also `IMPLEMENTATION_ERROR`,
 not something to overlook because the numeric enforcement portion of the
 same requirement tested fine. A described consequence (a ban, a fee, a
-ledger entry) with no corresponding state write anywhere in the diff gets
-the same verdict, for the same reason.
+ledger entry, an object mutation) with no corresponding state write
+anywhere in the diff gets the same verdict, for the same reason.
 
 - `COMPLIANT` — the test passes, and it actually checks the requirement's
-  specific claim (a number, a threshold, a reset), not just that
-  `ACTION.run()` didn't crash. For an action-owned requirement, both
-  levels above must pass.
+  specific claim (a number, a threshold, a reset), not just that the
+  handler/action/object didn't crash. For an action- or object-owned
+  requirement, both levels above must pass.
 - `IMPLEMENTATION_ERROR` — the requirement's expected behavior is
   unambiguous (from the spec, resolved or `CLEAR`), the test is correct,
   and the code produces something different — at either level above.
   Quote the requirement text and the actual observed value (or, for a
-  Level 1 failure, exactly what's missing: no file, no `state/schedule.json`
-  entry, name mismatch).
+  Level 1 failure, exactly what's missing: no file, no
+  `state/institution.json` entry, a handler that doesn't resolve).
 - `SPEC_GAP` — while writing the test you found the spec (even after its
   own clarification step) doesn't actually pin down what compliant means
   for a scenario that clearly needs deciding (multiple trips in one
@@ -259,34 +323,41 @@ anywhere; a JSON block present, but under an invented shape ("evaluation" →
 correct conclusions discarded purely over formatting, never over
 substance. A single short line has nothing left to get wrong.
 
-1. For each requirement, write your verdict and reasoning however is
-   clearest — a line, a short table, whatever reads well. Use
-   `COMPLIANT`, `IMPLEMENTATION_ERROR`, `SPEC_GAP`, or `NOT_TESTABLE` per
-   requirement in your own prose (these labels are for whoever reads this
-   report next — a human, or the norm-implementer during a repair — not
-   machine-parsed; get them right anyway, since STEP 4 defines exactly
-   what each one means). For every `SPEC_GAP`, state the exact clarifying
-   question, phrased so a human or the norm-implementer's own follow-up
-   dialogue could act on it directly — not a restatement of "this is
-   unclear."
-2. End with exactly one of these two lines, on its own:
-   ```
-   EVALUATION_RESULT: COMPLIANT
-   ```
-   if every requirement is `COMPLIANT` or `NOT_TESTABLE`, or
-   ```
-   EVALUATION_RESULT: NEEDS_REPAIR
-   ```
-   if anything is `IMPLEMENTATION_ERROR` or `SPEC_GAP`. **This is the only
-   line the orchestrator actually reads** to decide whether to commit or
-   send the round back for repair — it searches your whole response for
-   this exact phrase, so it doesn't matter where else in your response it
-   falls, but never leave it out, including when you're fully confident
-   everything passed ("APPROVED" in prose is not a substitute for this
-   line — a real run made exactly that mistake). If `NEEDS_REPAIR`, your
-   entire response (every per-requirement note from step 1) is handed to
-   the norm-implementer verbatim for the repair attempt — write it as if
-   that's who reads it next, not just something to satisfy a parser.
+**Write the sentinel line first, before any prose analysis — it IS the
+report; everything else is supporting detail.** A real round wrote a
+long, careful, entirely correct per-requirement write-up (tables, per-item
+notes, a closing recommendation) and never once included the sentinel
+line anywhere in the response — the orchestrator has no way to recover a
+verdict that was never stated, no matter how good the surrounding
+analysis is. Keep the per-requirement prose that follows short — one line
+per requirement is enough; skip tables, emoji verdict markers, and
+multi-paragraph assessments, all of which real rounds have used right
+before forgetting the one line that actually mattered.
+
+1. `EVALUATION_RESULT: COMPLIANT` or `EVALUATION_RESULT: NEEDS_REPAIR`,
+   on its own line — COMPLIANT if every requirement is `COMPLIANT` or
+   `NOT_TESTABLE`, NEEDS_REPAIR if anything is `IMPLEMENTATION_ERROR` or
+   `SPEC_GAP`. **This is the only line the orchestrator actually reads**
+   to decide whether to commit or send the round back for repair — it
+   searches your whole response for this exact phrase (last match wins if
+   it appears more than once), so it doesn't matter where else in your
+   response it falls, but never leave it out, including when you're fully
+   confident everything passed ("APPROVED" in prose is not a substitute
+   for this line — a real run made exactly that mistake).
+2. For each requirement, write your verdict and reasoning however is
+   clearest, but briefly — a line per requirement, not a table or a
+   multi-paragraph write-up. Use `COMPLIANT`, `IMPLEMENTATION_ERROR`,
+   `SPEC_GAP`, or `NOT_TESTABLE` per requirement (these labels are for
+   whoever reads this report next — a human, or the norm-implementer
+   during a repair — not machine-parsed; get them right anyway, since
+   STEP 4 defines exactly what each one means). For every `SPEC_GAP`,
+   state the exact clarifying question, phrased so a human or the
+   norm-implementer's own follow-up dialogue could act on it directly —
+   not a restatement of "this is unclear."
+
+If `NEEDS_REPAIR`, your entire response (every per-requirement note) is
+handed to the norm-implementer verbatim for the repair attempt — write it
+as if that's who reads it next, not just something to satisfy a parser.
 
 ## Do not commit
 

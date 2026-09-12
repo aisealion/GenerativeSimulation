@@ -1,11 +1,13 @@
 # HarvestContext: everything a Norm needs for one round, built exactly once
 # per round and shared by every hook call for that round (never rebuilt
-# mid-round — see actions/harvest.py's run(), which builds one and threads it
-# through the whole agent loop).
+# mid-round — see actions/handlers/harvest.py's run(), which builds one and
+# threads it through the whole agent loop).
 
 from dataclasses import dataclass, field
 
 from engine.physics import available_stock
+from engine.institution.events import EventEmitter
+from engine.institution.objects import ObjectRuntime
 
 
 @dataclass
@@ -16,11 +18,18 @@ class HarvestContext:
     agents: dict
     round_number: int
     stock_before: float
+    objects: ObjectRuntime
     scratch: dict = field(default_factory=dict)
     stock_override_kg: float | None = field(default=None, init=False)
 
     @classmethod
     def from_state(cls, state):
+        events = EventEmitter(state.setdefault("events", []), state["fluents"], state["round_number"])
+        objects = ObjectRuntime(
+            state.get("object_types", {}), state.get("objects", []),
+            state["runtime"].setdefault("objects", {}),
+            state["fluents"], state["round_number"], events,
+        )
         return cls(
             config=state["config"],
             fluents=state["fluents"],
@@ -28,6 +37,7 @@ class HarvestContext:
             agents=state["agents"],
             round_number=state["round_number"],
             stock_before=available_stock(state["runtime"]),
+            objects=objects,
         )
 
     def norm_state(self, key):

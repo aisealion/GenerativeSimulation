@@ -1,0 +1,9 @@
+{
+  "name": "propose",
+  "description": "each alive fisher proposes a candidate community rule",
+  "protected": true,
+  "scheduling": {"gate": "true", "after": "harvest", "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": null},
+  "execution": {"handler": "propose"}
+}

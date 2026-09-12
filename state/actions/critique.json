@@ -1,0 +1,9 @@
+{
+  "name": "critique",
+  "description": "each proposal is refined through a bounded critique-and-revise dialogue before the vote",
+  "protected": true,
+  "scheduling": {"gate": "true", "after": "propose", "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": null},
+  "execution": {"handler": "critique"}
+}

@@ -12,6 +12,7 @@ import pkgutil
 
 import norms as _norms_package
 from engine.norms.base import Norm
+from engine.institution.lifecycle import is_active
 
 
 def _discover_norm_types():
@@ -34,7 +35,18 @@ def _discover_norm_types():
 NORM_TYPES = _discover_norm_types()
 
 
-def load_norms(config):
+def load_norms(config, round_number=None):
+    """`round_number=None` (the default, and every existing call site
+    before lifecycle support existed) validates every entry — type
+    resolves, key is unique — and returns a Norm instance for all of them,
+    active or not; this is what the orchestrator's own type-resolution
+    check wants (does everything referenced anywhere in config resolve,
+    regardless of current activity). Passing a real `round_number` (what
+    NormEngine.from_config() does for an actual round) additionally
+    filters OUT any entry whose own "lifecycle" has expired/not started —
+    validation still applies to it first, so a lifecycle-inactive entry
+    with an unknown type or a duplicate key is still caught, just never
+    instantiated into the returned list."""
     specs = config.get("norms", [])
     norms = []
     seen_keys = set()
@@ -53,5 +65,7 @@ def load_norms(config):
                 f'explicit "id" to disambiguate multiple norms of the same type'
             )
         seen_keys.add(key)
+        if round_number is not None and not is_active(spec.get("lifecycle"), round_number):
+            continue
         norms.append(cls(key=key, params=spec))
     return norms

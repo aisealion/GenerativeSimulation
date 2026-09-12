@@ -1,0 +1,9 @@
+{
+  "name": "harvest",
+  "description": "each alive fisher decides today's effort",
+  "protected": true,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": null},
+  "execution": {"handler": "harvest"}
+}

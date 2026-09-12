@@ -1,0 +1,9 @@
+{
+  "name": "discuss",
+  "description": "a pre-existing, currently-unimplemented stub",
+  "protected": true,
+  "scheduling": {"gate": "false", "after": "vote", "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": null},
+  "execution": {"handler": "discuss"}
+}

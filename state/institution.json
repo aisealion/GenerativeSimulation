@@ -1,12 +1,18 @@
 {
+  "version": 1,
+  "updated_at_round": null,
   "actions": {
-    "harvest": {"file": "actions/harvest.py", "protected": true, "gate": "true", "description": "each alive fisher decides today's effort", "actor_role": null},
-    "propose": {"file": "actions/propose.py", "protected": true, "gate": "true", "description": "each alive fisher proposes a candidate community rule", "actor_role": null},
-    "critique": {"file": "actions/critique.py", "protected": true, "gate": "true", "description": "each proposal is refined through a bounded critique-and-revise dialogue before the vote", "actor_role": null},
-    "vote": {"file": "actions/vote.py", "protected": true, "gate": "true", "description": "each alive fisher votes on the refined proposals", "actor_role": null},
-    "discuss": {"file": "actions/discuss.py", "protected": true, "gate": "false", "description": "a pre-existing, currently-unimplemented stub", "actor_role": null}
+    "harvest": {"spec": "state/actions/harvest.json", "protected": true},
+    "propose": {"spec": "state/actions/propose.json", "protected": true},
+    "critique": {"spec": "state/actions/critique.json", "protected": true},
+    "vote": {"spec": "state/actions/vote.json", "protected": true},
+    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+  },
+  "roles": {
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
   },
   "norm_types": {},
+  "object_types": {},
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

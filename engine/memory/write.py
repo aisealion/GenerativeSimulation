@@ -33,6 +33,15 @@ IMPORTANCE_BY_EVENT_TYPE = {
     # generic type can't score more precisely than that.
     "fact_initiated": 9,
     "fact_ended": 9,
+    # The institution kernel's own event types (engine/institution/events.py,
+    # engine/norms/engine.py::tick_norm_lifecycles()) — additive, same
+    # pattern as every entry above.
+    "object_created": 5,
+    "object_mutated": 4,
+    "rule_activated": 5,
+    "rule_deactivated": 5,
+    "role_rotated": 5,
+    "role_terminated": 5,
 }
 
 

@@ -10,6 +10,9 @@ import time
 from pathlib import Path
 
 from engine.call_log import log_call
+from engine.institution.runtime import ActionRuntime
+from engine.institution.scheduler import compile_schedule
+from engine.institution.history import diff_institution
 
 try:
     # matplotlib may be missing from a minimal venv; monitoring is optional.
@@ -33,19 +36,30 @@ DEFAULT_MAX_ROUNDS = 100
 NORM_IMPLEMENTER_TRACKED_PATHS = [
     # state/runtime.json is never here — simulation-owned, never the
     # implementer's to write; kept off so a discard's `git clean -fd`
-    # can never touch it.
+    # can never touch it. state/schedule.json is ALSO never here any
+    # more, for the same reason, one level removed: it's now a COMPILED
+    # artifact (engine.institution.scheduler.compile_schedule(), rebuilt
+    # every round from state/actions/*.json's own scheduling.after/before)
+    # rather than something hand-edited — see ROUND_ARTIFACT_PATHS below.
     "norms",
     "actions",
+    "objects",
     "prompts",
     # Implementer-authored tests for its own norm/action changes.
     "tests/norm_checks",
     # The norm-evaluator's own generated tests — must revert alongside the
     # norms/*.py code they test if this round is discarded.
     "tests/norm_evaluation",
-    "state/schedule.json",
     "state/config.json",
     "state/fluents.json",
     "state/fluents_schema.md",
+    # Point-in-time occurrences (engine.institution.events) — populated by
+    # code (ctx.events.emit()), same relationship this list already has
+    # with state/fluents.json.
+    "state/events.json",
+    "state/actions",
+    "state/object_types",
+    "state/objects.json",
     # state/norm_specs is NOT here — see ROUND_ARTIFACT_PATHS below. A spec
     # must survive a discard as the forensic record of what was analyzed.
     "state/institution.json",
@@ -53,19 +67,25 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     "engine/simulate.py",
 ]
 
-# Never touchable by a norm round — fixed physics, the harvest loop, and
-# the base contracts every action/norm plugin builds on. Enforced by a
-# real git-diff check (norm_implementation_protected_path_violations()),
-# not just the permission.edit YAML, whose "deny + allow" behavior on
-# opencode is unverified.
+# Never touchable by a norm round — fixed physics, the generic institution
+# kernel, and the 5 protected actions' own declarative specs/handlers.
+# Enforced by a real git-diff check
+# (norm_implementation_protected_path_violations()), not just the
+# permission.edit YAML, whose "deny + allow" behavior on opencode is
+# unverified.
 PROTECTED_PATHS = [
-    "actions/harvest.py",
-    "actions/propose.py",
-    "actions/vote.py",
-    "actions/critique.py",
+    "state/actions/harvest.json",
+    "state/actions/propose.json",
+    "state/actions/vote.json",
+    "state/actions/critique.json",
     # Unimplemented stub, permanently gated off — still off-limits.
-    "actions/discuss.py",
-    "engine/action_base.py",
+    "state/actions/discuss.json",
+    "actions/handlers/harvest.py",
+    "actions/handlers/propose.py",
+    "actions/handlers/vote.py",
+    "actions/handlers/critique.py",
+    "actions/handlers/discuss.py",
+    "engine/institution",
     "engine/norms",
     "engine/physics.py",
     "roles/roles.py",
@@ -78,14 +98,72 @@ def load_state(round_number):
     return {
         "config": json.loads((ROOT / "state" / "config.json").read_text()),
         "fluents": json.loads((ROOT / "state" / "fluents.json").read_text()),
+        # Point-in-time occurrences (engine.institution.events) — distinct
+        # from fluents.json's own interval facts; see that module's own
+        # docstring for why the two are kept apart.
+        "events": json.loads((ROOT / "state" / "events.json").read_text()),
         "runtime": json.loads((ROOT / "state" / "runtime.json").read_text()),
         "agents": json.loads((ROOT / "constants" / "agents.json").read_text()),
+        # Object TYPE definitions are auto-discovered by scanning
+        # state/object_types/*.json directly (keyed by each file's own
+        # type_name) — same "the directory itself is the source of truth,
+        # institution.json is drift-checked documentation, never the load
+        # path" principle norms/*.py already uses. Object INSTANCE
+        # declarations (id/type only — never mutable field values, see
+        # engine/institution/objects.py's own module docstring) come from
+        # state/objects.json.
+        "object_types": load_object_types(),
+        "objects": load_objects(),
         "round_number": round_number,
     }
 
 
+def load_object_types():
+    types = {}
+    for path in sorted((ROOT / "state" / "object_types").glob("*.json")):
+        spec = json.loads(path.read_text())
+        types[spec["type_name"]] = spec
+    return types
+
+
+def load_objects():
+    return json.loads((ROOT / "state" / "objects.json").read_text())
+
+
+def load_action_spec(action_name):
+    """state/actions/{action_name}.json — loaded by filename-stem
+    convention (action_name == the state/schedule.json key == the spec's
+    own "name" field), never indirected through institution.json's own
+    "spec" field, which stays purely informational/drift-checked (see
+    norm_implementation_institution_errors()) rather than a live load
+    path — the same relationship institution.json already has with
+    norms/*.py and state/object_types/*.json."""
+    return json.loads((ROOT / "state" / "actions" / f"{action_name}.json").read_text())
+
+
+def load_institution():
+    return json.loads((ROOT / "state" / "institution.json").read_text())
+
+
 def load_schedule():
     return json.loads((ROOT / "state" / "schedule.json").read_text())
+
+
+def compile_and_write_schedule():
+    """Regenerates state/schedule.json from state/institution.json's own
+    action catalog plus each state/actions/*.json's own
+    scheduling.after/before/gate — schedule.json is now a COMPILED
+    artifact (engine.institution.scheduler.compile_schedule()), never
+    hand-edited, so a norm-implementer round that added or reordered an
+    action can never leave it silently out of sync with institution.json
+    (a whole bug class the old hand-maintained file had no check for at
+    all). Called at the top of every round, and once before main()'s own
+    initial read, so this is always fresh before anything reads it."""
+    institution = load_institution()
+    action_specs = {name: load_action_spec(name) for name in institution.get("actions", {})}
+    schedule = compile_schedule(action_specs)
+    (ROOT / "state" / "schedule.json").write_text(json.dumps(schedule, indent=2) + "\n")
+    return schedule
 
 
 def evaluate_gate(condition, fluents, round_number):
@@ -118,14 +196,20 @@ def save_fluents(state):
     (ROOT / "state" / "fluents.json").write_text(json.dumps(state["fluents"], indent=2) + "\n")
 
 
-def write_memory_episodes(action, state, record, round_number):
+def save_events(state):
+    (ROOT / "state" / "events.json").write_text(json.dumps(state["events"], indent=2) + "\n")
+
+
+def write_memory_episodes(action_spec, state, record, round_number):
     """No-ops if the optional Neo4j memory layer isn't configured."""
     if not os.environ.get("NEO4J_URI"):
         return
     try:
         from engine.memory.write import write_episode
+        from engine.institution.runtime import resolve_memory_writes
 
-        for spec in action.memory_writes(state, record):
+        memory_writes = resolve_memory_writes(action_spec["execution"]["handler"])
+        for spec in memory_writes(state, record):
             write_episode(round_num=round_number, **spec)
     except Exception as exc:
         print(f"  [memory write skipped: {exc}]")
@@ -143,6 +227,23 @@ def write_fact_memory_events(state, round_number):
         from roles.roles import fact_memory_events
 
         for spec in fact_memory_events(state["fluents"], round_number):
+            write_episode(round_num=round_number, **spec)
+    except Exception as exc:
+        print(f"  [memory write skipped: {exc}]")
+
+
+def write_event_memory_episodes(state, round_number):
+    """Like write_fact_memory_events() but for engine.institution.events —
+    point-in-time occurrences (an object mutation, a one-off announcement)
+    rather than a fluent's own open/close narration. Same once-per-round,
+    after-every-action timing, for the same reason."""
+    if not os.environ.get("NEO4J_URI"):
+        return
+    try:
+        from engine.memory.write import write_episode
+        from engine.institution.events import event_memory_specs
+
+        for spec in event_memory_specs(state["events"], round_number):
             write_episode(round_num=round_number, **spec)
     except Exception as exc:
         print(f"  [memory write skipped: {exc}]")
@@ -549,24 +650,30 @@ def norm_implementation_compile_errors():
 
 
 def norm_implementation_runtime_errors():
-    # Actually runs HarvestAction against fabricated state (no real LLM
-    # call, monkeypatched fisher response) — once using whatever
-    # config.json currently activates, then once per registered norm type
-    # standalone with generic params, so a type that's never wired into
-    # config still gets exercised. Also structurally validates every new
-    # actions/*.py file. Run in a fresh subprocess since this happens
-    # mid-round, before reload_project_modules() would next pick up
-    # whatever this round just changed on disk.
+    # Actually runs the harvest action through the new declarative
+    # ActionContext/ActionRuntime (no real LLM call, monkeypatched fisher
+    # response) — once using whatever config.json currently activates,
+    # then once per registered norm type standalone with generic params,
+    # so a type that's never wired into config still gets exercised. Also
+    # structurally validates every new state/actions/*.json spec (its
+    # execution.handler must resolve) and every state/object_types/*.json
+    # type (its optional custom_handler, if any, must resolve). Run in a
+    # fresh subprocess since this happens mid-round, before
+    # reload_project_modules() would next pick up whatever this round just
+    # changed on disk.
     script = (
-        "import sys, json\n"
+        "import sys, json, os\n"
         "sys.path.insert(0, '.')\n"
-        "import actions.harvest as harvest_module\n"
+        "import engine.llm_agents as llm_agents_module\n"
+        "from engine.institution.context import ActionContext\n"
+        "from engine.institution.runtime import resolve_handler\n"
+        "import actions.handlers.harvest as harvest_handler\n"
         "from engine.norms.registry import NORM_TYPES\n"
         "from engine.norms.context import HarvestContext\n"
         "\n"
         "def _fake_call_fisher_agent(agent_id, round_number, action_name, **fields):\n"
         "    return {'effort': 0.5, 'reasoning': 'orchestrator smoke test'}\n"
-        "harvest_module.call_fisher_agent = _fake_call_fisher_agent\n"
+        "llm_agents_module.call_fisher_agent = _fake_call_fisher_agent\n"
         "\n"
         "config = json.loads(open('state/config.json').read())\n"
         "state = {\n"
@@ -577,9 +684,12 @@ def norm_implementation_runtime_errors():
         "        'agent_0': {'name': 'Smoke0', 'personality_traits': ''},\n"
         "        'agent_1': {'name': 'Smoke1', 'personality_traits': ''},\n"
         "    },\n"
+        "    'object_types': {},\n"
+        "    'objects': [],\n"
         "    'round_number': 1,\n"
         "}\n"
-        "harvest_module.ACTION.run(state)\n"
+        "ctx = ActionContext.build({'name': 'harvest'}, state, 1)\n"
+        "harvest_handler.run(ctx)\n"
         "\n"
         "context = HarvestContext.from_state({\n"
         "    'config': {}, 'fluents': [], 'runtime': {'stock_kg': 200.0},\n"
@@ -601,27 +711,47 @@ def norm_implementation_runtime_errors():
         "    except Exception as exc:\n"
         "        errors.append(f'{type_name}: {type(exc).__name__}: {exc}')\n"
         "\n"
-        "import importlib, os\n"
-        "from engine.action_base import Action\n"
         "protected_action_names = {'harvest', 'propose', 'critique', 'vote', 'discuss'}\n"
-        "schedule = json.loads(open('state/schedule.json').read())\n"
-        "for py_file in sorted(os.listdir('actions')):\n"
-        "    if not py_file.endswith('.py') or py_file == '__init__.py':\n"
+        "institution = json.loads(open('state/institution.json').read())\n"
+        "for json_file in sorted(os.listdir('state/actions')):\n"
+        "    if not json_file.endswith('.json'):\n"
         "        continue\n"
-        "    stem = py_file[:-3]\n"
+        "    stem = json_file[:-len('.json')]\n"
         "    if stem in protected_action_names:\n"
         "        continue\n"
         "    try:\n"
-        "        module = importlib.import_module(f'actions.{stem}')\n"
-        "        action = getattr(module, 'ACTION', None)\n"
-        "        if not isinstance(action, Action):\n"
-        "            raise TypeError(f'actions.{stem} has no module-level ACTION instance of engine.action_base.Action')\n"
-        "        if action.name != stem:\n"
-        "            raise ValueError(f'actions.{stem}.ACTION.name is {action.name!r}, must match the filename stem {stem!r}')\n"
-        "        if stem not in schedule:\n"
-        "            raise ValueError(f'actions.{stem} exists but has no state/schedule.json entry')\n"
+        "        spec = json.loads(open(f'state/actions/{json_file}').read())\n"
+        "        if spec.get('name') != stem:\n"
+        "            raise ValueError(\n"
+        "                f\"state/actions/{json_file}'s name is {spec.get('name')!r}, \"\n"
+        "                f'must match the filename stem {stem!r}'\n"
+        "            )\n"
+        "        if stem not in institution.get('actions', {}):\n"
+        "            raise ValueError(f'state/actions/{json_file} exists but has no state/institution.json entry')\n"
+        "        resolve_handler(spec['execution']['handler'])\n"
         "    except Exception as exc:\n"
-        "        errors.append(f'actions/{py_file}: {type(exc).__name__}: {exc}')\n"
+        "        errors.append(f'state/actions/{json_file}: {type(exc).__name__}: {exc}')\n"
+        "\n"
+        "object_types_dir = 'state/object_types'\n"
+        "if os.path.isdir(object_types_dir):\n"
+        "    for json_file in sorted(os.listdir(object_types_dir)):\n"
+        "        if not json_file.endswith('.json'):\n"
+        "            continue\n"
+        "        try:\n"
+        "            spec = json.loads(open(f'{object_types_dir}/{json_file}').read())\n"
+        "            if not spec.get('type_name'):\n"
+        "                raise ValueError('missing type_name')\n"
+        "            custom_handler = spec.get('custom_handler')\n"
+        "            if custom_handler:\n"
+        "                import objects.handlers as handlers_package\n"
+        "                from engine.institution.registry import discover_handlers\n"
+        "                if custom_handler not in discover_handlers(handlers_package):\n"
+        "                    raise ValueError(\n"
+        "                        f'custom_handler {custom_handler!r} not found under objects/handlers/'\n"
+        "                    )\n"
+        "        except Exception as exc:\n"
+        "            errors.append(f'state/object_types/{json_file}: {type(exc).__name__}: {exc}')\n"
+        "\n"
         "if errors:\n"
         "    print('\\n'.join(errors))\n"
         "    sys.exit(1)\n"
@@ -636,18 +766,22 @@ def norm_implementation_runtime_errors():
     if check.returncode != 0:
         detail = check.stdout.strip() or check.stderr.strip()
         return (
-            "Harvest runtime check (active config + every registered norm type + "
-            f"every new actions/*.py file's structural validity):\n{detail}"
+            "Institution runtime check (active config + every registered norm type + "
+            "every new state/actions/*.json spec's execution.handler + every "
+            f"state/object_types/*.json type's custom_handler, if any):\n{detail}"
         )
     return None
 
 
 def _actions_protected_as_of_head():
-    """Every action file state/institution.json listed as of HEAD (before
-    this round's own edits) — dynamically extends PROTECTED_PATHS so
-    "additive only" covers every action any round has ever created, not
-    just the original fixed set. Returns [] if institution.json doesn't
-    exist at HEAD or fails to parse."""
+    """Every action's own spec file, and its handler file (if it names one
+    that isn't a builtin), as of HEAD (before this round's own edits) —
+    dynamically extends PROTECTED_PATHS so "additive only" covers every
+    action any round has ever created, not just the original fixed set.
+    Returns [] if institution.json doesn't exist at HEAD or fails to
+    parse. Including a builtin handler's own (nonexistent) derived path is
+    harmless — `git diff` against a pathspec that never existed at either
+    end of the diff simply reports nothing for it."""
     result = subprocess.run(
         ["git", "show", "HEAD:state/institution.json"],
         cwd=ROOT, capture_output=True, text=True,
@@ -658,7 +792,24 @@ def _actions_protected_as_of_head():
         institution = json.loads(result.stdout)
     except json.JSONDecodeError:
         return []
-    return [entry["file"] for entry in institution.get("actions", {}).values() if "file" in entry]
+
+    protected = []
+    for name, entry in institution.get("actions", {}).items():
+        spec_path = entry.get("spec") or f"state/actions/{name}.json"
+        protected.append(spec_path)
+        spec_result = subprocess.run(
+            ["git", "show", f"HEAD:{spec_path}"], cwd=ROOT, capture_output=True, text=True,
+        )
+        if spec_result.returncode != 0:
+            continue
+        try:
+            spec = json.loads(spec_result.stdout)
+        except json.JSONDecodeError:
+            continue
+        handler = spec.get("execution", {}).get("handler")
+        if handler:
+            protected.append(f"actions/handlers/{handler}.py")
+    return protected
 
 
 def norm_implementation_protected_path_violations():
@@ -679,11 +830,17 @@ def norm_implementation_protected_path_violations():
 
 
 def norm_implementation_institution_errors():
-    """Drift check between state/institution.json and reality: an action on
-    disk with no institution.json entry, or vice versa, or a norm_types
-    entry whose owner file doesn't exist — any of these means
-    institution.json can no longer be trusted as "the current institution"
-    for next round's understanding step."""
+    """Drift check between state/institution.json and reality: an action or
+    object type on disk with no institution.json entry, or vice versa, or
+    a norm_types/object_types entry whose owner file doesn't exist — any
+    of these means institution.json can no longer be trusted as "the
+    current institution" for next round's understanding step.
+
+    Does NOT check that a declared action has a state/schedule.json entry
+    — that's now structurally guaranteed by construction
+    (compile_and_write_schedule() builds schedule.json directly from this
+    same institution.json["actions"] dict, so there's no longer a way for
+    the two to disagree)."""
     institution_path = ROOT / "state" / "institution.json"
     if not institution_path.is_file():
         return ["state/institution.json is missing"]
@@ -692,36 +849,46 @@ def norm_implementation_institution_errors():
     except json.JSONDecodeError:
         return []  # already reported by norm_implementation_compile_errors()'s generic JSON check
 
-    schedule = json.loads((ROOT / "state" / "schedule.json").read_text())
     protected_action_names = {"harvest", "propose", "critique", "vote", "discuss"}
-    on_disk = {
-        p.stem for p in (ROOT / "actions").glob("*.py")
-        if p.stem != "__init__" and p.stem not in protected_action_names
+    on_disk_actions = {
+        p.stem for p in (ROOT / "state" / "actions").glob("*.json")
+        if p.stem not in protected_action_names
     }
-    declared = {
+    declared_actions = {
         name for name, entry in institution.get("actions", {}).items()
         if not entry.get("protected")
     }
 
     errors = []
-    for name in sorted(on_disk - declared):
-        errors.append(f"actions/{name}.py exists but has no state/institution.json entry")
-    for name in sorted(declared - on_disk):
-        errors.append(f"state/institution.json lists action {name!r} but actions/{name}.py doesn't exist")
-    for name in sorted(declared & on_disk):
-        if name not in schedule:
-            errors.append(f"state/institution.json lists action {name!r} but state/schedule.json has no entry for it")
+    for name in sorted(on_disk_actions - declared_actions):
+        errors.append(f"state/actions/{name}.json exists but has no state/institution.json entry")
+    for name in sorted(declared_actions - on_disk_actions):
+        errors.append(f"state/institution.json lists action {name!r} but state/actions/{name}.json doesn't exist")
 
-    # Same drift-check pattern for norm_types: only checks path existence,
-    # not that the file's own type_name matches — that stronger check is
-    # norm_implementation_orphaned_norm_errors() below.
-    for name, entry in institution.get("norm_types", {}).items():
-        owner = entry.get("owner")
-        if owner and not (ROOT / owner).is_file():
-            errors.append(
-                f"state/institution.json norm_types[{name!r}] names owner "
-                f"{owner!r} but that file doesn't exist"
-            )
+    # Same symmetric drift check for object types.
+    object_types_dir = ROOT / "state" / "object_types"
+    on_disk_object_types = (
+        {p.stem for p in object_types_dir.glob("*.json")} if object_types_dir.is_dir() else set()
+    )
+    declared_object_types = set(institution.get("object_types", {}))
+    for name in sorted(on_disk_object_types - declared_object_types):
+        errors.append(f"state/object_types/{name}.json exists but has no state/institution.json entry")
+    for name in sorted(declared_object_types - on_disk_object_types):
+        errors.append(f"state/institution.json lists object type {name!r} but state/object_types/{name}.json doesn't exist")
+
+    # Same drift-check pattern for norm_types/object_types: only checks
+    # path existence, not that the file's own type_name matches — that
+    # stronger check is norm_implementation_orphaned_norm_errors() below
+    # (norm_types only, for now — see CLAUDE.md-equivalent notes on
+    # object-type orphan checking being deferred).
+    for catalog_key in ("norm_types", "object_types"):
+        for name, entry in institution.get(catalog_key, {}).items():
+            owner = entry.get("owner")
+            if owner and not (ROOT / owner).is_file():
+                errors.append(
+                    f"state/institution.json {catalog_key}[{name!r}] names owner "
+                    f"{owner!r} but that file doesn't exist"
+                )
     return errors
 
 
@@ -943,6 +1110,45 @@ def _norm_activation_summary():
     )
 
 
+def record_institution_changes(round_number):
+    """Diffs state/institution.json as of HEAD against the working tree
+    (after a COMPLIANT round's own edits) via
+    engine.institution.history.diff_institution(), and — only if that
+    finds something structural — bumps institution.json's own "version"/
+    "updated_at_round" fields and appends one line to
+    state/institution_history.jsonl recording exactly what changed. This
+    is the queryable "what changed and when" record
+    engine.institution.history itself only computes; a purely parametric
+    round (one that never touched institution.json's own catalogs) leaves
+    both untouched. Called only from the COMPLIANT branch below — a
+    discarded round's institution.json never reaches HEAD, so there's
+    nothing to record for it."""
+    institution_path = ROOT / "state" / "institution.json"
+    head_result = subprocess.run(
+        ["git", "show", "HEAD:state/institution.json"], cwd=ROOT, capture_output=True, text=True,
+    )
+    try:
+        old = json.loads(head_result.stdout) if head_result.returncode == 0 else {}
+    except json.JSONDecodeError:
+        old = {}
+    new = json.loads(institution_path.read_text())
+
+    changes = diff_institution(old, new)
+    if not changes:
+        return
+
+    new_version = old.get("version", 0) + 1
+    new["version"] = new_version
+    new["updated_at_round"] = round_number
+    institution_path.write_text(json.dumps(new, indent=2) + "\n")
+
+    history_path = ROOT / "state" / "institution_history.jsonl"
+    with history_path.open("a") as f:
+        f.write(json.dumps({"version": new_version, "round": round_number, "changes": changes}) + "\n")
+
+    print(f"  Institution version bumped to {new_version} ({len(changes)} structural change(s) this round).")
+
+
 def stage_norm_implementation(round_number):
     """Stages (git add only, never commits) the norm-implementer's tracked
     paths; the actual `git commit` happens in commit_round() below, which
@@ -1108,6 +1314,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             return False
 
         if evaluation["result"] == "COMPLIANT":
+            record_institution_changes(round_number)
             return stage_norm_implementation(round_number)
 
         # The evaluator's own free-text report is handed back verbatim as
@@ -1151,6 +1358,17 @@ ROUND_ARTIFACT_PATHS = [
     "norm.txt",
     "plots",
     "state/runtime.json",
+    # A compiled artifact now (engine.institution.scheduler.compile_schedule(),
+    # regenerated every round by compile_and_write_schedule()), never
+    # hand-edited — committed like any other simulation-derived output,
+    # never reverted on a discard (it's recomputed fresh next round from
+    # whatever institution.json/state/actions survive the discard anyway).
+    "state/schedule.json",
+    # Written by record_institution_changes(), only ever after a COMPLIANT
+    # round — orchestrator-owned, never a norm-implementer edit target
+    # (institution.json's own content is; the version/history bookkeeping
+    # derived from it isn't).
+    "state/institution_history.jsonl",
     # constants/agents.json is deliberately NOT here — it's fixed for the
     # life of a run, only generate_agents.py rewrites it, so it doesn't
     # need re-staging every round.
@@ -1300,21 +1518,33 @@ def knowledge_graph_matches_head():
 
 def reload_project_modules():
     """Python caches imported modules for the life of the process — without
-    this, a norm-implementer edit to roles/*.py, norms/*.py, or
-    actions/*.py never takes effect within a single continuous run.
-    engine.norms.registry's NORM_TYPES is computed once at first import, so
-    reloading norms/*.py alone doesn't re-scan it — reload order matters:
-    roles/norms first, then engine.norms.registry (rebinds NORM_TYPES),
-    then engine.norms.engine (rebinds its own import of load_norms), then
-    actions (rebinds its own import of NormEngine)."""
+    this, a norm-implementer edit to roles/*.py, norms/*.py,
+    actions/handlers/*.py, or objects/handlers/*.py never takes effect
+    within a single continuous run. engine.norms.registry's NORM_TYPES is
+    computed once at first import, so reloading norms/*.py alone doesn't
+    re-scan it — reload order matters: roles/norms first, then
+    engine.norms.registry (rebinds NORM_TYPES), then engine.norms.engine
+    (rebinds its own import of load_norms), then actions/objects (rebinds
+    their own imports).
+
+    engine/institution/*.py itself is deliberately never reloaded here —
+    it's off-limits to the norm-implementer by construction (nothing in
+    it is on any tracked-path list), so nothing there can change mid-run.
+    Action/object *handler* resolution (engine.institution.runtime.
+    resolve_handler(), ObjectRuntime.custom()'s discover_handlers() call)
+    is always a fresh importlib.import_module() rather than an
+    eagerly-cached registry, precisely so those two pluggable kinds don't
+    need their own equivalent of NORM_TYPES's re-scan step — reloading
+    actions.handlers.*/objects.handlers.* below is enough on its own."""
     for prefix in ("roles", "norms"):
         for name in sorted(n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")):
             importlib.reload(sys.modules[name])
     for module_name in ("engine.norms.registry", "engine.norms.engine"):
         if module_name in sys.modules:
             importlib.reload(sys.modules[module_name])
-    for name in sorted(n for n in list(sys.modules) if n == "actions" or n.startswith("actions.")):
-        importlib.reload(sys.modules[name])
+    for prefix in ("actions", "objects"):
+        for name in sorted(n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")):
+            importlib.reload(sys.modules[name])
 
 
 def run_cycle(round_number):
@@ -1324,7 +1554,7 @@ def run_cycle(round_number):
     print(f"\n=== Round {round_number} ===")
     reload_project_modules()
     state = load_state(round_number)
-    schedule = load_schedule()
+    schedule = compile_and_write_schedule()
     already_ran = {r["action"] for r in state["runtime"]["rounds"] if r["round"] == round_number}
 
     for action_name, gate in schedule.items():
@@ -1336,12 +1566,13 @@ def run_cycle(round_number):
             continue
 
         print(f"\n--- Round {round_number}: {action_name} ---")
-        action_module = importlib.import_module(f"actions.{action_name}")
-        record = action_module.ACTION.run(state)
+        action_spec = load_action_spec(action_name)
+        record = ActionRuntime.run_action(action_spec, state, round_number)
         save_runtime(state)
         save_fluents(state)
+        save_events(state)
         print(json.dumps(record, indent=2))
-        write_memory_episodes(action_module.ACTION, state, record, round_number)
+        write_memory_episodes(action_spec, state, record, round_number)
 
         if state["runtime"]["stock_kg"] <= COLLAPSE_THRESHOLD_KG:
             print(
@@ -1355,6 +1586,7 @@ def run_cycle(round_number):
             return False
 
     write_fact_memory_events(state, round_number)
+    write_event_memory_episodes(state, round_number)
 
     winning_proposal = state.get("adopted_norm") or find_adopted_norm(state["runtime"], round_number)
     norm_staged = False
@@ -1425,7 +1657,7 @@ def main():
 
     runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
     fluents = json.loads((ROOT / "state" / "fluents.json").read_text())
-    schedule = load_schedule()
+    schedule = compile_and_write_schedule()
 
     last_round = runtime["round"]
     if last_round > 0 and not round_is_complete(runtime, fluents, schedule, last_round):

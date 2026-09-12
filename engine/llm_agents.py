@@ -64,6 +64,7 @@ FISHER_SYSTEM_PROMPT = _load_fisher_system_prompt()
 def render_persona(agent_id, round_number, action_name):
     agents = json.loads((ROOT / "constants" / "agents.json").read_text())
     fluents = json.loads((ROOT / "state" / "fluents.json").read_text())
+    events = json.loads((ROOT / "state" / "events.json").read_text())
     runtime = json.loads((ROOT / "state" / "runtime.json").read_text())
     config = json.loads((ROOT / "state" / "config.json").read_text())
     agent = agents[agent_id]
@@ -79,7 +80,7 @@ def render_persona(agent_id, round_number, action_name):
     history = render_history(
         agent_id, round_number, runtime, agents, config.get("history_window_rounds", 5)
     )
-    notices = render_notices(agent_id, round_number, fluents)
+    notices = render_notices(agent_id, round_number, fluents, events)
     relevant_memories = render_relevant_memories(agent_id, action_name, round_number)
 
     return persona_template.format(
@@ -98,8 +99,8 @@ def render_survival_status(agent_id, runtime):
     """Fishing isn't just for profit — every fisher owes a fixed cost just
     to feed themselves each trip, tracked as a running balance that goes
     back to round 0, not reset each round. Ties directly to the mechanic in
-    actions/harvest.py: apply_consumption()/is_dead() decide the same
-    balance this renders. Deliberately repeated on every action's prompt,
+    actions/handlers/harvest.py: apply_consumption()/is_dead() decide the
+    same balance this renders. Deliberately repeated on every action's prompt,
     not just harvest's, matching how Gupta et al.'s CPRAgent restates this
     same survival framing in every one of its own prompt templates
     (strategy/punishment/norm-update/vote), not only the harvest one."""
@@ -111,19 +112,27 @@ def render_survival_status(agent_id, runtime):
     )
 
 
-def render_notices(agent_id, round_number, fluents):
-    """Everything currently true about this agent (or the community) that
-    some mechanism wanted surfaced — bans, obligations, statuses, whatever a
+def render_notices(agent_id, round_number, fluents, events=()):
+    """Everything currently true about this agent (or the community), plus
+    anything that happened exactly this round, that some mechanism wanted
+    surfaced — bans, obligations, statuses, an object mutation, whatever a
     future norm invents. Never interprets a raw state value itself: it only
-    concatenates the already-phrased `narration` text on each currently-
-    active fluent visible_facts() returns, which the mechanism that wrote
-    the fact authored at the moment it happened (mirroring how
-    actions/*.py's memory_writes() already hands the memory layer
-    already-phrased text rather than raw fields)."""
+    concatenates already-phrased text — a currently-active fluent's own
+    `narration` (visible_facts()) and a point-in-time event's own `text`
+    (engine.institution.events.visible_events()) — which the mechanism
+    that wrote it authored at the moment it happened (mirroring how
+    actions/handlers/*.py's memory_writes() already hands the memory layer
+    already-phrased text rather than raw fields). `events` defaults to ()
+    so a caller that hasn't been updated to pass it yet degrades to
+    fact-only notices rather than raising."""
+    from engine.institution.events import visible_events
+
     facts = visible_facts(fluents, agent_id, round_number)
-    if not facts:
+    live_events = visible_events(events, agent_id, round_number)
+    texts = [fact["narration"] for fact in facts] + [event["text"] for event in live_events]
+    if not texts:
         return "(nothing notable comes to mind)"
-    return " ".join(fact["narration"] for fact in facts)
+    return " ".join(texts)
 
 
 def render_relevant_memories(agent_id, action_name, round_number):
@@ -163,7 +172,7 @@ def _harvest_shortfall_clause(mine_record, entry):
     produced with nothing else in play. If the agent wasn't even asked that
     round (a live ban, via some norm's own is_eligible() hook — not
     something inferable from numbers alone), "participated": False is set
-    explicitly by actions/harvest.py; anything else defaults to
+    explicitly by actions/handlers/harvest.py; anything else defaults to
     participated.
     """
     if mine_record.get("participated") is False:

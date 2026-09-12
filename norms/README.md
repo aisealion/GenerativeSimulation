@@ -1,12 +1,14 @@
 # norms/
 
 Every per-agent constraint on harvesting — a cap, a reserve, a ban — is a
-plugin here, not code inlined into `actions/harvest.py`. `actions/harvest.py`
-implements *how harvesting happens* (physics); a norm implements *a
-constraint around it*. A new adopted norm becomes either a config change
-activating an *already-created* plugin from an earlier round, or a new
-small plugin file — never a rewrite of `actions/harvest.py` itself, which
-no longer contains any norm-specific logic at all.
+plugin here, not code inlined into `actions/handlers/harvest.py`.
+`actions/handlers/harvest.py` implements *how harvesting happens*
+(physics); a norm implements *a constraint around it*. A new adopted norm
+becomes either a config change activating an *already-created* plugin
+from an earlier round, or a new small plugin file — never a rewrite of
+`actions/handlers/harvest.py` itself (permanently protected — see
+`state/actions/harvest.json`/`state/institution.json`), which contains no
+norm-specific logic at all.
 
 **This directory ships empty of plugins by design** — no seed/example
 `Norm` implementations, on purpose (removed 2026-09-04; see CLAUDE.md).
@@ -21,8 +23,8 @@ starts pre-populated.
 
 ## How it's wired together
 
-Every round, `HarvestAction.run()` builds one `HarvestContext`
-(`engine/norms/context.py`) and one `NormEngine`
+Every round, `actions/handlers/harvest.py`'s `run(ctx)` builds one
+`HarvestContext` (`engine/norms/context.py`) and one `NormEngine`
 (`engine/norms/engine.py`) from `state["config"]["norms"]`, then for each
 alive agent:
 

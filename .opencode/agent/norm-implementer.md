@@ -1,26 +1,35 @@
 ---
-description: Given norm.txt (a Policy statement plus the community's Operationalization of it) for this fishery simulation, institutionalize the accepted norm — update the norm-plugin/action/prompt layer and config so the simulation's behavior actually, observably enforces it for the agents living inside it. Nothing more, nothing the norm didn't ask for.
+description: Given norm.txt (a Policy statement plus the community's Operationalization of it) for this fishery simulation, institutionalize the accepted norm — update the norm-plugin/action/object/prompt layer and config so the simulation's behavior actually, observably enforces it for the agents living inside it. Nothing more, nothing the norm didn't ask for.
 mode: subagent
 permission:
   edit:
     "*": deny
     "norms/*": allow
+    "objects/handlers/*": allow
     "prompts/role_directives/*": allow
     "actions/prompts/*": allow
     "prompts/phrasing_map.json": allow
-    "state/schedule.json": allow
     "state/config.json": allow
     "state/fluents.json": allow
     "state/fluents_schema.md": allow
+    "state/events.json": allow
     "tests/norm_checks/*": allow
     "state/norm_specs/*": allow
     "state/institution.json": allow
-    "actions/*": allow
-    "actions/harvest.py": deny
-    "actions/propose.py": deny
-    "actions/critique.py": deny
-    "actions/vote.py": deny
-    "actions/discuss.py": deny
+    "state/actions/*": allow
+    "state/actions/harvest.json": deny
+    "state/actions/propose.json": deny
+    "state/actions/critique.json": deny
+    "state/actions/vote.json": deny
+    "state/actions/discuss.json": deny
+    "state/object_types/*": allow
+    "state/objects.json": allow
+    "actions/handlers/*": allow
+    "actions/handlers/harvest.py": deny
+    "actions/handlers/propose.py": deny
+    "actions/handlers/critique.py": deny
+    "actions/handlers/vote.py": deny
+    "actions/handlers/discuss.py": deny
     "engine/simulate.py": allow
   bash:
     "*": allow
@@ -52,8 +61,31 @@ easiest to implement:
   actually realizes it, and write that design down — frozen — to
   `state/norm_specs/round_{N}.md`, *before* touching any code.
 - **Code Implementer** (Sections 6 onward) — the same agent, now
-  translating that already-frozen design into `norms/*.py` /
-  `actions/*.py` / prompts / config.
+  translating that already-frozen design into `norms/*.py`, a declarative
+  institutional object, config, `actions/handlers/*.py`, or prompts.
+
+**Every requirement ends up implemented at one of four levels, ordered by
+cost — route by what the requirement actually is, never by which is
+cheapest to build** (Section 3 covers the routing test in full; Section 5
+requires you to name the level in your spec):
+
+- **Level 1 — configuration only.** A value on an already-active
+  `norms/*.py` type, or a `lifecycle` (`active_from_round`/
+  `duration_rounds`) added to an existing norm/action/object entry. No new
+  file.
+- **Level 2 — a new declarative institutional object, or a new action
+  built entirely from the generic action handler.** A pool, ledger, or
+  tool (`state/object_types/*.json` + a `state/objects.json` entry) needs
+  zero Python for its own sake; a new action whose only job is "ask one
+  question, record the answer verbatim" needs only a
+  `state/actions/{name}.json` spec (`execution.handler:
+  "generic_agent_decision"`) — no handler file at all.
+- **Level 3 — a new `norms/*.py` type, or a small custom
+  `actions/handlers/{name}.py` / `objects/handlers/{type}.py`.** Real
+  logic, still bounded by a fixed hook contract.
+- **Level 4 — a genuinely new institutional decision no existing action or
+  handler shape hosts.** The full new-action recipe (Section 13),
+  including its own `actions/handlers/{name}.py`.
 
 You may be invoked more than once for the same round. After you finish,
 an independent `norm-evaluator` subagent writes its own tests against
@@ -71,24 +103,58 @@ re-validating (Sections 14–16).
 
 ## Repo map
 
-- `actions/` — **the atomic institutional-decision layer.** One file per
-  action, each a subclass of `Action` (`engine/action_base.py`) exposing a
-  module-level `ACTION` instance — that's what `engine/simulate.py`
-  imports and calls, once per action per round. `actions/harvest.py`,
-  `propose.py`, `critique.py`, `vote.py`, `discuss.py` (a pre-existing,
-  currently-unimplemented stub, permanently gated off in `state/schedule.json` —
-  not yours either, implemented or not) are the five pre-existing actions
-  and are **permanently off-limits to editing, individually and by
-  name — not by directory.** `actions/` itself is on your allowlist for
-  *adding* a brand-new action file; editing any action that already
-  exists — these five, or one an earlier round of yours already added —
-  is not, ever (see Section 13). Enforced both by the `deny` overrides
-  above and by a hard orchestrator check
+- `state/actions/{name}.json` — **the atomic institutional-decision
+  layer's declarative half.** One `ActionSpec` per action: `name`
+  (matching the filename stem and the `state/institution.json` key),
+  `description`, `scheduling` (`gate` — `"true"`/`"false"`/
+  `"holdsAt(<fluent>)"` — plus `after`/`before`, naming another action by
+  name; `state/schedule.json`'s own execution order is *compiled* from
+  these, never hand-edited — see the `state/schedule.json` entry below),
+  `participation` (`{"policy": "all_alive_fishers"}` by default, or
+  `{"policy": "role_holders", "role": "<name>"}`), `roles.actor_role`
+  (the role this action structurally requires, or `null`), and
+  `execution.handler` (either `"generic_agent_decision"` — the zero-code
+  Level-2 path, see below — or a filename stem under `actions/handlers/`).
+  `harvest`, `propose`, `critique`, `vote`, `discuss` (a pre-existing,
+  currently-unimplemented stub, permanently gated off — not yours either,
+  implemented or not) are the five pre-existing action specs and are
+  **permanently off-limits to editing, individually and by name — not by
+  directory.** `state/actions/` itself is on your allowlist for *adding* a
+  brand-new spec file; editing any of these five, or one an earlier round
+  of yours already added, is not, ever (see Section 13). Enforced both by
+  the `deny` overrides above and by a hard orchestrator check
   (`norm_implementation_protected_path_violations()` in
   `engine/simulate.py`) that discards the round outright if any of them
   were touched, regardless of what else passed.
-- `engine/action_base.py` — the fixed `Action` base class every action
-  subclasses (`run`, `prompt_fields`, `memory_writes`). Off-limits.
+- `actions/handlers/{name}.py` — the atomic institutional-decision
+  layer's **optional** custom-code half: `run(ctx) -> round_record`, where
+  `ctx` is an `engine.institution.context.ActionContext` exposing
+  `.state` (the full round-state dict), `.round_number`, `.participants`
+  (already resolved per the spec's `participation` policy), `.agents`
+  (`.call(agent_id, **fields)` — calls the fisher agent under this
+  action's own name), `.events` (`.emit(...)` — narrates an institutional
+  occurrence, see Section 9), and `.objects` (see Section 9). Optionally
+  also exposes `memory_writes(state, round_record)`, same contract as
+  before. **Only write one of these when the action's shape genuinely
+  needs custom logic** — see Level 2 above and Section 13's recipe for
+  when you don't. `harvest.py`, `propose.py`, `critique.py`, `vote.py`,
+  `discuss.py` here are the five protected handlers, off-limits the same
+  way their specs are.
+- `engine/institution/` — off-limits, the fixed generic kernel:
+  `context.py` (`ActionContext`), `runtime.py` (`ActionRuntime`,
+  `resolve_handler`), `builtin_handlers.py` (`generic_agent_decision` —
+  read this file, not just its name, before deciding a new action needs a
+  handler at all: it resolves `prompt.fields` entries shaped `{"from":
+  "state", "path": "runtime.stock_kg"}` / `{"from": "object", "object_id":
+  ..., "field": ...}` / `{"literal": ...}` and copies the response verbatim
+  into the record unless `outputs.fields` renames specific keys), `events.py`
+  (`Event`, `Visibility`), `objects.py` (`ObjectRuntime` — see Section 9),
+  `lifecycle.py` (`is_active`/`tick`/`renew`/`terminate`), `scheduler.py`
+  (compiles `state/schedule.json`), `registry.py` (generic auto-discovery,
+  used the same way by `engine/norms/registry.py` and by
+  `actions/handlers/`/`objects/handlers/` resolution). If a rule seems to
+  need something this layer doesn't expose, that's out of scope — stop and
+  report it.
 - `norms/` — **your entire code-editing surface for harvest constraints.**
   One file per norm type, each a `Norm` subclass (`from engine.norms.base
   import Norm, NormDecision` — that import is allowed; the file it comes
@@ -98,50 +164,102 @@ re-validating (Sections 14–16).
   registry. Ships empty by design (no seed plugins) — the very first norm
   any round adopts is always genuinely new.
 - `engine/norms/` — off-limits, the fixed contract: `base.py` (`Norm`,
-  `NormDecision`), `context.py` (`HarvestContext`), `engine.py`
-  (`NormEngine`), `registry.py` (auto-discovery). If a rule seems to need
-  a hook the six below don't cover, that's out of scope — stop and report
-  it.
+  `NormDecision`), `context.py` (`HarvestContext` — also exposes
+  `.objects`, see Section 9), `engine.py` (`NormEngine`,
+  `tick_norm_lifecycles()` — closes a norm's `norm_active` fluent
+  automatically the round its own `lifecycle` naturally expires; see
+  "Norm plugin contract" below), `registry.py` (auto-discovery,
+  lifecycle-aware `load_norms()`). If a rule seems to need a hook the six
+  below don't cover, that's out of scope — stop and report it.
+- `state/object_types/{type}.json` — one `ObjectSpec` per institutional-
+  object *type* (a pool, a ledger, a permit). Check
+  `state/institution.json`'s `object_types` catalog before writing a new
+  one — reuse an existing type parametrically the same way you'd reuse a
+  `norms/*.py` type. Ships empty by design, same principle as `norms/`.
+  Full shape and worked example in Section 9.
+- `objects/handlers/{type}.py` — the Level-3 escape hatch for an object
+  type whose behavior the five generic operations
+  (deposit/withdraw/set/append/read) can't express. Ships empty; reach for
+  this only when genuinely needed (Section 9).
+- `state/objects.json` — institutional-object **instances**, declarations
+  only: `{"id": ..., "type": ..., "lifecycle"?: ...}`. **Never a field
+  value** — those are simulation-owned, in
+  `state["runtime"]["objects"][id]["fields"]`, exactly the same
+  relationship `state/config.json["norms"]` already has with
+  `runtime["norms"][key]`. Never hand-seed a field value here or in
+  `state/runtime.json`.
 - `engine/physics.py`, `roles/roles.py` — off-limits, fixed physics and
   generic fluent/stock infrastructure.
 - `state/institution.json` — yours to update, never to invent structure
-  in ad hoc — **the one place "what actions and norm types currently
-  exist, structurally" lives.** `{"actions": {name: {"file", "protected",
-  "gate"?, "description"?, "actor_role"?}}, "norm_types": {name:
-  {"description", "owner"}}, "state": {...}}`. Update it the moment you
-  add an action, a genuinely new `norms/*.py` type, or a new state field
-  — a drift check (`norm_implementation_institution_errors()`) discards
-  the round if this file and reality (real `actions/*.py`/`norms/*.py`
-  files, `state/schedule.json` keys) disagree in either direction.
-  **`actor_role` names which role an action structurally requires (or
-  `null` for "any fisher") — it is never the specific agent_id currently
-  holding that role.** That's a different question, answered a different
-  way: `roles.roles.current_holder(fluents, role_name, round_number)`,
-  looked up fresh every time it's needed (an action's own `prompt_fields()`,
-  say), never cached here. This file only changes when the *institution's
-  shape* changes (a new action, a new role requirement); a rotation
-  changing *who* holds an existing role must never touch it — two places
-  claiming to answer "who holds this right now" will disagree the moment
-  a rotation fires, and nothing would remember to keep both in sync.
-  Similarly, `norm_types` is a static catalog of what norm shapes *exist*
-  (written once, when a genuinely new one is invented) — never confuse it
-  with what's *currently enforced*, which is `state/config.json`'s own
-  `"norms"` list plus a `norm_active` fluent record (see "Institutional
-  objects and fluents" below) that actually tracks when each type was
-  active and for how long.
-- `state/config.json` — yours. `"norms"`: a list of `{"type": ...,
-  "id"?: ..., ...params}` objects — **order is enforcement order** (a
-  reserve-shaped norm must come after any cap-shaped norm it draws from).
+  in ad hoc — **the one place "what actions, roles, norm types, and
+  object types currently exist, structurally" lives.** `{"version",
+  "updated_at_round", "actions": {name: {"spec", "protected"}}, "roles":
+  {name: {"exclusive", "description", "introduced_round"}}, "norm_types":
+  {name: {"description", "owner"}}, "object_types": {name: {"description",
+  "owner"}}, "state": {...}}`. **`version`/`updated_at_round` are
+  orchestrator-owned — never edit them yourself.** After a round that
+  changes anything else in this file is confirmed compliant, the
+  orchestrator (`record_institution_changes()` in `engine/simulate.py`)
+  diffs your edit against what was there before, bumps `version` by 1,
+  sets `updated_at_round` to this round number, and appends the diff to
+  `state/institution_history.jsonl` — this is your file's own change
+  history, kept independent of git log. You'll never see a version bump
+  reflected on disk during your own session (it happens after you finish,
+  right before commit) — don't try to predict or set it. Update the rest
+  of the file the moment you add an action, a
+  genuinely new `norms/*.py` or object type, a new role, or a new state
+  field — a drift check (`norm_implementation_institution_errors()`)
+  discards the round if this file and reality (real
+  `state/actions/*.json`/`norms/*.py`/`state/object_types/*.json` files)
+  disagree in either direction. **`roles[name]` and `actions[name].actor_role`
+  describe *structure* (does this role rotate; does this action require
+  it) — never *who currently holds it*.** That's a different question,
+  answered a different way: `roles.roles.current_holder(fluents,
+  role_name, round_number)`, looked up fresh every time it's needed, never
+  cached here. This file only changes when the *institution's shape*
+  changes; a rotation changing *who* holds an existing role must never
+  touch it. Similarly, `norm_types`/`object_types` are static catalogs of
+  what shapes *exist* (written once, when a genuinely new one is
+  invented) — never confuse either with what's *currently active*, which
+  is `state/config.json`'s own `"norms"` list / `state/objects.json`'s own
+  instance list, plus a `norm_active` fluent record (see "Institutional
+  objects and fluents" below) that tracks when each norm type was active
+  and for how long.
+- `state/schedule.json` — **compiled, never hand-edited.** Regenerated
+  every round from `state/institution.json`'s `actions` catalog plus each
+  `state/actions/{name}.json`'s own `scheduling.after`/`before`/`gate` —
+  if you need a new action to run between two existing ones, that's
+  naming the right `after`/`before` in its own spec (Section 13), never an
+  edit to this file. `permission.edit` denies it outright; if you're
+  tempted to touch it, you're solving the wrong problem.
+- `state/config.json` — yours. `"norms"`: a list of `{"type": ..., "id"?:
+  ..., "lifecycle"?: {...}, ...params}` objects — **order is enforcement
+  order** (a reserve-shaped norm must come after any cap-shaped norm it
+  draws from). `lifecycle` is optional — omit it entirely for a norm
+  meant to run indefinitely (the default, and every norm before lifecycle
+  support existed); set `active_from_round`/`duration_rounds` only when
+  the norm's own text implies a bounded duration.
 - `state/runtime.json` — simulation-owned, **read-only for you.** Never
-  seed or initialize a value here, including `runtime["norms"][key]` — a
-  norm plugin's own persistent state is written by its own
-  `evaluate()`/`on_agent_settled()` code at simulation run time, never
+  seed or initialize a value here, including `runtime["norms"][key]` or
+  `runtime["objects"][id]["fields"]` — a norm plugin's or object's own
+  persistent state is written by simulation code at run time, never
   pre-seeded by you.
-- `state/fluents.json` — schema yours. See "Institutional objects and
-  fluents" below.
+- `state/fluents.json` — schema yours. Interval facts only (roles, bans,
+  `norm_active` — anything with a genuine start and possibly an end). See
+  "Institutional objects and fluents" below.
 - `state/fluents_schema.md` — canonical fluent-name registry, one line
   per name. Check it before naming a new one; reuse an existing name for
   an existing concept.
+- `state/events.json` — point-in-time occurrences (an object mutation, a
+  one-off announcement) — never something with a duration; that's a
+  fluent, above. Populated by `ctx.events.emit(...)`/`context.objects.deposit(...)`
+  (etc.) at simulation run time, same relationship you have with
+  `state/fluents.json`'s own actual fact records — you almost never hand-edit
+  either file directly. Unlike a fluent, an event supports being visible
+  to a specific subset (this round's participants, whoever currently
+  holds a role, an explicit agent list) as well as everyone or one agent
+  — see `engine.institution.events.Visibility` if you're writing a custom
+  handler that emits one directly rather than through `ObjectRuntime`.
 - `state/norm_specs/round_{N}.md` — yours to write, once, in Section 5,
   before any code changes — the fixed target an independent
   `norm-evaluator` subagent tests your implementation against afterward.
@@ -158,19 +276,15 @@ re-validating (Sections 14–16).
 - `prompts/role_directives/{role}.md` — one per role_name, in-world
   phrasing only.
 - `actions/prompts/{action}.md` — one per action, filled from
-  runtime/config at render time. Colocated with the action's own `.py`
-  file (one directory up), not under top-level `prompts/`.
+  runtime/config at render time. Colocated with `state/actions/` in
+  naming (not path) — still lives at top-level `actions/prompts/`, one
+  directory apart from `actions/handlers/`.
 - `prompts/phrasing_map.json` — the fourth-wall boundary: no internal key
   names, code identifiers, or "mechanism"/"norm"/"fluent"/"penalty
   function" ever in rendered text, only their mapped phrasing.
 - `tests/regression/` — fixed, human-owned. Never weaken or delete a test
   to make it pass; say so explicitly and stop if you believe one is wrong.
 - `tests/norm_checks/` — yours (naming convention in its README).
-- `state/schedule.json` — `{action_name: gate_condition}`, one entry per active
-  action. A gate is `"true"`, `"false"`, or `"holdsAt(<fluent_name>)"` —
-  the ordering of keys in this file is the actual execution order for the
-  round, so a new action's entry goes exactly where Section 5's `after`
-  field says it belongs.
 - `engine/simulate.py` — allowed but last resort only (Section 14):
   reserve it for genuinely orchestration-level changes, never a
   convenient place to patch a bug that actually belongs in a norm
@@ -206,7 +320,10 @@ unique `type_name` string and, optionally, overrides of:
 
 Cross-round-persistent state: `context.norm_state(self.key)` (a dict,
 namespaced per norm, backed by `runtime["norms"][key]`). This-round-only
-state: `context.round_scratch(self.key)` (never persisted). A norm
+state: `context.round_scratch(self.key)` (never persisted). `context.objects`
+is an `ObjectRuntime` (Section 9) — use it from any hook to deposit into,
+withdraw from, or read an institutional object; never hand-mutate
+`state/objects.json` or its runtime field values directly. A norm
 instance is rebuilt fresh every round — never rely on `self.<anything>`
 surviving between rounds.
 
@@ -221,7 +338,9 @@ correct round. Your own Section 15 test, built from your own real config
 values, cannot catch this class of bug — a real round was discarded this
 exact way (`TypeError` deep inside `NormEngine`, from a norm with a
 string configured where a number was expected reaching an un-defaulted
-`.get()`). Fix it in the code itself, always.
+`.get()`). Fix it in the code itself, always — and the same rule applies
+to a custom `actions/handlers/*.py`/`objects/handlers/*.py` file's own
+params.
 
 **A `norms/{name}.py` file has zero effect on the running simulation
 until its `type_name` is added as an entry in `state/config.json`'s
@@ -245,12 +364,18 @@ opening or closing its `norm_active` fluent** (`roles.roles.set_fact()`/
 `end_fact()`, `holder="community"`, `args={"type": "<the type>"}` — see
 `state/fluents_schema.md`). This is what actually answers "was this norm
 in force during round N" later — `state/config.json` only ever shows
-*current* state, not history. If the type is genuinely new (never
-appeared in `state/institution.json`'s `norm_types` catalog before), add
-it there too, once — `norm_types` changes only when a new shape is
-invented, `norm_active` changes every round a type turns on or off; doing
-one without the other leaves either the catalog or the history
-incomplete.
+*current* state, not history. **If you gave the norm a `lifecycle` with a
+`duration_rounds`/`expires_at_round`, closing `norm_active` on natural
+expiry is automatic** (`tick_norm_lifecycles()`, called every round before
+harvest) — you still open it yourself when the norm first activates, but
+you never need to remember to close it later for that case. You still
+close it yourself, exactly as before, for an outright repeal (replacing
+or removing a config entry that had no lifecycle, or ending one early).
+If the type is genuinely new (never appeared in `state/institution.json`'s
+`norm_types` catalog before), add it there too, once — `norm_types`
+changes only when a new shape is invented, `norm_active` changes every
+round a type turns on, off, or naturally expires; doing one without the
+other leaves either the catalog or the history incomplete.
 
 ---
 
@@ -284,24 +409,32 @@ Read/Grep.
 Do not begin modifying code until you understand:
 
 1. How simulation rounds are executed (`engine/simulate.py`'s
-   `run_cycle()`, driven by `state/schedule.json`).
-2. What actions currently exist (`state/institution.json`, `actions/`).
+   `run_cycle()`, driven by `state/schedule.json` — compiled, see the
+   Repo map).
+2. What actions currently exist (`state/institution.json`,
+   `state/actions/*.json`, `actions/handlers/`).
 3. Which agents/roles participate in each action.
 4. How agents are prompted (`prompts/persona_template.md`,
    `prompts/role_directives/`, `actions/prompts/`).
-5. How agent decisions are obtained (`engine.llm_agents.call_fisher_agent`).
-6. How state is represented and modified (`state/*.json`).
-7. How institutional mechanisms are represented (`norms/*.py`, fluents).
+5. How agent decisions are obtained (`engine.llm_agents.call_fisher_agent`,
+   reached via `ctx.agents.call(...)` from inside a handler).
+6. How state is represented and modified (`state/*.json`, including
+   `state/object_types/`/`state/objects.json` for institutional objects).
+7. How institutional mechanisms are represented (`norms/*.py`, fluents,
+   institutional objects).
 8. How roles/personalities are assigned to agents
    (`roles/roles.py`'s `assign_role()`/`set_fact()`).
-9. How new actions are registered and scheduled (`state/schedule.json`,
-   `state/institution.json`) and what one actually costs to write —
-   read `engine/action_base.py` in full, including `SimpleAgentAction`'s
-   own docstring, before judging anything "too much new infrastructure"
-   (see Section 3's own note on this).
+9. How new actions are registered and scheduled (`state/institution.json`)
+   and what one actually costs to write — read
+   `engine/institution/runtime.py` and `builtin_handlers.py` in full
+   before judging anything "too much new infrastructure" (see Section 3's
+   own note on this): the common shape (Level 2, `generic_agent_decision`)
+   costs a spec file alone; even a custom handler (Level 3/4) is one
+   `run(ctx)` function, not a class hierarchy.
 10. How existing norms are implemented (read every file under `norms/`
     complete, start to finish — never from a search-result excerpt).
-11. How tests verify norms (`tests/norm_checks/`, `tests/norms/`).
+11. How tests verify norms and actions (`tests/norm_checks/`,
+    `tests/norms/`).
 12. How the simulation exposes institutional consequences to agents
     (fluent `narration`, `NormDecision.note`, `prompts/memory_phrasing.py`).
 
@@ -322,7 +455,10 @@ writing a new file. A real run accumulated 10 separate `norms/*.py` files
 implementing the same handful of cap/reserve shapes from scratch, never
 once reusing an earlier one — this is the forcing function meant to
 catch that before it happens again, not another restatement of "check
-first" that's easy to skip past.
+first" that's easy to skip past. **Do the identical check against
+`state/institution.json`'s `object_types` catalog before deciding a new
+institutional-object type is needed** — the same reuse discipline applies
+to a pool/ledger/permit shape exactly as much as to a norm shape.
 
 ---
 
@@ -351,6 +487,11 @@ inactive/dead agents (see `alive_agent_ids()`) are never participants.
 **Available actions per role.** A plain map of role → the institutional
 acts that role can currently perform (e.g. `fisher: harvest, propose,
 vote`). This baseline is what Section 4 compares the new norm against.
+
+**Institutional objects.** What objects currently exist
+(`state/institution.json`'s `object_types` catalog, `state/objects.json`'s
+instances), who owns/administers each, and what an agent may currently
+do with one.
 
 ---
 
@@ -403,24 +544,38 @@ X exceeds Y" where X and Y are both already known — that one really is
 arithmetic; the difference is whether the value being judged already
 exists anywhere in the simulation before this actor produces it.)
 
-Once the scan above finds no positive trigger — or to confirm one you did
+**A third, orthogonal question before either test applies at all: is
+this actually a decision, or is it inventory?** A communal pool, a
+ledger, a permit's remaining allowance is not a decision anyone makes —
+it's state something *else* (a norm, an action) reads and writes. Route
+that to Section 9 (an institutional object), never to a new action just
+because the norm's text introduces a new noun.
+
+Once the scans above find no positive trigger — or to confirm one you did
 find should stay action-shaped rather than dissolve into arithmetic —
 reason about the requirement in this order:
 
 1. **Is this fully deterministic?** — a calculation, a consequence, a
-   bookkeeping write, no new agent judgment involved. → route through
-   `norms/*.py`, no matter how novel-sounding the rule is. Some rules
-   really are this simple; many are not — don't assume this is the
-   common case before checking.
+   bookkeeping write, no new agent judgment involved. → Level 1 (an
+   existing `norms/*.py` type's config) or Level 3 (a new `norms/*.py`
+   type), no matter how novel-sounding the rule is. Some rules really are
+   this simple; many are not — don't assume this is the common case
+   before checking.
 2. **Does an existing action's own `call_fisher_agent()` response schema
    already have a field whose value directly answers this specific
    requirement** — not a field that could be creatively reinterpreted to
-   answer it — even if nothing currently enforces it? → still routes
-   through `norms/*.py`, reading that existing output — no action change
-   of any kind, new or edited.
+   answer it — even if nothing currently enforces it? → still Level 1/3,
+   reading that existing output — no action change of any kind, new or
+   edited.
 3. **Neither of the above** — the norm genuinely requires a new agent
    decision/act that no existing action hosts → a new action is required
-   (Section 5/13).
+   (Section 5/13). **Within a new action, a second fork**: if the only
+   thing this decision does is get asked and recorded verbatim (nothing
+   else reads it yet, no role grant, no fact, no enforcement) → Level 2
+   (`generic_agent_decision`, no handler file). The moment a role grant,
+   an institutional fact, custom eligibility, cross-agent aggregation, or
+   any enforcement consequence is needed → Level 4 (a custom
+   `actions/handlers/{name}.py`).
 
 Never default `new norm → new action`. **Equally, never default `new
 norm → norms/*.py` because it's cheaper to build.** A `Norm` plugin has
@@ -428,23 +583,22 @@ no judgment — only arithmetic over values that already exist. If the
 requirement asks an actor to weigh, decide, inspect, or judge something
 using information not already reduced to a number or boolean, that is
 action-shaped by definition, regardless of how much simpler a `norms/`
-file would be to write — a new action costs five separate artifacts
-(Section 13) against `norms/`'s one file plus a config entry, and that
+file would be to write — a new action's Level-4 cost is real, and that
 cost difference is never itself a legitimate reason to pick the cheaper
 route. Existing actions are never edited to reach outcome 1 or 2 — not
 the five originally-protected ones, and not one an earlier round of
 yours created either (Section 13).
 
-**Before treating that five-artifact cost as a reason to defer or skip a
-genuine new-action requirement, verify the real cost — don't price it
-from memory.** For the common case (one fisher-agent call per
-participating agent, optionally granting a role or recording a visible
-fact from the response), `engine.action_base.SimpleAgentAction` (Section
-13) makes the code artifact three small method overrides, not a custom
-loop — you must have actually read that file (Section 1) before judging
-otherwise. A real round classified a council/election requirement as
-needing "new institutional infrastructure" and deferred it without ever
-opening `engine/action_base.py` to check what that infrastructure
+**Before treating a Level-4 action as more expensive than it needs to
+be, verify the real cost — don't price it from memory.** For the common
+"ask one question, record the answer" shape, Level 2
+(`generic_agent_decision`, Section 13) costs a spec file alone. Even a
+genuine Level-3/4 custom handler (Section 1's point 9) is one `run(ctx)`
+function, not a custom loop or a class hierarchy — you must have actually
+read `engine/institution/runtime.py`/`builtin_handlers.py` (Section 1)
+before judging otherwise. A real round classified a council/election
+requirement as needing "new institutional infrastructure" and deferred it
+without ever opening the runtime files to check what that infrastructure
 actually costs, and without asking the proposer (via
 `engine.clarify_norm`, Section 5) whether the requirement could be scoped
 down to something smaller this round. If a requirement is still
@@ -495,11 +649,16 @@ For each requirement, determine whether the norm requires:
 - modifying an existing action's own decision, or adding a new one
   (Section 3 tells you which);
 - adding an agent role, or assigning an existing role to an agent;
-- adding state, a ledger, a resource/account, a record;
+- adding a new **institutional object type and/or instance**
+  (`state/object_types/*.json` + `state/objects.json`, Section 9) for a
+  ledger, pool, permit, or other tracked resource — never hand-mutated
+  fluent state for this;
 - adding monitoring, reporting, verification, enforcement, consequences;
-- changing action ordering (`state/schedule.json` key order, or a new gate);
+- changing action ordering (a `scheduling.after`/`before` value in the new
+  action's own spec — never a hand-edit to `state/schedule.json`, which
+  is compiled);
 - adding agent-visible institutional information (a fluent's narration, a
-  prompt field);
+  prompt field, an object's own narrated mutation);
 - or a combination of these.
 
 Do not create institutional mechanisms merely because they're convenient
@@ -569,8 +728,9 @@ For each requirement, specify:
 Requirement:
 Purpose:
 Actor:
+Level (1/2/3/4, per the intro above):
 Action/Decision:
-Existing action or new action:
+Existing owner or new (a norms/*.py type, an object type, or an action):
 Inputs:
 Outputs:
 State read:
@@ -583,17 +743,35 @@ Agent-visible information:
 Verification:
 ```
 
-Whenever `Existing action or new action` resolves to a `norms/*.py`
-type (new or reused), `State changed` must explicitly include
-`state/config.json` — writing or extending the plugin file is not the
-same as activating it; see the callout above the "Norm plugin contract".
+Whenever `Existing owner or new` resolves to a `norms/*.py` type (new or
+reused), `State changed` must explicitly include `state/config.json` —
+writing or extending the plugin file is not the same as activating it;
+see the callout above the "Norm plugin contract".
 
-For a requirement routed to a **new action**, this becomes a full design
-— see Section 13's recipe for exactly what each field commits you to
-before any file exists:
+For a requirement routed to a **new institutional object** (Level 2/3),
+specify:
+
+```text
+Object type name:
+Purpose:
+Ownership (COMMUNAL / role-administered / etc):
+Fields (name -> default value):
+Operations needed (deposit/withdraw/set/append/read):
+Permissions (who may perform each operation):
+Visibility (who may see each field, and when):
+Custom logic needed (Level 3 only — name the operation and why the five
+  generic operations can't express it):
+Lifecycle (a bounded duration, or indefinite):
+Instance(s) (id, and who/what creates or triggers use of it):
+```
+
+For a requirement routed to a **new action** (Level 2 or 4), this becomes
+a full design — see Section 13's recipe for exactly what each field
+commits you to before any file exists:
 
 ```text
 Action name:
+Level (2 or 4):
 Actor:
 Purpose:
 Decision/Action (a verb — report, inspect, vote, choose, not just "decide"):
@@ -610,7 +788,7 @@ Verification:
 ```
 
 Close the file with a fenced ```json block making all of the above
-machine-readable, and a table: `requirement | shape | owner |
+machine-readable, and a table: `requirement | shape | level | owner |
 verification`. `owner` = the exact file/function the behavior lives in.
 Write this file before any code changes — it's frozen from here on,
 except a targeted repair re-invocation resolving one specific reported
@@ -642,7 +820,7 @@ sufficient. If you introduce a new action, you must ensure an appropriate
 agent has: the responsibility for it, an appropriate role, an appropriate
 prompt, the information required to decide, access to the relevant
 institutional state, and an actual opportunity to perform it (a
-`state/schedule.json` entry that actually runs).
+gated `state/actions/{name}.json` entry that actually runs).
 
 For example, if the norm requires a community ledger, something must
 maintain it — determine who has the institutional responsibility, and
@@ -688,36 +866,107 @@ perceived environment.
 
 ---
 
-# 9. Norm-Related Tools and Institutional Objects
+# 9. Institutional Objects
 
-A norm may introduce institutional objects — a community ledger, a
-communal reserve, a deposit account, a reputation record, a violation
-record, a monitoring/inspection record, a sanction record. If the norm
-requires one, create and maintain it as actual simulation state — never
-merely mention it in a prompt.
+A norm may introduce an institutional object — a community ledger, a
+communal reserve, a deposit account, a permit, a reputation record, a
+violation record, a monitoring/inspection record, a sanction record. If
+the norm requires one, declare it as an actual institutional object
+(`state/object_types/{type}.json` + a `state/objects.json` instance) —
+never merely mention it in a prompt, and never as hand-mutated
+`state/fluents.json` state (that's for facts/roles, not for something with
+its own numeric or list-shaped fields — see below for exactly where the
+line is).
 
-Use `roles/roles.py`'s primitives, never hand-mutate
-`state/fluents.json` directly: `assign_role(role_name, agent_id, fluents,
-round_number)` for roles; `set_fact(fluents, name, args, holder,
-round_number, narration=None, visibility="agent_only", event_type=...)`
-for any other fact; `end_fact(...)` to close one (pass its own
-`narration` describing the closing event too — a bare `end_fact()` means
-the agent learns a consequence started but never that it ended). Default
-`visibility="public"` for anything a norm would plausibly want tracked —
-this project's adopted norms consistently specify public ledgers/monitors
-— `"agent_only"` only for something strictly between one agent and the
-mechanism. **Public narration is always third person** (the agent's own
-name, never "you"), since the same string is read by both the affected
-agent and every bystander it's visible to. Check `state/fluents_schema.md`
-before naming a new fluent; reuse an existing name for an existing
-concept.
+**Object type** (`state/object_types/{type}.json`, one file per *type* —
+check `state/institution.json`'s `object_types` catalog first; Section 1
+already requires this reuse-before-writing check):
+
+```json
+{
+  "type_name": "communal_pool",
+  "description": "A shared reserve fishers deposit surplus into.",
+  "ownership": "COMMUNAL",
+  "fields": {"balance_kg": {"type": "number", "default": 0.0}},
+  "operations": ["deposit", "withdraw", "read"],
+  "permissions": {
+    "WRITE": {"who": "ROLE:treasurer"},
+    "READ": {"who": "ALL"}
+  },
+  "visibility": {"balance_kg": {"who": "ALL"}},
+  "custom_handler": null,
+  "introduced_round": 9
+}
+```
+
+`permissions` (keys `DISCOVER`/`READ`/`USE`/`WRITE`/`APPEND`/`TRANSFER`/
+`ADMINISTER`/`DESTROY`, though only `WRITE`/`APPEND`/`READ` are ever
+actually checked by the five generic operations today — the rest are
+reserved for a `custom_handler` to consult itself) gates what an
+operation may *do* — each rule is `{"who": "ALL"}`, `{"who": "NONE"}`, or
+`{"who": "ROLE:<role_name>"}`. `visibility` gates what a viewer may
+*see*, per field, separately — an object can be world-readable but
+role-write-gated, or the reverse. Both resolve a `ROLE:` rule via
+`roles.roles.current_holder()`, fresh every time, same as everywhere else
+in this codebase — never cache a holder anywhere on the object itself.
+
+**Object instance** (`state/objects.json` — a declaration only, exactly
+like a `state/config.json["norms"]` entry: `id` and `type`, plus an
+optional `lifecycle`; **never a field value**):
+
+```json
+{"id": "communal_reserve", "type": "communal_pool"}
+```
+
+Mutable field values (the actual balance) are simulation-owned, in
+`state["runtime"]["objects"][object_id]["fields"]` — you never seed or
+edit them, for the same reason `state/runtime.json` itself is read-only
+to you: a norm-implementer-writable file must never also be where the
+running simulation's own accumulated numbers live, or a discard/revert
+would either lose real data or leave a stale declaration pointing at
+numbers that no longer make sense. A field's default (from the type's own
+`fields` spec) is applied automatically the first time anything touches
+that object — you never pre-populate it.
+
+**Using an object from code** — a `Norm` hook (`context.objects`) or an
+`actions/handlers/{name}.py` handler (`ctx.objects`) reads/writes an
+object through an `engine.institution.objects.ObjectRuntime`, never by
+touching `state/objects.json` or its runtime companion directly:
+
+```python
+context.objects.deposit(
+    "communal_reserve", "balance_kg", overflow_kg, by_agent_id=agent_id,
+    narration=f"{name} deposited {overflow_kg:.1f}kg into the reserve.",
+)
+```
+
+`deposit`/`withdraw`/`set`/`append` all take an optional `narration` —
+when given, it becomes exactly one round's worth of visible notice and
+memory entry (an `engine.institution.events.Event` in `state/events.json`
+underneath — you don't construct one directly), then disappears; an
+object's own *current* values are always read live through `read()` (or a
+Level-2 action's own `prompt.fields`, `{"from": "object", "object_id":
+..., "field": ...}`), never cached as a fact that could go stale. Omit
+`narration` for a silent bookkeeping mutation nothing needs announced.
+`read(object_id, field, viewer_agent_id=...)` returns `None` (never
+raises) when that field isn't visible to that viewer.
+
+**Only reach for `custom_handler`** (a filename stem under
+`objects/handlers/`, a `run(ctx, object_id, operation, by_agent_id=None,
+**kwargs)` function, dispatched via `context.objects.custom(object_id,
+operation, ...)`) when a genuinely new institutional object type needs
+behavior the five generic operations can't express — most objects a norm
+introduces (a pool, a ledger, a permit's remaining allowance) need none.
+A custom handler is responsible for its own permission checking; nothing
+upstream of it enforces one.
 
 **A rotating role's current holder lives only in `state/fluents.json`,
 never in `state/institution.json`.** If a norm introduces a role that
 rotates (a recorder, a steward, a monitor), `state/institution.json`'s
-`actor_role` field says an action *requires* that role, structurally —
-it never says who holds it right now. Whatever needs to know the current
-holder (an action's own `prompt_fields()`, most often) calls
+`roles[name].exclusive: true` and an action's own `actor_role` say a role
+*exists*/is *required*, structurally — never who holds it right now.
+Whatever needs to know the current holder (an action's own
+`prompt_fields()`/`prompt.fields`, most often) calls
 `roles.roles.current_holder(fluents, role_name, round_number)` fresh,
 every time. Do not add anything like `"active_roles": {"recorder":
 "agent_1"}` to `state/institution.json` to "cache" the answer — the
@@ -739,9 +988,26 @@ never closes — confirmed directly, this leaves two "open" holders at
 once, and `current_holder()` then returns whichever happens to appear
 first, silently wrong. For an exclusive role, always pass a fixed,
 agent-independent `args` instead — `assign_role(role_name, agent_id,
-fluents, round_number, args=[])` is enough — so rotating the role
-actually closes the previous holder's record the way `set_fact()` is
-designed to.
+fluents, round_number, exclusive=True)` is enough (it forces `args=[]`
+internally) — so rotating the role actually closes the previous holder's
+record the way `set_fact()` is designed to.
+
+Use `roles/roles.py`'s primitives for anything that's a *fact* rather
+than an *object* (a sanction, an obligation, a status), never hand-mutate
+`state/fluents.json` directly: `assign_role(role_name, agent_id, fluents,
+round_number)` for roles; `set_fact(fluents, name, args, holder,
+round_number, narration=None, visibility="agent_only", event_type=...)`
+for any other fact; `end_fact(...)` to close one (pass its own
+`narration` describing the closing event too — a bare `end_fact()` means
+the agent learns a consequence started but never that it ended). Default
+`visibility="public"` for anything a norm would plausibly want tracked —
+this project's adopted norms consistently specify public ledgers/monitors
+— `"agent_only"` only for something strictly between one agent and the
+mechanism. **Public narration is always third person** (the agent's own
+name, never "you"), since the same string is read by both the affected
+agent and every bystander it's visible to. Check `state/fluents_schema.md`
+before naming a new fluent; reuse an existing name for an existing
+concept.
 
 ---
 
@@ -758,11 +1024,13 @@ You exceeded the limit by 3 kg. A violation has been recorded.
 
 not merely a hidden Python variable changing. In practice this is
 `NormDecision.note` (reaches the agent automatically via
-`_harvest_shortfall_clause()`) for a harvest-constraint outcome, or a
+`_harvest_shortfall_clause()`) for a harvest-constraint outcome, a
 fluent's `narration` (reaches the agent via `render_notices()`) for a
-standalone fact. The exact phrasing must follow `prompts/phrasing_map.json`'s
-fourth-wall rule — no internal key names, "mechanism," "norm," "fluent,"
-or "penalty function" in rendered text.
+standalone fact, or a narrated object mutation (Section 9 — reaches the
+agent the same way, through the same notices pipeline). The exact
+phrasing must follow `prompts/phrasing_map.json`'s fourth-wall rule — no
+internal key names, "mechanism," "norm," "fluent," or "penalty function"
+in rendered text.
 
 ---
 
@@ -775,13 +1043,14 @@ objectives unless they're supported by the accepted norm or are
 necessary deterministic implementation details.
 
 E.g. "Fishers must deposit 2 kg before harvesting" licenses a deposit
-state, a deposit transaction, and a deposit-before-harvest constraint —
-never an independently invented "after three violations, permanently ban
-the fisher" the norm's text doesn't support. If an implementation would
-require a genuinely normative decision the accepted norm doesn't specify,
-treat it as `INCOMPLETE`/`AMBIGUOUS` (Section 5), not an invitation to
-design it yourself. When genuinely uncertain whether something follows
-from the norm or would be your own addition, treat it as the latter.
+state (an institutional object), a deposit transaction, and a
+deposit-before-harvest constraint — never an independently invented
+"after three violations, permanently ban the fisher" the norm's text
+doesn't support. If an implementation would require a genuinely normative
+decision the accepted norm doesn't specify, treat it as
+`INCOMPLETE`/`AMBIGUOUS` (Section 5), not an invitation to design it
+yourself. When genuinely uncertain whether something follows from the
+norm or would be your own addition, treat it as the latter.
 
 ---
 
@@ -809,16 +1078,17 @@ accepted norm.
 # 13. Existing and New Actions
 
 Never edit a protected existing action merely because it's convenient.
-`actions/harvest.py`, `propose.py`, `critique.py`, `vote.py`,
-`discuss.py` are permanently off-limits, and **so is every action any
-earlier round of yours has ever added** — "additive only" doesn't loosen
-after the first new action is created; a second round's norm needing
-something a first round's new action almost-but-not-quite provides still
-gets its own new action, never an edit to the first one. This is enforced
-both by the `permission.edit` denies above and by a hard, dynamic
-orchestrator check (`_actions_protected_as_of_head()` in
-`engine/simulate.py`, which reads `state/institution.json` as of HEAD and
-protects every action it lists, not just the original five).
+`state/actions/{harvest,propose,critique,vote,discuss}.json` and their
+matching `actions/handlers/{name}.py` files are permanently off-limits,
+and **so is every action any earlier round of yours has ever added** —
+"additive only" doesn't loosen after the first new action is created; a
+second round's norm needing something a first round's new action
+almost-but-not-quite provides still gets its own new action, never an
+edit to the first one. This is enforced both by the `permission.edit`
+denies above and by a hard, dynamic orchestrator check
+(`_actions_protected_as_of_head()` in `engine/simulate.py`, which reads
+`state/institution.json` as of HEAD and protects every action's spec and
+handler it lists, not just the original five).
 
 If the institution genuinely requires a new agent decision, add a new
 action alongside existing ones — never edit an earlier one to add to it:
@@ -830,81 +1100,89 @@ Existing: harvest, propose, critique, vote
 ```
 
 If a later norm needs to insert an action *between* two that already
-exist, that's a `state/schedule.json` key-ordering change only — the ordering
-lives in `state/schedule.json`, never in any action's own file, so inserting
-between two existing actions never requires editing either of them.
+exist, that's a `scheduling.after`/`before` value in the new action's own
+spec — `state/schedule.json`'s own execution order is compiled from these
+automatically, so inserting between two existing actions never requires
+editing either of them, or `state/schedule.json` itself.
 
 Only once Section 5's design is written, implement:
 
-1. New `actions/{name}.py` (`name = "{name}"`, matching both the filename
-   stem and the `state/schedule.json` key), module-level `ACTION =
-   {ClassName}()` at the bottom. **Two base classes to choose between:**
-   - If this action is one fisher-agent call per participating alive
-     agent, optionally granting a role or recording a visible
-     institutional fact from the response — the common case — subclass
-     `engine.action_base.SimpleAgentAction` and only implement
-     `build_fields()`, `call_agent()` (just
-     `return call_fisher_agent(agent_id, round_number, self.name, **fields)`),
-     and `record_result()`. See that class's own docstring for the full
-     override list (`participants`, `is_eligible`/`ineligible_result`,
-     `after_participants`, `role_grant`, `institutional_fact` — all
-     optional, defaulted for the common case) and `actions/propose.py`
-     for a real, working example of exactly this shape.
-   - Only if the shape is genuinely different — a bounded multi-turn
-     dialogue, more than one model role per participant, a step that
-     isn't per-agent at all — subclass `engine.action_base.Action`
-     directly and write your own `run(self, state)` (and `prompt_fields()`
-     if it calls an agent), the same as `actions/critique.py` does.
-   Any new runtime state it needs is lazily initialized inside its own
-   `run()`/`setup()` via `runtime.setdefault(...)` — never pre-seed it in
+1. New `state/actions/{name}.json` — `name` matching both the filename
+   stem and the `state/institution.json` key. Two shapes to choose
+   between:
+   - **Level 2 — no handler file at all.** If this action is "ask one
+     question per participating alive agent, record the answer verbatim
+     (optionally renaming fields)" — the common case for a simple
+     reporting/estimating requirement with no further institutional
+     effect this round — set `"execution": {"handler":
+     "generic_agent_decision"}`, declare `"prompt": {"fields": {...}}`
+     (each entry `{"from": "state", "path": "runtime.stock_kg"}` /
+     `{"from": "object", "object_id": ..., "field": ...}` /
+     `{"literal": ...}`), and optionally `"outputs": {"per_agent_key":
+     "...", "fields": {"response_key": "record_key", ...}}` (omit
+     `outputs.fields` to copy the response verbatim). Read
+     `engine/institution/builtin_handlers.py` in full before using this —
+     it is deliberately small, and doesn't support a role grant, an
+     institutional fact, custom eligibility, or reading another
+     participant's own answer.
+   - **Level 4 — write `actions/handlers/{name}.py` too**, the moment the
+     action needs any of what Level 2 doesn't support: `def run(ctx) ->
+     round_record`, where `ctx` is an `ActionContext` (`.state`,
+     `.round_number`, `.participants`, `.agents.call(agent_id, **fields)`,
+     `.events.emit(...)`, `.objects`). See `actions/handlers/propose.py`
+     for the smallest real custom example (it needs a handler only
+     because it aggregates across every *other* participant's last-round
+     catch — a plain lookup, still enough to disqualify it from Level 2).
+     Optionally also export `memory_writes(state, round_record)`.
+   Any new runtime state either shape needs is lazily initialized (a
+   handler does this inside its own `run()` via `runtime.setdefault(...)`;
+   the generic path needs none) — never pre-seed it in
    `state/runtime.json` yourself.
 2. New `actions/prompts/{name}.md`, same convention as every other file
    in that directory (fourth-wall rules apply).
-3. A `state/schedule.json` entry, inserted immediately after the `after` action
-   from Section 5's design. Gate it on a fluent
-   (`"holdsAt(some_fluent)"`), not `"true"`, unless the norm genuinely
-   means "every round from now on regardless."
-4. Update `state/institution.json`: add `"{name}": {"file":
-   "actions/{name}.py", "protected": false, "gate": "<same gate string as
-   the state/schedule.json entry>", "description": "<one sentence — the same
-   Purpose from Section 5's design>", "actor_role": "<the role name from
-   Section 5's Actor field, or null if it's just any alive fisher>"}`,
-   and any new state fields under `"state"`. `actor_role` is the role
-   requirement, never a specific agent — see "A rotating role's current
-   holder..." in Section 9 for why the two must never be conflated.
-5. A `tests/norm_checks/` test that calls the new action's own
-   `ACTION.run(state)` against a minimal fabricated state — required,
-   covering both the compliant and non-compliant (`enforcement`) path
-   from Section 5's design.
+3. Update `state/institution.json`: add `"{name}": {"spec":
+   "state/actions/{name}.json", "protected": false}`, a `roles` entry if
+   this introduced a new role (`{"exclusive": bool, "description": ...,
+   "introduced_round": N}`), and any new state fields under `"state"`.
+   **You never touch `state/schedule.json` directly** — it's recompiled
+   automatically from this file plus every spec's own
+   `scheduling.after`/`before`/`gate` the moment your changes are read.
+4. A `tests/norm_checks/` test that calls
+   `engine.institution.runtime.ActionRuntime.run_action(spec, state,
+   round_number)` (load your own spec dict, or build an equivalent one
+   inline) against a minimal fabricated state — required, covering both
+   the compliant and non-compliant (`enforcement`) path from Section 5's
+   design.
 
 If a rule needs to change an existing action's own decision — not just
 add a new one alongside it — that's "stop and report, needs a human,"
-same as touching `engine/norms/`, `engine/physics.py`, or
-`roles/roles.py` directly.
+same as touching `engine/institution/`, `engine/norms/`,
+`engine/physics.py`, or `roles/roles.py` directly.
 
 ---
 
 # 14. Integration With the Existing Codebase
 
-Integrate a new action, role, or mechanism with every part of the
-architecture it touches — a new action that exists as a file but is
-never scheduled is not an implementation; a new action without an
-appropriate agent prompt is not an implementation; a ledger that's
-created but never updated is not an implementation; a sanction applied
-but invisible to the affected agent is incomplete when the design
-requires the agent to observe it. Check at minimum: the action/norm
-file itself, its prompt, `state/schedule.json`, `state/institution.json`,
-agent role/personalisation, `norms/README.md` (only if adding a
-genuinely new reusable norm shape worth documenting there), and
-`tests/norm_checks/`.
+Integrate a new action, object, role, or mechanism with every part of the
+architecture it touches — a new action that exists as a spec but is
+never actually reachable (a `gate` that can never become true, say) is
+not an implementation; a new action without an appropriate agent prompt
+is not an implementation; a ledger that's declared but never updated is
+not an implementation; a sanction applied but invisible to the affected
+agent is incomplete when the design requires the agent to observe it.
+Check at minimum: the action/norm/object file itself, its prompt,
+`state/institution.json`, agent role/personalisation, `norms/README.md`
+(only if adding a genuinely new reusable norm shape worth documenting
+there), and `tests/norm_checks/`.
 
 `engine/simulate.py` is allowed but last resort only — reserve it for a
 genuinely orchestration-level need (a new scheduling primitive, a
 cross-action safety check), never a convenient place to patch a bug that
 belongs in a norm plugin's own logic. Never edit `engine/*` otherwise,
-`roles/roles.py`, `actions/harvest.py`/`propose.py`/`critique.py`/`vote.py`/
-`discuss.py` specifically, `state/runtime.json`, `constants/agents.json`,
-`tests/regression/*`, or either norm-implementer file.
+`roles/roles.py`, any of the five protected
+`state/actions/*.json`/`actions/handlers/*.py` pairs specifically,
+`state/schedule.json`, `state/runtime.json`, `constants/agents.json`,
+`tests/regression/*`, or `.opencode/agent/norm-implementer.md` itself.
 
 ---
 
@@ -915,24 +1193,30 @@ Test actual behavior, not just that files changed:
 - `python3 -m py_compile` every file you touched.
 - If this round added or changed a `norms/*.py` file: write or extend a
   `tests/norm_checks/` test that covers every new conditional branch, and
-  exercises the norm through `actions.harvest.ACTION.run(state)` against
-  a minimal fabricated `state` — not a unit test of the norm class in
-  isolation. Then `pytest tests/norm_checks/`.
-- If this round added a new `actions/{name}.py` file: a
-  `tests/norm_checks/` test calling that action's own `ACTION.run(state)`
-  covering both the compliant path and, where the requirement implies
-  one, a non-compliance/violation path.
+  exercises the norm through `actions.handlers.harvest.run(ctx)` (build a
+  minimal `ActionContext.build({"name": "harvest"}, state,
+  round_number)`) against a minimal fabricated `state` — not a unit test
+  of the norm class in isolation. Then `pytest tests/norm_checks/`.
+- If this round added a new `state/actions/{name}.json` (Level 2 or 4): a
+  `tests/norm_checks/` test calling
+  `engine.institution.runtime.ActionRuntime.run_action(spec, state,
+  round_number)` covering both the compliant path and, where the
+  requirement implies one, a non-compliance/violation path.
+- If this round added a new institutional object type with a
+  `custom_handler`: a `tests/norm_checks/` test exercising
+  `ObjectRuntime.custom(...)` directly, covering the permission-denied
+  path too if the design implies one.
 - `pytest tests/regression/`.
 
 The orchestrator also runs its own generic smoke test automatically every
-round (`norm_implementation_runtime_errors()`): `ACTION.run()` against
+round (`norm_implementation_runtime_errors()`): the harvest action against
 one fixed minimal scenario, every registered norm type standalone with
-empty params, and (for a new action) a structural check — imports
-cleanly, exposes a real `Action` instance, name matches the filename,
-has a `state/schedule.json` entry. This is a backstop, not a substitute for
-your own test above: it's one fixed scenario, not this norm's own actual
-edge cases, and it will not catch a norm that runs without crashing but
-enforces the wrong number.
+empty params, every new `state/actions/*.json` spec's `execution.handler`
+resolving structurally, and every new `state/object_types/*.json` type's
+`custom_handler` (if any) resolving structurally. This is a backstop, not
+a substitute for your own test above: it's one fixed scenario, not this
+norm's own actual edge cases, and it will not catch a norm that runs
+without crashing but enforces the wrong number.
 
 ---
 
@@ -945,20 +1229,21 @@ per-role actions?
 
 **Norm.** Is every change traceable to the accepted norm? Did you avoid
 inventing normative content? Did you distinguish deterministic mechanisms
-from genuine agent decisions?
+from genuine agent decisions, and inventory (an institutional object) from
+either?
 
 **Completeness — the check that actually catches a silently-dropped
 requirement.** Re-walk `norm.txt`'s Operationalization one more time,
 clause by clause, at the same granularity Section 4's extraction used —
 the source text itself, not your classification table. For every clause,
-find the row in your table that owns it (an existing `norms/*.py` type, a
-new action, a fluent/prompt path, or an explicit "not implementable"
-note). A clause with no owner anywhere is a requirement Section 4 never
-extracted — the specific failure this check exists to catch is a role
-being created while the decision that role makes, or a process that
-responds to that decision (an appeal, a review), quietly never gets
-built. Add any missing requirement now and route it through Section 5
-before continuing.
+find the row in your table that owns it (an existing `norms/*.py` type, an
+institutional object, a new action, a fluent/prompt path, or an explicit
+"not implementable" note). A clause with no owner anywhere is a
+requirement Section 4 never extracted — the specific failure this check
+exists to catch is a role being created while the decision that role
+makes, or a process that responds to that decision (an appeal, a review),
+quietly never gets built. Add any missing requirement now and route it
+through Section 5 before continuing.
 
 **Activation — the single most common way a round is written but never
 enforces anything.** For every `norms/*.py` file you added or changed
@@ -973,11 +1258,17 @@ verifier, recorder, steward, committee), also grep your own diff for
 nothing in the diff ever assigns is exactly the same class of gap, one
 layer up: described, never built. Confirm too that any `state/config.json`
 activation/deactivation this round has a matching `norm_active`
-`set_fact()`/`end_fact()` call, and that a genuinely new type also got a
-`state/institution.json` `norm_types` entry — and, separately, that
-`state/institution.json` itself contains no specific agent_id anywhere
-under `actor_role` or any ad hoc "current holder" field you may have been
-tempted to add — that value belongs only in `state/fluents.json`.
+`set_fact()`/`end_fact()` call — you still open this yourself even with a
+`lifecycle` set; only *closing it on natural expiry* is automatic — and
+that a genuinely new type also got a `state/institution.json` `norm_types`
+entry. **If this round declared a new institutional object type, confirm
+`state/institution.json`'s `object_types` catalog has a matching entry,
+and that every object your design named actually has a `state/objects.json`
+instance declaration** — a type with no instance is exactly the same
+class of gap. Separately, confirm `state/institution.json` itself contains
+no specific agent_id anywhere under `actor_role` or any ad hoc "current
+holder" field you may have been tempted to add — that value belongs only
+in `state/fluents.json`.
 
 **Judgment-verb burden-shifting check.** If `norm.txt` contains any
 judgment-verb from Section 3's trigger list (weighs, judges, inspects,
@@ -991,17 +1282,18 @@ failure rather than a pass. Don't let a routing decision like this go
 unexamined the way one real round's apparently did.
 
 **Actions.** Does every new action represent a genuine new agent
-decision? Could the requirement have been implemented without one? Is it
-correctly scheduled (`state/schedule.json` and `state/institution.json` agree
-with each other and with what's on disk)?
+decision? Could the requirement have been implemented without one (Level
+1/3 instead)? Is it correctly registered (`state/institution.json` agrees
+with what's actually on disk under `state/actions/`/`actions/handlers/`)?
 
 **Agents.** Is the correct agent responsible? Does it have an appropriate
 role/personalisation and a prompt appropriate to that responsibility?
 Does it receive the information it needs to act?
 
-**Institutional objects.** Are ledgers, deposits, reserves, records
-represented as actual state, updated correctly, and visible to the
-relevant agents?
+**Objects.** Are ledgers, deposits, reserves, records represented as
+actual institutional objects (never bare fluent state, never only a
+prompt mention), with correct permissions/visibility, and updated
+correctly by whatever action or norm the design says touches them?
 
 **Agent experience.** Can agents understand what institution currently
 exists, what they're expected to do, and observe the consequences of
@@ -1009,13 +1301,14 @@ compliance or violation? If punished, can they understand why?
 
 **Verification.** Are there executable tests that check behavior, not
 just structure? Have both compliance and violation cases been covered?
-Grep any new/changed `norms/*.py` file for `.params.get(` and confirm
-every match has a second argument. Grep any new `prompts/` file for
-internal names/code terms (fourth-wall). `git diff --name-only` and
-confirm it touches nothing under `actions/harvest.py`, `propose.py`,
-`critique.py`, `vote.py`, `discuss.py`, `engine/action_base.py`,
-`engine/norms/`, `engine/physics.py`, `roles/roles.py`, or any
-action an earlier round already created.
+Grep any new/changed `norms/*.py`/`actions/handlers/*.py`/
+`objects/handlers/*.py` file for `.params.get(`/`self.params.get(` and
+confirm every match has a second argument. Grep any new `prompts/` file
+for internal names/code terms (fourth-wall). `git diff --name-only` and
+confirm it touches nothing under any of the five protected
+`state/actions/*.json`/`actions/handlers/*.py` pairs, `state/schedule.json`,
+`engine/institution/`, `engine/norms/`, `engine/physics.py`,
+`roles/roles.py`, or any action an earlier round already created.
 
 If any of these are not satisfied, keep inspecting and implementing
 rather than declaring the norm implemented.
@@ -1034,7 +1327,7 @@ INSTITUTIONAL REQUIREMENTS
      ↓
 INSTITUTION STATUS
      ↓
-INSTITUTIONAL CHANGES
+INSTITUTIONAL CHANGES (ACTIONS + OBJECTS + ROLES)
      ↓
 AGENT ROLES + ACTIONS + PROMPTS
      ↓
@@ -1059,7 +1352,7 @@ accepted norm.
 
 ## Report, in this order
 
-1. The Section 4/5 requirement table (`requirement | shape | owner |
+1. The Section 4/5 requirement table (`requirement | shape | level | owner |
    verification`), and the Section 16 completeness re-walk's result.
 2. Parametric vs. structural routing per requirement, with rationale —
    including, for any new-action requirement, the Decision Granularity
@@ -1071,22 +1364,25 @@ accepted norm.
 3. The diff, if any.
 4. `tests/norm_checks/` and `tests/regression/` results.
 5. If a new `norms/*.py` type was added: one sentence on what future
-   norm-shape would make it reusable via config alone. If a new action
-   was added: confirm `state/institution.json` and `state/schedule.json` were
-   both updated and agree with each other.
+   norm-shape would make it reusable via config alone. If a new
+   institutional object type was added: confirm `state/institution.json`
+   and `state/objects.json` were both updated and agree with each other.
+   If a new action was added: confirm `state/institution.json` agrees with
+   what's on disk (the compiler derives `state/schedule.json` from it
+   automatically).
 6. Close with a single fenced ```json block — machine-parseable, and the
    actual LAST thing in your response, nothing after it:
    ```json
    {
      "spec_path": "state/norm_specs/round_12.md",
      "classification": [
-       {"requirement": "...", "shape": "catch_constraint",
-        "parametric": false,
+       {"requirement": "...", "shape": "catch_constraint", "level": 1,
         "owner": "norms/example_cap.py (example_cap)",
         "verification": "tests/norm_checks/test_round_12_cap.py",
         "clarity": "CLEAR"}
      ],
      "actions_added": ["report_catch"],
+     "object_types_added": [],
      "files_touched": ["state/config.json"],
      "regression_pass": true,
      "norm_check_tests_written": [],
@@ -1106,18 +1402,22 @@ accepted norm.
    whatever your own prose summary claims — a round is not "complete" or
    a "success" if any row uses this sentinel for a reason other than
    `TECHNICALLY_UNREALISABLE`; say so plainly in your prose summary too,
-   not just in the json block. `owner`/`verification` can't be empty. `norm_check_tests_written` is
-   empty for a purely parametric round. `actions_added` is empty unless
-   this round actually created a new `actions/{name}.py` file. Set
-   `denied_permission_needed: true` only for a rule that needs to edit a
-   protected file directly. Set `ran_out_of_budget: true` if you're
-   running low on steps — stop making tool calls, report the table and
-   whatever diff exists, and say so explicitly; an honestly-reported
-   incomplete round is recoverable (the orchestrator retries it), a
-   silent cutoff is not. Never include any OTHER fenced ```json block
-   anywhere else in your response (an example config, an illustrative
-   snippet) — the orchestrator specifically looks for the last one
-   containing a `classification` key.
+   not just in the json block. `owner`/`verification` can't be empty.
+   `norm_check_tests_written` is empty for a purely parametric (Level 1)
+   round. `actions_added`/`object_types_added` are empty unless this round
+   actually created a new `state/actions/{name}.json`/
+   `state/object_types/{type}.json` file. Set `denied_permission_needed:
+   true` only for a rule that needs to edit a protected file directly.
+   Set `ran_out_of_budget: true` if you're running low on steps — stop
+   making tool calls, report the table and whatever diff exists, and say
+   so explicitly; an honestly-reported incomplete round is recoverable
+   (the orchestrator retries it), a silent cutoff is not. Never include
+   any OTHER fenced ```json block anywhere else in your response (an
+   example config, an illustrative snippet) — the orchestrator
+   specifically looks for the last one containing a `classification` key.
+
+This is required every time you finish a response, not just when
+something went wrong.
 
 ## Do not commit
 
@@ -1130,15 +1430,14 @@ on disk before you finish.
 
 - `permission.edit` is a real allowlist — an edit attempt on anything
   else is denied outright.
-- `permission.bash` is `"*": allow` — unrestricted, by deliberate choice
-  (see CLAUDE.md's "Norm-implementer bash fully opened" entry). The
-  actual backstop against a wide-open bash bypassing the edit allowlist
-  is the orchestrator's own `git diff`-based checks before commit, not
-  the permission YAML — follow the allowlist anyway.
+- `permission.bash` is `"*": allow` — unrestricted, by deliberate choice.
+  The actual backstop against a wide-open bash bypassing the edit
+  allowlist is the orchestrator's own `git diff`-based checks before
+  commit, not the permission YAML — follow the allowlist anyway.
 - `webfetch`, `websearch`, `task` are all denied.
-- Nothing under `norms/`/`prompts/` reads `norm.txt` directly — only your
-  own Section 4/5 classification interprets norm text; everything
-  downstream consumes state.
+- Nothing under `norms/`/`objects/handlers/`/`prompts/` reads `norm.txt`
+  directly — only your own Section 4/5 classification interprets norm
+  text; everything downstream consumes state.
 - If a rule needs memory of full history rather than current values only
   (nothing in `state/*.json` holds history), stop and report that
   explicitly rather than approximating it.

@@ -24,6 +24,12 @@ _FRAMES = {
     "routine_harvest": "{text}",
     "fact_initiated": "You remember: {text}",
     "fact_ended": "You remember it didn't last forever: {text}",
+    "object_created": "At one point, something new became part of how things work here: {text}",
+    "object_mutated": "You recall: {text}",
+    "rule_activated": "At one point, a new rule took hold: {text}",
+    "rule_deactivated": "You remember when that rule stopped applying: {text}",
+    "role_rotated": "You remember when that responsibility changed hands: {text}",
+    "role_terminated": "You remember when that responsibility ended: {text}",
 }
 
 _missing = set(IMPORTANCE_BY_EVENT_TYPE) - set(_FRAMES)
