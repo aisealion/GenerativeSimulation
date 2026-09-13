@@ -388,13 +388,19 @@ def run_norm_implementer(round_number, extra_message=None):
     print("\n--- invoking norm-implementer ---")
     # State the round number explicitly — the model can't reliably infer it
     # from file contents alone. Also restates the closing-json-block
-    # requirement on every invocation, not just on repair.
+    # requirement AND the implement-first/spec-last ordering on every
+    # invocation, not just on repair — the ordering exists specifically
+    # because writing the spec first was the thing repeatedly mistaken for
+    # "done" (see norm_implementation_no_code_changes_errors()).
     message = extra_message or (
         f"This is round {round_number}. norm.txt has been updated for this round. "
         f"Read it and implement accordingly, following your standing instructions. "
-        f"Write your institutional design specification to exactly "
-        f"state/norm_specs/round_{round_number}.md "
+        f"Implement every requirement FIRST — then, as your LAST step, write your "
+        f"institutional design specification (documenting what you actually built) to "
+        f"exactly state/norm_specs/round_{round_number}.md "
         f"— use {round_number} for the round number, not a number inferred from any other file. "
+        f"Do not stop after writing this file's design in your head without having "
+        f"implemented it; do not write the file itself until implementation is done. "
         f"End your response with the fenced ```json report block your instructions describe "
         f"(the one containing a \"classification\" key) — this is required every time, not "
         f"just when something went wrong."
@@ -1029,8 +1035,10 @@ def norm_implementation_missing_spec_errors(round_number):
             ]
         return [
             f"state/norm_specs/round_{round_number}.md does not exist — the institutional "
-            "design specification (institution designer stage) must be written and "
-            "committed to exactly this path before any implementation or evaluation."
+            "design specification, documenting what you actually implemented, must be "
+            "written to exactly this path as your LAST step, after implementation, "
+            "before this round can be evaluated. If you haven't implemented anything "
+            "yet, do that first; if you have, write this file now."
         ]
     if len(spec_path.read_text().strip()) < 200:
         return [
@@ -1042,16 +1050,22 @@ def norm_implementation_missing_spec_errors(round_number):
 
 def norm_implementation_no_code_changes_errors():
     """Catches a real, repeatedly-observed failure distinct from a missing
-    spec: the norm-implementer writes a real, substantive spec (passing
-    norm_implementation_missing_spec_errors above) and then simply stops,
-    genuinely believing the round is done — one real round's own closing
-    report was literally {"classification": "success", "message": "Round 8
-    norm specification written..."}, nothing else, not even the documented
-    report schema. Checked here mechanically via git status against
+    spec: the norm-implementer produces a closing report claiming success
+    while making zero actual code/config/fluent changes — one real round's
+    own closing report was literally {"classification": "success",
+    "message": "Round 8 norm specification written..."}, nothing else, not
+    even the documented report schema. norm-implementer.md now instructs
+    writing state/norm_specs/round_{N}.md *last*, after implementation, for
+    exactly this reason (a polished-looking spec written first was the
+    thing the model kept mistaking for "done") — but that's a prompt-level
+    instruction, not a technical guarantee, so this check still exists as
+    the backstop regardless of whether the round even got as far as writing
+    a spec. Checked here mechanically via git status against
     NORM_IMPLEMENTER_TRACKED_PATHS (state/norm_specs is deliberately not on
-    that list, so a spec-only round leaves nothing there to see) — never by
-    trusting the model's own self-reported classification, which doesn't
-    reliably match the real schema anyway.
+    that list, so a spec-only round — or a round that wrote nothing at
+    all — leaves nothing there to see) — never by trusting the model's own
+    self-reported classification, which doesn't reliably match the real
+    schema anyway.
 
     Same known blind spot as everywhere else this exact path list is used
     for a "did the implementer do something" check: state/fluents.json can
@@ -1067,14 +1081,16 @@ def norm_implementation_no_code_changes_errors():
     if result.stdout.strip():
         return []
     return [
-        "You wrote a real institutional design specification but made zero actual "
-        "code/config/fluent changes — actions/rules/**/*.py, actions/*.py, "
-        "state/config.json, state/fluents.json, and state/institution.json are all "
-        "untouched. Writing the specification is not the end of your task, it's the "
-        "halfway point: you must now "
-        "implement every requirement in your own classification table, in this same "
-        "response, before finishing. A closing report claiming success with no files "
-        "touched is not a legitimate success."
+        "You made zero actual code/config/fluent changes this round — "
+        "actions/rules/**/*.py, actions/*.py, state/config.json, state/fluents.json, "
+        "and state/institution.json are all untouched. Your own instructions ask you "
+        "to implement every requirement FIRST and write state/norm_specs/round_{N}.md "
+        "LAST, as a report of what you actually built — so either you stopped before "
+        "implementing anything, or you wrote the spec without building what it "
+        "describes. Go back and implement every requirement in your design now, in "
+        "this same response, then write (or rewrite) the spec to match what's "
+        "actually on disk. A closing report claiming success with no files touched is "
+        "not a legitimate success."
     ]
 
 
