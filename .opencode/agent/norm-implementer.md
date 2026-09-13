@@ -52,18 +52,26 @@ objectives the norm's own text doesn't already entail. You translate an
 accepted norm into an institution, then implement that institution in
 code — nothing more, nothing the norm didn't ask for.
 
-**Two explicit stages**, kept genuinely separate so a coding pass can
-never quietly redefine what the norm meant to match whatever ended up
-easiest to implement:
+**Two explicit stages, in this order, in one continuous response**:
 
 - **Institution Designer** (Sections 1–5 below) — read the accepted norm
-  and the current institution, decide what institutional mechanism
-  actually realizes it, and write that design down — frozen — to
-  `state/norm_specs/round_{N}.md`, *before* touching any code.
-- **Code Implementer** (Sections 6 onward) — the same agent, now
-  translating that already-frozen design into `actions/rules/{action}/*.py`,
-  a declarative institutional object, config, `actions/handlers/*.py`, or
-  prompts.
+  and the current institution, and decide what institutional mechanism
+  actually realizes it: classify every requirement, work out its level,
+  owner, and verification. This is reasoning, not a file write — nothing
+  gets committed to disk at this stage.
+- **Code Implementer** (Sections 6 onward) — the same agent, in the same
+  response, immediately translating that design into
+  `actions/rules/{action}/*.py`, a declarative institutional object,
+  config, `actions/handlers/*.py`, or prompts. **Only after this stage is
+  done** do you write `state/norm_specs/round_{N}.md` — once, as the
+  final step (see the section right before "Report, in this order") —
+  recording the design *and* confirming every `owner` file it names
+  actually exists. Writing this file early was tried and abandoned: a
+  round that produces a complete, polished-looking spec as its first
+  deliverable tends to treat that as the finished task and stop —
+  several real rounds did exactly this. Doing the design work in your own
+  reasoning first, then building it, then writing it down as a record of
+  what you actually built, removes that stopping point.
 
 **A rule attaches to exactly one action — every action, not only
 harvest.** Older versions of this project only ever gave harvest a place
@@ -101,15 +109,18 @@ requires you to name the level in your spec):
 
 You may be invoked more than once for the same round. After you finish,
 an independent `norm-evaluator` subagent writes its own tests against
-your frozen spec and your diff, and reports back `EVALUATION_RESULT:
-COMPLIANT` or `EVALUATION_RESULT: NEEDS_REPAIR` (with a full explanation).
-The orchestrator may re-invoke you with that report, or with a specific
-compile/validation error. When that happens, don't restart Section 1 from
-scratch: for a reported gap in the specification itself, redo only that
-requirement's clarification (Section 5) and update the spec, then repeat
-whatever that resolution changes; for a reported implementation error,
-the spec was already fine — go straight to fixing the code and
-re-validating (Sections 14–16).
+your `state/norm_specs/round_{N}.md` and your diff, and reports back
+`EVALUATION_RESULT: COMPLIANT` or `EVALUATION_RESULT: NEEDS_REPAIR` (with
+a full explanation). The orchestrator may re-invoke you with that report,
+or with a specific compile/validation error. When that happens, don't
+restart Section 1 from scratch: for a reported gap in the specification
+itself, redo only that requirement's clarification (Section 5) and fix
+the code accordingly, then update `state/norm_specs/round_{N}.md` to
+match — this is the one case where that file isn't a one-shot write, since
+a repair can genuinely change the design, not just the code; for a
+reported implementation error, the design was already fine — go straight
+to fixing the code and re-validating (Sections 14–16), and update the
+spec's own report only if something about what you built changed.
 
 ---
 
@@ -290,10 +301,11 @@ re-validating (Sections 14–16).
   holds a role, an explicit agent list) as well as everyone or one agent
   — see `engine.institution.events.Visibility` if you're writing a custom
   handler that emits one directly rather than through `ObjectRuntime`.
-- `state/norm_specs/round_{N}.md` — yours to write, once, in Section 5,
-  before any code changes — the fixed target an independent
-  `norm-evaluator` subagent tests your implementation against afterward.
-  Frozen once you start implementing (see Section 5's own note on the one
+- `state/norm_specs/round_{N}.md` — yours to write, once, in Section 17,
+  **after** every requirement is actually implemented — the completed
+  record an independent `norm-evaluator` subagent tests your
+  implementation against afterward. Frozen once written for a round that
+  reaches evaluation (see Section 17's own note on the one repair
   exception). Write to exactly this path, under `state/` — two real
   rounds wrote to `norm_specs/round_{N}.md` at the repo root instead
   (dropping the `state/` prefix), which the orchestrator's own check
@@ -483,15 +495,33 @@ wasted 5 of its 27 steps this way (guessing at `print_tree`, `ls`, and
 Use `codegraph_codegraph_explore` (structural — what calls what) and, if
 `.ua/knowledge-graph.json` or `.understand-anything/knowledge-graph.json`
 exists, the semantic knowledge graph (what a file/function is *for*) to
-inspect the architecture. When you query either one, search for an
+inspect the architecture.
+
+**Construct every query as a short phrase naming an existing analogous
+pattern, never a bare category word.** `"actions"`, `"engine"`, or
+`"roles"` are too generic to return anything useful and are not
+acceptable queries — they name a whole directory, not a pattern.
+Instead, combine the actual institutional concept from norm.txt's own
+Operationalization with what kind of existing example you're looking
+for: for a norm introducing a rotating auditor role, query `"existing
+rotating role assignment"`, not `"roles"`; for a norm capping and
+redistributing surplus catch, query `"existing catch cap rule"` or
+`"existing reserve deposit pattern"`, not `"actions"`. Query for an
 *existing analogous pattern* — an existing `Rule` subclass, an existing
 role-assignment example, an existing action similar in shape to what
 you're about to build — never for the new concept's own name (a norm
 introducing a "weighmaster," say): that concept doesn't exist in the
 codebase yet, so a query for it will correctly return nothing useful and
-tells you nothing about how to build it. If a tool call ever returns
-nothing, an obviously stale answer, or fails outright, don't try to fix
-the index yourself — note it in your report and fall back to plain
+tells you nothing about how to build it.
+
+**If `.ua/knowledge-graph.json` or `.understand-anything/knowledge-graph.json`
+exists, reading it is required, not optional.** It's plain JSON — read
+it directly and search its `nodes`/`edges` for the same query terms you
+used against CodeGraph; it answers *what a file/function is for*, which
+CodeGraph's own call-graph structure doesn't tell you. If neither file
+exists, or a tool call against either index ever returns nothing, an
+obviously stale answer, or fails outright, don't try to fix the index
+yourself — note it explicitly in your report and fall back to plain
 Read/Grep.
 
 Do not begin modifying code until you understand:
@@ -771,13 +801,15 @@ to implement. Every change must be traceable to the accepted norm
 
 ---
 
-# 5. Institutional Design Must Precede Code Changes
+# 5. Design Your Approach Before Writing Code — But Don't Write the Spec File Yet
 
-Before modifying any code, write the design for every requirement into
-`state/norm_specs/round_{N}.md`. This file is your frozen target — an
-independent `norm-evaluator` subagent tests your implementation against
-it afterward, and it is never a place to retroactively describe what you
-built.
+Before modifying any code, work out the design for every requirement —
+in your own reasoning, not yet on disk. `state/norm_specs/round_{N}.md`
+is where this design gets recorded, but you write that file **once, at
+the end** (see the section right before "Report, in this order"), after
+you've actually built what it describes — an independent
+`norm-evaluator` subagent tests your implementation against it
+afterward, so it needs to describe what's real, not what you intend.
 
 For each requirement, classify its `clarity`:
 
@@ -826,7 +858,9 @@ simplification; `TECHNICALLY_UNREALISABLE`; or — only if you judge the
 There is no fifth outcome where a requirement is quietly left out while
 the round is still reported as done.
 
-For each requirement, specify:
+For each requirement, work out (you'll write this to
+`state/norm_specs/round_{N}.md` verbatim once implementation is done —
+see the final section before "Report, in this order"):
 
 ```text
 Requirement:
@@ -892,29 +926,30 @@ Interaction (null unless a second agent is genuinely involved):
 Verification:
 ```
 
-Close the file with a fenced ```json block making all of the above
-machine-readable, and a table: `requirement | shape | level | owner |
-verification`. `owner` = the exact file/function the behavior lives in.
-Write this file before any code changes — it's frozen from here on,
-except a targeted repair re-invocation resolving one specific reported
-gap.
+You will close `state/norm_specs/round_{N}.md` with a fenced ```json
+block making all of the above machine-readable, and a table:
+`requirement | shape | level | owner | verification`. `owner` = the
+exact file/function the behavior lives in. **Not now — this file gets
+written once, at the end** (see the section right before "Report, in
+this order"); for now, keep this design in your own reasoning and move
+straight on to building it.
 
 If nothing fits, or a specific parameter is genuinely unrecoverable from
 norm.txt: stop, report exactly why, implement nothing. Don't
 guess-and-flag — an implemented guess is harder to notice and correct
 later than a round that visibly didn't implement anything.
 
-**Writing this file is not the end of your task — it's the halfway point.**
-A real round did exactly this and stopped, self-reporting
+**Design is not the end of your task — it's the halfway point.** A real
+round worked out a design like this, wrote it straight to
+`state/norm_specs/round_{N}.md`, and stopped there, self-reporting
 `{"classification": "success", "message": "Round N norm specification
 written..."}` — genuinely believing the round was complete. It wasn't: no
-rule file, no `state/config.json`, nothing. The orchestrator now checks
-this mechanically (a spec with zero accompanying code/config/fluent
-changes is rejected and sent back), but don't rely on that catching it —
-in the same response, immediately continue to Section 6 onward and
-actually make every change your own classification table just committed
-to. Every table entry needs its `owner` file to actually exist and be
-correct before you finish, not just be named.
+rule file, no `state/config.json`, nothing. The orchestrator checks this
+mechanically (a round with zero code/config/fluent changes is rejected
+and sent back), but don't rely on that catching it — continue directly,
+in this same response, to Section 6 and actually build every requirement
+above. Every row in your eventual table needs its `owner` file to
+actually exist and be correct before you finish, not just be planned.
 
 ---
 
@@ -1215,7 +1250,7 @@ spec — `state/schedule.json`'s own execution order is compiled from these
 automatically, so inserting between two existing actions never requires
 editing either of them, or `state/schedule.json` itself.
 
-Only once Section 5's design is written, implement:
+Only once Section 5's design is worked out, implement:
 
 1. New `state/actions/{name}.json` — `name` matching both the filename
    stem and the `state/institution.json` key. Two shapes to choose
@@ -1445,6 +1480,50 @@ rather than declaring the norm implemented.
 
 ---
 
+# 17. Now Write `state/norm_specs/round_{N}.md`
+
+Only now — once Sections 6 through 16 are done and every requirement
+from Section 5 is actually built and self-checked — write
+`state/norm_specs/round_{N}.md`. This file is your **completed report**
+of what this round's institution actually is, not a plan for what you
+intend to build:
+
+- For each requirement, write out the fields from Section 5's template
+  (`Requirement`/`Purpose`/`Actor`/`Level`/... through `Verification`),
+  and for anything routed to a new institutional object or new action,
+  that section's own template too.
+- Close the file with a fenced ```json block making all of this
+  machine-readable, and a table: `requirement | shape | level | owner |
+  verification`. `owner` = the exact file/function the behavior lives
+  in — by this point it must actually exist on disk; confirm each one
+  before writing its row, not from memory of having planned it.
+- If Section 5 concluded nothing fits (or a specific parameter is
+  genuinely unrecoverable), this file is still where you say so, plainly
+  and with the reason — an explicit "not implementable, because X"
+  report is a legitimate, complete round; a silently missing file isn't.
+- Once written for a round that reaches evaluation, this file is frozen
+  except for a targeted repair re-invocation resolving one specific
+  reported gap (see the intro's own note on this) — never rewritten
+  later just because you'd build it differently now.
+
+**Reaching this section without having implemented anything you
+concluded was buildable is not a legitimate stopping point.** If you
+find yourself here with Section 6 onward still undone, go back and do it
+first — a file that describes work that doesn't exist on disk reads as a
+finished round to anyone who trusts it (the norm-evaluator, a repair
+invocation, a human reviewing the branch later), which is worse than no
+file at all.
+
+**The one exception: if you're genuinely running low on steps and won't
+finish**, don't let the step budget cut you off with nothing recorded —
+write `state/norm_specs/round_{N}.md` now with whatever's actually true
+so far (mark any unbuilt row's `owner` as `NOT_IMPLEMENTED_THIS_ROUND`
+with a reason, per the closing report's own rules below), and set
+`ran_out_of_budget: true` in your closing json block. A partial, honest
+record beats a silent truncation.
+
+---
+
 # Core Principle
 
 Your job is not simply to change code. Your job is to **institutionalize
@@ -1482,8 +1561,9 @@ accepted norm.
 
 ## Report, in this order
 
-1. The Section 4/5 requirement table (`requirement | shape | level | owner |
-   verification`), and the Section 16 completeness re-walk's result.
+1. The requirement table you wrote to `state/norm_specs/round_{N}.md` in
+   Section 17 (`requirement | shape | level | owner | verification`), and
+   the Section 16 completeness re-walk's result.
 2. Parametric vs. structural routing per requirement, with rationale —
    including, for any new-action requirement, the Decision Granularity
    Rule reasoning that led there; and, per Section 16's judgment-verb
@@ -1572,8 +1652,10 @@ on disk before you finish.
 - If a rule needs memory of full history rather than current values only
   (nothing in `state/*.json` holds history), stop and report that
   explicitly rather than approximating it.
-- `state/norm_specs/round_{N}.md` is frozen once you start implementing.
-  If Section 16 finds your code doesn't match a requirement, fix the
-  code — never rewrite the requirement to match what you built. The only
-  exception is a targeted repair re-invocation resolving one specific
-  reported gap.
+- `state/norm_specs/round_{N}.md` is written once, in Section 17, after
+  implementation — and frozen from that point on. If Section 16 finds
+  your code doesn't match your own intended design, fix the code before
+  writing the spec — never write a spec that rationalizes whatever you
+  happened to build instead of what the norm actually requires. The only
+  exception to "frozen" is a targeted repair re-invocation resolving one
+  specific reported gap.
