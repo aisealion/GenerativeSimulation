@@ -2,5 +2,14 @@
   "agent_count": 10,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "rules": {}
+  "rules": {
+    "harvest": [
+      {
+        "type": "cap_and_share",
+        "max_kg": 15,
+        "lifecycle": {"start": 1, "end": null}
+      }
+    ]
+  }
 }
+

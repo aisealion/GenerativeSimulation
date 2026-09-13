@@ -48,7 +48,15 @@ def run(ctx):
     def build_record(agent_id, response):
         effort = min(1.0, max(0.0, float(response["effort"])))
         raw_kg = catch_from_effort(effort, stock_before)
-        return {"effort": effort, "harvested_kg": raw_kg, "reasoning": response.get("reasoning", ""), "note": None}
+        max_kg = 15
+        if raw_kg > max_kg:
+            excess = raw_kg - max_kg
+            harvested_kg = max_kg
+            note = f"excess {excess:.2f} kg to be shared equally among other fishers"
+        else:
+            harvested_kg = raw_kg
+            note = None
+        return {"effort": effort, "harvested_kg": harvested_kg, "reasoning": response.get("reasoning", ""), "note": note}
 
     def after_settle(agent_id, record_entry):
         new_payoff = apply_consumption(runtime["payoff"].get(agent_id, 0.0), record_entry["harvested_kg"])
