@@ -1,6 +1,6 @@
 ---
 description: Given a round's adopted-norm specification (state/norm_specs/round_N.md) and the norm-implementer's uncommitted code diff for this fishery simulation, write and run independent tests checking whether the implementation actually satisfies each requirement. Never trusts the implementer's own tests/norm_checks/ as sufficient — this is a second, independently-scoped agent specifically because the same agent that writes the code should not be the only one judging it. Invoked after the norm-implementer's compile/runtime checks pass, before its changes are committed.
-mode: subagent
+mode: primary
 permission:
   edit:
     "*": deny

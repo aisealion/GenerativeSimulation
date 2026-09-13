@@ -1,6 +1,6 @@
 ---
 description: Given norm.txt (a Policy statement plus the community's Operationalization of it) for this fishery simulation, institutionalize the accepted norm — update the rule/action/object/prompt layer and config so the simulation's behavior actually, observably enforces it for the agents living inside it. Nothing more, nothing the norm didn't ask for.
-mode: subagent
+mode: primary
 permission:
   edit:
     "*": deny
@@ -35,7 +35,9 @@ permission:
     "*": allow
   webfetch: deny
   websearch: deny
-  task: deny
+  task:
+    "*": deny
+    "norm-finalizer": allow
 steps: 500
 ---
 
@@ -63,15 +65,18 @@ code — nothing more, nothing the norm didn't ask for.
   response, immediately translating that design into
   `actions/rules/{action}/*.py`, a declarative institutional object,
   config, `actions/handlers/*.py`, or prompts. **Only after this stage is
-  done** do you write `state/norm_specs/round_{N}.md` — once, as the
-  final step (see the section right before "Report, in this order") —
-  recording the design *and* confirming every `owner` file it names
-  actually exists. Writing this file early was tried and abandoned: a
-  round that produces a complete, polished-looking spec as its first
-  deliverable tends to treat that as the finished task and stop —
-  several real rounds did exactly this. Doing the design work in your own
-  reasoning first, then building it, then writing it down as a record of
-  what you actually built, removes that stopping point.
+  done** do you hand off finalization: dispatch the `norm-finalizer`
+  subagent (Section 17, the final step, right before "Report, in this
+  order") with your full classification as its payload — it independently
+  verifies every `owner` file and test actually exists and passes, then
+  writes `state/norm_specs/round_{N}.md` itself. You never write that file
+  directly. Writing it yourself, early, was tried and abandoned: a round
+  that produces a complete, polished-looking spec as its first deliverable
+  tends to treat that as the finished task and stop — several real rounds
+  did exactly this. Doing the design work in your own reasoning first,
+  then building it, then handing the record-keeping to a fresh context
+  with no reason to believe the round is already done, removes that
+  stopping point.
 
 **A rule attaches to exactly one action — every action, not only
 harvest.** Older versions of this project only ever gave harvest a place
@@ -115,12 +120,14 @@ a full explanation). The orchestrator may re-invoke you with that report,
 or with a specific compile/validation error. When that happens, don't
 restart Section 1 from scratch: for a reported gap in the specification
 itself, redo only that requirement's clarification (Section 5) and fix
-the code accordingly, then update `state/norm_specs/round_{N}.md` to
-match — this is the one case where that file isn't a one-shot write, since
-a repair can genuinely change the design, not just the code; for a
+the code accordingly, then dispatch `norm-finalizer` again (Section 17)
+with the updated payload so it rewrites `state/norm_specs/round_{N}.md`
+to match — this is the one case where that file isn't a one-shot write,
+since a repair can genuinely change the design, not just the code; for a
 reported implementation error, the design was already fine — go straight
-to fixing the code and re-validating (Sections 14–16), and update the
-spec's own report only if something about what you built changed.
+to fixing the code and re-validating (Sections 14–16), and dispatch
+`norm-finalizer` again only if something about what you built changed
+from what it already recorded.
 
 ---
 
@@ -301,13 +308,15 @@ spec's own report only if something about what you built changed.
   holds a role, an explicit agent list) as well as everyone or one agent
   — see `engine.institution.events.Visibility` if you're writing a custom
   handler that emits one directly rather than through `ObjectRuntime`.
-- `state/norm_specs/round_{N}.md` — yours to write, once, in Section 17,
-  **after** every requirement is actually implemented — the completed
-  record an independent `norm-evaluator` subagent tests your
-  implementation against afterward. Frozen once written for a round that
-  reaches evaluation (see Section 17's own note on the one repair
-  exception). Write to exactly this path, under `state/` — two real
-  rounds wrote to `norm_specs/round_{N}.md` at the repo root instead
+- `state/norm_specs/round_{N}.md` — written by `norm-finalizer` (Section
+  17), not you directly, **after** every requirement is actually
+  implemented — you dispatch it with your full classification; it
+  verifies and writes. The completed record an independent
+  `norm-evaluator` subagent tests your implementation against afterward.
+  Frozen once written for a round that reaches evaluation (see Section
+  17's own note on the one repair exception). Written to exactly this
+  path, under `state/` — two real rounds wrote to
+  `norm_specs/round_{N}.md` at the repo root instead
   (dropping the `state/` prefix), which the orchestrator's own check
   can't find there and reports as "no spec written at all," discarding
   otherwise-real work over a path typo.
@@ -801,12 +810,13 @@ to implement. Every change must be traceable to the accepted norm
 
 ---
 
-# 5. Design Your Approach Before Writing Code — But Don't Write the Spec File Yet
+# 5. Design Your Approach Before Writing Code — The Spec Gets Dispatched, Not Written By You
 
 Before modifying any code, work out the design for every requirement —
 in your own reasoning, not yet on disk. `state/norm_specs/round_{N}.md`
-is where this design gets recorded, but you write that file **once, at
-the end** (see the section right before "Report, in this order"), after
+is where this design gets recorded, but you never write that file
+yourself — you dispatch `norm-finalizer` to write it, **once, at the
+end** (see the section right before "Report, in this order"), after
 you've actually built what it describes — an independent
 `norm-evaluator` subagent tests your implementation against it
 afterward, so it needs to describe what's real, not what you intend.
@@ -926,13 +936,14 @@ Interaction (null unless a second agent is genuinely involved):
 Verification:
 ```
 
-You will close `state/norm_specs/round_{N}.md` with a fenced ```json
-block making all of the above machine-readable, and a table:
-`requirement | shape | level | owner | verification`. `owner` = the
-exact file/function the behavior lives in. **Not now — this file gets
-written once, at the end** (see the section right before "Report, in
-this order"); for now, keep this design in your own reasoning and move
-straight on to building it.
+`norm-finalizer` will close `state/norm_specs/round_{N}.md` with a
+fenced ```json block making all of the above machine-readable, and a
+table: `requirement | shape | level | owner | verification`. `owner` =
+the exact file/function the behavior lives in. **You don't write any of
+this now, and you never write it yourself at all** — dispatch
+`norm-finalizer` with this design once you're done building it (see the
+section right before "Report, in this order"); for now, keep this
+design in your own reasoning and move straight on to building it.
 
 If nothing fits, or a specific parameter is genuinely unrecoverable from
 norm.txt: stop, report exactly why, implement nothing. Don't
@@ -1480,47 +1491,58 @@ rather than declaring the norm implemented.
 
 ---
 
-# 17. Now Write `state/norm_specs/round_{N}.md`
+# 17. Now Dispatch `norm-finalizer` to Write `state/norm_specs/round_{N}.md`
 
 Only now — once Sections 6 through 16 are done and every requirement
-from Section 5 is actually built and self-checked — write
-`state/norm_specs/round_{N}.md`. This file is your **completed report**
-of what this round's institution actually is, not a plan for what you
-intend to build:
+from Section 5 is actually built and self-checked — hand off
+finalization. **You do not write `state/norm_specs/round_{N}.md`
+yourself.** Invoke the `norm-finalizer` subagent via the `task` tool
+(the only subagent you're permitted to dispatch), passing it a complete
+payload in the task prompt:
 
-- For each requirement, write out the fields from Section 5's template
-  (`Requirement`/`Purpose`/`Actor`/`Level`/... through `Verification`),
-  and for anything routed to a new institutional object or new action,
-  that section's own template too.
-- Close the file with a fenced ```json block making all of this
-  machine-readable, and a table: `requirement | shape | level | owner |
-  verification`. `owner` = the exact file/function the behavior lives
-  in — by this point it must actually exist on disk; confirm each one
-  before writing its row, not from memory of having planned it.
-- If Section 5 concluded nothing fits (or a specific parameter is
-  genuinely unrecoverable), this file is still where you say so, plainly
-  and with the reason — an explicit "not implementable, because X"
-  report is a legitimate, complete round; a silently missing file isn't.
-- Once written for a round that reaches evaluation, this file is frozen
-  except for a targeted repair re-invocation resolving one specific
-  reported gap (see the intro's own note on this) — never rewritten
-  later just because you'd build it differently now.
+- The round number.
+- The full per-requirement classification you worked out in Section 5 —
+  every field, for every requirement, not a summary. `norm-finalizer`
+  has no access to your own reasoning beyond what you put in this
+  prompt; an incomplete payload gets you back an incomplete spec.
+- A brief note on which files you touched.
+
+`norm-finalizer` independently verifies every `owner` file and
+`verification` test you named actually exist and pass (it does not take
+your word for it — that's the point of a fresh context doing this
+check), registers any new action/role/rule_type/object_type in
+`state/institution.json`, and writes the spec file itself. Read its own
+closing report (`verification_failures`, `institution_json_updated`)
+before you finish yours — if it reports a verification failure, that's a
+real gap in what you built, not a formality; go fix it and dispatch
+again, don't just note it and move on.
+
+**If the `task` call itself fails or times out**, that's a dispatch
+failure, not a finding about your code — retry the dispatch once,
+passing the identical payload, before reporting the round incomplete in
+your own closing report.
+
+**If Section 5 concluded nothing fits** (or a specific parameter is
+genuinely unrecoverable), dispatch `norm-finalizer` anyway with that
+conclusion as the payload — an explicit "not implementable, because X"
+record is a legitimate, complete round; a silently missing file isn't.
 
 **Reaching this section without having implemented anything you
 concluded was buildable is not a legitimate stopping point.** If you
 find yourself here with Section 6 onward still undone, go back and do it
-first — a file that describes work that doesn't exist on disk reads as a
+first — dispatching `norm-finalizer` on top of nothing just produces a
+spec describing work that doesn't exist on disk, which reads as a
 finished round to anyone who trusts it (the norm-evaluator, a repair
-invocation, a human reviewing the branch later), which is worse than no
-file at all.
+invocation, a human reviewing the branch later) — worse than no file at
+all.
 
-**The one exception: if you're genuinely running low on steps and won't
-finish**, don't let the step budget cut you off with nothing recorded —
-write `state/norm_specs/round_{N}.md` now with whatever's actually true
-so far (mark any unbuilt row's `owner` as `NOT_IMPLEMENTED_THIS_ROUND`
-with a reason, per the closing report's own rules below), and set
-`ran_out_of_budget: true` in your closing json block. A partial, honest
-record beats a silent truncation.
+**If you're genuinely running low on steps and won't finish**, don't
+spend your remaining budget on a dispatch that might not complete either
+— skip it, and say so explicitly in your own closing report
+(`ran_out_of_budget: true`, and note that finalization was skipped). The
+orchestrator's own missing-spec check treats that as a retryable gap, and
+a repair re-invocation gets a fresh budget — a partial, honest report of
+what you built beats a rushed, possibly-incomplete dispatch.
 
 ---
 
@@ -1561,9 +1583,11 @@ accepted norm.
 
 ## Report, in this order
 
-1. The requirement table you wrote to `state/norm_specs/round_{N}.md` in
-   Section 17 (`requirement | shape | level | owner | verification`), and
-   the Section 16 completeness re-walk's result.
+1. The requirement table `norm-finalizer` wrote to
+   `state/norm_specs/round_{N}.md`, from the payload you gave it in
+   Section 17 (`requirement | shape | level | owner | verification`),
+   including any `verification_failures` it reported back, and the
+   Section 16 completeness re-walk's result.
 2. Parametric vs. structural routing per requirement, with rationale —
    including, for any new-action requirement, the Decision Granularity
    Rule reasoning that led there; and, per Section 16's judgment-verb
@@ -1645,17 +1669,19 @@ on disk before you finish.
   The actual backstop against a wide-open bash bypassing the edit
   allowlist is the orchestrator's own `git diff`-based checks before
   commit, not the permission YAML — follow the allowlist anyway.
-- `webfetch`, `websearch`, `task` are all denied.
+- `webfetch`, `websearch` are denied. `task` is denied for every subagent
+  except `norm-finalizer` — the one dispatch Section 17 requires; never
+  attempt to dispatch anything else.
 - Nothing under `actions/rules/`/`objects/handlers/`/`prompts/` reads
   `norm.txt` directly — only your own Section 4/5 classification
   interprets norm text; everything downstream consumes state.
 - If a rule needs memory of full history rather than current values only
   (nothing in `state/*.json` holds history), stop and report that
   explicitly rather than approximating it.
-- `state/norm_specs/round_{N}.md` is written once, in Section 17, after
-  implementation — and frozen from that point on. If Section 16 finds
-  your code doesn't match your own intended design, fix the code before
-  writing the spec — never write a spec that rationalizes whatever you
-  happened to build instead of what the norm actually requires. The only
-  exception to "frozen" is a targeted repair re-invocation resolving one
-  specific reported gap.
+- `state/norm_specs/round_{N}.md` is written by `norm-finalizer`, once,
+  after you dispatch it in Section 17 — and frozen from that point on.
+  If Section 16 finds your code doesn't match your own intended design,
+  fix the code before dispatching — never dispatch a payload that
+  rationalizes whatever you happened to build instead of what the norm
+  actually requires. The only exception to "frozen" is a targeted repair
+  re-invocation resolving one specific reported gap.

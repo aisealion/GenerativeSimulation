@@ -1254,8 +1254,19 @@ MAX_EVALUATOR_ATTEMPTS = 2
 # any of these as an unretried hard failure (as a bare run_norm_implementer()
 # call would) discarded close to half of all rounds before real work ever
 # had a chance to happen, regardless of whether the eventual code would
-# have been fine.
-MAX_IMPLEMENTER_PROCESS_ATTEMPTS = 2
+# have been fine. Raised from 2 to 5 (2026-09-14) after a real round hit
+# the identical "session ended abnormally (last step reason: 'tool-calls')"
+# signature on both of its 2 allowed attempts and was discarded despite the
+# actual code issue never having had a chance to be attempted — the failure
+# looks session-level/transient, not a deterministic code problem, so a
+# wider budget is worth the added worst-case wall time.
+MAX_IMPLEMENTER_PROCESS_ATTEMPTS = 5
+# A small pause between process-retry attempts — matches the existing
+# CALL_DELAY_S convention in engine/llm_agents.py for fisher/critique call
+# retries, but kept as its own env var since an opencode subprocess call is
+# far heavier than one litellm completion; reusing LLM_CALL_DELAY_S would
+# couple two unrelated costs.
+NORM_IMPLEMENTER_RETRY_DELAY_S = float(os.environ.get("NORM_IMPLEMENTER_RETRY_DELAY_S", "5"))
 
 
 def run_norm_implementer_with_retry(round_number, extra_message=None):
@@ -1274,6 +1285,8 @@ def run_norm_implementer_with_retry(round_number, extra_message=None):
         print(f"Round {round_number}: norm-implementer's own process failed, timed out, or was "
               f"truncated mid-task (attempt {attempt}/{MAX_IMPLEMENTER_PROCESS_ATTEMPTS}) — "
               f"retrying the process itself, not spending a repair attempt on it.")
+        if attempt < MAX_IMPLEMENTER_PROCESS_ATTEMPTS:
+            time.sleep(NORM_IMPLEMENTER_RETRY_DELAY_S)
     return False
 
 

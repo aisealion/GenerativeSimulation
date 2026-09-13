@@ -48,14 +48,13 @@ DEFAULT_FISHER_MODEL = "litellm/Kimi-K2.5"
 
 def _load_fisher_system_prompt():
     """The fisher character's system prompt used to live entirely inside
-    the opencode agent definition (.opencode/agent/fisher.md); now that
-    calls go direct, that file is kept as the single source for this text
-    (not duplicated here) and its body (everything after the frontmatter)
-    is read in as the system message."""
-    text = (ROOT / ".opencode" / "agent" / "fisher.md").read_text()
-    _, _, body = text.partition("---\n")
-    _, _, body = body.partition("---")
-    return body.strip()
+    the opencode agent definition (.opencode/agent/fisher.md, back when
+    fisher calls went through opencode); now that calls go direct via
+    litellm, that file was dead weight sitting in the opencode-agent
+    directory pretending to be an agent nothing ever invoked — moved to
+    prompts/fisher_system_prompt.md (plain text, no frontmatter needed)
+    as the single source of this text."""
+    return (ROOT / "prompts" / "fisher_system_prompt.md").read_text().strip()
 
 
 FISHER_SYSTEM_PROMPT = _load_fisher_system_prompt()
