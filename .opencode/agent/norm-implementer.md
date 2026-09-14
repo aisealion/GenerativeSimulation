@@ -1517,10 +1517,25 @@ before you finish yours — if it reports a verification failure, that's a
 real gap in what you built, not a formality; go fix it and dispatch
 again, don't just note it and move on.
 
-**If the `task` call itself fails or times out**, that's a dispatch
-failure, not a finding about your code — retry the dispatch once,
-passing the identical payload, before reporting the round incomplete in
-your own closing report.
+**Do not trust a "no error" result — verify the dispatch actually
+produced the file, every time.** A real dispatch came back `status:
+"completed"`, no error, with a *completely empty* result — the subagent's
+session ended having written nothing at all, and nothing about the `task`
+tool call itself signaled failure. After every dispatch, `read` (or
+`glob`) `state/norm_specs/round_{N}.md` yourself and confirm it now
+exists and is non-trivial (a real per-requirement table, not a stub) —
+an empty task result, or a file that still doesn't exist, is exactly the
+same situation as an explicit failure below, whether or not the tool
+call itself reported an error.
+
+**If the `task` call fails, times out, or completes without actually
+producing the file** (per the check above), that's a dispatch failure,
+not a finding about your code — retry the dispatch once, passing the
+identical payload. If the retry *also* doesn't produce the file, stop:
+report the round incomplete in your own closing report
+(`ran_out_of_budget` doesn't apply here — say plainly that finalization
+failed twice and the spec was never written) rather than finishing as if
+it had been.
 
 **If Section 5 concluded nothing fits** (or a specific parameter is
 genuinely unrecoverable), dispatch `norm-finalizer` anyway with that
@@ -1623,7 +1638,8 @@ accepted norm.
      "norm_check_tests_written": [],
      "norm_check_tests_pass": true,
      "denied_permission_needed": false,
-     "ran_out_of_budget": false
+     "ran_out_of_budget": false,
+     "finalization_failed": false
    }
    ```
    **`classification` must include every requirement identified in
@@ -1646,7 +1662,13 @@ accepted norm.
    Set `ran_out_of_budget: true` if you're running low on steps — stop
    making tool calls, report the table and whatever diff exists, and say
    so explicitly; an honestly-reported incomplete round is recoverable
-   (the orchestrator retries it), a silent cutoff is not. Never include
+   (the orchestrator retries it), a silent cutoff is not. Set
+   `finalization_failed: true` if `norm-finalizer` never actually produced
+   `state/norm_specs/round_{N}.md` after your two dispatch attempts
+   (Section 17) — the orchestrator's own missing-spec check will already
+   catch this from the file's absence, but name it here too, the same
+   reason every other gap in this schema is stated explicitly rather than
+   left to be inferred from what's missing. Never include
    any OTHER fenced ```json block anywhere else in your response (an
    example config, an illustrative snippet) — the orchestrator
    specifically looks for the last one containing a `classification` key.

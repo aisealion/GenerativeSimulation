@@ -1239,8 +1239,21 @@ def stage_norm_implementation(round_number):
 
 
 # Bounds real repair attempts (an IMPLEMENTATION_ERROR/SPEC_GAP finding, or
-# a compile error) — a judgment about the code.
-MAX_NORM_REPAIR_ATTEMPTS = 2
+# a compile error) — a judgment about the code. Raised 2 -> 4 -> 10
+# (2026-09-14) after a real round exhausted its budget on a genuine, well-
+# evidenced code bug (a rule referencing an institutional object instance
+# that was never declared) that survived one repair attempt because the
+# model's own fix addressed a different, superficially-similar problem
+# (an institution.json catalog path) instead of the actual missing
+# instance. Distinct from the process-attempt budget defined below, which
+# is about retrying an identical thing after a session-level glitch, not
+# about giving a real fix more chances. Real cost, named explicitly: each
+# unit here is a full implement-again + re-evaluate cycle (an opencode
+# subprocess each), not a cheap retry — 10 is a genuinely large worst-case
+# budget for one persistently-broken round, accepted deliberately for now
+# to see how many real attempts a model actually needs against a clearly-
+# quoted error before this number should be revisited downward instead.
+MAX_NORM_REPAIR_ATTEMPTS = 10
 # Separate bound for retrying the evaluator PROCESS itself when it fails to
 # produce any verdict at all (timeout, crash, unparseable report) — that
 # says nothing about whether the code is correct, so it must not consume a
