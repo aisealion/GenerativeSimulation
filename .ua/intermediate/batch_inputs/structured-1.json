@@ -1,0 +1,24 @@
+{"projectRoot":".","batchFiles":[
+  {
+    "path": ".opencode/agent/norm-evaluator.md",
+    "language": "markdown",
+    "sizeLines": 388,
+    "fileCategory": "docs"
+  },
+  {
+    "path": ".opencode/agent/norm-finalizer.md",
+    "language": "markdown",
+    "sizeLines": 170,
+    "fileCategory": "docs"
+  },
+  {
+    "path": ".opencode/agent/norm-implementer.md",
+    "language": "markdown",
+    "sizeLines": 1709,
+    "fileCategory": "docs"
+  }
+],"batchImportData":{
+  ".opencode/agent/norm-evaluator.md": [],
+  ".opencode/agent/norm-finalizer.md": [],
+  ".opencode/agent/norm-implementer.md": []
+}}

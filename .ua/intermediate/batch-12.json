@@ -1,0 +1,2412 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 13,
+  "filesSkipped": [],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 13,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 13,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "results": [
+    {
+      "path": "tests/regression/test_fluents_invariants.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 49,
+      "nonEmptyLines": 42,
+      "functions": [
+        {
+          "name": "load_fluents",
+          "startLine": 7,
+          "endLine": 8,
+          "params": []
+        },
+        {
+          "name": "test_exclusive_role_has_one_open_holder",
+          "startLine": 11,
+          "endLine": 22,
+          "params": []
+        },
+        {
+          "name": "test_narrated_facts_declare_visibility_and_event_type",
+          "startLine": 25,
+          "endLine": 49,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "load_fluents",
+          "line": 7,
+          "isDefault": false
+        },
+        {
+          "name": "test_exclusive_role_has_one_open_holder",
+          "line": 11,
+          "isDefault": false
+        },
+        {
+          "name": "test_narrated_facts_declare_visibility_and_event_type",
+          "line": 25,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "load_fluents",
+          "callee": "json.loads",
+          "lineNumber": 8
+        },
+        {
+          "caller": "load_fluents",
+          "callee": "FLUENTS_PATH.read_text",
+          "lineNumber": 8
+        },
+        {
+          "caller": "test_exclusive_role_has_one_open_holder",
+          "callee": "load_fluents",
+          "lineNumber": 12
+        },
+        {
+          "caller": "test_exclusive_role_has_one_open_holder",
+          "callee": "tuple",
+          "lineNumber": 17
+        },
+        {
+          "caller": "test_narrated_facts_declare_visibility_and_event_type",
+          "callee": "load_fluents",
+          "lineNumber": 26
+        },
+        {
+          "caller": "test_narrated_facts_declare_visibility_and_event_type",
+          "callee": "record.get",
+          "lineNumber": 28
+        },
+        {
+          "caller": "test_narrated_facts_declare_visibility_and_event_type",
+          "callee": "record.get",
+          "lineNumber": 29
+        },
+        {
+          "caller": "test_narrated_facts_declare_visibility_and_event_type",
+          "callee": "record.get",
+          "lineNumber": 31
+        },
+        {
+          "caller": "test_narrated_facts_declare_visibility_and_event_type",
+          "callee": "record.get",
+          "lineNumber": 34
+        },
+        {
+          "caller": "test_narrated_facts_declare_visibility_and_event_type",
+          "callee": "record.get",
+          "lineNumber": 39
+        },
+        {
+          "caller": "test_narrated_facts_declare_visibility_and_event_type",
+          "callee": "record.get",
+          "lineNumber": 40
+        },
+        {
+          "caller": "test_narrated_facts_declare_visibility_and_event_type",
+          "callee": "record.get",
+          "lineNumber": 42
+        },
+        {
+          "caller": "test_narrated_facts_declare_visibility_and_event_type",
+          "callee": "record.get",
+          "lineNumber": 45
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 3,
+        "functionCount": 3,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/regression/test_institution_role_drift.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 41,
+      "nonEmptyLines": 26,
+      "functions": [
+        {
+          "name": "_write",
+          "startLine": 6,
+          "endLine": 8,
+          "params": [
+            "path",
+            "content"
+          ]
+        },
+        {
+          "name": "_setup",
+          "startLine": 11,
+          "endLine": 13,
+          "params": [
+            "tmp_path",
+            "monkeypatch",
+            "roles"
+          ]
+        },
+        {
+          "name": "test_a_registered_role_with_a_matching_directive_file_is_clean",
+          "startLine": 16,
+          "endLine": 20,
+          "params": [
+            "tmp_path",
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_a_registered_role_with_no_directive_file_is_flagged",
+          "startLine": 23,
+          "endLine": 31,
+          "params": [
+            "tmp_path",
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_clearing_the_gap_makes_the_check_clean_again",
+          "startLine": 34,
+          "endLine": 41,
+          "params": [
+            "tmp_path",
+            "monkeypatch"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "_write",
+          "line": 6,
+          "isDefault": false
+        },
+        {
+          "name": "_setup",
+          "line": 11,
+          "isDefault": false
+        },
+        {
+          "name": "test_a_registered_role_with_a_matching_directive_file_is_clean",
+          "line": 16,
+          "isDefault": false
+        },
+        {
+          "name": "test_a_registered_role_with_no_directive_file_is_flagged",
+          "line": 23,
+          "isDefault": false
+        },
+        {
+          "name": "test_clearing_the_gap_makes_the_check_clean_again",
+          "line": 34,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_write",
+          "callee": "path.parent.mkdir",
+          "lineNumber": 7
+        },
+        {
+          "caller": "_write",
+          "callee": "path.write_text",
+          "lineNumber": 8
+        },
+        {
+          "caller": "_setup",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 12
+        },
+        {
+          "caller": "_setup",
+          "callee": "_write",
+          "lineNumber": 13
+        },
+        {
+          "caller": "_setup",
+          "callee": "json.dumps",
+          "lineNumber": 13
+        },
+        {
+          "caller": "test_a_registered_role_with_a_matching_directive_file_is_clean",
+          "callee": "_setup",
+          "lineNumber": 17
+        },
+        {
+          "caller": "test_a_registered_role_with_a_matching_directive_file_is_clean",
+          "callee": "_write",
+          "lineNumber": 18
+        },
+        {
+          "caller": "test_a_registered_role_with_a_matching_directive_file_is_clean",
+          "callee": "simulate_module.norm_implementation_institution_errors",
+          "lineNumber": 20
+        },
+        {
+          "caller": "test_a_registered_role_with_no_directive_file_is_flagged",
+          "callee": "_setup",
+          "lineNumber": 24
+        },
+        {
+          "caller": "test_a_registered_role_with_no_directive_file_is_flagged",
+          "callee": "_write",
+          "lineNumber": 25
+        },
+        {
+          "caller": "test_a_registered_role_with_no_directive_file_is_flagged",
+          "callee": "simulate_module.norm_implementation_institution_errors",
+          "lineNumber": 28
+        },
+        {
+          "caller": "test_a_registered_role_with_no_directive_file_is_flagged",
+          "callee": "len",
+          "lineNumber": 29
+        },
+        {
+          "caller": "test_clearing_the_gap_makes_the_check_clean_again",
+          "callee": "_setup",
+          "lineNumber": 35
+        },
+        {
+          "caller": "test_clearing_the_gap_makes_the_check_clean_again",
+          "callee": "_write",
+          "lineNumber": 36
+        },
+        {
+          "caller": "test_clearing_the_gap_makes_the_check_clean_again",
+          "callee": "simulate_module.norm_implementation_institution_errors",
+          "lineNumber": 38
+        },
+        {
+          "caller": "test_clearing_the_gap_makes_the_check_clean_again",
+          "callee": "_write",
+          "lineNumber": 40
+        },
+        {
+          "caller": "test_clearing_the_gap_makes_the_check_clean_again",
+          "callee": "simulate_module.norm_implementation_institution_errors",
+          "lineNumber": 41
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 5,
+        "functionCount": 5,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/regression/test_norm_implementer_retry.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 56,
+      "nonEmptyLines": 41,
+      "functions": [
+        {
+          "name": "test_succeeds_on_first_attempt_no_sleep_no_extra_calls",
+          "startLine": 4,
+          "endLine": 13,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt",
+          "startLine": 16,
+          "endLine": 32,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_returns_false_after_exhausting_every_attempt",
+          "startLine": 35,
+          "endLine": 49,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_the_budget_is_actually_five",
+          "startLine": 52,
+          "endLine": 56,
+          "params": [
+            "monkeypatch"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "test_succeeds_on_first_attempt_no_sleep_no_extra_calls",
+          "line": 4,
+          "isDefault": false
+        },
+        {
+          "name": "test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt",
+          "line": 16,
+          "isDefault": false
+        },
+        {
+          "name": "test_returns_false_after_exhausting_every_attempt",
+          "line": 35,
+          "isDefault": false
+        },
+        {
+          "name": "test_the_budget_is_actually_five",
+          "line": 52,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_succeeds_on_first_attempt_no_sleep_no_extra_calls",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 7
+        },
+        {
+          "caller": "test_succeeds_on_first_attempt_no_sleep_no_extra_calls",
+          "callee": "calls.append",
+          "lineNumber": 7
+        },
+        {
+          "caller": "test_succeeds_on_first_attempt_no_sleep_no_extra_calls",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 8
+        },
+        {
+          "caller": "test_succeeds_on_first_attempt_no_sleep_no_extra_calls",
+          "callee": "calls.append",
+          "lineNumber": 8
+        },
+        {
+          "caller": "test_succeeds_on_first_attempt_no_sleep_no_extra_calls",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 9
+        },
+        {
+          "caller": "test_succeeds_on_first_attempt_no_sleep_no_extra_calls",
+          "callee": "sleeps.append",
+          "lineNumber": 9
+        },
+        {
+          "caller": "test_succeeds_on_first_attempt_no_sleep_no_extra_calls",
+          "callee": "simulate_module.run_norm_implementer_with_retry",
+          "lineNumber": 11
+        },
+        {
+          "caller": "test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 24
+        },
+        {
+          "caller": "test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 25
+        },
+        {
+          "caller": "test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 26
+        },
+        {
+          "caller": "test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt",
+          "callee": "sleeps.append",
+          "lineNumber": 26
+        },
+        {
+          "caller": "test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt",
+          "callee": "simulate_module.run_norm_implementer_with_retry",
+          "lineNumber": 28
+        },
+        {
+          "caller": "test_returns_false_after_exhausting_every_attempt",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 43
+        },
+        {
+          "caller": "test_returns_false_after_exhausting_every_attempt",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 44
+        },
+        {
+          "caller": "test_returns_false_after_exhausting_every_attempt",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 45
+        },
+        {
+          "caller": "test_returns_false_after_exhausting_every_attempt",
+          "callee": "sleeps.append",
+          "lineNumber": 45
+        },
+        {
+          "caller": "test_returns_false_after_exhausting_every_attempt",
+          "callee": "simulate_module.run_norm_implementer_with_retry",
+          "lineNumber": 47
+        },
+        {
+          "caller": "test_returns_false_after_exhausting_every_attempt",
+          "callee": "len",
+          "lineNumber": 49
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 4,
+        "functionCount": 4,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/regression/test_render_action.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 32,
+      "nonEmptyLines": 23,
+      "functions": [
+        {
+          "name": "test_render_action_reads_the_owning_spec_own_template",
+          "startLine": 6,
+          "endLine": 10,
+          "params": []
+        },
+        {
+          "name": "test_render_action_finds_a_sub_template_owned_by_a_different_specs_templates_dict",
+          "startLine": 13,
+          "endLine": 19,
+          "params": []
+        },
+        {
+          "name": "test_render_action_falls_back_to_a_prompts_md_file_when_no_spec_owns_the_name",
+          "startLine": 22,
+          "endLine": 27,
+          "params": []
+        },
+        {
+          "name": "test_render_action_raises_a_clear_error_for_an_unowned_and_fileless_name",
+          "startLine": 30,
+          "endLine": 32,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "test_render_action_reads_the_owning_spec_own_template",
+          "line": 6,
+          "isDefault": false
+        },
+        {
+          "name": "test_render_action_finds_a_sub_template_owned_by_a_different_specs_templates_dict",
+          "line": 13,
+          "isDefault": false
+        },
+        {
+          "name": "test_render_action_falls_back_to_a_prompts_md_file_when_no_spec_owns_the_name",
+          "line": 22,
+          "isDefault": false
+        },
+        {
+          "name": "test_render_action_raises_a_clear_error_for_an_unowned_and_fileless_name",
+          "line": 30,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_render_action_reads_the_owning_spec_own_template",
+          "callee": "render_action",
+          "lineNumber": 7
+        },
+        {
+          "caller": "test_render_action_reads_the_owning_spec_own_template",
+          "callee": "text.startswith",
+          "lineNumber": 10
+        },
+        {
+          "caller": "test_render_action_finds_a_sub_template_owned_by_a_different_specs_templates_dict",
+          "callee": "render_action",
+          "lineNumber": 14
+        },
+        {
+          "caller": "test_render_action_falls_back_to_a_prompts_md_file_when_no_spec_owns_the_name",
+          "callee": "render_action",
+          "lineNumber": 26
+        },
+        {
+          "caller": "test_render_action_raises_a_clear_error_for_an_unowned_and_fileless_name",
+          "callee": "pytest.raises",
+          "lineNumber": 31
+        },
+        {
+          "caller": "test_render_action_raises_a_clear_error_for_an_unowned_and_fileless_name",
+          "callee": "render_action",
+          "lineNumber": 32
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 4,
+        "functionCount": 4,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/regression/test_render_persona_roles.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 83,
+      "nonEmptyLines": 57,
+      "functions": [
+        {
+          "name": "_write",
+          "startLine": 10,
+          "endLine": 12,
+          "params": [
+            "path",
+            "content"
+          ]
+        },
+        {
+          "name": "_setup",
+          "startLine": 15,
+          "endLine": 17,
+          "params": [
+            "tmp_path",
+            "monkeypatch",
+            "roles"
+          ]
+        },
+        {
+          "name": "test_renders_every_currently_held_registered_role_in_catalog_order",
+          "startLine": 20,
+          "endLine": 29,
+          "params": [
+            "tmp_path",
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "startLine": 32,
+          "endLine": 43,
+          "params": [
+            "tmp_path",
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_raises_for_a_held_role_with_no_directive_file",
+          "startLine": 46,
+          "endLine": 56,
+          "params": [
+            "tmp_path",
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_a_fluent_that_isnt_a_registered_role_is_never_treated_as_one",
+          "startLine": 59,
+          "endLine": 72,
+          "params": [
+            "tmp_path",
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_a_role_no_agent_holds_yet_needs_no_directive_file",
+          "startLine": 75,
+          "endLine": 83,
+          "params": [
+            "tmp_path",
+            "monkeypatch"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "_write",
+          "line": 10,
+          "isDefault": false
+        },
+        {
+          "name": "_setup",
+          "line": 15,
+          "isDefault": false
+        },
+        {
+          "name": "test_renders_every_currently_held_registered_role_in_catalog_order",
+          "line": 20,
+          "isDefault": false
+        },
+        {
+          "name": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "line": 32,
+          "isDefault": false
+        },
+        {
+          "name": "test_raises_for_a_held_role_with_no_directive_file",
+          "line": 46,
+          "isDefault": false
+        },
+        {
+          "name": "test_a_fluent_that_isnt_a_registered_role_is_never_treated_as_one",
+          "line": 59,
+          "isDefault": false
+        },
+        {
+          "name": "test_a_role_no_agent_holds_yet_needs_no_directive_file",
+          "line": 75,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_write",
+          "callee": "path.parent.mkdir",
+          "lineNumber": 11
+        },
+        {
+          "caller": "_write",
+          "callee": "path.write_text",
+          "lineNumber": 12
+        },
+        {
+          "caller": "_setup",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 16
+        },
+        {
+          "caller": "_setup",
+          "callee": "_write",
+          "lineNumber": 17
+        },
+        {
+          "caller": "_setup",
+          "callee": "json.dumps",
+          "lineNumber": 17
+        },
+        {
+          "caller": "test_renders_every_currently_held_registered_role_in_catalog_order",
+          "callee": "_setup",
+          "lineNumber": 21
+        },
+        {
+          "caller": "test_renders_every_currently_held_registered_role_in_catalog_order",
+          "callee": "_write",
+          "lineNumber": 22
+        },
+        {
+          "caller": "test_renders_every_currently_held_registered_role_in_catalog_order",
+          "callee": "_write",
+          "lineNumber": 23
+        },
+        {
+          "caller": "test_renders_every_currently_held_registered_role_in_catalog_order",
+          "callee": "assign_role",
+          "lineNumber": 26
+        },
+        {
+          "caller": "test_renders_every_currently_held_registered_role_in_catalog_order",
+          "callee": "assign_role",
+          "lineNumber": 27
+        },
+        {
+          "caller": "test_renders_every_currently_held_registered_role_in_catalog_order",
+          "callee": "render_role_directives",
+          "lineNumber": 29
+        },
+        {
+          "caller": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "callee": "_setup",
+          "lineNumber": 33
+        },
+        {
+          "caller": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "callee": "_write",
+          "lineNumber": 34
+        },
+        {
+          "caller": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "callee": "_write",
+          "lineNumber": 35
+        },
+        {
+          "caller": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "callee": "assign_role",
+          "lineNumber": 38
+        },
+        {
+          "caller": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "callee": "assign_role",
+          "lineNumber": 39
+        },
+        {
+          "caller": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "callee": "assign_role",
+          "lineNumber": 40
+        },
+        {
+          "caller": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "callee": "render_role_directives",
+          "lineNumber": 42
+        },
+        {
+          "caller": "test_only_renders_roles_this_specific_agent_actually_holds",
+          "callee": "render_role_directives",
+          "lineNumber": 43
+        },
+        {
+          "caller": "test_raises_for_a_held_role_with_no_directive_file",
+          "callee": "_setup",
+          "lineNumber": 47
+        },
+        {
+          "caller": "test_raises_for_a_held_role_with_no_directive_file",
+          "callee": "_write",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_raises_for_a_held_role_with_no_directive_file",
+          "callee": "assign_role",
+          "lineNumber": 52
+        },
+        {
+          "caller": "test_raises_for_a_held_role_with_no_directive_file",
+          "callee": "assign_role",
+          "lineNumber": 53
+        },
+        {
+          "caller": "test_raises_for_a_held_role_with_no_directive_file",
+          "callee": "pytest.raises",
+          "lineNumber": 55
+        },
+        {
+          "caller": "test_raises_for_a_held_role_with_no_directive_file",
+          "callee": "render_role_directives",
+          "lineNumber": 56
+        },
+        {
+          "caller": "test_a_fluent_that_isnt_a_registered_role_is_never_treated_as_one",
+          "callee": "_setup",
+          "lineNumber": 65
+        },
+        {
+          "caller": "test_a_fluent_that_isnt_a_registered_role_is_never_treated_as_one",
+          "callee": "_write",
+          "lineNumber": 66
+        },
+        {
+          "caller": "test_a_fluent_that_isnt_a_registered_role_is_never_treated_as_one",
+          "callee": "assign_role",
+          "lineNumber": 69
+        },
+        {
+          "caller": "test_a_fluent_that_isnt_a_registered_role_is_never_treated_as_one",
+          "callee": "set_fact",
+          "lineNumber": 70
+        },
+        {
+          "caller": "test_a_fluent_that_isnt_a_registered_role_is_never_treated_as_one",
+          "callee": "render_role_directives",
+          "lineNumber": 72
+        },
+        {
+          "caller": "test_a_role_no_agent_holds_yet_needs_no_directive_file",
+          "callee": "_setup",
+          "lineNumber": 76
+        },
+        {
+          "caller": "test_a_role_no_agent_holds_yet_needs_no_directive_file",
+          "callee": "_write",
+          "lineNumber": 77
+        },
+        {
+          "caller": "test_a_role_no_agent_holds_yet_needs_no_directive_file",
+          "callee": "assign_role",
+          "lineNumber": 81
+        },
+        {
+          "caller": "test_a_role_no_agent_holds_yet_needs_no_directive_file",
+          "callee": "render_role_directives",
+          "lineNumber": 83
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 7,
+        "functionCount": 7,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/regression/test_roles.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 48,
+      "nonEmptyLines": 38,
+      "functions": [
+        {
+          "name": "test_exclusive_role_rotation_closes_the_previous_holder",
+          "startLine": 4,
+          "endLine": 25,
+          "params": []
+        },
+        {
+          "name": "test_non_exclusive_role_lets_every_agent_hold_it_simultaneously",
+          "startLine": 28,
+          "endLine": 35,
+          "params": []
+        },
+        {
+          "name": "test_end_fact_closes_without_opening_a_replacement",
+          "startLine": 38,
+          "endLine": 48,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "test_exclusive_role_rotation_closes_the_previous_holder",
+          "line": 4,
+          "isDefault": false
+        },
+        {
+          "name": "test_non_exclusive_role_lets_every_agent_hold_it_simultaneously",
+          "line": 28,
+          "isDefault": false
+        },
+        {
+          "name": "test_end_fact_closes_without_opening_a_replacement",
+          "line": 38,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_exclusive_role_rotation_closes_the_previous_holder",
+          "callee": "assign_role",
+          "lineNumber": 17
+        },
+        {
+          "caller": "test_exclusive_role_rotation_closes_the_previous_holder",
+          "callee": "assign_role",
+          "lineNumber": 18
+        },
+        {
+          "caller": "test_exclusive_role_rotation_closes_the_previous_holder",
+          "callee": "next",
+          "lineNumber": 20
+        },
+        {
+          "caller": "test_exclusive_role_rotation_closes_the_previous_holder",
+          "callee": "next",
+          "lineNumber": 21
+        },
+        {
+          "caller": "test_exclusive_role_rotation_closes_the_previous_holder",
+          "callee": "current_holder",
+          "lineNumber": 24
+        },
+        {
+          "caller": "test_exclusive_role_rotation_closes_the_previous_holder",
+          "callee": "current_holder",
+          "lineNumber": 25
+        },
+        {
+          "caller": "test_non_exclusive_role_lets_every_agent_hold_it_simultaneously",
+          "callee": "assign_role",
+          "lineNumber": 30
+        },
+        {
+          "caller": "test_non_exclusive_role_lets_every_agent_hold_it_simultaneously",
+          "callee": "assign_role",
+          "lineNumber": 31
+        },
+        {
+          "caller": "test_non_exclusive_role_lets_every_agent_hold_it_simultaneously",
+          "callee": "current_holder",
+          "lineNumber": 33
+        },
+        {
+          "caller": "test_non_exclusive_role_lets_every_agent_hold_it_simultaneously",
+          "callee": "len",
+          "lineNumber": 35
+        },
+        {
+          "caller": "test_end_fact_closes_without_opening_a_replacement",
+          "callee": "set_fact",
+          "lineNumber": 40
+        },
+        {
+          "caller": "test_end_fact_closes_without_opening_a_replacement",
+          "callee": "end_fact",
+          "lineNumber": 42
+        },
+        {
+          "caller": "test_end_fact_closes_without_opening_a_replacement",
+          "callee": "visible_facts",
+          "lineNumber": 47
+        },
+        {
+          "caller": "test_end_fact_closes_without_opening_a_replacement",
+          "callee": "any",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_end_fact_closes_without_opening_a_replacement",
+          "callee": "visible_facts",
+          "lineNumber": 48
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 3,
+        "functionCount": 3,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/rules/test_lifecycle_aware_loading.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 82,
+      "nonEmptyLines": 60,
+      "functions": [
+        {
+          "name": "_fake_rule_types",
+          "startLine": 16,
+          "endLine": 20,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_for_action_without_round_number_ignores_lifecycle",
+          "startLine": 23,
+          "endLine": 27,
+          "params": []
+        },
+        {
+          "name": "test_for_action_with_round_number_filters_out_not_yet_active",
+          "startLine": 30,
+          "endLine": 35,
+          "params": []
+        },
+        {
+          "name": "test_for_action_with_round_number_filters_out_expired",
+          "startLine": 38,
+          "endLine": 44,
+          "params": []
+        },
+        {
+          "name": "test_for_action_still_validates_an_inactive_entrys_type_and_duplicate_key",
+          "startLine": 47,
+          "endLine": 52,
+          "params": []
+        },
+        {
+          "name": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "startLine": 55,
+          "endLine": 75,
+          "params": []
+        },
+        {
+          "name": "test_tick_rule_lifecycles_is_a_noop_for_rules_with_no_lifecycle",
+          "startLine": 78,
+          "endLine": 82,
+          "params": []
+        }
+      ],
+      "classes": [
+        {
+          "name": "_FakeType",
+          "startLine": 8,
+          "endLine": 9,
+          "methods": [],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_FakeType",
+          "line": 8,
+          "isDefault": false
+        },
+        {
+          "name": "_fake_rule_types",
+          "line": 15,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_without_round_number_ignores_lifecycle",
+          "line": 23,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_with_round_number_filters_out_not_yet_active",
+          "line": 30,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_with_round_number_filters_out_expired",
+          "line": 38,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_still_validates_an_inactive_entrys_type_and_duplicate_key",
+          "line": 47,
+          "isDefault": false
+        },
+        {
+          "name": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "line": 55,
+          "isDefault": false
+        },
+        {
+          "name": "test_tick_rule_lifecycles_is_a_noop_for_rules_with_no_lifecycle",
+          "line": 78,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_fake_rule_types",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 17
+        },
+        {
+          "caller": "test_for_action_without_round_number_ignores_lifecycle",
+          "callee": "len",
+          "lineNumber": 27
+        },
+        {
+          "caller": "test_for_action_without_round_number_ignores_lifecycle",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 27
+        },
+        {
+          "caller": "test_for_action_with_round_number_filters_out_not_yet_active",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 34
+        },
+        {
+          "caller": "test_for_action_with_round_number_filters_out_not_yet_active",
+          "callee": "len",
+          "lineNumber": 35
+        },
+        {
+          "caller": "test_for_action_with_round_number_filters_out_not_yet_active",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 35
+        },
+        {
+          "caller": "test_for_action_with_round_number_filters_out_expired",
+          "callee": "len",
+          "lineNumber": 43
+        },
+        {
+          "caller": "test_for_action_with_round_number_filters_out_expired",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 43
+        },
+        {
+          "caller": "test_for_action_with_round_number_filters_out_expired",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 44
+        },
+        {
+          "caller": "test_for_action_still_validates_an_inactive_entrys_type_and_duplicate_key",
+          "callee": "pytest.raises",
+          "lineNumber": 51
+        },
+        {
+          "caller": "test_for_action_still_validates_an_inactive_entrys_type_and_duplicate_key",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 52
+        },
+        {
+          "caller": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "callee": "set_fact",
+          "lineNumber": 60
+        },
+        {
+          "caller": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "callee": "tick_rule_lifecycles",
+          "lineNumber": 63
+        },
+        {
+          "caller": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "callee": "tick_rule_lifecycles",
+          "lineNumber": 64
+        },
+        {
+          "caller": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "callee": "visible_facts",
+          "lineNumber": 65
+        },
+        {
+          "caller": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "callee": "tick_rule_lifecycles",
+          "lineNumber": 67
+        },
+        {
+          "caller": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "callee": "next",
+          "lineNumber": 68
+        },
+        {
+          "caller": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "callee": "list",
+          "lineNumber": 73
+        },
+        {
+          "caller": "test_tick_rule_lifecycles_closes_rule_active_exactly_when_it_expires",
+          "callee": "tick_rule_lifecycles",
+          "lineNumber": 74
+        },
+        {
+          "caller": "test_tick_rule_lifecycles_is_a_noop_for_rules_with_no_lifecycle",
+          "callee": "tick_rule_lifecycles",
+          "lineNumber": 81
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 8,
+        "functionCount": 7,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "tests/rules/test_note_and_participated.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 56,
+      "nonEmptyLines": 44,
+      "functions": [
+        {
+          "name": "_entry",
+          "startLine": 4,
+          "endLine": 9,
+          "params": [
+            "agent_record",
+            "stock_kg_before",
+            "other_kg"
+          ]
+        },
+        {
+          "name": "test_explicit_note_is_preferred_verbatim",
+          "startLine": 12,
+          "endLine": 15,
+          "params": []
+        },
+        {
+          "name": "test_participated_false_wins_over_a_note",
+          "startLine": 18,
+          "endLine": 21,
+          "params": []
+        },
+        {
+          "name": "test_falls_back_to_inferred_sentence_when_no_note",
+          "startLine": 24,
+          "endLine": 30,
+          "params": []
+        },
+        {
+          "name": "test_no_shortfall_no_note_is_silent",
+          "startLine": 33,
+          "endLine": 36,
+          "params": []
+        },
+        {
+          "name": "test_render_history_includes_the_note_via_round_record",
+          "startLine": 39,
+          "endLine": 56,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_entry",
+          "line": 4,
+          "isDefault": false
+        },
+        {
+          "name": "test_explicit_note_is_preferred_verbatim",
+          "line": 12,
+          "isDefault": false
+        },
+        {
+          "name": "test_participated_false_wins_over_a_note",
+          "line": 18,
+          "isDefault": false
+        },
+        {
+          "name": "test_falls_back_to_inferred_sentence_when_no_note",
+          "line": 24,
+          "isDefault": false
+        },
+        {
+          "name": "test_no_shortfall_no_note_is_silent",
+          "line": 33,
+          "isDefault": false
+        },
+        {
+          "name": "test_render_history_includes_the_note_via_round_record",
+          "line": 39,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_explicit_note_is_preferred_verbatim",
+          "callee": "_harvest_shortfall_clause",
+          "lineNumber": 14
+        },
+        {
+          "caller": "test_explicit_note_is_preferred_verbatim",
+          "callee": "_entry",
+          "lineNumber": 14
+        },
+        {
+          "caller": "test_participated_false_wins_over_a_note",
+          "callee": "_harvest_shortfall_clause",
+          "lineNumber": 20
+        },
+        {
+          "caller": "test_participated_false_wins_over_a_note",
+          "callee": "_entry",
+          "lineNumber": 20
+        },
+        {
+          "caller": "test_falls_back_to_inferred_sentence_when_no_note",
+          "callee": "_harvest_shortfall_clause",
+          "lineNumber": 29
+        },
+        {
+          "caller": "test_falls_back_to_inferred_sentence_when_no_note",
+          "callee": "_entry",
+          "lineNumber": 29
+        },
+        {
+          "caller": "test_no_shortfall_no_note_is_silent",
+          "callee": "_harvest_shortfall_clause",
+          "lineNumber": 35
+        },
+        {
+          "caller": "test_no_shortfall_no_note_is_silent",
+          "callee": "_entry",
+          "lineNumber": 35
+        },
+        {
+          "caller": "test_render_history_includes_the_note_via_round_record",
+          "callee": "render_history",
+          "lineNumber": 55
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 6,
+        "functionCount": 6,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/rules/test_rule_loading.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 79,
+      "nonEmptyLines": 59,
+      "functions": [
+        {
+          "name": "_fake_rule_types",
+          "startLine": 20,
+          "endLine": 24,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_for_action_empty_config",
+          "startLine": 27,
+          "endLine": 29,
+          "params": []
+        },
+        {
+          "name": "test_for_action_builds_correct_instances",
+          "startLine": 32,
+          "endLine": 37,
+          "params": []
+        },
+        {
+          "name": "test_for_action_explicit_id",
+          "startLine": 40,
+          "endLine": 44,
+          "params": []
+        },
+        {
+          "name": "test_for_action_unknown_type_raises",
+          "startLine": 47,
+          "endLine": 49,
+          "params": []
+        },
+        {
+          "name": "test_for_action_duplicate_key_raises",
+          "startLine": 52,
+          "endLine": 57,
+          "params": []
+        },
+        {
+          "name": "test_for_action_duplicate_type_ok_with_explicit_ids",
+          "startLine": 60,
+          "endLine": 65,
+          "params": []
+        },
+        {
+          "name": "test_for_action_only_sees_rules_configured_for_its_own_action",
+          "startLine": 68,
+          "endLine": 79,
+          "params": []
+        }
+      ],
+      "classes": [
+        {
+          "name": "_FakeType",
+          "startLine": 9,
+          "endLine": 16,
+          "methods": [],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_FakeType",
+          "line": 9,
+          "isDefault": false
+        },
+        {
+          "name": "_fake_rule_types",
+          "line": 19,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_empty_config",
+          "line": 27,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_builds_correct_instances",
+          "line": 32,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_explicit_id",
+          "line": 40,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_unknown_type_raises",
+          "line": 47,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_duplicate_key_raises",
+          "line": 52,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_duplicate_type_ok_with_explicit_ids",
+          "line": 60,
+          "isDefault": false
+        },
+        {
+          "name": "test_for_action_only_sees_rules_configured_for_its_own_action",
+          "line": 68,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_fake_rule_types",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 21
+        },
+        {
+          "caller": "test_for_action_empty_config",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 28
+        },
+        {
+          "caller": "test_for_action_empty_config",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 29
+        },
+        {
+          "caller": "test_for_action_builds_correct_instances",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 33
+        },
+        {
+          "caller": "test_for_action_builds_correct_instances",
+          "callee": "len",
+          "lineNumber": 34
+        },
+        {
+          "caller": "test_for_action_explicit_id",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 41
+        },
+        {
+          "caller": "test_for_action_unknown_type_raises",
+          "callee": "pytest.raises",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_for_action_unknown_type_raises",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 49
+        },
+        {
+          "caller": "test_for_action_duplicate_key_raises",
+          "callee": "pytest.raises",
+          "lineNumber": 53
+        },
+        {
+          "caller": "test_for_action_duplicate_key_raises",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 54
+        },
+        {
+          "caller": "test_for_action_duplicate_type_ok_with_explicit_ids",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 61
+        },
+        {
+          "caller": "test_for_action_only_sees_rules_configured_for_its_own_action",
+          "callee": "len",
+          "lineNumber": 73
+        },
+        {
+          "caller": "test_for_action_only_sees_rules_configured_for_its_own_action",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 73
+        },
+        {
+          "caller": "test_for_action_only_sees_rules_configured_for_its_own_action",
+          "callee": "pytest.raises",
+          "lineNumber": 78
+        },
+        {
+          "caller": "test_for_action_only_sees_rules_configured_for_its_own_action",
+          "callee": "RuleSet.for_action",
+          "lineNumber": 79
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 9,
+        "functionCount": 8,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "tests/rules/test_rule_object_access.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 79,
+      "nonEmptyLines": 61,
+      "functions": [
+        {
+          "name": "_state",
+          "startLine": 39,
+          "endLine": 48,
+          "params": []
+        },
+        {
+          "name": "_ctx",
+          "startLine": 51,
+          "endLine": 52,
+          "params": [
+            "state"
+          ]
+        },
+        {
+          "name": "test_a_rule_can_deposit_into_an_institutional_object",
+          "startLine": 55,
+          "endLine": 67,
+          "params": []
+        },
+        {
+          "name": "test_no_overflow_means_no_deposit",
+          "startLine": 70,
+          "endLine": 79,
+          "params": []
+        }
+      ],
+      "classes": [
+        {
+          "name": "_DepositsOverflow",
+          "startLine": 18,
+          "endLine": 36,
+          "methods": [
+            "after_agent"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_DepositsOverflow",
+          "line": 18,
+          "isDefault": false
+        },
+        {
+          "name": "_state",
+          "line": 39,
+          "isDefault": false
+        },
+        {
+          "name": "_ctx",
+          "line": 51,
+          "isDefault": false
+        },
+        {
+          "name": "test_a_rule_can_deposit_into_an_institutional_object",
+          "line": 55,
+          "isDefault": false
+        },
+        {
+          "name": "test_no_overflow_means_no_deposit",
+          "line": 70,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "after_agent",
+          "callee": "ctx.objects.deposit",
+          "lineNumber": 32
+        },
+        {
+          "caller": "_ctx",
+          "callee": "ActionContext.build",
+          "lineNumber": 52
+        },
+        {
+          "caller": "test_a_rule_can_deposit_into_an_institutional_object",
+          "callee": "_state",
+          "lineNumber": 56
+        },
+        {
+          "caller": "test_a_rule_can_deposit_into_an_institutional_object",
+          "callee": "_ctx",
+          "lineNumber": 57
+        },
+        {
+          "caller": "test_a_rule_can_deposit_into_an_institutional_object",
+          "callee": "_DepositsOverflow",
+          "lineNumber": 58
+        },
+        {
+          "caller": "test_a_rule_can_deposit_into_an_institutional_object",
+          "callee": "rule.after_agent",
+          "lineNumber": 63
+        },
+        {
+          "caller": "test_a_rule_can_deposit_into_an_institutional_object",
+          "callee": "ctx.objects.read",
+          "lineNumber": 66
+        },
+        {
+          "caller": "test_a_rule_can_deposit_into_an_institutional_object",
+          "callee": "any",
+          "lineNumber": 67
+        },
+        {
+          "caller": "test_no_overflow_means_no_deposit",
+          "callee": "_state",
+          "lineNumber": 71
+        },
+        {
+          "caller": "test_no_overflow_means_no_deposit",
+          "callee": "_ctx",
+          "lineNumber": 72
+        },
+        {
+          "caller": "test_no_overflow_means_no_deposit",
+          "callee": "_DepositsOverflow",
+          "lineNumber": 73
+        },
+        {
+          "caller": "test_no_overflow_means_no_deposit",
+          "callee": "rule.after_agent",
+          "lineNumber": 76
+        },
+        {
+          "caller": "test_no_overflow_means_no_deposit",
+          "callee": "ctx.objects.read",
+          "lineNumber": 78
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 5,
+        "functionCount": 4,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "tests/rules/test_ruleset_after_action.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 68,
+      "nonEmptyLines": 52,
+      "functions": [
+        {
+          "name": "_ctx",
+          "startLine": 27,
+          "endLine": 34,
+          "params": [
+            "rules",
+            "stock"
+          ]
+        },
+        {
+          "name": "test_after_action_receives_the_full_round_record",
+          "startLine": 37,
+          "endLine": 42,
+          "params": []
+        },
+        {
+          "name": "test_a_rule_can_override_the_round_stock_directly",
+          "startLine": 45,
+          "endLine": 50,
+          "params": []
+        },
+        {
+          "name": "test_no_override_leaves_the_original_round_record_value_alone",
+          "startLine": 53,
+          "endLine": 57,
+          "params": []
+        },
+        {
+          "name": "test_last_rule_in_config_order_wins_when_two_both_override",
+          "startLine": 60,
+          "endLine": 68,
+          "params": []
+        }
+      ],
+      "classes": [
+        {
+          "name": "_RecordsRoundResults",
+          "startLine": 5,
+          "endLine": 10,
+          "methods": [
+            "after_action"
+          ],
+          "properties": []
+        },
+        {
+          "name": "_OverridesStock",
+          "startLine": 13,
+          "endLine": 24,
+          "methods": [
+            "after_action"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_RecordsRoundResults",
+          "line": 5,
+          "isDefault": false
+        },
+        {
+          "name": "_OverridesStock",
+          "line": 13,
+          "isDefault": false
+        },
+        {
+          "name": "_ctx",
+          "line": 27,
+          "isDefault": false
+        },
+        {
+          "name": "test_after_action_receives_the_full_round_record",
+          "line": 37,
+          "isDefault": false
+        },
+        {
+          "name": "test_a_rule_can_override_the_round_stock_directly",
+          "line": 45,
+          "isDefault": false
+        },
+        {
+          "name": "test_no_override_leaves_the_original_round_record_value_alone",
+          "line": 53,
+          "isDefault": false
+        },
+        {
+          "name": "test_last_rule_in_config_order_wins_when_two_both_override",
+          "line": 60,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_ctx",
+          "callee": "ActionContext.build",
+          "lineNumber": 32
+        },
+        {
+          "caller": "_ctx",
+          "callee": "RuleSet",
+          "lineNumber": 33
+        },
+        {
+          "caller": "test_after_action_receives_the_full_round_record",
+          "callee": "_ctx",
+          "lineNumber": 39
+        },
+        {
+          "caller": "test_after_action_receives_the_full_round_record",
+          "callee": "_RecordsRoundResults",
+          "lineNumber": 39
+        },
+        {
+          "caller": "test_after_action_receives_the_full_round_record",
+          "callee": "ctx.rules.after_action",
+          "lineNumber": 41
+        },
+        {
+          "caller": "test_a_rule_can_override_the_round_stock_directly",
+          "callee": "_ctx",
+          "lineNumber": 46
+        },
+        {
+          "caller": "test_a_rule_can_override_the_round_stock_directly",
+          "callee": "_OverridesStock",
+          "lineNumber": 46
+        },
+        {
+          "caller": "test_a_rule_can_override_the_round_stock_directly",
+          "callee": "ctx.rules.after_action",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_no_override_leaves_the_original_round_record_value_alone",
+          "callee": "_ctx",
+          "lineNumber": 54
+        },
+        {
+          "caller": "test_no_override_leaves_the_original_round_record_value_alone",
+          "callee": "_RecordsRoundResults",
+          "lineNumber": 54
+        },
+        {
+          "caller": "test_no_override_leaves_the_original_round_record_value_alone",
+          "callee": "ctx.rules.after_action",
+          "lineNumber": 56
+        },
+        {
+          "caller": "test_last_rule_in_config_order_wins_when_two_both_override",
+          "callee": "_ctx",
+          "lineNumber": 61
+        },
+        {
+          "caller": "test_last_rule_in_config_order_wins_when_two_both_override",
+          "callee": "_OverridesStock",
+          "lineNumber": 62
+        },
+        {
+          "caller": "test_last_rule_in_config_order_wins_when_two_both_override",
+          "callee": "_OverridesStock",
+          "lineNumber": 63
+        },
+        {
+          "caller": "test_last_rule_in_config_order_wins_when_two_both_override",
+          "callee": "ctx.rules.after_action",
+          "lineNumber": 66
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 7,
+        "functionCount": 5,
+        "classCount": 2
+      }
+    },
+    {
+      "path": "tests/rules/test_ruleset_composition.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 111,
+      "nonEmptyLines": 82,
+      "functions": [
+        {
+          "name": "_ctx",
+          "startLine": 38,
+          "endLine": 45,
+          "params": [
+            "rules"
+          ]
+        },
+        {
+          "name": "_entry",
+          "startLine": 48,
+          "endLine": 49,
+          "params": [
+            "kg"
+          ]
+        },
+        {
+          "name": "test_apply_after_agent_threads_the_patch_through_rules_in_order",
+          "startLine": 52,
+          "endLine": 56,
+          "params": []
+        },
+        {
+          "name": "test_apply_after_agent_concatenates_notes_from_every_contributing_rule",
+          "startLine": 59,
+          "endLine": 65,
+          "params": []
+        },
+        {
+          "name": "test_apply_after_agent_is_last_patch_wins_for_non_note_fields",
+          "startLine": 68,
+          "endLine": 79,
+          "params": []
+        },
+        {
+          "name": "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+          "startLine": 82,
+          "endLine": 90,
+          "params": []
+        },
+        {
+          "name": "test_describe_constraints_joins_only_non_none",
+          "startLine": 93,
+          "endLine": 104,
+          "params": []
+        },
+        {
+          "name": "test_no_rules_is_a_pure_passthrough",
+          "startLine": 107,
+          "endLine": 111,
+          "params": []
+        }
+      ],
+      "classes": [
+        {
+          "name": "_TrimByOne",
+          "startLine": 5,
+          "endLine": 10,
+          "methods": [
+            "after_agent"
+          ],
+          "properties": []
+        },
+        {
+          "name": "_ViolateIfOver",
+          "startLine": 13,
+          "endLine": 21,
+          "methods": [
+            "after_agent"
+          ],
+          "properties": []
+        },
+        {
+          "name": "_RecordsSettled",
+          "startLine": 24,
+          "endLine": 35,
+          "methods": [
+            "after_agent",
+            "on_agent_settled"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_TrimByOne",
+          "line": 5,
+          "isDefault": false
+        },
+        {
+          "name": "_ViolateIfOver",
+          "line": 13,
+          "isDefault": false
+        },
+        {
+          "name": "_RecordsSettled",
+          "line": 24,
+          "isDefault": false
+        },
+        {
+          "name": "_ctx",
+          "line": 38,
+          "isDefault": false
+        },
+        {
+          "name": "_entry",
+          "line": 48,
+          "isDefault": false
+        },
+        {
+          "name": "test_apply_after_agent_threads_the_patch_through_rules_in_order",
+          "line": 52,
+          "isDefault": false
+        },
+        {
+          "name": "test_apply_after_agent_concatenates_notes_from_every_contributing_rule",
+          "line": 59,
+          "isDefault": false
+        },
+        {
+          "name": "test_apply_after_agent_is_last_patch_wins_for_non_note_fields",
+          "line": 68,
+          "isDefault": false
+        },
+        {
+          "name": "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+          "line": 82,
+          "isDefault": false
+        },
+        {
+          "name": "test_describe_constraints_joins_only_non_none",
+          "line": 93,
+          "isDefault": false
+        },
+        {
+          "name": "test_no_rules_is_a_pure_passthrough",
+          "line": 107,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "on_agent_settled",
+          "callee": "_RecordsSettled.calls.append",
+          "lineNumber": 35
+        },
+        {
+          "caller": "_ctx",
+          "callee": "ActionContext.build",
+          "lineNumber": 43
+        },
+        {
+          "caller": "_ctx",
+          "callee": "RuleSet",
+          "lineNumber": 44
+        },
+        {
+          "caller": "test_apply_after_agent_threads_the_patch_through_rules_in_order",
+          "callee": "_ctx",
+          "lineNumber": 53
+        },
+        {
+          "caller": "test_apply_after_agent_threads_the_patch_through_rules_in_order",
+          "callee": "_TrimByOne",
+          "lineNumber": 53
+        },
+        {
+          "caller": "test_apply_after_agent_threads_the_patch_through_rules_in_order",
+          "callee": "_TrimByOne",
+          "lineNumber": 53
+        },
+        {
+          "caller": "test_apply_after_agent_threads_the_patch_through_rules_in_order",
+          "callee": "_entry",
+          "lineNumber": 54
+        },
+        {
+          "caller": "test_apply_after_agent_threads_the_patch_through_rules_in_order",
+          "callee": "ctx.rules.apply_after_agent",
+          "lineNumber": 55
+        },
+        {
+          "caller": "test_apply_after_agent_concatenates_notes_from_every_contributing_rule",
+          "callee": "_ViolateIfOver",
+          "lineNumber": 60
+        },
+        {
+          "caller": "test_apply_after_agent_concatenates_notes_from_every_contributing_rule",
+          "callee": "_ViolateIfOver",
+          "lineNumber": 61
+        },
+        {
+          "caller": "test_apply_after_agent_concatenates_notes_from_every_contributing_rule",
+          "callee": "_ctx",
+          "lineNumber": 62
+        },
+        {
+          "caller": "test_apply_after_agent_concatenates_notes_from_every_contributing_rule",
+          "callee": "_entry",
+          "lineNumber": 63
+        },
+        {
+          "caller": "test_apply_after_agent_concatenates_notes_from_every_contributing_rule",
+          "callee": "ctx.rules.apply_after_agent",
+          "lineNumber": 64
+        },
+        {
+          "caller": "test_apply_after_agent_is_last_patch_wins_for_non_note_fields",
+          "callee": "_ViolateIfOver",
+          "lineNumber": 74
+        },
+        {
+          "caller": "test_apply_after_agent_is_last_patch_wins_for_non_note_fields",
+          "callee": "_ViolateIfOver",
+          "lineNumber": 75
+        },
+        {
+          "caller": "test_apply_after_agent_is_last_patch_wins_for_non_note_fields",
+          "callee": "_ctx",
+          "lineNumber": 76
+        },
+        {
+          "caller": "test_apply_after_agent_is_last_patch_wins_for_non_note_fields",
+          "callee": "_entry",
+          "lineNumber": 77
+        },
+        {
+          "caller": "test_apply_after_agent_is_last_patch_wins_for_non_note_fields",
+          "callee": "ctx.rules.apply_after_agent",
+          "lineNumber": 78
+        },
+        {
+          "caller": "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+          "callee": "_RecordsSettled.calls.clear",
+          "lineNumber": 83
+        },
+        {
+          "caller": "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+          "callee": "_RecordsSettled",
+          "lineNumber": 84
+        },
+        {
+          "caller": "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+          "callee": "_ctx",
+          "lineNumber": 85
+        },
+        {
+          "caller": "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+          "callee": "_TrimByOne",
+          "lineNumber": 85
+        },
+        {
+          "caller": "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+          "callee": "_entry",
+          "lineNumber": 86
+        },
+        {
+          "caller": "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+          "callee": "ctx.rules.apply_after_agent",
+          "lineNumber": 87
+        },
+        {
+          "caller": "test_on_agent_settled_sees_the_fully_patched_value_not_the_intermediate_one",
+          "callee": "ctx.rules.settle_agent",
+          "lineNumber": 88
+        },
+        {
+          "caller": "test_describe_constraints_joins_only_non_none",
+          "callee": "_ctx",
+          "lineNumber": 103
+        },
+        {
+          "caller": "test_describe_constraints_joins_only_non_none",
+          "callee": "_Silent",
+          "lineNumber": 103
+        },
+        {
+          "caller": "test_describe_constraints_joins_only_non_none",
+          "callee": "_Speaks",
+          "lineNumber": 103
+        },
+        {
+          "caller": "test_describe_constraints_joins_only_non_none",
+          "callee": "ctx.rules.describe_constraints",
+          "lineNumber": 104
+        },
+        {
+          "caller": "test_no_rules_is_a_pure_passthrough",
+          "callee": "_ctx",
+          "lineNumber": 108
+        },
+        {
+          "caller": "test_no_rules_is_a_pure_passthrough",
+          "callee": "_entry",
+          "lineNumber": 109
+        },
+        {
+          "caller": "test_no_rules_is_a_pure_passthrough",
+          "callee": "ctx.rules.apply_after_agent",
+          "lineNumber": 110
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 11,
+        "functionCount": 8,
+        "classCount": 3
+      }
+    },
+    {
+      "path": "tests/rules/test_ruleset_eligibility.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 77,
+      "nonEmptyLines": 52,
+      "functions": [
+        {
+          "name": "_ctx",
+          "startLine": 28,
+          "endLine": 35,
+          "params": [
+            "rules"
+          ]
+        },
+        {
+          "name": "test_is_eligible_true_when_all_rules_agree",
+          "startLine": 38,
+          "endLine": 40,
+          "params": []
+        },
+        {
+          "name": "test_is_eligible_false_if_any_rule_vetoes",
+          "startLine": 43,
+          "endLine": 45,
+          "params": []
+        },
+        {
+          "name": "test_is_eligible_no_rules_defaults_true",
+          "startLine": 48,
+          "endLine": 50,
+          "params": []
+        },
+        {
+          "name": "test_every_rule_is_eligible_still_runs_after_a_veto",
+          "startLine": 53,
+          "endLine": 57,
+          "params": []
+        },
+        {
+          "name": "test_ineligibility_note_falls_back_to_generic_when_rules_say_nothing",
+          "startLine": 60,
+          "endLine": 63,
+          "params": []
+        },
+        {
+          "name": "test_ineligibility_note_prefers_a_rules_own_description",
+          "startLine": 66,
+          "endLine": 77,
+          "params": []
+        }
+      ],
+      "classes": [
+        {
+          "name": "_AlwaysEligible",
+          "startLine": 5,
+          "endLine": 6,
+          "methods": [],
+          "properties": []
+        },
+        {
+          "name": "_NeverEligible",
+          "startLine": 9,
+          "endLine": 13,
+          "methods": [
+            "is_eligible"
+          ],
+          "properties": []
+        },
+        {
+          "name": "_CountsCalls",
+          "startLine": 16,
+          "endLine": 25,
+          "methods": [
+            "is_eligible"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_AlwaysEligible",
+          "line": 5,
+          "isDefault": false
+        },
+        {
+          "name": "_NeverEligible",
+          "line": 9,
+          "isDefault": false
+        },
+        {
+          "name": "_CountsCalls",
+          "line": 16,
+          "isDefault": false
+        },
+        {
+          "name": "_ctx",
+          "line": 28,
+          "isDefault": false
+        },
+        {
+          "name": "test_is_eligible_true_when_all_rules_agree",
+          "line": 38,
+          "isDefault": false
+        },
+        {
+          "name": "test_is_eligible_false_if_any_rule_vetoes",
+          "line": 43,
+          "isDefault": false
+        },
+        {
+          "name": "test_is_eligible_no_rules_defaults_true",
+          "line": 48,
+          "isDefault": false
+        },
+        {
+          "name": "test_every_rule_is_eligible_still_runs_after_a_veto",
+          "line": 53,
+          "isDefault": false
+        },
+        {
+          "name": "test_ineligibility_note_falls_back_to_generic_when_rules_say_nothing",
+          "line": 60,
+          "isDefault": false
+        },
+        {
+          "name": "test_ineligibility_note_prefers_a_rules_own_description",
+          "line": 66,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_ctx",
+          "callee": "ActionContext.build",
+          "lineNumber": 33
+        },
+        {
+          "caller": "_ctx",
+          "callee": "RuleSet",
+          "lineNumber": 34
+        },
+        {
+          "caller": "test_is_eligible_true_when_all_rules_agree",
+          "callee": "_ctx",
+          "lineNumber": 39
+        },
+        {
+          "caller": "test_is_eligible_true_when_all_rules_agree",
+          "callee": "_AlwaysEligible",
+          "lineNumber": 39
+        },
+        {
+          "caller": "test_is_eligible_true_when_all_rules_agree",
+          "callee": "ctx.rules.is_eligible",
+          "lineNumber": 40
+        },
+        {
+          "caller": "test_is_eligible_false_if_any_rule_vetoes",
+          "callee": "_ctx",
+          "lineNumber": 44
+        },
+        {
+          "caller": "test_is_eligible_false_if_any_rule_vetoes",
+          "callee": "_AlwaysEligible",
+          "lineNumber": 44
+        },
+        {
+          "caller": "test_is_eligible_false_if_any_rule_vetoes",
+          "callee": "_NeverEligible",
+          "lineNumber": 44
+        },
+        {
+          "caller": "test_is_eligible_false_if_any_rule_vetoes",
+          "callee": "ctx.rules.is_eligible",
+          "lineNumber": 45
+        },
+        {
+          "caller": "test_is_eligible_no_rules_defaults_true",
+          "callee": "_ctx",
+          "lineNumber": 49
+        },
+        {
+          "caller": "test_is_eligible_no_rules_defaults_true",
+          "callee": "ctx.rules.is_eligible",
+          "lineNumber": 50
+        },
+        {
+          "caller": "test_every_rule_is_eligible_still_runs_after_a_veto",
+          "callee": "_ctx",
+          "lineNumber": 55
+        },
+        {
+          "caller": "test_every_rule_is_eligible_still_runs_after_a_veto",
+          "callee": "_NeverEligible",
+          "lineNumber": 55
+        },
+        {
+          "caller": "test_every_rule_is_eligible_still_runs_after_a_veto",
+          "callee": "_CountsCalls",
+          "lineNumber": 55
+        },
+        {
+          "caller": "test_every_rule_is_eligible_still_runs_after_a_veto",
+          "callee": "ctx.rules.is_eligible",
+          "lineNumber": 56
+        },
+        {
+          "caller": "test_ineligibility_note_falls_back_to_generic_when_rules_say_nothing",
+          "callee": "_ctx",
+          "lineNumber": 61
+        },
+        {
+          "caller": "test_ineligibility_note_falls_back_to_generic_when_rules_say_nothing",
+          "callee": "_NeverEligible",
+          "lineNumber": 61
+        },
+        {
+          "caller": "test_ineligibility_note_falls_back_to_generic_when_rules_say_nothing",
+          "callee": "ctx.rules.ineligibility_note",
+          "lineNumber": 62
+        },
+        {
+          "caller": "test_ineligibility_note_prefers_a_rules_own_description",
+          "callee": "_ctx",
+          "lineNumber": 76
+        },
+        {
+          "caller": "test_ineligibility_note_prefers_a_rules_own_description",
+          "callee": "_NeverEligibleWithReason",
+          "lineNumber": 76
+        },
+        {
+          "caller": "test_ineligibility_note_prefers_a_rules_own_description",
+          "callee": "ctx.rules.ineligibility_note",
+          "lineNumber": 77
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 10,
+        "functionCount": 7,
+        "classCount": 3
+      }
+    }
+  ]
+}

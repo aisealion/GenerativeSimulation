@@ -1,0 +1,178 @@
+{"projectRoot":".","batchFiles":[
+  {
+    "path": ".DS_Store",
+    "language": "unknown",
+    "sizeLines": 2,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/handlers/__init__.py",
+    "language": "python",
+    "sizeLines": 0,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/handlers/critique.py",
+    "language": "python",
+    "sizeLines": 124,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/handlers/discuss.py",
+    "language": "python",
+    "sizeLines": 6,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/handlers/harvest.py",
+    "language": "python",
+    "sizeLines": 108,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/handlers/propose.py",
+    "language": "python",
+    "sizeLines": 54,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/handlers/vote.py",
+    "language": "python",
+    "sizeLines": 79,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/prompts/README.md",
+    "language": "markdown",
+    "sizeLines": 37,
+    "fileCategory": "docs"
+  },
+  {
+    "path": "actions/prompts/clarify.md",
+    "language": "markdown",
+    "sizeLines": 8,
+    "fileCategory": "docs"
+  },
+  {
+    "path": "actions/rules/README.md",
+    "language": "markdown",
+    "sizeLines": 135,
+    "fileCategory": "docs"
+  },
+  {
+    "path": "actions/rules/__init__.py",
+    "language": "python",
+    "sizeLines": 0,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/rules/critique/__init__.py",
+    "language": "python",
+    "sizeLines": 0,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/rules/discuss/__init__.py",
+    "language": "python",
+    "sizeLines": 0,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/rules/harvest/__init__.py",
+    "language": "python",
+    "sizeLines": 0,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/rules/harvest/catch_limit.py",
+    "language": "python",
+    "sizeLines": 41,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/rules/propose/__init__.py",
+    "language": "python",
+    "sizeLines": 0,
+    "fileCategory": "code"
+  },
+  {
+    "path": "actions/rules/vote/__init__.py",
+    "language": "python",
+    "sizeLines": 0,
+    "fileCategory": "code"
+  },
+  {
+    "path": "constants/agents.json",
+    "language": "json",
+    "sizeLines": 52,
+    "fileCategory": "config"
+  },
+  {
+    "path": "engine/__init__.py",
+    "language": "python",
+    "sizeLines": 0,
+    "fileCategory": "code"
+  },
+  {
+    "path": "engine/call_log.py",
+    "language": "python",
+    "sizeLines": 26,
+    "fileCategory": "code"
+  },
+  {
+    "path": "engine/clarify_norm.py",
+    "language": "python",
+    "sizeLines": 66,
+    "fileCategory": "code"
+  },
+  {
+    "path": "engine/institution/__init__.py",
+    "language": "python",
+    "sizeLines": 0,
+    "fileCategory": "code"
+  },
+  {
+    "path": "engine/institution/agent_loop.py",
+    "language": "python",
+    "sizeLines": 52,
+    "fileCategory": "code"
+  },
+  {
+    "path": "engine/institution/builtin_handlers.py",
+    "language": "python",
+    "sizeLines": 64,
+    "fileCategory": "code"
+  },
+  {
+    "path": "engine/institution/context.py",
+    "language": "python",
+    "sizeLines": 101,
+    "fileCategory": "code"
+  }
+],"batchImportData":{
+  ".DS_Store": [],
+  "actions/handlers/__init__.py": [],
+  "actions/handlers/critique.py": [],
+  "actions/handlers/discuss.py": [],
+  "actions/handlers/harvest.py": [],
+  "actions/handlers/propose.py": [],
+  "actions/handlers/vote.py": [],
+  "actions/prompts/README.md": [],
+  "actions/prompts/clarify.md": [],
+  "actions/rules/README.md": [],
+  "actions/rules/__init__.py": [],
+  "actions/rules/critique/__init__.py": [],
+  "actions/rules/discuss/__init__.py": [],
+  "actions/rules/harvest/__init__.py": [],
+  "actions/rules/harvest/catch_limit.py": [],
+  "actions/rules/propose/__init__.py": [],
+  "actions/rules/vote/__init__.py": [],
+  "constants/agents.json": [],
+  "engine/__init__.py": [],
+  "engine/call_log.py": [],
+  "engine/clarify_norm.py": [],
+  "engine/institution/__init__.py": [],
+  "engine/institution/agent_loop.py": [],
+  "engine/institution/builtin_handlers.py": [],
+  "engine/institution/context.py": []
+}}

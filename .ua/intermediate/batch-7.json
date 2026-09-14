@@ -1,0 +1,293 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 5,
+  "filesSkipped": [],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 5,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 0,
+      "failed": 0,
+      "skipped": 5
+    }
+  },
+  "results": [
+    {
+      "path": "state/actions/critique.json",
+      "language": "json",
+      "fileCategory": "config",
+      "totalLines": 25,
+      "nonEmptyLines": 25,
+      "sections": [
+        {
+          "heading": "name",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "description",
+          "level": 1,
+          "line": 3
+        },
+        {
+          "heading": "protected",
+          "level": 1,
+          "line": 4
+        },
+        {
+          "heading": "scheduling",
+          "level": 1,
+          "line": 5
+        },
+        {
+          "heading": "participation",
+          "level": 1,
+          "line": 10
+        },
+        {
+          "heading": "roles",
+          "level": 1,
+          "line": 13
+        },
+        {
+          "heading": "execution",
+          "level": 1,
+          "line": 16
+        },
+        {
+          "heading": "prompt",
+          "level": 1,
+          "line": 19
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 8
+      }
+    },
+    {
+      "path": "state/actions/discuss.json",
+      "language": "json",
+      "fileCategory": "config",
+      "totalLines": 9,
+      "nonEmptyLines": 9,
+      "sections": [
+        {
+          "heading": "name",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "description",
+          "level": 1,
+          "line": 3
+        },
+        {
+          "heading": "protected",
+          "level": 1,
+          "line": 4
+        },
+        {
+          "heading": "scheduling",
+          "level": 1,
+          "line": 5
+        },
+        {
+          "heading": "participation",
+          "level": 1,
+          "line": 6
+        },
+        {
+          "heading": "roles",
+          "level": 1,
+          "line": 7
+        },
+        {
+          "heading": "execution",
+          "level": 1,
+          "line": 8
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 7
+      }
+    },
+    {
+      "path": "state/actions/harvest.json",
+      "language": "json",
+      "fileCategory": "config",
+      "totalLines": 22,
+      "nonEmptyLines": 22,
+      "sections": [
+        {
+          "heading": "name",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "description",
+          "level": 1,
+          "line": 3
+        },
+        {
+          "heading": "protected",
+          "level": 1,
+          "line": 4
+        },
+        {
+          "heading": "scheduling",
+          "level": 1,
+          "line": 5
+        },
+        {
+          "heading": "participation",
+          "level": 1,
+          "line": 10
+        },
+        {
+          "heading": "roles",
+          "level": 1,
+          "line": 13
+        },
+        {
+          "heading": "execution",
+          "level": 1,
+          "line": 16
+        },
+        {
+          "heading": "prompt",
+          "level": 1,
+          "line": 19
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 8
+      }
+    },
+    {
+      "path": "state/actions/propose.json",
+      "language": "json",
+      "fileCategory": "config",
+      "totalLines": 22,
+      "nonEmptyLines": 22,
+      "sections": [
+        {
+          "heading": "name",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "description",
+          "level": 1,
+          "line": 3
+        },
+        {
+          "heading": "protected",
+          "level": 1,
+          "line": 4
+        },
+        {
+          "heading": "scheduling",
+          "level": 1,
+          "line": 5
+        },
+        {
+          "heading": "participation",
+          "level": 1,
+          "line": 10
+        },
+        {
+          "heading": "roles",
+          "level": 1,
+          "line": 13
+        },
+        {
+          "heading": "execution",
+          "level": 1,
+          "line": 16
+        },
+        {
+          "heading": "prompt",
+          "level": 1,
+          "line": 19
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 8
+      }
+    },
+    {
+      "path": "state/actions/vote.json",
+      "language": "json",
+      "fileCategory": "config",
+      "totalLines": 22,
+      "nonEmptyLines": 22,
+      "sections": [
+        {
+          "heading": "name",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "description",
+          "level": 1,
+          "line": 3
+        },
+        {
+          "heading": "protected",
+          "level": 1,
+          "line": 4
+        },
+        {
+          "heading": "scheduling",
+          "level": 1,
+          "line": 5
+        },
+        {
+          "heading": "participation",
+          "level": 1,
+          "line": 10
+        },
+        {
+          "heading": "roles",
+          "level": 1,
+          "line": 13
+        },
+        {
+          "heading": "execution",
+          "level": 1,
+          "line": 16
+        },
+        {
+          "heading": "prompt",
+          "level": 1,
+          "line": 19
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 8
+      }
+    }
+  ]
+}

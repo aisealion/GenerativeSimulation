@@ -1,0 +1,59 @@
+{"projectRoot":".","batchFiles":[
+  {
+    "path": "state/config.json",
+    "language": "json",
+    "sizeLines": 6,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/events.json",
+    "language": "json",
+    "sizeLines": 1,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/fluents.json",
+    "language": "json",
+    "sizeLines": 104,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/fluents_schema.md",
+    "language": "markdown",
+    "sizeLines": 16,
+    "fileCategory": "docs"
+  },
+  {
+    "path": "state/institution.json",
+    "language": "json",
+    "sizeLines": 20,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/objects.json",
+    "language": "json",
+    "sizeLines": 1,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/runtime.json",
+    "language": "json",
+    "sizeLines": 689,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/schedule.json",
+    "language": "json",
+    "sizeLines": 7,
+    "fileCategory": "config"
+  }
+],"batchImportData":{
+  "state/config.json": [],
+  "state/events.json": [],
+  "state/fluents.json": [],
+  "state/fluents_schema.md": [],
+  "state/institution.json": [],
+  "state/objects.json": [],
+  "state/runtime.json": [],
+  "state/schedule.json": []
+}}

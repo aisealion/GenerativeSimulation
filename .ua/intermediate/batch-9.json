@@ -1,0 +1,1428 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 23,
+  "filesSkipped": [
+    ".DS_Store",
+    ".ua/.understandignore"
+  ],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 23,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 19,
+      "failed": 0,
+      "skipped": 4
+    }
+  },
+  "results": [
+    {
+      "path": "actions/handlers/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 0,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/handlers/critique.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 124,
+      "nonEmptyLines": 111,
+      "functions": [
+        {
+          "name": "run",
+          "startLine": 27,
+          "endLine": 108,
+          "params": [
+            "ctx"
+          ]
+        },
+        {
+          "name": "memory_writes",
+          "startLine": 111,
+          "endLine": 124,
+          "params": [
+            "state",
+            "round_record"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "run",
+          "line": 27,
+          "isDefault": false
+        },
+        {
+          "name": "memory_writes",
+          "line": 111,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "run",
+          "callee": "next",
+          "lineNumber": 32
+        },
+        {
+          "caller": "run",
+          "callee": "reversed",
+          "lineNumber": 32
+        },
+        {
+          "caller": "run",
+          "callee": "last_propose[\"proposals\"].get",
+          "lineNumber": 37
+        },
+        {
+          "caller": "run",
+          "callee": "ctx.rules.is_eligible",
+          "lineNumber": 43
+        },
+        {
+          "caller": "run",
+          "callee": "default_ineligible_record",
+          "lineNumber": 44
+        },
+        {
+          "caller": "run",
+          "callee": "dict",
+          "lineNumber": 48
+        },
+        {
+          "caller": "run",
+          "callee": "range",
+          "lineNumber": 50
+        },
+        {
+          "caller": "run",
+          "callee": "call_critique_agent",
+          "lineNumber": 51
+        },
+        {
+          "caller": "run",
+          "callee": "critique.get",
+          "lineNumber": 58
+        },
+        {
+          "caller": "run",
+          "callee": "critique.get",
+          "lineNumber": 60
+        },
+        {
+          "caller": "run",
+          "callee": "call_fisher_agent",
+          "lineNumber": 63
+        },
+        {
+          "caller": "run",
+          "callee": "dialogue.append",
+          "lineNumber": 69
+        },
+        {
+          "caller": "run",
+          "callee": "response.get",
+          "lineNumber": 71
+        },
+        {
+          "caller": "run",
+          "callee": "response.get",
+          "lineNumber": 72
+        },
+        {
+          "caller": "run",
+          "callee": "response.get",
+          "lineNumber": 73
+        },
+        {
+          "caller": "run",
+          "callee": "proposal.get",
+          "lineNumber": 80
+        },
+        {
+          "caller": "run",
+          "callee": "\"\\n\".join",
+          "lineNumber": 84
+        },
+        {
+          "caller": "run",
+          "callee": "call_fisher_agent",
+          "lineNumber": 88
+        },
+        {
+          "caller": "run",
+          "callee": "finalize.get",
+          "lineNumber": 95
+        },
+        {
+          "caller": "run",
+          "callee": "finalize.get",
+          "lineNumber": 96
+        },
+        {
+          "caller": "run",
+          "callee": "finalize.get",
+          "lineNumber": 99
+        },
+        {
+          "caller": "run",
+          "callee": "proposal.get",
+          "lineNumber": 99
+        },
+        {
+          "caller": "run",
+          "callee": "ctx.rules.apply_after_agent",
+          "lineNumber": 103
+        },
+        {
+          "caller": "run",
+          "callee": "ctx.rules.settle_agent",
+          "lineNumber": 104
+        },
+        {
+          "caller": "memory_writes",
+          "callee": "round_record[\"dialogues\"].items",
+          "lineNumber": 122
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/handlers/discuss.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 6,
+      "nonEmptyLines": 4,
+      "functions": [
+        {
+          "name": "run",
+          "startLine": 5,
+          "endLine": 6,
+          "params": [
+            "ctx"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "run",
+          "line": 5,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/handlers/harvest.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 108,
+      "nonEmptyLines": 95,
+      "functions": [
+        {
+          "name": "run",
+          "startLine": 29,
+          "endLine": 91,
+          "params": [
+            "ctx"
+          ]
+        },
+        {
+          "name": "_stock_trend",
+          "startLine": 94,
+          "endLine": 108,
+          "params": [
+            "runtime",
+            "config",
+            "round_number"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "run",
+          "line": 29,
+          "isDefault": false
+        },
+        {
+          "name": "_stock_trend",
+          "line": 94,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "run",
+          "callee": "runtime.setdefault",
+          "lineNumber": 35
+        },
+        {
+          "caller": "run",
+          "callee": "runtime.setdefault",
+          "lineNumber": 36
+        },
+        {
+          "caller": "run",
+          "callee": "available_stock",
+          "lineNumber": 37
+        },
+        {
+          "caller": "build_fields",
+          "callee": "ctx.rules.describe_constraints",
+          "lineNumber": 40
+        },
+        {
+          "caller": "build_fields",
+          "callee": "_stock_trend",
+          "lineNumber": 45
+        },
+        {
+          "caller": "build_record",
+          "callee": "min",
+          "lineNumber": 49
+        },
+        {
+          "caller": "build_record",
+          "callee": "max",
+          "lineNumber": 49
+        },
+        {
+          "caller": "build_record",
+          "callee": "float",
+          "lineNumber": 49
+        },
+        {
+          "caller": "build_record",
+          "callee": "catch_from_effort",
+          "lineNumber": 50
+        },
+        {
+          "caller": "build_record",
+          "callee": "response.get",
+          "lineNumber": 51
+        },
+        {
+          "caller": "after_settle",
+          "callee": "apply_consumption",
+          "lineNumber": 54
+        },
+        {
+          "caller": "after_settle",
+          "callee": "runtime[\"payoff\"].get",
+          "lineNumber": 54
+        },
+        {
+          "caller": "after_settle",
+          "callee": "is_dead",
+          "lineNumber": 56
+        },
+        {
+          "caller": "after_settle",
+          "callee": "runtime[\"dead_agents\"].append",
+          "lineNumber": 57
+        },
+        {
+          "caller": "after_settle",
+          "callee": "set_fact",
+          "lineNumber": 59
+        },
+        {
+          "caller": "after_settle",
+          "callee": "end_fact",
+          "lineNumber": 64
+        },
+        {
+          "caller": "ineligible_record",
+          "callee": "ctx.rules.ineligibility_note",
+          "lineNumber": 69
+        },
+        {
+          "caller": "run",
+          "callee": "per_agent_decision",
+          "lineNumber": 72
+        },
+        {
+          "caller": "run",
+          "callee": "sum",
+          "lineNumber": 76
+        },
+        {
+          "caller": "run",
+          "callee": "agent_records.values",
+          "lineNumber": 76
+        },
+        {
+          "caller": "run",
+          "callee": "apply_regrowth",
+          "lineNumber": 77
+        },
+        {
+          "caller": "_stock_trend",
+          "callee": "config.get",
+          "lineNumber": 100
+        },
+        {
+          "caller": "_stock_trend",
+          "callee": "\", \".join",
+          "lineNumber": 107
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/handlers/propose.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 54,
+      "nonEmptyLines": 45,
+      "functions": [
+        {
+          "name": "run",
+          "startLine": 14,
+          "endLine": 41,
+          "params": [
+            "ctx"
+          ]
+        },
+        {
+          "name": "memory_writes",
+          "startLine": 44,
+          "endLine": 54,
+          "params": [
+            "state",
+            "round_record"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "run",
+          "line": 14,
+          "isDefault": false
+        },
+        {
+          "name": "memory_writes",
+          "line": 44,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "run",
+          "callee": "next",
+          "lineNumber": 19
+        },
+        {
+          "caller": "run",
+          "callee": "reversed",
+          "lineNumber": 19
+        },
+        {
+          "caller": "build_fields",
+          "callee": "\"\\n\".join",
+          "lineNumber": 22
+        },
+        {
+          "caller": "build_record",
+          "callee": "response.get",
+          "lineNumber": 37
+        },
+        {
+          "caller": "run",
+          "callee": "per_agent_decision",
+          "lineNumber": 40
+        },
+        {
+          "caller": "memory_writes",
+          "callee": "round_record[\"proposals\"].items",
+          "lineNumber": 52
+        },
+        {
+          "caller": "memory_writes",
+          "callee": "proposal.get",
+          "lineNumber": 53
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/handlers/vote.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 79,
+      "nonEmptyLines": 67,
+      "functions": [
+        {
+          "name": "proposals_for_round",
+          "startLine": 5,
+          "endLine": 34,
+          "params": [
+            "state"
+          ]
+        },
+        {
+          "name": "run",
+          "startLine": 37,
+          "endLine": 66,
+          "params": [
+            "ctx"
+          ]
+        },
+        {
+          "name": "memory_writes",
+          "startLine": 69,
+          "endLine": 79,
+          "params": [
+            "state",
+            "round_record"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "proposals_for_round",
+          "line": 5,
+          "isDefault": false
+        },
+        {
+          "name": "run",
+          "line": 37,
+          "isDefault": false
+        },
+        {
+          "name": "memory_writes",
+          "line": 69,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "proposals_for_round",
+          "callee": "next",
+          "lineNumber": 20
+        },
+        {
+          "caller": "proposals_for_round",
+          "callee": "next",
+          "lineNumber": 27
+        },
+        {
+          "caller": "proposals_for_round",
+          "callee": "reversed",
+          "lineNumber": 27
+        },
+        {
+          "caller": "proposals_for_round",
+          "callee": "proposals_source.get",
+          "lineNumber": 31
+        },
+        {
+          "caller": "proposals_for_round",
+          "callee": "alive_agent_ids",
+          "lineNumber": 31
+        },
+        {
+          "caller": "run",
+          "callee": "proposals_for_round",
+          "lineNumber": 39
+        },
+        {
+          "caller": "run",
+          "callee": "\"\\n\\n\".join",
+          "lineNumber": 40
+        },
+        {
+          "caller": "run",
+          "callee": "enumerate",
+          "lineNumber": 42
+        },
+        {
+          "caller": "run",
+          "callee": "len",
+          "lineNumber": 44
+        },
+        {
+          "caller": "build_record",
+          "callee": "int",
+          "lineNumber": 47
+        },
+        {
+          "caller": "build_record",
+          "callee": "str(response[\"vote\"]).strip",
+          "lineNumber": 47
+        },
+        {
+          "caller": "build_record",
+          "callee": "str",
+          "lineNumber": 47
+        },
+        {
+          "caller": "build_record",
+          "callee": "response.get",
+          "lineNumber": 48
+        },
+        {
+          "caller": "run",
+          "callee": "per_agent_decision",
+          "lineNumber": 50
+        },
+        {
+          "caller": "run",
+          "callee": "range",
+          "lineNumber": 52
+        },
+        {
+          "caller": "run",
+          "callee": "len",
+          "lineNumber": 52
+        },
+        {
+          "caller": "run",
+          "callee": "votes.values",
+          "lineNumber": 53
+        },
+        {
+          "caller": "run",
+          "callee": "record.get",
+          "lineNumber": 54
+        },
+        {
+          "caller": "run",
+          "callee": "max",
+          "lineNumber": 57
+        },
+        {
+          "caller": "memory_writes",
+          "callee": "state.get",
+          "lineNumber": 70
+        },
+        {
+          "caller": "memory_writes",
+          "callee": "sum",
+          "lineNumber": 74
+        },
+        {
+          "caller": "memory_writes",
+          "callee": "round_record[\"tally\"].values",
+          "lineNumber": 74
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 3,
+        "functionCount": 3,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/prompts/README.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 37,
+      "nonEmptyLines": 33,
+      "sections": [
+        {
+          "heading": "actions/prompts/",
+          "level": 1,
+          "line": 1
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 1
+      }
+    },
+    {
+      "path": "actions/prompts/clarify.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 8,
+      "nonEmptyLines": 5,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 0
+      }
+    },
+    {
+      "path": "actions/rules/README.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 135,
+      "nonEmptyLines": 118,
+      "sections": [
+        {
+          "heading": "actions/rules/",
+          "level": 1,
+          "line": 1
+        },
+        {
+          "heading": "Why per-action, not one flat directory",
+          "level": 2,
+          "line": 23
+        },
+        {
+          "heading": "How it's wired together",
+          "level": 2,
+          "line": 34
+        },
+        {
+          "heading": "Worked example (hypothetical — illustrates the pattern, not a real rule)",
+          "level": 2,
+          "line": 82
+        },
+        {
+          "heading": "How a norm gets verified before it's committed",
+          "level": 2,
+          "line": 122
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 5
+      }
+    },
+    {
+      "path": "actions/rules/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 0,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/rules/critique/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 0,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/rules/discuss/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 0,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/rules/harvest/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 0,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/rules/harvest/catch_limit.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 40,
+      "nonEmptyLines": 38,
+      "classes": [
+        {
+          "name": "CatchLimitRule",
+          "startLine": 4,
+          "endLine": 40,
+          "methods": [
+            "after_agent"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "CatchLimitRule",
+          "line": 4,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "after_agent",
+          "callee": "ctx.state[\"runtime\"].get",
+          "lineNumber": 9
+        },
+        {
+          "caller": "after_agent",
+          "callee": "min",
+          "lineNumber": 11
+        },
+        {
+          "caller": "after_agent",
+          "callee": "record_entry.get",
+          "lineNumber": 12
+        },
+        {
+          "caller": "after_agent",
+          "callee": "max",
+          "lineNumber": 13
+        },
+        {
+          "caller": "after_agent",
+          "callee": "note_parts.append",
+          "lineNumber": 16
+        },
+        {
+          "caller": "after_agent",
+          "callee": "note_parts.append",
+          "lineNumber": 18
+        },
+        {
+          "caller": "after_agent",
+          "callee": "ctx.objects.deposit",
+          "lineNumber": 20
+        },
+        {
+          "caller": "after_agent",
+          "callee": "set_fact",
+          "lineNumber": 30
+        },
+        {
+          "caller": "after_agent",
+          "callee": "\" \".join",
+          "lineNumber": 39
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "actions/rules/propose/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 0,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "actions/rules/vote/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 0,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "constants/agents.json",
+      "language": "json",
+      "fileCategory": "config",
+      "totalLines": 52,
+      "nonEmptyLines": 52,
+      "sections": [
+        {
+          "heading": "agent_0",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "agent_1",
+          "level": 1,
+          "line": 7
+        },
+        {
+          "heading": "agent_2",
+          "level": 1,
+          "line": 12
+        },
+        {
+          "heading": "agent_3",
+          "level": 1,
+          "line": 17
+        },
+        {
+          "heading": "agent_4",
+          "level": 1,
+          "line": 22
+        },
+        {
+          "heading": "agent_5",
+          "level": 1,
+          "line": 27
+        },
+        {
+          "heading": "agent_6",
+          "level": 1,
+          "line": 32
+        },
+        {
+          "heading": "agent_7",
+          "level": 1,
+          "line": 37
+        },
+        {
+          "heading": "agent_8",
+          "level": 1,
+          "line": 42
+        },
+        {
+          "heading": "agent_9",
+          "level": 1,
+          "line": 47
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 10
+      }
+    },
+    {
+      "path": "engine/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 0,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "engine/call_log.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 26,
+      "nonEmptyLines": 23,
+      "functions": [
+        {
+          "name": "log_call",
+          "startLine": 8,
+          "endLine": 26,
+          "params": [
+            "also_log_to",
+            "**fields"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "log_call",
+          "line": 8,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "log_call",
+          "callee": "LOG_PATH.parent.mkdir",
+          "lineNumber": 18
+        },
+        {
+          "caller": "log_call",
+          "callee": "datetime.now(timezone.utc).isoformat",
+          "lineNumber": 19
+        },
+        {
+          "caller": "log_call",
+          "callee": "datetime.now",
+          "lineNumber": 19
+        },
+        {
+          "caller": "log_call",
+          "callee": "json.dumps",
+          "lineNumber": 20
+        },
+        {
+          "caller": "log_call",
+          "callee": "LOG_PATH.open",
+          "lineNumber": 21
+        },
+        {
+          "caller": "log_call",
+          "callee": "f.write",
+          "lineNumber": 22
+        },
+        {
+          "caller": "log_call",
+          "callee": "also_log_to.parent.mkdir",
+          "lineNumber": 24
+        },
+        {
+          "caller": "log_call",
+          "callee": "also_log_to.open",
+          "lineNumber": 25
+        },
+        {
+          "caller": "log_call",
+          "callee": "f.write",
+          "lineNumber": 26
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "engine/clarify_norm.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 66,
+      "nonEmptyLines": 55,
+      "functions": [
+        {
+          "name": "_winning_proposer_and_proposal",
+          "startLine": 24,
+          "endLine": 37,
+          "params": [
+            "runtime",
+            "round_number"
+          ]
+        },
+        {
+          "name": "main",
+          "startLine": 40,
+          "endLine": 62,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_winning_proposer_and_proposal",
+          "line": 24,
+          "isDefault": false
+        },
+        {
+          "name": "main",
+          "line": 40,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_winning_proposer_and_proposal",
+          "callee": "next",
+          "lineNumber": 28
+        },
+        {
+          "caller": "_winning_proposer_and_proposal",
+          "callee": "next",
+          "lineNumber": 33
+        },
+        {
+          "caller": "main",
+          "callee": "argparse.ArgumentParser",
+          "lineNumber": 41
+        },
+        {
+          "caller": "main",
+          "callee": "parser.add_argument",
+          "lineNumber": 44
+        },
+        {
+          "caller": "main",
+          "callee": "parser.add_argument",
+          "lineNumber": 45
+        },
+        {
+          "caller": "main",
+          "callee": "parser.parse_args",
+          "lineNumber": 46
+        },
+        {
+          "caller": "main",
+          "callee": "json.loads",
+          "lineNumber": 48
+        },
+        {
+          "caller": "main",
+          "callee": "(ROOT / \"state\" / \"runtime.json\").read_text",
+          "lineNumber": 48
+        },
+        {
+          "caller": "main",
+          "callee": "_winning_proposer_and_proposal",
+          "lineNumber": 49
+        },
+        {
+          "caller": "main",
+          "callee": "print",
+          "lineNumber": 51
+        },
+        {
+          "caller": "main",
+          "callee": "sys.exit",
+          "lineNumber": 52
+        },
+        {
+          "caller": "main",
+          "callee": "call_fisher_agent",
+          "lineNumber": 54
+        },
+        {
+          "caller": "main",
+          "callee": "print",
+          "lineNumber": 62
+        },
+        {
+          "caller": "main",
+          "callee": "json.dumps",
+          "lineNumber": 62
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "engine/institution/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 0,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "engine/institution/agent_loop.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 52,
+      "nonEmptyLines": 46,
+      "functions": [
+        {
+          "name": "default_ineligible_record",
+          "startLine": 10,
+          "endLine": 11,
+          "params": [
+            "ctx",
+            "agent_id"
+          ]
+        },
+        {
+          "name": "per_agent_decision",
+          "startLine": 14,
+          "endLine": 52,
+          "params": [
+            "ctx",
+            "build_fields",
+            "build_record",
+            "ineligible_record",
+            "after_settle"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "default_ineligible_record",
+          "line": 10,
+          "isDefault": false
+        },
+        {
+          "name": "per_agent_decision",
+          "line": 14,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "default_ineligible_record",
+          "callee": "ctx.rules.ineligibility_note",
+          "lineNumber": 11
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "default_ineligible_record",
+          "lineNumber": 37
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "ctx.rules.is_eligible",
+          "lineNumber": 40
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "ineligible_record",
+          "lineNumber": 41
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "ctx.agents.call",
+          "lineNumber": 44
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "build_fields",
+          "lineNumber": 44
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "build_record",
+          "lineNumber": 45
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "record_entry.setdefault",
+          "lineNumber": 46
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "ctx.rules.apply_after_agent",
+          "lineNumber": 47
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "ctx.rules.settle_agent",
+          "lineNumber": 48
+        },
+        {
+          "caller": "per_agent_decision",
+          "callee": "after_settle",
+          "lineNumber": 50
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "engine/institution/builtin_handlers.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 64,
+      "nonEmptyLines": 52,
+      "functions": [
+        {
+          "name": "generic_agent_decision",
+          "startLine": 23,
+          "endLine": 40,
+          "params": [
+            "ctx"
+          ]
+        },
+        {
+          "name": "_resolve_field",
+          "startLine": 43,
+          "endLine": 51,
+          "params": [
+            "field_spec",
+            "ctx",
+            "agent_id"
+          ]
+        },
+        {
+          "name": "_dotted_get",
+          "startLine": 54,
+          "endLine": 58,
+          "params": [
+            "root",
+            "path"
+          ]
+        },
+        {
+          "name": "_map_response",
+          "startLine": 61,
+          "endLine": 64,
+          "params": [
+            "response",
+            "field_map"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "generic_agent_decision",
+          "line": 23,
+          "isDefault": false
+        },
+        {
+          "name": "_resolve_field",
+          "line": 43,
+          "isDefault": false
+        },
+        {
+          "name": "_dotted_get",
+          "line": 54,
+          "isDefault": false
+        },
+        {
+          "name": "_map_response",
+          "line": 61,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "generic_agent_decision",
+          "callee": "spec.get",
+          "lineNumber": 25
+        },
+        {
+          "caller": "generic_agent_decision",
+          "callee": "outputs.get",
+          "lineNumber": 26
+        },
+        {
+          "caller": "generic_agent_decision",
+          "callee": "outputs.get",
+          "lineNumber": 27
+        },
+        {
+          "caller": "generic_agent_decision",
+          "callee": "spec.get(\"prompt\", {}).get",
+          "lineNumber": 28
+        },
+        {
+          "caller": "generic_agent_decision",
+          "callee": "spec.get",
+          "lineNumber": 28
+        },
+        {
+          "caller": "build_fields",
+          "callee": "_resolve_field",
+          "lineNumber": 32
+        },
+        {
+          "caller": "build_fields",
+          "callee": "prompt_fields_spec.items",
+          "lineNumber": 33
+        },
+        {
+          "caller": "build_record",
+          "callee": "_map_response",
+          "lineNumber": 37
+        },
+        {
+          "caller": "generic_agent_decision",
+          "callee": "per_agent_decision",
+          "lineNumber": 39
+        },
+        {
+          "caller": "_resolve_field",
+          "callee": "field_spec.get",
+          "lineNumber": 46
+        },
+        {
+          "caller": "_resolve_field",
+          "callee": "_dotted_get",
+          "lineNumber": 48
+        },
+        {
+          "caller": "_resolve_field",
+          "callee": "ctx.objects.read",
+          "lineNumber": 50
+        },
+        {
+          "caller": "_resolve_field",
+          "callee": "ValueError",
+          "lineNumber": 51
+        },
+        {
+          "caller": "_dotted_get",
+          "callee": "path.split",
+          "lineNumber": 56
+        },
+        {
+          "caller": "_map_response",
+          "callee": "dict",
+          "lineNumber": 63
+        },
+        {
+          "caller": "_map_response",
+          "callee": "response.get",
+          "lineNumber": 64
+        },
+        {
+          "caller": "_map_response",
+          "callee": "field_map.items",
+          "lineNumber": 64
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 4,
+        "functionCount": 4,
+        "classCount": 0
+      }
+    }
+  ]
+}

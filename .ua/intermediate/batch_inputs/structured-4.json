@@ -1,0 +1,38 @@
+{"projectRoot":".","batchFiles":[
+  {
+    "path": "state/actions/critique.json",
+    "language": "json",
+    "sizeLines": 25,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/actions/discuss.json",
+    "language": "json",
+    "sizeLines": 9,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/actions/harvest.json",
+    "language": "json",
+    "sizeLines": 22,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/actions/propose.json",
+    "language": "json",
+    "sizeLines": 22,
+    "fileCategory": "config"
+  },
+  {
+    "path": "state/actions/vote.json",
+    "language": "json",
+    "sizeLines": 22,
+    "fileCategory": "config"
+  }
+],"batchImportData":{
+  "state/actions/critique.json": [],
+  "state/actions/discuss.json": [],
+  "state/actions/harvest.json": [],
+  "state/actions/propose.json": [],
+  "state/actions/vote.json": []
+}}

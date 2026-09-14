@@ -1,0 +1,31 @@
+[0m
+> build · gpt-oss-120b-65536ctx
+[0m
+[0m✱ [0mGlob "**/*"[90m in /home/magha601/.agents/skills/understand · 50 matches[0m
+We need to run Phase0 preflight: determine flags from user input. The user invoked `/understand` without arguments. So no flags. Need to run full analysis? According to decision logic: if no existing graph, run full analysis. Let's check if UA dir exists and knowledge-graph.json.
+[0m✱ [0mGlob "**/.ua"[90m in . · 0 matches[0m
+[0m✱ [0mGlob "**/.understand-anything"[90m in . · 0 matches[0m
+No existing graph. Proceed with full analysis phases 0‑7 automatically.
+
+We need to locate the skill directory for scripts. Skill base is `/home/magha601/.agents/skills/understand`. We'll need PLUGIN_ROOT detection and possibly build core. Let's check if plugin core built.
+[0m✗ [0mRead /home/magha601/.agents/skills/understand/packages/core/dist/index.js failed[90m [limit=10, offset=1][0m
+[91m[1mError: [0mFile not found: /home/magha601/.agents/skills/understand/packages/core/dist/index.js
+The plugin may be in a different location. Search for `@understand-anything/core` package.
+[0m✱ [0mGlob "**/understand-anything-plugin"[90m in /home/magha601 · 0 matches[0m
+We’ll try to locate any `package.json` under skill directory.
+[0m✱ [0mGlob "**/package.json"[90m in /home/magha601/.agents/skills/understand · 0 matches[0m
+[0m✱ [0mGlob "**/understand-anything-plugin"[90m in /home/magha601 · 0 matches[0m
+It appears the understand‑anything plugin isn’t installed, so the required scripts (scan‑project.mjs, compute‑batches.mjs, etc.) are present but they depend on the core package which is missing. We must inform the user that the plugin needs to be installed (Node ≥ 22, pnpm ≥ 10) before we can run the analysis.The `/understand` skill requires the **understand‑anything** plugin (the `@understand-anything/core` package) to be installed and built before any phases can run. The scripts in the skill directory (`scan-project.mjs`, `compute-batches.mjs`, etc.) depend on that core package, but no plugin installation was found in the workspace.
+
+**Action needed**
+
+1. Install Node ≥ 22 and pnpm ≥ 10 if they aren’t already installed.  
+2. Install the plugin (e.g., `git clone https://github.com/understand-anything/understand-anything-plugin.git ~/.understand-anything-plugin`).  
+3. From the plugin root, run:
+   ```bash
+   pnpm install --frozen-lockfile   # or just `pnpm install`
+   pnpm --filter @understand-anything/core build
+   ```
+   This creates `packages/core/dist/index.js` which the skill scripts import.
+
+After the plugin is built, re‑run the `/understand` command (without additional flags if a full analysis is desired). The skill will then perform the full 7‑phase analysis, generate `knowledge‑graph.json` in `.ua/` (or legacy `.understand-anything/`), and optionally launch the dashboard.

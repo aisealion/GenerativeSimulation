@@ -1,0 +1,9 @@
+Policy: No fisher may take more than 4 kg per trip or 10 % of the lake’s current stock, whichever is lower; any excess must be handed to community storage and a violation incurs a one‑week ban.
+
+Operationalization: 1. Dawn: every fisher casts a small standard sample net, counts fish, and records the number in the shared ledger.
+2. The council multiplies that count by the lake‑to‑net area ratio to estimate daily stock, calculates 10 % of that stock, and posts the 10 % limit, the 4 kg bag size, and the daily stock estimate on the ledger and community bulletin.
+3. Before setting out, each fisher marks their gear with the 4 kg bag or the 10 % limit, weighs their haul, and records the total catch and any excess in the ledger.
+4. If the haul exceeds the lower of 4 kg or 10 %, the fisher hands the excess bag to the appointed fish keeper; the fish keeper logs the excess weight in the ledger under the fisher’s name and the date.
+5. The ledger is submitted daily to the council; the council reviews it each day, records any violations, and updates the ban register.
+6. The ban register is kept on a public board in the storage shed and in the ledger; any fisher named on it is barred from setting out for seven consecutive days, after which the ban expires automatically.
+7. The council holds a weekly meeting to review the ledger, verify that bans have expired, and adjust the 10 % limit or 4 kg bag size if the lake stock estimate has changed.

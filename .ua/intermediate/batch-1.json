@@ -1,0 +1,266 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 3,
+  "filesSkipped": [],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 3,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 0,
+      "failed": 0,
+      "skipped": 3
+    }
+  },
+  "results": [
+    {
+      "path": ".opencode/agent/norm-evaluator.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 388,
+      "nonEmptyLines": 357,
+      "sections": [
+        {
+          "heading": "Role: Norm Evaluator Agent",
+          "level": 1,
+          "line": 24
+        },
+        {
+          "heading": "Repo map",
+          "level": 2,
+          "line": 45
+        },
+        {
+          "heading": "STEP 1 — READ",
+          "level": 2,
+          "line": 119
+        },
+        {
+          "heading": "STEP 2 — WRITE TESTS",
+          "level": 2,
+          "line": 169
+        },
+        {
+          "heading": "STEP 3 — RUN",
+          "level": 2,
+          "line": 228
+        },
+        {
+          "heading": "STEP 4 — CLASSIFY",
+          "level": 2,
+          "line": 232
+        },
+        {
+          "heading": "STEP 5 — REPORT",
+          "level": 2,
+          "line": 322
+        },
+        {
+          "heading": "Do not commit",
+          "level": 2,
+          "line": 371
+        },
+        {
+          "heading": "Hard constraints",
+          "level": 2,
+          "line": 377
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 9
+      }
+    },
+    {
+      "path": ".opencode/agent/norm-finalizer.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 170,
+      "nonEmptyLines": 144,
+      "sections": [
+        {
+          "heading": "Role: Norm Finalizer Agent",
+          "level": 1,
+          "line": 23
+        },
+        {
+          "heading": "Your input",
+          "level": 2,
+          "line": 33
+        },
+        {
+          "heading": "Step 1 — Verify, don't transcribe",
+          "level": 2,
+          "line": 52
+        },
+        {
+          "heading": "Step 2 — Register in `state/institution.json`",
+          "level": 2,
+          "line": 69
+        },
+        {
+          "heading": "Step 3 — Write `state/norm_specs/round_{N}.md`",
+          "level": 2,
+          "line": 79
+        },
+        {
+          "heading": "Do not",
+          "level": 2,
+          "line": 146
+        },
+        {
+          "heading": "Report",
+          "level": 2,
+          "line": 155
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 7
+      }
+    },
+    {
+      "path": ".opencode/agent/norm-implementer.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 1709,
+      "nonEmptyLines": 1529,
+      "sections": [
+        {
+          "heading": "Role: Norm Implementer Agent",
+          "level": 1,
+          "line": 44
+        },
+        {
+          "heading": "Repo map",
+          "level": 2,
+          "line": 134
+        },
+        {
+          "heading": "Rule contract",
+          "level": 2,
+          "line": 361
+        },
+        {
+          "heading": "1. Understand the Existing System First",
+          "level": 1,
+          "line": 491
+        },
+        {
+          "heading": "2. Maintain an Institution Status",
+          "level": 1,
+          "line": 600
+        },
+        {
+          "heading": "3. Apply the Decision Granularity Rule",
+          "level": 1,
+          "line": 633
+        },
+        {
+          "heading": "4. Determine the Required Institutional Changes",
+          "level": 1,
+          "line": 757
+        },
+        {
+          "heading": "5. Design Your Approach Before Writing Code — The Spec Gets Dispatched, Not Written By You",
+          "level": 1,
+          "line": 813
+        },
+        {
+          "heading": "6. New Actions Require an Agent That Can Perform Them",
+          "level": 1,
+          "line": 967
+        },
+        {
+          "heading": "7. Select an Appropriate Agent and Personalisation",
+          "level": 1,
+          "line": 985
+        },
+        {
+          "heading": "8. Agent Prompts Must Represent the Institution",
+          "level": 1,
+          "line": 1011
+        },
+        {
+          "heading": "9. Institutional Objects",
+          "level": 1,
+          "line": 1024
+        },
+        {
+          "heading": "10. Agents Must Experience the Consequences",
+          "level": 1,
+          "line": 1169
+        },
+        {
+          "heading": "11. Do Not Invent Normative Content",
+          "level": 1,
+          "line": 1193
+        },
+        {
+          "heading": "12. Preserve Norm Emergence",
+          "level": 1,
+          "line": 1213
+        },
+        {
+          "heading": "13. Existing and New Actions",
+          "level": 1,
+          "line": 1234
+        },
+        {
+          "heading": "14. Integration With the Existing Codebase",
+          "level": 1,
+          "line": 1334
+        },
+        {
+          "heading": "15. Verification",
+          "level": 1,
+          "line": 1359
+        },
+        {
+          "heading": "16. Final Self-Check",
+          "level": 1,
+          "line": 1394
+        },
+        {
+          "heading": "17. Now Dispatch `norm-finalizer` to Write `state/norm_specs/round_{N}.md`",
+          "level": 1,
+          "line": 1494
+        },
+        {
+          "heading": "Core Principle",
+          "level": 1,
+          "line": 1564
+        },
+        {
+          "heading": "Report, in this order",
+          "level": 2,
+          "line": 1599
+        },
+        {
+          "heading": "Do not commit",
+          "level": 2,
+          "line": 1679
+        },
+        {
+          "heading": "Hard constraints",
+          "level": 2,
+          "line": 1686
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 24
+      }
+    }
+  ]
+}

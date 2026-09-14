@@ -1,0 +1,3502 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 24,
+  "filesSkipped": [
+    "run_simulation.slurm"
+  ],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 24,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 21,
+      "failed": 0,
+      "skipped": 3
+    }
+  },
+  "results": [
+    {
+      "path": "roles/roles.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 212,
+      "nonEmptyLines": 192,
+      "functions": [
+        {
+          "name": "role_holder",
+          "startLine": 1,
+          "endLine": 10,
+          "params": [
+            "role_name",
+            "agent_id",
+            "fluents",
+            "round_number"
+          ]
+        },
+        {
+          "name": "current_holder",
+          "startLine": 13,
+          "endLine": 34,
+          "params": [
+            "fluents",
+            "role_name",
+            "round_number"
+          ]
+        },
+        {
+          "name": "set_fact",
+          "startLine": 37,
+          "endLine": 88,
+          "params": [
+            "fluents",
+            "fluent_name",
+            "args",
+            "holder",
+            "round_number",
+            "narration",
+            "visibility",
+            "event_type"
+          ]
+        },
+        {
+          "name": "end_fact",
+          "startLine": 91,
+          "endLine": 115,
+          "params": [
+            "fluents",
+            "fluent_name",
+            "args",
+            "round_number",
+            "narration",
+            "visibility",
+            "event_type"
+          ]
+        },
+        {
+          "name": "_visible_to",
+          "startLine": 118,
+          "endLine": 119,
+          "params": [
+            "agent_id",
+            "holder",
+            "visibility"
+          ]
+        },
+        {
+          "name": "visible_facts",
+          "startLine": 122,
+          "endLine": 148,
+          "params": [
+            "fluents",
+            "agent_id",
+            "round_number"
+          ]
+        },
+        {
+          "name": "fact_memory_events",
+          "startLine": 151,
+          "endLine": 173,
+          "params": [
+            "fluents",
+            "round_number"
+          ]
+        },
+        {
+          "name": "_memory_spec",
+          "startLine": 176,
+          "endLine": 179,
+          "params": [
+            "holder",
+            "visibility",
+            "event_type",
+            "text"
+          ]
+        },
+        {
+          "name": "assign_role",
+          "startLine": 182,
+          "endLine": 212,
+          "params": [
+            "role_name",
+            "agent_id",
+            "fluents",
+            "round_number",
+            "args",
+            "exclusive",
+            "narration",
+            "visibility",
+            "event_type"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "role_holder",
+          "line": 1,
+          "isDefault": false
+        },
+        {
+          "name": "current_holder",
+          "line": 13,
+          "isDefault": false
+        },
+        {
+          "name": "set_fact",
+          "line": 37,
+          "isDefault": false
+        },
+        {
+          "name": "end_fact",
+          "line": 91,
+          "isDefault": false
+        },
+        {
+          "name": "_visible_to",
+          "line": 118,
+          "isDefault": false
+        },
+        {
+          "name": "visible_facts",
+          "line": 122,
+          "isDefault": false
+        },
+        {
+          "name": "fact_memory_events",
+          "line": 151,
+          "isDefault": false
+        },
+        {
+          "name": "_memory_spec",
+          "line": 176,
+          "isDefault": false
+        },
+        {
+          "name": "assign_role",
+          "line": 182,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "set_fact",
+          "callee": "fluents.append",
+          "lineNumber": 87
+        },
+        {
+          "caller": "end_fact",
+          "callee": "record.get",
+          "lineNumber": 112
+        },
+        {
+          "caller": "visible_facts",
+          "callee": "record.get",
+          "lineNumber": 136
+        },
+        {
+          "caller": "visible_facts",
+          "callee": "_visible_to",
+          "lineNumber": 137
+        },
+        {
+          "caller": "visible_facts",
+          "callee": "record.get",
+          "lineNumber": 137
+        },
+        {
+          "caller": "visible_facts",
+          "callee": "results.append",
+          "lineNumber": 141
+        },
+        {
+          "caller": "visible_facts",
+          "callee": "record.get",
+          "lineNumber": 143
+        },
+        {
+          "caller": "visible_facts",
+          "callee": "record.get",
+          "lineNumber": 144
+        },
+        {
+          "caller": "visible_facts",
+          "callee": "_visible_to",
+          "lineNumber": 145
+        },
+        {
+          "caller": "visible_facts",
+          "callee": "record.get",
+          "lineNumber": 145
+        },
+        {
+          "caller": "visible_facts",
+          "callee": "results.append",
+          "lineNumber": 147
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "record.get",
+          "lineNumber": 163
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "record.get",
+          "lineNumber": 163
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "events.append",
+          "lineNumber": 164
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "_memory_spec",
+          "lineNumber": 164
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "record.get",
+          "lineNumber": 165
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "record.get",
+          "lineNumber": 166
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "record.get",
+          "lineNumber": 168
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "record.get",
+          "lineNumber": 168
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "events.append",
+          "lineNumber": 169
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "_memory_spec",
+          "lineNumber": 169
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "record.get",
+          "lineNumber": 170
+        },
+        {
+          "caller": "fact_memory_events",
+          "callee": "record.get",
+          "lineNumber": 171
+        },
+        {
+          "caller": "assign_role",
+          "callee": "set_fact",
+          "lineNumber": 209
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 9,
+        "functionCount": 9,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "state/object_types/README.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 66,
+      "nonEmptyLines": 59,
+      "sections": [
+        {
+          "heading": "state/object_types/",
+          "level": 1,
+          "line": 1
+        },
+        {
+          "heading": "Shape",
+          "level": 2,
+          "line": 31
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 2
+      }
+    },
+    {
+      "path": "state/object_types/community_storage.json",
+      "language": "json",
+      "fileCategory": "config",
+      "totalLines": 11,
+      "nonEmptyLines": 11,
+      "sections": [
+        {
+          "heading": "type_name",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "description",
+          "level": 1,
+          "line": 3
+        },
+        {
+          "heading": "ownership",
+          "level": 1,
+          "line": 4
+        },
+        {
+          "heading": "fields",
+          "level": 1,
+          "line": 5
+        },
+        {
+          "heading": "operations",
+          "level": 1,
+          "line": 6
+        },
+        {
+          "heading": "permissions",
+          "level": 1,
+          "line": 7
+        },
+        {
+          "heading": "visibility",
+          "level": 1,
+          "line": 8
+        },
+        {
+          "heading": "custom_handler",
+          "level": 1,
+          "line": 9
+        },
+        {
+          "heading": "introduced_round",
+          "level": 1,
+          "line": 10
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 9
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/handlers_missing_run/broken.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 1,
+      "nonEmptyLines": 1,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/handlers_missing_run/handler_one.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 2,
+      "nonEmptyLines": 2,
+      "functions": [
+        {
+          "name": "run",
+          "startLine": 1,
+          "endLine": 2,
+          "params": [
+            "ctx"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "run",
+          "line": 1,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/handlers_ok/handler_one.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 2,
+      "nonEmptyLines": 2,
+      "functions": [
+        {
+          "name": "run",
+          "startLine": 1,
+          "endLine": 2,
+          "params": [
+            "ctx"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "run",
+          "line": 1,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/handlers_ok/handler_two.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 2,
+      "nonEmptyLines": 2,
+      "functions": [
+        {
+          "name": "run",
+          "startLine": 1,
+          "endLine": 2,
+          "params": [
+            "ctx"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "run",
+          "line": 1,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/subclass_collision/base.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 2,
+      "nonEmptyLines": 2,
+      "classes": [
+        {
+          "name": "FakeBase",
+          "startLine": 1,
+          "endLine": 2,
+          "methods": [],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "FakeBase",
+          "line": 1,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/subclass_collision/dup_a.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 5,
+      "nonEmptyLines": 3,
+      "classes": [
+        {
+          "name": "DupA",
+          "startLine": 4,
+          "endLine": 5,
+          "methods": [],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "DupA",
+          "line": 4,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/subclass_collision/dup_b.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 5,
+      "nonEmptyLines": 3,
+      "classes": [
+        {
+          "name": "DupB",
+          "startLine": 4,
+          "endLine": 5,
+          "methods": [],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "DupB",
+          "line": 4,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/subclass_ok/base.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 2,
+      "nonEmptyLines": 2,
+      "classes": [
+        {
+          "name": "FakeBase",
+          "startLine": 1,
+          "endLine": 2,
+          "methods": [],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "FakeBase",
+          "line": 1,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/subclass_ok/plugin_one.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 5,
+      "nonEmptyLines": 3,
+      "classes": [
+        {
+          "name": "One",
+          "startLine": 4,
+          "endLine": 5,
+          "methods": [],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "One",
+          "line": 4,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "tests/institution/fixtures/subclass_ok/plugin_two.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 5,
+      "nonEmptyLines": 3,
+      "classes": [
+        {
+          "name": "Two",
+          "startLine": 4,
+          "endLine": 5,
+          "methods": [],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "Two",
+          "line": 4,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 1
+      }
+    },
+    {
+      "path": "tests/institution/test_agent_loop.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 148,
+      "nonEmptyLines": 110,
+      "functions": [
+        {
+          "name": "_state",
+          "startLine": 10,
+          "endLine": 17,
+          "params": []
+        },
+        {
+          "name": "_ctx",
+          "startLine": 20,
+          "endLine": 22,
+          "params": [
+            "state",
+            "monkeypatch",
+            "rule_types"
+          ]
+        },
+        {
+          "name": "test_calls_every_participant_and_defaults_participated",
+          "startLine": 25,
+          "endLine": 43,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_ineligible_agent_never_gets_called_and_uses_default_record",
+          "startLine": 46,
+          "endLine": 71,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_custom_ineligible_record_overrides_the_default",
+          "startLine": 74,
+          "endLine": 91,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_after_settle_sees_the_rule_patched_record_not_the_raw_one",
+          "startLine": 94,
+          "endLine": 115,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_settle_agent_hook_runs_after_after_settle_callback_is_wired_in_between",
+          "startLine": 118,
+          "endLine": 148,
+          "params": [
+            "monkeypatch"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "_state",
+          "line": 10,
+          "isDefault": false
+        },
+        {
+          "name": "_ctx",
+          "line": 20,
+          "isDefault": false
+        },
+        {
+          "name": "test_calls_every_participant_and_defaults_participated",
+          "line": 25,
+          "isDefault": false
+        },
+        {
+          "name": "test_ineligible_agent_never_gets_called_and_uses_default_record",
+          "line": 46,
+          "isDefault": false
+        },
+        {
+          "name": "test_custom_ineligible_record_overrides_the_default",
+          "line": 74,
+          "isDefault": false
+        },
+        {
+          "name": "test_after_settle_sees_the_rule_patched_record_not_the_raw_one",
+          "line": 94,
+          "isDefault": false
+        },
+        {
+          "name": "test_settle_agent_hook_runs_after_after_settle_callback_is_wired_in_between",
+          "line": 118,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_ctx",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 21
+        },
+        {
+          "caller": "_ctx",
+          "callee": "ActionContext.build",
+          "lineNumber": 22
+        },
+        {
+          "caller": "test_calls_every_participant_and_defaults_participated",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 27
+        },
+        {
+          "caller": "test_calls_every_participant_and_defaults_participated",
+          "callee": "seen.append",
+          "lineNumber": 29
+        },
+        {
+          "caller": "test_calls_every_participant_and_defaults_participated",
+          "callee": "_ctx",
+          "lineNumber": 31
+        },
+        {
+          "caller": "test_calls_every_participant_and_defaults_participated",
+          "callee": "_state",
+          "lineNumber": 31
+        },
+        {
+          "caller": "test_calls_every_participant_and_defaults_participated",
+          "callee": "per_agent_decision",
+          "lineNumber": 33
+        },
+        {
+          "caller": "test_calls_every_participant_and_defaults_participated",
+          "callee": "sorted",
+          "lineNumber": 39
+        },
+        {
+          "caller": "test_ineligible_agent_never_gets_called_and_uses_default_record",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_ineligible_agent_never_gets_called_and_uses_default_record",
+          "callee": "calls.append",
+          "lineNumber": 50
+        },
+        {
+          "caller": "test_ineligible_agent_never_gets_called_and_uses_default_record",
+          "callee": "_state",
+          "lineNumber": 62
+        },
+        {
+          "caller": "test_ineligible_agent_never_gets_called_and_uses_default_record",
+          "callee": "_ctx",
+          "lineNumber": 64
+        },
+        {
+          "caller": "test_ineligible_agent_never_gets_called_and_uses_default_record",
+          "callee": "per_agent_decision",
+          "lineNumber": 66
+        },
+        {
+          "caller": "test_ineligible_agent_never_gets_called_and_uses_default_record",
+          "callee": "default_ineligible_record",
+          "lineNumber": 69
+        },
+        {
+          "caller": "test_custom_ineligible_record_overrides_the_default",
+          "callee": "_state",
+          "lineNumber": 81
+        },
+        {
+          "caller": "test_custom_ineligible_record_overrides_the_default",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 83
+        },
+        {
+          "caller": "test_custom_ineligible_record_overrides_the_default",
+          "callee": "ActionContext.build",
+          "lineNumber": 84
+        },
+        {
+          "caller": "test_custom_ineligible_record_overrides_the_default",
+          "callee": "per_agent_decision",
+          "lineNumber": 86
+        },
+        {
+          "caller": "test_after_settle_sees_the_rule_patched_record_not_the_raw_one",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 95
+        },
+        {
+          "caller": "test_after_settle_sees_the_rule_patched_record_not_the_raw_one",
+          "callee": "_state",
+          "lineNumber": 103
+        },
+        {
+          "caller": "test_after_settle_sees_the_rule_patched_record_not_the_raw_one",
+          "callee": "_ctx",
+          "lineNumber": 105
+        },
+        {
+          "caller": "test_after_settle_sees_the_rule_patched_record_not_the_raw_one",
+          "callee": "per_agent_decision",
+          "lineNumber": 108
+        },
+        {
+          "caller": "test_after_settle_sees_the_rule_patched_record_not_the_raw_one",
+          "callee": "seen_in_after_settle.__setitem__",
+          "lineNumber": 112
+        },
+        {
+          "caller": "test_settle_agent_hook_runs_after_after_settle_callback_is_wired_in_between",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 123
+        },
+        {
+          "caller": "after_agent",
+          "callee": "order.append",
+          "lineNumber": 130
+        },
+        {
+          "caller": "on_agent_settled",
+          "callee": "order.append",
+          "lineNumber": 134
+        },
+        {
+          "caller": "test_settle_agent_hook_runs_after_after_settle_callback_is_wired_in_between",
+          "callee": "_state",
+          "lineNumber": 136
+        },
+        {
+          "caller": "test_settle_agent_hook_runs_after_after_settle_callback_is_wired_in_between",
+          "callee": "_ctx",
+          "lineNumber": 138
+        },
+        {
+          "caller": "test_settle_agent_hook_runs_after_after_settle_callback_is_wired_in_between",
+          "callee": "per_agent_decision",
+          "lineNumber": 140
+        },
+        {
+          "caller": "test_settle_agent_hook_runs_after_after_settle_callback_is_wired_in_between",
+          "callee": "order.append",
+          "lineNumber": 142
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 7,
+        "functionCount": 7,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/test_builtin_handlers.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 129,
+      "nonEmptyLines": 97,
+      "functions": [
+        {
+          "name": "_state",
+          "startLine": 14,
+          "endLine": 21,
+          "params": [
+            "dead_agents"
+          ]
+        },
+        {
+          "name": "test_generic_agent_decision_resolves_state_fields_and_calls_every_participant",
+          "startLine": 40,
+          "endLine": 61,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_generic_agent_decision_excludes_dead_agents",
+          "startLine": 64,
+          "endLine": 72,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_generic_agent_decision_with_no_field_map_copies_response_verbatim",
+          "startLine": 75,
+          "endLine": 84,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_generic_agent_decision_reads_an_object_field_as_a_prompt_field",
+          "startLine": 87,
+          "endLine": 110,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_action_runtime_run_action_via_the_generic_builtin",
+          "startLine": 113,
+          "endLine": 122,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_unresolvable_handler_raises_a_clear_error",
+          "startLine": 125,
+          "endLine": 129,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_state",
+          "line": 14,
+          "isDefault": false
+        },
+        {
+          "name": "test_generic_agent_decision_resolves_state_fields_and_calls_every_participant",
+          "line": 40,
+          "isDefault": false
+        },
+        {
+          "name": "test_generic_agent_decision_excludes_dead_agents",
+          "line": 64,
+          "isDefault": false
+        },
+        {
+          "name": "test_generic_agent_decision_with_no_field_map_copies_response_verbatim",
+          "line": 75,
+          "isDefault": false
+        },
+        {
+          "name": "test_generic_agent_decision_reads_an_object_field_as_a_prompt_field",
+          "line": 87,
+          "isDefault": false
+        },
+        {
+          "name": "test_action_runtime_run_action_via_the_generic_builtin",
+          "line": 113,
+          "isDefault": false
+        },
+        {
+          "name": "test_unresolvable_handler_raises_a_clear_error",
+          "line": 125,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_generic_agent_decision_resolves_state_fields_and_calls_every_participant",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 47
+        },
+        {
+          "caller": "test_generic_agent_decision_resolves_state_fields_and_calls_every_participant",
+          "callee": "_state",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_generic_agent_decision_resolves_state_fields_and_calls_every_participant",
+          "callee": "ActionContext.build",
+          "lineNumber": 49
+        },
+        {
+          "caller": "test_generic_agent_decision_resolves_state_fields_and_calls_every_participant",
+          "callee": "generic_agent_decision",
+          "lineNumber": 51
+        },
+        {
+          "caller": "test_generic_agent_decision_resolves_state_fields_and_calls_every_participant",
+          "callee": "set",
+          "lineNumber": 53
+        },
+        {
+          "caller": "test_generic_agent_decision_excludes_dead_agents",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 65
+        },
+        {
+          "caller": "test_generic_agent_decision_excludes_dead_agents",
+          "callee": "_state",
+          "lineNumber": 67
+        },
+        {
+          "caller": "test_generic_agent_decision_excludes_dead_agents",
+          "callee": "ActionContext.build",
+          "lineNumber": 68
+        },
+        {
+          "caller": "test_generic_agent_decision_excludes_dead_agents",
+          "callee": "generic_agent_decision",
+          "lineNumber": 70
+        },
+        {
+          "caller": "test_generic_agent_decision_excludes_dead_agents",
+          "callee": "set",
+          "lineNumber": 72
+        },
+        {
+          "caller": "test_generic_agent_decision_with_no_field_map_copies_response_verbatim",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 76
+        },
+        {
+          "caller": "test_generic_agent_decision_with_no_field_map_copies_response_verbatim",
+          "callee": "_state",
+          "lineNumber": 79
+        },
+        {
+          "caller": "test_generic_agent_decision_with_no_field_map_copies_response_verbatim",
+          "callee": "ActionContext.build",
+          "lineNumber": 80
+        },
+        {
+          "caller": "test_generic_agent_decision_with_no_field_map_copies_response_verbatim",
+          "callee": "generic_agent_decision",
+          "lineNumber": 82
+        },
+        {
+          "caller": "test_generic_agent_decision_reads_an_object_field_as_a_prompt_field",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 88
+        },
+        {
+          "caller": "test_generic_agent_decision_reads_an_object_field_as_a_prompt_field",
+          "callee": "_state",
+          "lineNumber": 95
+        },
+        {
+          "caller": "test_generic_agent_decision_reads_an_object_field_as_a_prompt_field",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 106
+        },
+        {
+          "caller": "test_generic_agent_decision_reads_an_object_field_as_a_prompt_field",
+          "callee": "ActionContext.build",
+          "lineNumber": 107
+        },
+        {
+          "caller": "test_generic_agent_decision_reads_an_object_field_as_a_prompt_field",
+          "callee": "generic_agent_decision",
+          "lineNumber": 108
+        },
+        {
+          "caller": "test_action_runtime_run_action_via_the_generic_builtin",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 114
+        },
+        {
+          "caller": "test_action_runtime_run_action_via_the_generic_builtin",
+          "callee": "_state",
+          "lineNumber": 116
+        },
+        {
+          "caller": "test_action_runtime_run_action_via_the_generic_builtin",
+          "callee": "ActionRuntime.run_action",
+          "lineNumber": 118
+        },
+        {
+          "caller": "test_unresolvable_handler_raises_a_clear_error",
+          "callee": "_state",
+          "lineNumber": 126
+        },
+        {
+          "caller": "test_unresolvable_handler_raises_a_clear_error",
+          "callee": "pytest.raises",
+          "lineNumber": 128
+        },
+        {
+          "caller": "test_unresolvable_handler_raises_a_clear_error",
+          "callee": "ActionRuntime.run_action",
+          "lineNumber": 129
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 7,
+        "functionCount": 7,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/test_events.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 114,
+      "nonEmptyLines": 80,
+      "functions": [
+        {
+          "name": "_emitter",
+          "startLine": 5,
+          "endLine": 8,
+          "params": [
+            "events",
+            "fluents",
+            "round_number",
+            "participants"
+          ]
+        },
+        {
+          "name": "test_global_event_is_visible_to_anyone_with_visible_to_none",
+          "startLine": 11,
+          "endLine": 16,
+          "params": []
+        },
+        {
+          "name": "test_agent_event_is_visible_only_to_that_agent",
+          "startLine": 19,
+          "endLine": 26,
+          "params": []
+        },
+        {
+          "name": "test_agent_set_event_is_visible_to_every_named_agent",
+          "startLine": 29,
+          "endLine": 37,
+          "params": []
+        },
+        {
+          "name": "test_participants_event_resolves_against_the_emitting_action_participants",
+          "startLine": 40,
+          "endLine": 47,
+          "params": []
+        },
+        {
+          "name": "test_role_holders_event_resolves_the_current_holder",
+          "startLine": 50,
+          "endLine": 59,
+          "params": []
+        },
+        {
+          "name": "test_role_holders_event_with_no_current_holder_is_visible_to_nobody",
+          "startLine": 62,
+          "endLine": 68,
+          "params": []
+        },
+        {
+          "name": "test_role_holders_event_without_a_role_raises",
+          "startLine": 71,
+          "endLine": 75,
+          "params": []
+        },
+        {
+          "name": "test_event_is_visible_only_for_its_own_round",
+          "startLine": 78,
+          "endLine": 84,
+          "params": []
+        },
+        {
+          "name": "test_a_multi_agent_event_is_stored_exactly_once_not_duplicated",
+          "startLine": 87,
+          "endLine": 95,
+          "params": []
+        },
+        {
+          "name": "test_event_memory_specs_for_a_global_event_writes_one_community_spec",
+          "startLine": 98,
+          "endLine": 101,
+          "params": []
+        },
+        {
+          "name": "test_event_memory_specs_for_a_restricted_event_writes_one_spec_per_visible_agent",
+          "startLine": 104,
+          "endLine": 109,
+          "params": []
+        },
+        {
+          "name": "test_event_memory_specs_ignores_events_from_other_rounds",
+          "startLine": 112,
+          "endLine": 114,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_emitter",
+          "line": 5,
+          "isDefault": false
+        },
+        {
+          "name": "test_global_event_is_visible_to_anyone_with_visible_to_none",
+          "line": 11,
+          "isDefault": false
+        },
+        {
+          "name": "test_agent_event_is_visible_only_to_that_agent",
+          "line": 19,
+          "isDefault": false
+        },
+        {
+          "name": "test_agent_set_event_is_visible_to_every_named_agent",
+          "line": 29,
+          "isDefault": false
+        },
+        {
+          "name": "test_participants_event_resolves_against_the_emitting_action_participants",
+          "line": 40,
+          "isDefault": false
+        },
+        {
+          "name": "test_role_holders_event_resolves_the_current_holder",
+          "line": 50,
+          "isDefault": false
+        },
+        {
+          "name": "test_role_holders_event_with_no_current_holder_is_visible_to_nobody",
+          "line": 62,
+          "isDefault": false
+        },
+        {
+          "name": "test_role_holders_event_without_a_role_raises",
+          "line": 71,
+          "isDefault": false
+        },
+        {
+          "name": "test_event_is_visible_only_for_its_own_round",
+          "line": 78,
+          "isDefault": false
+        },
+        {
+          "name": "test_a_multi_agent_event_is_stored_exactly_once_not_duplicated",
+          "line": 87,
+          "isDefault": false
+        },
+        {
+          "name": "test_event_memory_specs_for_a_global_event_writes_one_community_spec",
+          "line": 98,
+          "isDefault": false
+        },
+        {
+          "name": "test_event_memory_specs_for_a_restricted_event_writes_one_spec_per_visible_agent",
+          "line": 104,
+          "isDefault": false
+        },
+        {
+          "name": "test_event_memory_specs_ignores_events_from_other_rounds",
+          "line": 112,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_emitter",
+          "callee": "EventEmitter",
+          "lineNumber": 8
+        },
+        {
+          "caller": "test_global_event_is_visible_to_anyone_with_visible_to_none",
+          "callee": "_emitter",
+          "lineNumber": 12
+        },
+        {
+          "caller": "test_global_event_is_visible_to_anyone_with_visible_to_none",
+          "callee": "emitter.emit",
+          "lineNumber": 13
+        },
+        {
+          "caller": "test_global_event_is_visible_to_anyone_with_visible_to_none",
+          "callee": "Event",
+          "lineNumber": 13
+        },
+        {
+          "caller": "test_global_event_is_visible_to_anyone_with_visible_to_none",
+          "callee": "visible_events",
+          "lineNumber": 16
+        },
+        {
+          "caller": "test_agent_event_is_visible_only_to_that_agent",
+          "callee": "_emitter",
+          "lineNumber": 20
+        },
+        {
+          "caller": "test_agent_event_is_visible_only_to_that_agent",
+          "callee": "emitter.emit",
+          "lineNumber": 21
+        },
+        {
+          "caller": "test_agent_event_is_visible_only_to_that_agent",
+          "callee": "Event",
+          "lineNumber": 21
+        },
+        {
+          "caller": "test_agent_event_is_visible_only_to_that_agent",
+          "callee": "visible_events",
+          "lineNumber": 25
+        },
+        {
+          "caller": "test_agent_event_is_visible_only_to_that_agent",
+          "callee": "visible_events",
+          "lineNumber": 26
+        },
+        {
+          "caller": "test_agent_set_event_is_visible_to_every_named_agent",
+          "callee": "_emitter",
+          "lineNumber": 30
+        },
+        {
+          "caller": "test_agent_set_event_is_visible_to_every_named_agent",
+          "callee": "emitter.emit",
+          "lineNumber": 31
+        },
+        {
+          "caller": "test_agent_set_event_is_visible_to_every_named_agent",
+          "callee": "Event",
+          "lineNumber": 31
+        },
+        {
+          "caller": "test_agent_set_event_is_visible_to_every_named_agent",
+          "callee": "set",
+          "lineNumber": 34
+        },
+        {
+          "caller": "test_agent_set_event_is_visible_to_every_named_agent",
+          "callee": "visible_events",
+          "lineNumber": 35
+        },
+        {
+          "caller": "test_agent_set_event_is_visible_to_every_named_agent",
+          "callee": "visible_events",
+          "lineNumber": 36
+        },
+        {
+          "caller": "test_agent_set_event_is_visible_to_every_named_agent",
+          "callee": "visible_events",
+          "lineNumber": 37
+        },
+        {
+          "caller": "test_participants_event_resolves_against_the_emitting_action_participants",
+          "callee": "_emitter",
+          "lineNumber": 41
+        },
+        {
+          "caller": "test_participants_event_resolves_against_the_emitting_action_participants",
+          "callee": "emitter.emit",
+          "lineNumber": 42
+        },
+        {
+          "caller": "test_participants_event_resolves_against_the_emitting_action_participants",
+          "callee": "Event",
+          "lineNumber": 42
+        },
+        {
+          "caller": "test_participants_event_resolves_against_the_emitting_action_participants",
+          "callee": "set",
+          "lineNumber": 45
+        },
+        {
+          "caller": "test_participants_event_resolves_against_the_emitting_action_participants",
+          "callee": "visible_events",
+          "lineNumber": 46
+        },
+        {
+          "caller": "test_participants_event_resolves_against_the_emitting_action_participants",
+          "callee": "visible_events",
+          "lineNumber": 47
+        },
+        {
+          "caller": "test_role_holders_event_resolves_the_current_holder",
+          "callee": "assign_role",
+          "lineNumber": 52
+        },
+        {
+          "caller": "test_role_holders_event_resolves_the_current_holder",
+          "callee": "_emitter",
+          "lineNumber": 53
+        },
+        {
+          "caller": "test_role_holders_event_resolves_the_current_holder",
+          "callee": "emitter.emit",
+          "lineNumber": 54
+        },
+        {
+          "caller": "test_role_holders_event_resolves_the_current_holder",
+          "callee": "Event",
+          "lineNumber": 54
+        },
+        {
+          "caller": "test_role_holders_event_resolves_the_current_holder",
+          "callee": "visible_events",
+          "lineNumber": 58
+        },
+        {
+          "caller": "test_role_holders_event_resolves_the_current_holder",
+          "callee": "visible_events",
+          "lineNumber": 59
+        },
+        {
+          "caller": "test_role_holders_event_with_no_current_holder_is_visible_to_nobody",
+          "callee": "_emitter",
+          "lineNumber": 63
+        },
+        {
+          "caller": "test_role_holders_event_with_no_current_holder_is_visible_to_nobody",
+          "callee": "emitter.emit",
+          "lineNumber": 64
+        },
+        {
+          "caller": "test_role_holders_event_with_no_current_holder_is_visible_to_nobody",
+          "callee": "Event",
+          "lineNumber": 64
+        },
+        {
+          "caller": "test_role_holders_event_with_no_current_holder_is_visible_to_nobody",
+          "callee": "visible_events",
+          "lineNumber": 68
+        },
+        {
+          "caller": "test_role_holders_event_without_a_role_raises",
+          "callee": "_emitter",
+          "lineNumber": 73
+        },
+        {
+          "caller": "test_role_holders_event_without_a_role_raises",
+          "callee": "pytest.raises",
+          "lineNumber": 74
+        },
+        {
+          "caller": "test_role_holders_event_without_a_role_raises",
+          "callee": "emitter.emit",
+          "lineNumber": 75
+        },
+        {
+          "caller": "test_role_holders_event_without_a_role_raises",
+          "callee": "Event",
+          "lineNumber": 75
+        },
+        {
+          "caller": "test_event_is_visible_only_for_its_own_round",
+          "callee": "_emitter",
+          "lineNumber": 79
+        },
+        {
+          "caller": "test_event_is_visible_only_for_its_own_round",
+          "callee": "emitter.emit",
+          "lineNumber": 80
+        },
+        {
+          "caller": "test_event_is_visible_only_for_its_own_round",
+          "callee": "Event",
+          "lineNumber": 80
+        },
+        {
+          "caller": "test_event_is_visible_only_for_its_own_round",
+          "callee": "visible_events",
+          "lineNumber": 82
+        },
+        {
+          "caller": "test_event_is_visible_only_for_its_own_round",
+          "callee": "visible_events",
+          "lineNumber": 83
+        },
+        {
+          "caller": "test_event_is_visible_only_for_its_own_round",
+          "callee": "visible_events",
+          "lineNumber": 84
+        },
+        {
+          "caller": "test_a_multi_agent_event_is_stored_exactly_once_not_duplicated",
+          "callee": "_emitter",
+          "lineNumber": 92
+        },
+        {
+          "caller": "test_a_multi_agent_event_is_stored_exactly_once_not_duplicated",
+          "callee": "emitter.emit",
+          "lineNumber": 93
+        },
+        {
+          "caller": "test_a_multi_agent_event_is_stored_exactly_once_not_duplicated",
+          "callee": "Event",
+          "lineNumber": 93
+        },
+        {
+          "caller": "test_a_multi_agent_event_is_stored_exactly_once_not_duplicated",
+          "callee": "len",
+          "lineNumber": 95
+        },
+        {
+          "caller": "test_event_memory_specs_for_a_global_event_writes_one_community_spec",
+          "callee": "event_memory_specs",
+          "lineNumber": 100
+        },
+        {
+          "caller": "test_event_memory_specs_for_a_restricted_event_writes_one_spec_per_visible_agent",
+          "callee": "event_memory_specs",
+          "lineNumber": 107
+        },
+        {
+          "caller": "test_event_memory_specs_for_a_restricted_event_writes_one_spec_per_visible_agent",
+          "callee": "all",
+          "lineNumber": 109
+        },
+        {
+          "caller": "test_event_memory_specs_ignores_events_from_other_rounds",
+          "callee": "event_memory_specs",
+          "lineNumber": 114
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 13,
+        "functionCount": 13,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/test_generic_registry.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 53,
+      "nonEmptyLines": 38,
+      "functions": [
+        {
+          "name": "test_discover_subclasses_on_a_real_ships_empty_package",
+          "startLine": 15,
+          "endLine": 19,
+          "params": []
+        },
+        {
+          "name": "test_discover_handlers_on_a_real_ships_empty_package",
+          "startLine": 22,
+          "endLine": 24,
+          "params": []
+        },
+        {
+          "name": "test_discover_subclasses_finds_every_matching_subclass",
+          "startLine": 27,
+          "endLine": 31,
+          "params": []
+        },
+        {
+          "name": "test_discover_subclasses_never_returns_the_base_class_itself",
+          "startLine": 34,
+          "endLine": 36,
+          "params": []
+        },
+        {
+          "name": "test_discover_subclasses_raises_on_key_collision",
+          "startLine": 39,
+          "endLine": 41,
+          "params": []
+        },
+        {
+          "name": "test_discover_handlers_finds_every_run_function",
+          "startLine": 44,
+          "endLine": 48,
+          "params": []
+        },
+        {
+          "name": "test_discover_handlers_raises_on_a_module_missing_run",
+          "startLine": 51,
+          "endLine": 53,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "test_discover_subclasses_on_a_real_ships_empty_package",
+          "line": 15,
+          "isDefault": false
+        },
+        {
+          "name": "test_discover_handlers_on_a_real_ships_empty_package",
+          "line": 22,
+          "isDefault": false
+        },
+        {
+          "name": "test_discover_subclasses_finds_every_matching_subclass",
+          "line": 27,
+          "isDefault": false
+        },
+        {
+          "name": "test_discover_subclasses_never_returns_the_base_class_itself",
+          "line": 34,
+          "isDefault": false
+        },
+        {
+          "name": "test_discover_subclasses_raises_on_key_collision",
+          "line": 39,
+          "isDefault": false
+        },
+        {
+          "name": "test_discover_handlers_finds_every_run_function",
+          "line": 44,
+          "isDefault": false
+        },
+        {
+          "name": "test_discover_handlers_raises_on_a_module_missing_run",
+          "line": 51,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_discover_subclasses_on_a_real_ships_empty_package",
+          "callee": "discover_subclasses",
+          "lineNumber": 19
+        },
+        {
+          "caller": "test_discover_handlers_on_a_real_ships_empty_package",
+          "callee": "discover_handlers",
+          "lineNumber": 24
+        },
+        {
+          "caller": "test_discover_subclasses_finds_every_matching_subclass",
+          "callee": "discover_subclasses",
+          "lineNumber": 28
+        },
+        {
+          "caller": "test_discover_subclasses_finds_every_matching_subclass",
+          "callee": "set",
+          "lineNumber": 29
+        },
+        {
+          "caller": "test_discover_subclasses_never_returns_the_base_class_itself",
+          "callee": "discover_subclasses",
+          "lineNumber": 35
+        },
+        {
+          "caller": "test_discover_subclasses_never_returns_the_base_class_itself",
+          "callee": "found.values",
+          "lineNumber": 36
+        },
+        {
+          "caller": "test_discover_subclasses_raises_on_key_collision",
+          "callee": "pytest.raises",
+          "lineNumber": 40
+        },
+        {
+          "caller": "test_discover_subclasses_raises_on_key_collision",
+          "callee": "discover_subclasses",
+          "lineNumber": 41
+        },
+        {
+          "caller": "test_discover_handlers_finds_every_run_function",
+          "callee": "discover_handlers",
+          "lineNumber": 45
+        },
+        {
+          "caller": "test_discover_handlers_finds_every_run_function",
+          "callee": "set",
+          "lineNumber": 46
+        },
+        {
+          "caller": "test_discover_handlers_raises_on_a_module_missing_run",
+          "callee": "pytest.raises",
+          "lineNumber": 52
+        },
+        {
+          "caller": "test_discover_handlers_raises_on_a_module_missing_run",
+          "callee": "discover_handlers",
+          "lineNumber": 53
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 7,
+        "functionCount": 7,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/test_harvest_handler_baseline.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 131,
+      "nonEmptyLines": 96,
+      "functions": [
+        {
+          "name": "_fake_call_fisher_agent",
+          "startLine": 19,
+          "endLine": 20,
+          "params": [
+            "agent_id",
+            "round_number",
+            "action_name",
+            "**fields"
+          ]
+        },
+        {
+          "name": "_state",
+          "startLine": 23,
+          "endLine": 33,
+          "params": [
+            "rules_config"
+          ]
+        },
+        {
+          "name": "_run",
+          "startLine": 36,
+          "endLine": 38,
+          "params": [
+            "state"
+          ]
+        },
+        {
+          "name": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "startLine": 41,
+          "endLine": 63,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_baseline_no_rules_state_key_created_when_rules_empty",
+          "startLine": 66,
+          "endLine": 70,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "_fake_discover",
+          "startLine": 90,
+          "endLine": 91,
+          "params": [
+            "rule_types_by_action"
+          ]
+        },
+        {
+          "name": "test_a_configured_rule_actually_constrains_the_result",
+          "startLine": 94,
+          "endLine": 106,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_ineligible_agent_skips_the_llm_call_entirely",
+          "startLine": 109,
+          "endLine": 131,
+          "params": [
+            "monkeypatch"
+          ]
+        }
+      ],
+      "classes": [
+        {
+          "name": "_FakeCap",
+          "startLine": 73,
+          "endLine": 80,
+          "methods": [
+            "after_agent"
+          ],
+          "properties": []
+        },
+        {
+          "name": "_FakeBan",
+          "startLine": 83,
+          "endLine": 87,
+          "methods": [
+            "is_eligible"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_fake_call_fisher_agent",
+          "line": 19,
+          "isDefault": false
+        },
+        {
+          "name": "_state",
+          "line": 23,
+          "isDefault": false
+        },
+        {
+          "name": "_run",
+          "line": 36,
+          "isDefault": false
+        },
+        {
+          "name": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "line": 41,
+          "isDefault": false
+        },
+        {
+          "name": "test_baseline_no_rules_state_key_created_when_rules_empty",
+          "line": 66,
+          "isDefault": false
+        },
+        {
+          "name": "_FakeCap",
+          "line": 73,
+          "isDefault": false
+        },
+        {
+          "name": "_FakeBan",
+          "line": 83,
+          "isDefault": false
+        },
+        {
+          "name": "_fake_discover",
+          "line": 90,
+          "isDefault": false
+        },
+        {
+          "name": "test_a_configured_rule_actually_constrains_the_result",
+          "line": 94,
+          "isDefault": false
+        },
+        {
+          "name": "test_ineligible_agent_skips_the_llm_call_entirely",
+          "line": 109,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_run",
+          "callee": "ActionContext.build",
+          "lineNumber": 37
+        },
+        {
+          "caller": "_run",
+          "callee": "harvest_handler.run",
+          "lineNumber": 38
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 42
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "_state",
+          "lineNumber": 43
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "_run",
+          "lineNumber": 45
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "catch_from_effort",
+          "lineNumber": 47
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "catch_from_effort",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "pytest.approx",
+          "lineNumber": 49
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "pytest.approx",
+          "lineNumber": 50
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "pytest.approx",
+          "lineNumber": 56
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "pytest.approx",
+          "lineNumber": 57
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "apply_regrowth",
+          "lineNumber": 57
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "apply_consumption",
+          "lineNumber": 59
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "apply_consumption",
+          "lineNumber": 60
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "pytest.approx",
+          "lineNumber": 61
+        },
+        {
+          "caller": "test_baseline_empty_rules_matches_hand_computed_physics",
+          "callee": "pytest.approx",
+          "lineNumber": 62
+        },
+        {
+          "caller": "test_baseline_no_rules_state_key_created_when_rules_empty",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 67
+        },
+        {
+          "caller": "test_baseline_no_rules_state_key_created_when_rules_empty",
+          "callee": "_state",
+          "lineNumber": 68
+        },
+        {
+          "caller": "test_baseline_no_rules_state_key_created_when_rules_empty",
+          "callee": "_run",
+          "lineNumber": 69
+        },
+        {
+          "caller": "after_agent",
+          "callee": "self.params.get",
+          "lineNumber": 77
+        },
+        {
+          "caller": "is_eligible",
+          "callee": "ctx.rule_state(self.key).get",
+          "lineNumber": 87
+        },
+        {
+          "caller": "is_eligible",
+          "callee": "ctx.rule_state",
+          "lineNumber": 87
+        },
+        {
+          "caller": "_fake_discover",
+          "callee": "rule_types_by_action.get",
+          "lineNumber": 91
+        },
+        {
+          "caller": "test_a_configured_rule_actually_constrains_the_result",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 95
+        },
+        {
+          "caller": "test_a_configured_rule_actually_constrains_the_result",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 96
+        },
+        {
+          "caller": "test_a_configured_rule_actually_constrains_the_result",
+          "callee": "_fake_discover",
+          "lineNumber": 98
+        },
+        {
+          "caller": "test_a_configured_rule_actually_constrains_the_result",
+          "callee": "_state",
+          "lineNumber": 100
+        },
+        {
+          "caller": "test_a_configured_rule_actually_constrains_the_result",
+          "callee": "_run",
+          "lineNumber": 102
+        },
+        {
+          "caller": "test_a_configured_rule_actually_constrains_the_result",
+          "callee": "pytest.approx",
+          "lineNumber": 104
+        },
+        {
+          "caller": "_tracking_call",
+          "callee": "call_log.append",
+          "lineNumber": 113
+        },
+        {
+          "caller": "test_ineligible_agent_skips_the_llm_call_entirely",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 116
+        },
+        {
+          "caller": "test_ineligible_agent_skips_the_llm_call_entirely",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 117
+        },
+        {
+          "caller": "test_ineligible_agent_skips_the_llm_call_entirely",
+          "callee": "_fake_discover",
+          "lineNumber": 119
+        },
+        {
+          "caller": "test_ineligible_agent_skips_the_llm_call_entirely",
+          "callee": "_state",
+          "lineNumber": 121
+        },
+        {
+          "caller": "test_ineligible_agent_skips_the_llm_call_entirely",
+          "callee": "state[\"runtime\"].setdefault(\"rules\", {}).setdefault",
+          "lineNumber": 122
+        },
+        {
+          "caller": "test_ineligible_agent_skips_the_llm_call_entirely",
+          "callee": "state[\"runtime\"].setdefault",
+          "lineNumber": 122
+        },
+        {
+          "caller": "test_ineligible_agent_skips_the_llm_call_entirely",
+          "callee": "_run",
+          "lineNumber": 124
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 10,
+        "functionCount": 8,
+        "classCount": 2
+      }
+    },
+    {
+      "path": "tests/institution/test_history.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 53,
+      "nonEmptyLines": 40,
+      "functions": [
+        {
+          "name": "test_no_changes_yields_empty_diff",
+          "startLine": 12,
+          "endLine": 13,
+          "params": []
+        },
+        {
+          "name": "test_added_action_is_detected",
+          "startLine": 16,
+          "endLine": 20,
+          "params": []
+        },
+        {
+          "name": "test_removed_norm_type_is_detected",
+          "startLine": 23,
+          "endLine": 27,
+          "params": []
+        },
+        {
+          "name": "test_changed_role_entry_is_detected",
+          "startLine": 30,
+          "endLine": 35,
+          "params": []
+        },
+        {
+          "name": "test_added_object_type_and_state_field_together",
+          "startLine": 38,
+          "endLine": 46,
+          "params": []
+        },
+        {
+          "name": "test_diff_is_order_independent_and_sorted_by_name",
+          "startLine": 49,
+          "endLine": 53,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "test_no_changes_yields_empty_diff",
+          "line": 12,
+          "isDefault": false
+        },
+        {
+          "name": "test_added_action_is_detected",
+          "line": 16,
+          "isDefault": false
+        },
+        {
+          "name": "test_removed_norm_type_is_detected",
+          "line": 23,
+          "isDefault": false
+        },
+        {
+          "name": "test_changed_role_entry_is_detected",
+          "line": 30,
+          "isDefault": false
+        },
+        {
+          "name": "test_added_object_type_and_state_field_together",
+          "line": 38,
+          "isDefault": false
+        },
+        {
+          "name": "test_diff_is_order_independent_and_sorted_by_name",
+          "line": 49,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_no_changes_yields_empty_diff",
+          "callee": "diff_institution",
+          "lineNumber": 13
+        },
+        {
+          "caller": "test_added_action_is_detected",
+          "callee": "diff_institution",
+          "lineNumber": 18
+        },
+        {
+          "caller": "test_removed_norm_type_is_detected",
+          "callee": "diff_institution",
+          "lineNumber": 25
+        },
+        {
+          "caller": "test_changed_role_entry_is_detected",
+          "callee": "diff_institution",
+          "lineNumber": 32
+        },
+        {
+          "caller": "test_changed_role_entry_is_detected",
+          "callee": "len",
+          "lineNumber": 33
+        },
+        {
+          "caller": "test_added_object_type_and_state_field_together",
+          "callee": "diff_institution",
+          "lineNumber": 44
+        },
+        {
+          "caller": "test_diff_is_order_independent_and_sorted_by_name",
+          "callee": "diff_institution",
+          "lineNumber": 52
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 6,
+        "functionCount": 6,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/test_lifecycle.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 104,
+      "nonEmptyLines": 74,
+      "functions": [
+        {
+          "name": "test_missing_or_default_lifecycle_is_always_active",
+          "startLine": 8,
+          "endLine": 11,
+          "params": []
+        },
+        {
+          "name": "test_active_from_round_gates_the_start",
+          "startLine": 14,
+          "endLine": 18,
+          "params": []
+        },
+        {
+          "name": "test_duration_rounds_expires_relative_to_active_from",
+          "startLine": 21,
+          "endLine": 26,
+          "params": []
+        },
+        {
+          "name": "test_duration_rounds_defaults_active_from_to_zero",
+          "startLine": 29,
+          "endLine": 32,
+          "params": []
+        },
+        {
+          "name": "test_explicit_expires_at_round_wins_over_duration_rounds",
+          "startLine": 35,
+          "endLine": 38,
+          "params": []
+        },
+        {
+          "name": "test_terminated_round_ends_it_immediately",
+          "startLine": 41,
+          "endLine": 44,
+          "params": []
+        },
+        {
+          "name": "test_tick_fires_exactly_once_on_expiry",
+          "startLine": 47,
+          "endLine": 60,
+          "params": []
+        },
+        {
+          "name": "test_tick_never_fires_for_an_indefinite_lifecycle",
+          "startLine": 63,
+          "endLine": 67,
+          "params": []
+        },
+        {
+          "name": "test_renew_clears_termination_and_extends_duration",
+          "startLine": 70,
+          "endLine": 83,
+          "params": []
+        },
+        {
+          "name": "test_renew_extends_expires_at_round_when_that_form_was_used",
+          "startLine": 86,
+          "endLine": 89,
+          "params": []
+        },
+        {
+          "name": "test_renew_raises_when_not_renewable",
+          "startLine": 92,
+          "endLine": 95,
+          "params": []
+        },
+        {
+          "name": "test_terminate_closes_immediately_regardless_of_duration",
+          "startLine": 98,
+          "endLine": 104,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "test_missing_or_default_lifecycle_is_always_active",
+          "line": 8,
+          "isDefault": false
+        },
+        {
+          "name": "test_active_from_round_gates_the_start",
+          "line": 14,
+          "isDefault": false
+        },
+        {
+          "name": "test_duration_rounds_expires_relative_to_active_from",
+          "line": 21,
+          "isDefault": false
+        },
+        {
+          "name": "test_duration_rounds_defaults_active_from_to_zero",
+          "line": 29,
+          "isDefault": false
+        },
+        {
+          "name": "test_explicit_expires_at_round_wins_over_duration_rounds",
+          "line": 35,
+          "isDefault": false
+        },
+        {
+          "name": "test_terminated_round_ends_it_immediately",
+          "line": 41,
+          "isDefault": false
+        },
+        {
+          "name": "test_tick_fires_exactly_once_on_expiry",
+          "line": 47,
+          "isDefault": false
+        },
+        {
+          "name": "test_tick_never_fires_for_an_indefinite_lifecycle",
+          "line": 63,
+          "isDefault": false
+        },
+        {
+          "name": "test_renew_clears_termination_and_extends_duration",
+          "line": 70,
+          "isDefault": false
+        },
+        {
+          "name": "test_renew_extends_expires_at_round_when_that_form_was_used",
+          "line": 86,
+          "isDefault": false
+        },
+        {
+          "name": "test_renew_raises_when_not_renewable",
+          "line": 92,
+          "isDefault": false
+        },
+        {
+          "name": "test_terminate_closes_immediately_regardless_of_duration",
+          "line": 98,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_missing_or_default_lifecycle_is_always_active",
+          "callee": "is_active",
+          "lineNumber": 9
+        },
+        {
+          "caller": "test_missing_or_default_lifecycle_is_always_active",
+          "callee": "is_active",
+          "lineNumber": 10
+        },
+        {
+          "caller": "test_missing_or_default_lifecycle_is_always_active",
+          "callee": "is_active",
+          "lineNumber": 11
+        },
+        {
+          "caller": "test_missing_or_default_lifecycle_is_always_active",
+          "callee": "default_lifecycle",
+          "lineNumber": 11
+        },
+        {
+          "caller": "test_active_from_round_gates_the_start",
+          "callee": "default_lifecycle",
+          "lineNumber": 15
+        },
+        {
+          "caller": "test_active_from_round_gates_the_start",
+          "callee": "is_active",
+          "lineNumber": 16
+        },
+        {
+          "caller": "test_active_from_round_gates_the_start",
+          "callee": "is_active",
+          "lineNumber": 17
+        },
+        {
+          "caller": "test_active_from_round_gates_the_start",
+          "callee": "is_active",
+          "lineNumber": 18
+        },
+        {
+          "caller": "test_duration_rounds_expires_relative_to_active_from",
+          "callee": "default_lifecycle",
+          "lineNumber": 22
+        },
+        {
+          "caller": "test_duration_rounds_expires_relative_to_active_from",
+          "callee": "is_active",
+          "lineNumber": 23
+        },
+        {
+          "caller": "test_duration_rounds_expires_relative_to_active_from",
+          "callee": "is_active",
+          "lineNumber": 24
+        },
+        {
+          "caller": "test_duration_rounds_expires_relative_to_active_from",
+          "callee": "is_active",
+          "lineNumber": 25
+        },
+        {
+          "caller": "test_duration_rounds_expires_relative_to_active_from",
+          "callee": "is_active",
+          "lineNumber": 26
+        },
+        {
+          "caller": "test_duration_rounds_defaults_active_from_to_zero",
+          "callee": "default_lifecycle",
+          "lineNumber": 30
+        },
+        {
+          "caller": "test_duration_rounds_defaults_active_from_to_zero",
+          "callee": "is_active",
+          "lineNumber": 31
+        },
+        {
+          "caller": "test_duration_rounds_defaults_active_from_to_zero",
+          "callee": "is_active",
+          "lineNumber": 32
+        },
+        {
+          "caller": "test_explicit_expires_at_round_wins_over_duration_rounds",
+          "callee": "default_lifecycle",
+          "lineNumber": 36
+        },
+        {
+          "caller": "test_explicit_expires_at_round_wins_over_duration_rounds",
+          "callee": "is_active",
+          "lineNumber": 37
+        },
+        {
+          "caller": "test_explicit_expires_at_round_wins_over_duration_rounds",
+          "callee": "is_active",
+          "lineNumber": 38
+        },
+        {
+          "caller": "test_terminated_round_ends_it_immediately",
+          "callee": "default_lifecycle",
+          "lineNumber": 42
+        },
+        {
+          "caller": "test_terminated_round_ends_it_immediately",
+          "callee": "is_active",
+          "lineNumber": 43
+        },
+        {
+          "caller": "test_terminated_round_ends_it_immediately",
+          "callee": "is_active",
+          "lineNumber": 44
+        },
+        {
+          "caller": "test_tick_fires_exactly_once_on_expiry",
+          "callee": "default_lifecycle",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_tick_fires_exactly_once_on_expiry",
+          "callee": "tick",
+          "lineNumber": 50
+        },
+        {
+          "caller": "test_tick_fires_exactly_once_on_expiry",
+          "callee": "tick",
+          "lineNumber": 51
+        },
+        {
+          "caller": "test_tick_fires_exactly_once_on_expiry",
+          "callee": "tick",
+          "lineNumber": 53
+        },
+        {
+          "caller": "test_tick_fires_exactly_once_on_expiry",
+          "callee": "LifecycleEvent",
+          "lineNumber": 54
+        },
+        {
+          "caller": "test_tick_fires_exactly_once_on_expiry",
+          "callee": "tick",
+          "lineNumber": 59
+        },
+        {
+          "caller": "test_tick_fires_exactly_once_on_expiry",
+          "callee": "tick",
+          "lineNumber": 60
+        },
+        {
+          "caller": "test_tick_never_fires_for_an_indefinite_lifecycle",
+          "callee": "default_lifecycle",
+          "lineNumber": 64
+        },
+        {
+          "caller": "test_tick_never_fires_for_an_indefinite_lifecycle",
+          "callee": "range",
+          "lineNumber": 65
+        },
+        {
+          "caller": "test_tick_never_fires_for_an_indefinite_lifecycle",
+          "callee": "tick",
+          "lineNumber": 66
+        },
+        {
+          "caller": "test_renew_clears_termination_and_extends_duration",
+          "callee": "default_lifecycle",
+          "lineNumber": 71
+        },
+        {
+          "caller": "test_renew_clears_termination_and_extends_duration",
+          "callee": "tick",
+          "lineNumber": 72
+        },
+        {
+          "caller": "test_renew_clears_termination_and_extends_duration",
+          "callee": "renew",
+          "lineNumber": 75
+        },
+        {
+          "caller": "test_renew_clears_termination_and_extends_duration",
+          "callee": "is_active",
+          "lineNumber": 81
+        },
+        {
+          "caller": "test_renew_clears_termination_and_extends_duration",
+          "callee": "is_active",
+          "lineNumber": 82
+        },
+        {
+          "caller": "test_renew_clears_termination_and_extends_duration",
+          "callee": "is_active",
+          "lineNumber": 83
+        },
+        {
+          "caller": "test_renew_extends_expires_at_round_when_that_form_was_used",
+          "callee": "default_lifecycle",
+          "lineNumber": 87
+        },
+        {
+          "caller": "test_renew_extends_expires_at_round_when_that_form_was_used",
+          "callee": "renew",
+          "lineNumber": 88
+        },
+        {
+          "caller": "test_renew_raises_when_not_renewable",
+          "callee": "default_lifecycle",
+          "lineNumber": 93
+        },
+        {
+          "caller": "test_renew_raises_when_not_renewable",
+          "callee": "pytest.raises",
+          "lineNumber": 94
+        },
+        {
+          "caller": "test_renew_raises_when_not_renewable",
+          "callee": "renew",
+          "lineNumber": 95
+        },
+        {
+          "caller": "test_terminate_closes_immediately_regardless_of_duration",
+          "callee": "default_lifecycle",
+          "lineNumber": 99
+        },
+        {
+          "caller": "test_terminate_closes_immediately_regardless_of_duration",
+          "callee": "terminate",
+          "lineNumber": 100
+        },
+        {
+          "caller": "test_terminate_closes_immediately_regardless_of_duration",
+          "callee": "is_active",
+          "lineNumber": 103
+        },
+        {
+          "caller": "test_terminate_closes_immediately_regardless_of_duration",
+          "callee": "is_active",
+          "lineNumber": 104
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 12,
+        "functionCount": 12,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/test_objects.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 176,
+      "nonEmptyLines": 133,
+      "functions": [
+        {
+          "name": "_runtime",
+          "startLine": 43,
+          "endLine": 48,
+          "params": [
+            "object_types",
+            "declarations",
+            "fluents",
+            "round_number",
+            "participants",
+            "runtime_objects"
+          ]
+        },
+        {
+          "name": "test_deposit_and_withdraw_adjust_balance_seeded_from_the_type_default",
+          "startLine": 51,
+          "endLine": 64,
+          "params": []
+        },
+        {
+          "name": "test_declaration_never_needs_to_carry_field_values",
+          "startLine": 67,
+          "endLine": 72,
+          "params": []
+        },
+        {
+          "name": "test_role_gated_write_denied_to_a_non_holder",
+          "startLine": 75,
+          "endLine": 82,
+          "params": []
+        },
+        {
+          "name": "test_permission_who_none_always_denies",
+          "startLine": 85,
+          "endLine": 90,
+          "params": []
+        },
+        {
+          "name": "test_append_and_read_on_a_role_gated_field",
+          "startLine": 93,
+          "endLine": 103,
+          "params": []
+        },
+        {
+          "name": "test_read_returns_none_for_a_who_none_field_without_raising",
+          "startLine": 106,
+          "endLine": 109,
+          "params": []
+        },
+        {
+          "name": "test_narration_emits_an_event_visible_this_round_only",
+          "startLine": 112,
+          "endLine": 123,
+          "params": []
+        },
+        {
+          "name": "test_deposit_with_no_narration_emits_no_event",
+          "startLine": 126,
+          "endLine": 134,
+          "params": []
+        },
+        {
+          "name": "test_unknown_object_id_raises_keyerror",
+          "startLine": 137,
+          "endLine": 140,
+          "params": []
+        },
+        {
+          "name": "test_custom_handler_dispatch",
+          "startLine": 143,
+          "endLine": 169,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_custom_handler_missing_declaration_raises",
+          "startLine": 172,
+          "endLine": 176,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "_runtime",
+          "line": 43,
+          "isDefault": false
+        },
+        {
+          "name": "test_deposit_and_withdraw_adjust_balance_seeded_from_the_type_default",
+          "line": 51,
+          "isDefault": false
+        },
+        {
+          "name": "test_declaration_never_needs_to_carry_field_values",
+          "line": 67,
+          "isDefault": false
+        },
+        {
+          "name": "test_role_gated_write_denied_to_a_non_holder",
+          "line": 75,
+          "isDefault": false
+        },
+        {
+          "name": "test_permission_who_none_always_denies",
+          "line": 85,
+          "isDefault": false
+        },
+        {
+          "name": "test_append_and_read_on_a_role_gated_field",
+          "line": 93,
+          "isDefault": false
+        },
+        {
+          "name": "test_read_returns_none_for_a_who_none_field_without_raising",
+          "line": 106,
+          "isDefault": false
+        },
+        {
+          "name": "test_narration_emits_an_event_visible_this_round_only",
+          "line": 112,
+          "isDefault": false
+        },
+        {
+          "name": "test_deposit_with_no_narration_emits_no_event",
+          "line": 126,
+          "isDefault": false
+        },
+        {
+          "name": "test_unknown_object_id_raises_keyerror",
+          "line": 137,
+          "isDefault": false
+        },
+        {
+          "name": "test_custom_handler_dispatch",
+          "line": 143,
+          "isDefault": false
+        },
+        {
+          "name": "test_custom_handler_missing_declaration_raises",
+          "line": 172,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_runtime",
+          "callee": "EventEmitter",
+          "lineNumber": 47
+        },
+        {
+          "caller": "_runtime",
+          "callee": "ObjectRuntime",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_deposit_and_withdraw_adjust_balance_seeded_from_the_type_default",
+          "callee": "assign_role",
+          "lineNumber": 54
+        },
+        {
+          "caller": "test_deposit_and_withdraw_adjust_balance_seeded_from_the_type_default",
+          "callee": "_runtime",
+          "lineNumber": 55
+        },
+        {
+          "caller": "test_deposit_and_withdraw_adjust_balance_seeded_from_the_type_default",
+          "callee": "runtime.deposit",
+          "lineNumber": 60
+        },
+        {
+          "caller": "test_deposit_and_withdraw_adjust_balance_seeded_from_the_type_default",
+          "callee": "runtime.withdraw",
+          "lineNumber": 63
+        },
+        {
+          "caller": "test_role_gated_write_denied_to_a_non_holder",
+          "callee": "assign_role",
+          "lineNumber": 78
+        },
+        {
+          "caller": "test_role_gated_write_denied_to_a_non_holder",
+          "callee": "_runtime",
+          "lineNumber": 79
+        },
+        {
+          "caller": "test_role_gated_write_denied_to_a_non_holder",
+          "callee": "pytest.raises",
+          "lineNumber": 81
+        },
+        {
+          "caller": "test_role_gated_write_denied_to_a_non_holder",
+          "callee": "runtime.deposit",
+          "lineNumber": 82
+        },
+        {
+          "caller": "test_permission_who_none_always_denies",
+          "callee": "_runtime",
+          "lineNumber": 87
+        },
+        {
+          "caller": "test_permission_who_none_always_denies",
+          "callee": "pytest.raises",
+          "lineNumber": 89
+        },
+        {
+          "caller": "test_permission_who_none_always_denies",
+          "callee": "runtime.set",
+          "lineNumber": 90
+        },
+        {
+          "caller": "test_append_and_read_on_a_role_gated_field",
+          "callee": "assign_role",
+          "lineNumber": 96
+        },
+        {
+          "caller": "test_append_and_read_on_a_role_gated_field",
+          "callee": "_runtime",
+          "lineNumber": 97
+        },
+        {
+          "caller": "test_append_and_read_on_a_role_gated_field",
+          "callee": "runtime.append",
+          "lineNumber": 99
+        },
+        {
+          "caller": "test_append_and_read_on_a_role_gated_field",
+          "callee": "runtime.read",
+          "lineNumber": 102
+        },
+        {
+          "caller": "test_append_and_read_on_a_role_gated_field",
+          "callee": "runtime.read",
+          "lineNumber": 103
+        },
+        {
+          "caller": "test_read_returns_none_for_a_who_none_field_without_raising",
+          "callee": "_runtime",
+          "lineNumber": 108
+        },
+        {
+          "caller": "test_read_returns_none_for_a_who_none_field_without_raising",
+          "callee": "runtime.read",
+          "lineNumber": 109
+        },
+        {
+          "caller": "test_narration_emits_an_event_visible_this_round_only",
+          "callee": "assign_role",
+          "lineNumber": 115
+        },
+        {
+          "caller": "test_narration_emits_an_event_visible_this_round_only",
+          "callee": "_runtime",
+          "lineNumber": 116
+        },
+        {
+          "caller": "test_narration_emits_an_event_visible_this_round_only",
+          "callee": "runtime.deposit",
+          "lineNumber": 118
+        },
+        {
+          "caller": "test_narration_emits_an_event_visible_this_round_only",
+          "callee": "visible_events",
+          "lineNumber": 121
+        },
+        {
+          "caller": "test_narration_emits_an_event_visible_this_round_only",
+          "callee": "any",
+          "lineNumber": 122
+        },
+        {
+          "caller": "test_narration_emits_an_event_visible_this_round_only",
+          "callee": "visible_events",
+          "lineNumber": 123
+        },
+        {
+          "caller": "test_deposit_with_no_narration_emits_no_event",
+          "callee": "assign_role",
+          "lineNumber": 129
+        },
+        {
+          "caller": "test_deposit_with_no_narration_emits_no_event",
+          "callee": "_runtime",
+          "lineNumber": 130
+        },
+        {
+          "caller": "test_deposit_with_no_narration_emits_no_event",
+          "callee": "runtime.deposit",
+          "lineNumber": 132
+        },
+        {
+          "caller": "test_unknown_object_id_raises_keyerror",
+          "callee": "_runtime",
+          "lineNumber": 138
+        },
+        {
+          "caller": "test_unknown_object_id_raises_keyerror",
+          "callee": "pytest.raises",
+          "lineNumber": 139
+        },
+        {
+          "caller": "test_unknown_object_id_raises_keyerror",
+          "callee": "runtime.deposit",
+          "lineNumber": 140
+        },
+        {
+          "caller": "_fake_split",
+          "callee": "calls.append",
+          "lineNumber": 152
+        },
+        {
+          "caller": "test_custom_handler_dispatch",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 155
+        },
+        {
+          "caller": "test_custom_handler_dispatch",
+          "callee": "_fake_split",
+          "lineNumber": 158
+        },
+        {
+          "caller": "test_custom_handler_dispatch",
+          "callee": "_runtime",
+          "lineNumber": 164
+        },
+        {
+          "caller": "test_custom_handler_dispatch",
+          "callee": "runtime.custom",
+          "lineNumber": 166
+        },
+        {
+          "caller": "test_custom_handler_missing_declaration_raises",
+          "callee": "_runtime",
+          "lineNumber": 174
+        },
+        {
+          "caller": "test_custom_handler_missing_declaration_raises",
+          "callee": "pytest.raises",
+          "lineNumber": 175
+        },
+        {
+          "caller": "test_custom_handler_missing_declaration_raises",
+          "callee": "runtime.custom",
+          "lineNumber": 176
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 12,
+        "functionCount": 12,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/test_ported_actions.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 208,
+      "nonEmptyLines": 152,
+      "functions": [
+        {
+          "name": "_state_with_harvest",
+          "startLine": 17,
+          "endLine": 27,
+          "params": [
+            "harvest_agents",
+            "round_number"
+          ]
+        },
+        {
+          "name": "_state_with_proposals",
+          "startLine": 30,
+          "endLine": 40,
+          "params": [
+            "proposals",
+            "round_number"
+          ]
+        },
+        {
+          "name": "test_propose_computes_others_summary_and_records_policy",
+          "startLine": 51,
+          "endLine": 72,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+          "startLine": 77,
+          "endLine": 91,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_critique_one_question_then_sufficient_applies_finalized_revision",
+          "startLine": 94,
+          "endLine": 127,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_critique_loop_is_bounded",
+          "startLine": 130,
+          "endLine": 151,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_vote_prefers_critique_proposals_when_present",
+          "startLine": 156,
+          "endLine": 163,
+          "params": []
+        },
+        {
+          "name": "test_vote_falls_back_to_propose_when_no_critique_record",
+          "startLine": 166,
+          "endLine": 169,
+          "params": []
+        },
+        {
+          "name": "test_vote_tallies_and_sets_adopted_norm",
+          "startLine": 172,
+          "endLine": 187,
+          "params": [
+            "monkeypatch"
+          ]
+        },
+        {
+          "name": "test_discuss_still_raises_not_implemented",
+          "startLine": 190,
+          "endLine": 192,
+          "params": []
+        },
+        {
+          "name": "test_action_runtime_dispatches_to_a_handler_module_and_finalizes_the_record",
+          "startLine": 197,
+          "endLine": 208,
+          "params": [
+            "monkeypatch"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "_state_with_harvest",
+          "line": 17,
+          "isDefault": false
+        },
+        {
+          "name": "_state_with_proposals",
+          "line": 30,
+          "isDefault": false
+        },
+        {
+          "name": "test_propose_computes_others_summary_and_records_policy",
+          "line": 51,
+          "isDefault": false
+        },
+        {
+          "name": "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+          "line": 77,
+          "isDefault": false
+        },
+        {
+          "name": "test_critique_one_question_then_sufficient_applies_finalized_revision",
+          "line": 94,
+          "isDefault": false
+        },
+        {
+          "name": "test_critique_loop_is_bounded",
+          "line": 130,
+          "isDefault": false
+        },
+        {
+          "name": "test_vote_prefers_critique_proposals_when_present",
+          "line": 156,
+          "isDefault": false
+        },
+        {
+          "name": "test_vote_falls_back_to_propose_when_no_critique_record",
+          "line": 166,
+          "isDefault": false
+        },
+        {
+          "name": "test_vote_tallies_and_sets_adopted_norm",
+          "line": 172,
+          "isDefault": false
+        },
+        {
+          "name": "test_discuss_still_raises_not_implemented",
+          "line": 190,
+          "isDefault": false
+        },
+        {
+          "name": "test_action_runtime_dispatches_to_a_handler_module_and_finalizes_the_record",
+          "line": 197,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_propose_computes_others_summary_and_records_policy",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 58
+        },
+        {
+          "caller": "test_propose_computes_others_summary_and_records_policy",
+          "callee": "_state_with_harvest",
+          "lineNumber": 59
+        },
+        {
+          "caller": "test_propose_computes_others_summary_and_records_policy",
+          "callee": "ActionContext.build",
+          "lineNumber": 62
+        },
+        {
+          "caller": "test_propose_computes_others_summary_and_records_policy",
+          "callee": "propose_handler.run",
+          "lineNumber": 64
+        },
+        {
+          "caller": "test_propose_computes_others_summary_and_records_policy",
+          "callee": "propose_handler.memory_writes",
+          "lineNumber": 70
+        },
+        {
+          "caller": "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 79
+        },
+        {
+          "caller": "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 80
+        },
+        {
+          "caller": "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+          "callee": "fisher_calls.append",
+          "lineNumber": 80
+        },
+        {
+          "caller": "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+          "callee": "_state_with_proposals",
+          "lineNumber": 82
+        },
+        {
+          "caller": "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+          "callee": "ActionContext.build",
+          "lineNumber": 83
+        },
+        {
+          "caller": "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+          "callee": "critique_handler.run",
+          "lineNumber": 85
+        },
+        {
+          "caller": "test_critique_sufficient_on_first_pass_leaves_proposal_unchanged",
+          "callee": "PROPOSALS.items",
+          "lineNumber": 89
+        },
+        {
+          "caller": "_fake_fisher",
+          "callee": "finalize_calls.append",
+          "lineNumber": 110
+        },
+        {
+          "caller": "test_critique_one_question_then_sufficient_applies_finalized_revision",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 115
+        },
+        {
+          "caller": "test_critique_one_question_then_sufficient_applies_finalized_revision",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 116
+        },
+        {
+          "caller": "test_critique_one_question_then_sufficient_applies_finalized_revision",
+          "callee": "_state_with_proposals",
+          "lineNumber": 118
+        },
+        {
+          "caller": "test_critique_one_question_then_sufficient_applies_finalized_revision",
+          "callee": "ActionContext.build",
+          "lineNumber": 119
+        },
+        {
+          "caller": "test_critique_one_question_then_sufficient_applies_finalized_revision",
+          "callee": "critique_handler.run",
+          "lineNumber": 120
+        },
+        {
+          "caller": "test_critique_one_question_then_sufficient_applies_finalized_revision",
+          "callee": "critique_handler.memory_writes",
+          "lineNumber": 126
+        },
+        {
+          "caller": "_always_asks",
+          "callee": "len",
+          "lineNumber": 135
+        },
+        {
+          "caller": "test_critique_loop_is_bounded",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 142
+        },
+        {
+          "caller": "test_critique_loop_is_bounded",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 143
+        },
+        {
+          "caller": "test_critique_loop_is_bounded",
+          "callee": "_state_with_proposals",
+          "lineNumber": 145
+        },
+        {
+          "caller": "test_critique_loop_is_bounded",
+          "callee": "ActionContext.build",
+          "lineNumber": 147
+        },
+        {
+          "caller": "test_critique_loop_is_bounded",
+          "callee": "critique_handler.run",
+          "lineNumber": 148
+        },
+        {
+          "caller": "test_vote_prefers_critique_proposals_when_present",
+          "callee": "_state_with_proposals",
+          "lineNumber": 157
+        },
+        {
+          "caller": "test_vote_prefers_critique_proposals_when_present",
+          "callee": "state[\"runtime\"][\"rounds\"].append",
+          "lineNumber": 160
+        },
+        {
+          "caller": "test_vote_prefers_critique_proposals_when_present",
+          "callee": "vote_handler.proposals_for_round",
+          "lineNumber": 162
+        },
+        {
+          "caller": "test_vote_prefers_critique_proposals_when_present",
+          "callee": "dict",
+          "lineNumber": 163
+        },
+        {
+          "caller": "test_vote_falls_back_to_propose_when_no_critique_record",
+          "callee": "_state_with_proposals",
+          "lineNumber": 167
+        },
+        {
+          "caller": "test_vote_falls_back_to_propose_when_no_critique_record",
+          "callee": "vote_handler.proposals_for_round",
+          "lineNumber": 168
+        },
+        {
+          "caller": "test_vote_falls_back_to_propose_when_no_critique_record",
+          "callee": "dict",
+          "lineNumber": 169
+        },
+        {
+          "caller": "test_vote_tallies_and_sets_adopted_norm",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 174
+        },
+        {
+          "caller": "test_vote_tallies_and_sets_adopted_norm",
+          "callee": "_state_with_proposals",
+          "lineNumber": 177
+        },
+        {
+          "caller": "test_vote_tallies_and_sets_adopted_norm",
+          "callee": "ActionContext.build",
+          "lineNumber": 178
+        },
+        {
+          "caller": "test_vote_tallies_and_sets_adopted_norm",
+          "callee": "vote_handler.run",
+          "lineNumber": 179
+        },
+        {
+          "caller": "test_vote_tallies_and_sets_adopted_norm",
+          "callee": "vote_handler.memory_writes",
+          "lineNumber": 186
+        },
+        {
+          "caller": "test_discuss_still_raises_not_implemented",
+          "callee": "pytest.raises",
+          "lineNumber": 191
+        },
+        {
+          "caller": "test_discuss_still_raises_not_implemented",
+          "callee": "discuss_handler.run",
+          "lineNumber": 192
+        },
+        {
+          "caller": "test_action_runtime_dispatches_to_a_handler_module_and_finalizes_the_record",
+          "callee": "monkeypatch.setattr",
+          "lineNumber": 198
+        },
+        {
+          "caller": "test_action_runtime_dispatches_to_a_handler_module_and_finalizes_the_record",
+          "callee": "_state_with_proposals",
+          "lineNumber": 201
+        },
+        {
+          "caller": "test_action_runtime_dispatches_to_a_handler_module_and_finalizes_the_record",
+          "callee": "ActionRuntime.run_action",
+          "lineNumber": 204
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 11,
+        "functionCount": 11,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/institution/test_scheduler.py",
+      "language": "python",
+      "fileCategory": "code",
+      "totalLines": 64,
+      "nonEmptyLines": 49,
+      "functions": [
+        {
+          "name": "test_compiles_a_satisfiable_after_chain_in_order",
+          "startLine": 6,
+          "endLine": 15,
+          "params": []
+        },
+        {
+          "name": "test_before_constraint_is_equivalent_to_the_successors_after",
+          "startLine": 18,
+          "endLine": 25,
+          "params": []
+        },
+        {
+          "name": "test_ties_broken_by_declaration_order",
+          "startLine": 28,
+          "endLine": 34,
+          "params": []
+        },
+        {
+          "name": "test_default_gate_is_true_when_unspecified",
+          "startLine": 37,
+          "endLine": 39,
+          "params": []
+        },
+        {
+          "name": "test_a_new_action_can_be_inserted_between_two_existing_ones",
+          "startLine": 42,
+          "endLine": 49,
+          "params": []
+        },
+        {
+          "name": "test_cycle_raises_scheduling_conflict_error",
+          "startLine": 52,
+          "endLine": 58,
+          "params": []
+        },
+        {
+          "name": "test_unknown_after_target_raises_scheduling_conflict_error",
+          "startLine": 61,
+          "endLine": 64,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "test_compiles_a_satisfiable_after_chain_in_order",
+          "line": 6,
+          "isDefault": false
+        },
+        {
+          "name": "test_before_constraint_is_equivalent_to_the_successors_after",
+          "line": 18,
+          "isDefault": false
+        },
+        {
+          "name": "test_ties_broken_by_declaration_order",
+          "line": 28,
+          "isDefault": false
+        },
+        {
+          "name": "test_default_gate_is_true_when_unspecified",
+          "line": 37,
+          "isDefault": false
+        },
+        {
+          "name": "test_a_new_action_can_be_inserted_between_two_existing_ones",
+          "line": 42,
+          "isDefault": false
+        },
+        {
+          "name": "test_cycle_raises_scheduling_conflict_error",
+          "line": 52,
+          "isDefault": false
+        },
+        {
+          "name": "test_unknown_after_target_raises_scheduling_conflict_error",
+          "line": 61,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "test_compiles_a_satisfiable_after_chain_in_order",
+          "callee": "compile_schedule",
+          "lineNumber": 13
+        },
+        {
+          "caller": "test_compiles_a_satisfiable_after_chain_in_order",
+          "callee": "list",
+          "lineNumber": 14
+        },
+        {
+          "caller": "test_before_constraint_is_equivalent_to_the_successors_after",
+          "callee": "compile_schedule",
+          "lineNumber": 24
+        },
+        {
+          "caller": "test_before_constraint_is_equivalent_to_the_successors_after",
+          "callee": "list",
+          "lineNumber": 25
+        },
+        {
+          "caller": "test_ties_broken_by_declaration_order",
+          "callee": "list",
+          "lineNumber": 34
+        },
+        {
+          "caller": "test_ties_broken_by_declaration_order",
+          "callee": "compile_schedule",
+          "lineNumber": 34
+        },
+        {
+          "caller": "test_default_gate_is_true_when_unspecified",
+          "callee": "compile_schedule",
+          "lineNumber": 39
+        },
+        {
+          "caller": "test_a_new_action_can_be_inserted_between_two_existing_ones",
+          "callee": "compile_schedule",
+          "lineNumber": 48
+        },
+        {
+          "caller": "test_a_new_action_can_be_inserted_between_two_existing_ones",
+          "callee": "list",
+          "lineNumber": 49
+        },
+        {
+          "caller": "test_cycle_raises_scheduling_conflict_error",
+          "callee": "pytest.raises",
+          "lineNumber": 57
+        },
+        {
+          "caller": "test_cycle_raises_scheduling_conflict_error",
+          "callee": "compile_schedule",
+          "lineNumber": 58
+        },
+        {
+          "caller": "test_unknown_after_target_raises_scheduling_conflict_error",
+          "callee": "pytest.raises",
+          "lineNumber": 63
+        },
+        {
+          "caller": "test_unknown_after_target_raises_scheduling_conflict_error",
+          "callee": "compile_schedule",
+          "lineNumber": 64
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 7,
+        "functionCount": 7,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "tests/norm_checks/README.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 19,
+      "nonEmptyLines": 16,
+      "sections": [
+        {
+          "heading": "tests/norm_checks/",
+          "level": 1,
+          "line": 1
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 1
+      }
+    }
+  ]
+}
