@@ -6,7 +6,7 @@
     ],
     "holder": "agent_0",
     "initiated_round": 0,
-    "terminated_round": null
+    "terminated_round": 1
   },
   {
     "fluent": "fisher",
@@ -88,5 +88,17 @@
     "holder": "agent_9",
     "initiated_round": 0,
     "terminated_round": null
+  },
+  {
+    "fluent": "dead",
+    "args": [
+      "agent_0"
+    ],
+    "holder": "agent_0",
+    "initiated_round": 1,
+    "terminated_round": null,
+    "narration": "Kai has died \u2014 they hadn't been catching enough fish to survive.",
+    "visibility": "public",
+    "event_type": "fact_initiated"
   }
 ]

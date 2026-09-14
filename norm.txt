@@ -1,0 +1,10 @@
+Policy: No fisher may take more than 15 kg per trip; the total daily catch must stay under 20 % of the current lake stock, with excess returned to the lake if the stock falls below 30 % of the lake’s maximum capacity (60 kg) or if it exceeds 5 % over the 20 % cap, otherwise added to the community pot; violations are fined 5 kg from the pot or banned one trip, and all logs, fines, and pot balances are recorded by the rotating treasurer.
+
+Operationalization: 1. After each trip the fisher logs the catch (kg) into the communal ledger before setting out.
+2. At dusk the group meets; the current treasurer totals the daily catch.
+3. The treasurer presents the total and the 20 % threshold (calculated from the lake’s current stock) to the council.
+4. The council votes (majority) on excess allocation: if the excess is >5 % over the 20 % cap or the lake’s stock is below 30 % of maximum, the excess is returned to the lake; otherwise it goes to the community pot.
+5. The treasurer records the decision, any transfers, and updates the pot balance in the ledger.
+6. If any fisher exceeds the 15 kg cap, the treasurer deducts 5 kg from the pot (or applies a one‑trip ban) and notes the penalty in the ledger.
+7. The pot balance is reviewed and confirmed by all fishers before the next day’s trips.
+8. The treasurer is selected for the next day by rotating the role among fishers in a prearranged order, with the fisher who logged first that day becoming the next treasurer.

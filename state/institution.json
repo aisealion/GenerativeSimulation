@@ -9,10 +9,21 @@
     "discuss": {"spec": "state/actions/discuss.json", "protected": true}
   },
   "roles": {
+    "treasurer": {
+      "exclusive": true,
+      "description": "Rotating treasurer role responsible for ledger management",
+      "introduced_round": 1
+    },
     "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
   },
-  "rule_types": {},
-  "object_types": {},
+    "rule_types": {
+      "trip_cap": {"owner": "actions/rules/harvest/trip_cap.py"},
+      "daily_cap": {"owner": "actions/rules/harvest/daily_cap.py"},
+      "treasurer_assign": {"owner": "actions/rules/harvest/treasurer_assign.py"}
+    },
+    "object_types": {
+      "communal_ledger": {"owner": "state/object_types/communal_ledger.json"}
+    },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]
