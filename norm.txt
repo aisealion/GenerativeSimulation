@@ -1,0 +1,18 @@
+Policy: Each fisher may harvest no more than 10 % of the lake’s current fish stock per trip, keeping at least 1 kg for personal sustenance. If daily stock falls below 30 % of the historical average, the quota is reduced to 5 % and the number of trips per day to 70 % of normal.
+
+Operationalization: 1. Observer: A neutral observer samples a fixed area of the lake each morning, estimates total fish stock, and publishes the figure to all fishers before they set out.
+2. Community Council: Calculates lake stock at the start of each season, assigns a 10 % quota to each fisher, reviews observer records, and has authority to enforce rules.
+3. Daily workflow:
+   a. Observer posts the daily stock estimate.
+   b. If the estimate is ≥30 % of the historical average, the quota remains 10 % per trip and the usual one trip per day is allowed.
+   c. If the estimate is <30 % of the historical average, the observer notifies fishers that the quota drops to 5 % per trip and that only 70 % of the normal daily trip count (≈0.7 trip, effectively one trip a day for most) may be taken.
+4. Fisher record keeping: Before each trip, the fisher submits a short log of the expected catch to the observer; after the trip, the fisher records the actual haul weight and submits the log.
+5. Observer checks: The observer compares each fisher’s actual haul to the applicable quota (10 % or 5 %) and to the 1 kg sustenance minimum, flagging any violation.
+6. Council enforcement: Upon receiving a flagged violation, the council holds a hearing with a quorum of at least 50 % of active fishers. The fisher may explain the excess or shortfall.
+   a. If the fisher is found in violation, the council imposes:
+      • a fine of $5 per kilogram of excess catch;
+      • a permit suspension of 1 day per kilogram over the quota, capped at 7 days;
+      • restitution of the excess weight to the communal fishery fund.
+   b. If the fisher fails to retain the required 1 kg, the council fines the monetary value of the excess fish and orders its return to the lake.
+7. Permit suspension: The council may suspend a fisher’s permit for up to 30 days.
+8. Historical average: The observer maintains a ledger of daily stock estimates and calculates the historical average from that ledger; the council reviews this calculation to ensure transparency.
