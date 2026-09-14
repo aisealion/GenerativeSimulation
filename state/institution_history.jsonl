@@ -1,0 +1,1 @@
+{"version": 2, "round": 2, "changes": [{"kind": "roles_added", "name": "tally_keeper", "before": null, "after": {"exclusive": true, "description": "rotating tally keeper for daily ledger", "introduced_round": 2}}]}
