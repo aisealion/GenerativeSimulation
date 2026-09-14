@@ -1,0 +1,12 @@
+Policy: Daily individual trips are limited to 15 kg and the lake’s total catch may not exceed 250 kg per day; excess over‑catch is returned to a communal pot, a 10 % fine converted to fish weight is applied to the next day’s 15 kg quota (not below 0), and the weekly community vote decides whether the pot is redistributed equally among active fishers or used for shared supplies.
+
+Operationalization: • Daily operations: each trip may not exceed 15 kg; the sum of all trips per day must stay under the 250 kg lake cap; record each catch on the shared ledger; volunteers tally daily totals.
+• If the daily total exceeds 250 kg, every fisher who caught over 15 kg must return the excess to the community pot.
+• A fine of 10 % of the over‑catch weight is calculated, converted to fish weight at the monthly market rate, and subtracted from the fisher’s next‑day 15 kg quota (quota never below 0 kg); penalties apply only to the next day, not beyond.
+• Each fisher must take at least 1 kg per trip for sustenance; reserves (currently 14.0 kg) are tracked, and if a fisher’s quota drops to 0 kg they must wait until penalties clear before fishing again.
+• The community pot, managed by the rotating volunteer crew, holds all excess catch weight and is recorded in the communal ledger.
+• Weekly operations: after the final daily tally of the week, a meeting of all active fishers is called with at least 24 h notice; the pot’s total weight is recorded.
+• The meeting votes by simple majority on whether the pot is redistributed equally among active fishers or used for shared supplies; if tied, the rotating volunteer crew casts the deciding vote.
+• If the pot is returned to fishers, its contents are divided equally among all active fishers; if used for shared supplies, the allocation is made according to the community’s agreed list.
+• The volunteer crew rotates weekly, overseeing daily tallies, the pot, and the weekly meeting.
+• Amendments: any proposed change must be submitted in writing at least one week before a meeting; a simple majority of attending fishers passes the amendment.
