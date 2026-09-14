@@ -184,8 +184,15 @@ done
 # history, so doubling its context too would just cost KV-cache memory on
 # every one of those many calls for no benefit. Override either
 # independently if needed.
+#
+# 120B raised 65536 -> 131072 (128k, 2026-09-14) — gpt-oss:120b's own
+# advertised context ceiling, matching the request to request 2 real
+# NVLink-paired H100s on one node (run_simulation.slurm's --gres=gpu:2 +
+# OLLAMA_SCHED_SPREAD=1) specifically to give this bigger context real
+# VRAM headroom rather than crowding the one GPU it used to share alone
+# with the 20b fisher model.
 OLLAMA_NUM_CTX_20B="${OLLAMA_NUM_CTX_20B:-32768}"
-OLLAMA_NUM_CTX_120B="${OLLAMA_NUM_CTX_120B:-65536}"
+OLLAMA_NUM_CTX_120B="${OLLAMA_NUM_CTX_120B:-131072}"
 OLLAMA_20B_CTX_MODEL_ID="gpt-oss-20b-${OLLAMA_NUM_CTX_20B}ctx"
 OLLAMA_120B_CTX_MODEL_ID="gpt-oss-120b-${OLLAMA_NUM_CTX_120B}ctx"
 
@@ -302,7 +309,7 @@ ModelResponse()
 fi
 echo "litellm/pydantic/pydantic-core verified working inside ${FISHERY_VENV}."
 
-mkdir -p logs
+mkdir -p ops/logs
 # FISHER_MODEL drives the fisher's direct litellm calls — stays the local
 # Ollama 20b model (up to agent_count x 3 calls per round, so it needs to
 # be the fast/local one).
@@ -333,7 +340,7 @@ mkdir -p logs
 # day) after the local gpt-oss-120b model running the UA build-agent calls
 # failed twice for reliability reasons (a silently-denied
 # external_directory permission; then, per a real job's
-# logs/understand-anything-build.log, hallucinating a nonexistent tool
+# ops/logs/understand-anything-build.log, hallucinating a nonexistent tool
 # name and stopping to ask a clarifying question despite being told not
 # to). Reverted the same day, by request: Kimi-K2.5 is a paid model over
 # the Otago LiteLLM proxy, and UA's calls are large/expensive enough
@@ -842,7 +849,7 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   elif ! timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL" --auto \
     --command understand -- "--full --no-auto-update" \
     "Begin the analysis immediately, following the skill's own instructions completely — do not wait for further input." \
-    > logs/understand-anything-build.log 2>&1; then
+    > ops/logs/understand-anything-build.log 2>&1; then
     build_failed=1
   fi
   # Exit code alone isn't trustworthy here — a real run returned 0 while
@@ -855,7 +862,7 @@ if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
   if [ "$build_failed" = "1" ]; then
     echo "Understand-Anything build didn't finish within 1800s, failed, or" >&2
     echo "produced no knowledge-graph.json despite exiting cleanly — see" >&2
-    echo "logs/understand-anything-build.log. Continuing without a knowledge" >&2
+    echo "ops/logs/understand-anything-build.log. Continuing without a knowledge" >&2
     echo "graph: the norm-implementer will fall back to CodeGraph + direct" >&2
     echo "reading, which still works, just without the semantic view." >&2
     rm -rf .ua .understand-anything

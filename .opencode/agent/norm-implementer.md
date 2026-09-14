@@ -2,6 +2,26 @@
 description: Given norm.txt (a Policy statement plus the community's Operationalization of it) for this fishery simulation, institutionalize the accepted norm — update the rule/action/object/prompt layer and config so the simulation's behavior actually, observably enforces it for the agents living inside it. Nothing more, nothing the norm didn't ask for.
 mode: primary
 permission:
+  # Operational infra/cache, never relevant to institutionalizing a norm —
+  # denied by pattern depth (this opencode version's patterns are matched
+  # single-segment, like the "actions/rules/*/*" edit pattern below, not
+  # "**" globstar, so each real nesting depth needs its own line) rather
+  # than by directory alone, since `*` here doesn't cross a `/`.
+  read:
+    "*": allow
+    "ops/*": deny
+    "ops/*/*": deny
+    "ops/*/*/*": deny
+    ".venv-fishery/*": deny
+    ".venv-fishery/*/*": deny
+    ".venv-fishery/*/*/*": deny
+    ".pytest_cache/*": deny
+    ".pytest_cache/*/*": deny
+    ".pytest_cache/*/*/*": deny
+    ".git/*": deny
+    ".git/*/*": deny
+    ".codegraph/*": deny
+    ".ua/intermediate/*": deny
   edit:
     "*": deny
     "actions/rules/*/*": allow
@@ -357,6 +377,15 @@ from what it already recorded.
   reserve it for genuinely orchestration-level changes, never a
   convenient place to patch a bug that actually belongs in a rule's own
   logic.
+- `ops/` — operational/infra: `run_simulation.slurm`,
+  `hpc_ollama_entrypoint.sh`, `inspect_session.py`, `logs/`
+  (`model_calls.jsonl` alone routinely reaches multi-megabyte size),
+  `plots/`. None of it describes the institution or is ever relevant to
+  implementing a norm — `read` on it is denied above (see the `read`
+  permission block), so don't spend a tool call trying anyway. `.git/`,
+  `.codegraph/`, `.pytest_cache/`, `.venv-fishery/`, and
+  `.ua/intermediate/` are the same kind of noise (git internals, index/
+  cache/venv bytes, not source) and denied the same way.
 
 ## Rule contract
 
@@ -500,6 +529,13 @@ listing or any other shell operation goes through `bash` (e.g. `bash: ls
 doesn't exist wastes a step and gets rejected outright — a real round
 wasted 5 of its 27 steps this way (guessing at `print_tree`, `ls`, and
 `search`) before ever writing anything.
+
+A broad `bash: find .` or `ls -R` will still list `ops/` (operational
+scripts/logs/plots), `.git/`, `.codegraph/`, `.pytest_cache/`,
+`.venv-fishery/`, and `.ua/intermediate/` by name — none of it describes
+the institution, `read` on all of it is denied (see the Repo map), and
+`ops/logs/model_calls.jsonl` alone routinely reaches multi-megabyte size.
+Don't spend a tool call opening any of it.
 
 Use `codegraph_codegraph_explore` (structural — what calls what) and, if
 `.ua/knowledge-graph.json` or `.understand-anything/knowledge-graph.json`

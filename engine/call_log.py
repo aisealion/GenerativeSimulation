@@ -2,14 +2,14 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "model_calls.jsonl"
+LOG_PATH = Path(__file__).resolve().parent.parent / "ops" / "logs" / "model_calls.jsonl"
 
 
 def log_call(also_log_to=None, **fields):
-    """Appends one record to the shared logs/model_calls.jsonl, and
+    """Appends one record to the shared ops/logs/model_calls.jsonl, and
     optionally also to a second, dedicated file (also_log_to) — added
     2026-09-09, by request, for the norm-implementer/norm-evaluator's own
-    logs/norm_implementer.jsonl / logs/norm_evaluator.jsonl (see
+    ops/logs/norm_implementer.jsonl / ops/logs/norm_evaluator.jsonl (see
     engine/simulate.py's run_norm_implementer()/run_norm_evaluator()),
     which carry an extra tool_call_trace field the shared log doesn't.
     Kept as an *additional* write, not a replacement, so

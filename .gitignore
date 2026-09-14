@@ -5,4 +5,7 @@ slurm-*.err
 .opencode/opencode.json
 .env
 .venv-fishery/
+.pytest_cache/
+.ua/
+.understand-anything/
 CLAUDE.md

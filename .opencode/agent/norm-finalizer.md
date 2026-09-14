@@ -2,6 +2,25 @@
 description: Given a completed norm-implementer round's payload (round number, the full per-requirement classification, and the files/owners touched), independently verifies every claimed owner file and test actually exist and pass, registers any new action/role/rule_type/object_type in state/institution.json, and writes state/norm_specs/round_{N}.md in the required format. Dispatched by norm-implementer itself via the task tool once implementation is done — never invoked directly by the orchestrator.
 mode: subagent
 permission:
+  # Operational infra/cache, never relevant to verifying/registering a
+  # round's output — denied by pattern depth (patterns here are matched
+  # single-segment, not "**" globstar, so each real nesting depth needs
+  # its own line).
+  read:
+    "*": allow
+    "ops/*": deny
+    "ops/*/*": deny
+    "ops/*/*/*": deny
+    ".venv-fishery/*": deny
+    ".venv-fishery/*/*": deny
+    ".venv-fishery/*/*/*": deny
+    ".pytest_cache/*": deny
+    ".pytest_cache/*/*": deny
+    ".pytest_cache/*/*/*": deny
+    ".git/*": deny
+    ".git/*/*": deny
+    ".codegraph/*": deny
+    ".ua/intermediate/*": deny
   edit:
     "*": deny
     "state/norm_specs/*": allow

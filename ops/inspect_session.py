@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Shows what the norm-implementer actually did in a session — every tool
 call (codegraph_explore queries, files read, files edited), not just the
-final summary text that logs/model_calls.jsonl captures. Our own logging
-only sees stdout; this reads opencode's own session store for the real
-tool-call trace.
+final summary text that ops/logs/model_calls.jsonl captures. Our own
+logging only sees stdout; this reads opencode's own session store for the
+real tool-call trace.
 
-Usage:
-  python3 inspect_session.py              # most recent norm-implementer session
-  python3 inspect_session.py --list       # list all norm-implementer sessions
-  python3 inspect_session.py <session_id> # a specific session (any agent)
+Usage (run from the repo root — this script itself lives under ops/,
+alongside run_simulation.slurm/hpc_ollama_entrypoint.sh/logs/plots, kept
+out of the repo root so opencode's own read/glob/grep exploration never
+wastes a tool call on it; see CLAUDE.md's "ops/ split" entry):
+  python3 ops/inspect_session.py              # most recent norm-implementer session
+  python3 ops/inspect_session.py --list       # list all norm-implementer sessions
+  python3 ops/inspect_session.py <session_id> # a specific session (any agent)
 """
 import json
 import subprocess

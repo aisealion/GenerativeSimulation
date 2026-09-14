@@ -29,7 +29,7 @@ from engine.physics import (
 )
 
 ROOT = Path(__file__).resolve().parent.parent
-LOG_PATH = ROOT / "logs" / "model_calls.jsonl"
+LOG_PATH = ROOT / "ops" / "logs" / "model_calls.jsonl"
 
 
 def _current_branch():
@@ -42,7 +42,7 @@ def _current_branch():
 
 def _plot_dir():
     safe_branch = re.sub(r"[^A-Za-z0-9_.-]", "_", _current_branch())
-    plot_dir = ROOT / "plots" / safe_branch
+    plot_dir = ROOT / "ops" / "plots" / safe_branch
     plot_dir.mkdir(parents=True, exist_ok=True)
     return plot_dir
 

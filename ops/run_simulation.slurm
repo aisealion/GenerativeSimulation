@@ -2,15 +2,20 @@
 #
 # Runs the fishery simulation on Aoraki (University of Otago HPC). The
 # fisher agent runs on the local Ollama gpt-oss:20b model (FISHER_MODEL);
-# the norm-implementer (opencode) agent now runs on litellm/Kimi-K2.5 over
-# the Otago LiteLLM proxy (NORM_IMPLEMENTER_MODEL), not a local model — see
-# hpc_ollama_entrypoint.sh for where those get set, and its LITELLM_API_KEY
-# check right above them (must be in this job's environment; sbatch
-# propagates the submitting shell's env by default). The local Ollama
-# gpt-oss:120b model (OPENCODE_MODEL) is still built and used, but only for
-# the optional Understand-Anything knowledge-graph build/refresh
-# (BUILD_KNOWLEDGE_GRAPH=1) — not for the norm-implementer anymore. Submit
-# from the repo root: sbatch run_simulation.slurm
+# the norm-implementer/norm-evaluator (opencode) agents route to
+# NORM_IMPLEMENTER_MODEL — back on the local Ollama gpt-oss:120b model as
+# of 2026-09-14 (litellm/Kimi-K2.5's quota was exhausted; see CLAUDE.md's
+# "Norm-implementer/evaluator back on the local model" entry) — see
+# hpc_ollama_entrypoint.sh for where these get set. OPENCODE_MODEL is the
+# same local gpt-oss:120b, also used for the optional Understand-Anything
+# knowledge-graph build/refresh (BUILD_KNOWLEDGE_GRAPH=1). Submit
+# from the repo root: sbatch ops/run_simulation.slurm — this script and
+# hpc_ollama_entrypoint.sh both moved into ops/ on 2026-09-14 (operational/
+# infra scripts, plus logs/ and plots/, out of the repo root specifically
+# so opencode's own read/glob/grep exploration never wastes a tool call on
+# them — see CLAUDE.md's "ops/ split" entry). $SLURM_SUBMIT_DIR is still
+# wherever `sbatch` itself was invoked from (the repo root), unaffected by
+# where this script file itself lives.
 #
 # Structure follows Otago's own ollama-batch-example.slurm: the container
 # takes ONE command string as its argument and runs it via its internal
@@ -19,21 +24,36 @@
 # in hpc_ollama_entrypoint.sh, run as that one string.
 #
 #SBATCH --job-name=fishery-sim
-#SBATCH --partition=aoraki_gpu_H100    # guarantees 80GB VRAM — gpt-oss:120b alone needs most
-                                        #   of that, and it shares the GPU with gpt-oss:20b
-                                        #   (Ollama swaps between them; see hpc_ollama_entrypoint.sh).
-                                        #   Alternative: aoraki_gpu_A100_80GB.
+#SBATCH --partition=aoraki_gpu_H100    # 80GB VRAM per GPU — gpt-oss:120b alone needs most of
+                                        #   one card, and it shares whichever GPU it's on with
+                                        #   gpt-oss:20b (Ollama swaps between them; see
+                                        #   hpc_ollama_entrypoint.sh). Requesting 2 (below) is a
+                                        #   real single-node, NVLink-connected pair, not a
+                                        #   cross-node request — confirmed directly via `scontrol
+                                        #   show node aoraki16`: this partition's nodes
+                                        #   (aoraki[16,30]) each have 4 physical H100s
+                                        #   (`Gres=gpu:H100:4`) in one chassis; the partition's
+                                        #   own "Max GPUs: 2" is a per-job quota, not the node's
+                                        #   real capacity. Alternative: aoraki_gpu_A100_80GB.
                                         #   Do NOT use aoraki_gpu_L40 (48GB) or
                                         #   aoraki_gpu_A100_40GB (40GB) — too small.
                                         #   Do NOT use the generic aoraki_gpu pool either —
                                         #   it could land you on an L40/40GB node.
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:1                   # matches Otago's own ollama-batch-example.slurm
+#SBATCH --gres=gpu:2                   # 2 real NVLink-paired H100s on one node (2026-09-14) —
+                                        #   was gpu:1; see OLLAMA_SCHED_SPREAD below for what
+                                        #   this is actually for.
 #SBATCH --cpus-per-task=10             # matches Otago's own example; Aoraki asks for >=2/GPU
-#SBATCH --mem=32G                      # CPU RAM, not GPU VRAM (fixed by the partition above) —
-                                        #   run a short test round first and check `seff
-                                        #   <jobid>` to right-size this for real
+#SBATCH --mem=64G                      # CPU RAM, not GPU VRAM (fixed by the partition above) —
+                                        #   raised 32G -> 64G (2026-09-14): headroom for the
+                                        #   optional Neo4j JVM (ENABLE_NEO4J_MEMORY=1) and the
+                                        #   Understand-Anything pnpm/build-agent step
+                                        #   (BUILD_KNOWLEDGE_GRAPH=1), neither of which had been
+                                        #   directly measured against the old 32G — well under the
+                                        #   aoraki_gpu_H100 partition's own 150G/job cap. Still a
+                                        #   guess, not measured: run a short test round and check
+                                        #   `seff <jobid>` to right-size this for real.
 #SBATCH --time=16:00:00                # tune from an observed per-round duration x --max-rounds;
                                         #   shorter requests queue faster on Aoraki (backfill) —
                                         #   if this exceeds the partition's own MaxTime, sbatch
@@ -65,11 +85,27 @@ fi
 
 export OLLAMA_MODELS=/projects/sciences/computing/cranefield_lab/magha601/models
 export MAX_ROUNDS="${MAX_ROUNDS:-100}"
+# Forces Ollama's own scheduler to spread a model's layers across every
+# visible GPU rather than packing it onto as few as possible — the actual
+# point of requesting 2 GPUs above (2026-09-14). gpt-oss:120b alone already
+# fits on one 80GB card (DCGM measured ~63GB peak at the old 65536-token
+# context), so without this Ollama would likely just use one of the two
+# GPUs and leave the second idle; this trades that "fits on one" default
+# for real headroom (a much bigger num_ctx below, more margin generally)
+# by using both. Applies server-wide, not per-model — the 20B fisher model
+# will also be eligible for spreading across both GPUs even though it
+# doesn't need to, since Ollama has no per-model override for this; harmless
+# (just doesn't use the second card's bandwidth for that smaller model),
+# just not the surgical "120B only" scoping that would be ideal. Not
+# verified against the exact Ollama version baked into ollama_shellenv.sif
+# — if unsupported, an unrecognized env var should just be ignored, not
+# fail the job, but this hasn't been confirmed on a real run yet.
+export OLLAMA_SCHED_SPREAD=1
 # Opt-in, off by default — see hpc_ollama_entrypoint.sh for the initial
 # build and engine/simulate.py's refresh_knowledge_graph() for the
 # per-round follow-up, and why neither is on by default (real extra GPU
 # time every time, not free like codegraph). Submit with
-# BUILD_KNOWLEDGE_GRAPH=1 sbatch run_simulation.slurm to build a fresh
+# BUILD_KNOWLEDGE_GRAPH=1 sbatch ops/run_simulation.slurm to build a fresh
 # Understand-Anything semantic graph before this run starts AND keep it
 # incrementally refreshed after every round that commits a norm.
 export BUILD_KNOWLEDGE_GRAPH="${BUILD_KNOWLEDGE_GRAPH:-0}"
@@ -80,7 +116,7 @@ export BUILD_KNOWLEDGE_GRAPH="${BUILD_KNOWLEDGE_GRAPH:-0}"
 # real Aoraki job (see that script's comments and CLAUDE.md) — every
 # failure path there degrades to today's behavior (memory layer off), so
 # this is safe to try, just not guaranteed to actually come up. Submit with
-# ENABLE_NEO4J_MEMORY=1 sbatch run_simulation.slurm to try it.
+# ENABLE_NEO4J_MEMORY=1 sbatch ops/run_simulation.slurm to try it.
 export ENABLE_NEO4J_MEMORY="${ENABLE_NEO4J_MEMORY:-0}"
 
 # Direct apptainer invocation, matching the (uncommented, i.e. recommended)
@@ -128,4 +164,4 @@ if [ -d /usr/lib/jvm ]; then
 fi
 
 apptainer run --nv "${APPTAINER_BINDS[@]}" "$IMAGE_PATH" \
-  "bash $SLURM_SUBMIT_DIR/hpc_ollama_entrypoint.sh"
+  "bash $SLURM_SUBMIT_DIR/ops/hpc_ollama_entrypoint.sh"

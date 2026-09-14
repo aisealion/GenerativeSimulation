@@ -2,6 +2,25 @@
 description: Given a round's adopted-norm specification (state/norm_specs/round_N.md) and the norm-implementer's uncommitted code diff for this fishery simulation, write and run independent tests checking whether the implementation actually satisfies each requirement. Never trusts the implementer's own tests/norm_checks/ as sufficient — this is a second, independently-scoped agent specifically because the same agent that writes the code should not be the only one judging it. Invoked after the norm-implementer's compile/runtime checks pass, before its changes are committed.
 mode: primary
 permission:
+  # Operational infra/cache, never relevant to evaluating a norm's
+  # implementation — denied by pattern depth (patterns here are matched
+  # single-segment, not "**" globstar, so each real nesting depth needs
+  # its own line).
+  read:
+    "*": allow
+    "ops/*": deny
+    "ops/*/*": deny
+    "ops/*/*/*": deny
+    ".venv-fishery/*": deny
+    ".venv-fishery/*/*": deny
+    ".venv-fishery/*/*/*": deny
+    ".pytest_cache/*": deny
+    ".pytest_cache/*/*": deny
+    ".pytest_cache/*/*/*": deny
+    ".git/*": deny
+    ".git/*/*": deny
+    ".codegraph/*": deny
+    ".ua/intermediate/*": deny
   edit:
     "*": deny
     "tests/norm_evaluation/*": allow

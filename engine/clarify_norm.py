@@ -3,7 +3,7 @@ design step to ask the fisher who proposed the round's adopted rule what an
 ambiguous or incomplete requirement actually means. Never used to change
 norm.txt, and never answered by the norm-implementer itself — only the
 proposer's own call_fisher_agent() response counts. Logged through the same
-log_call()/logs/model_calls.jsonl path every other fisher call uses
+log_call()/ops/logs/model_calls.jsonl path every other fisher call uses
 (call="fisher", action="clarify"), so no separate log file is needed to
 review these after the fact.
 

@@ -25,9 +25,9 @@ except ImportError as exc:
         pass
 
 ROOT = Path(__file__).resolve().parent.parent
-# Dedicated per-agent logs, written alongside the shared logs/model_calls.jsonl.
-NORM_IMPLEMENTER_LOG_PATH = ROOT / "logs" / "norm_implementer.jsonl"
-NORM_EVALUATOR_LOG_PATH = ROOT / "logs" / "norm_evaluator.jsonl"
+# Dedicated per-agent logs, written alongside the shared ops/logs/model_calls.jsonl.
+NORM_IMPLEMENTER_LOG_PATH = ROOT / "ops" / "logs" / "norm_implementer.jsonl"
+NORM_EVALUATOR_LOG_PATH = ROOT / "ops" / "logs" / "norm_evaluator.jsonl"
 COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 100
 
@@ -287,8 +287,8 @@ def parse_opencode_jsonl(stdout):
 
 def extract_tool_trace(stdout):
     """Ordered list of {"tool": name} per tool_use event in the same JSONL
-    stream parse_opencode_jsonl() reads — feeds logs/norm_implementer.jsonl
-    / logs/norm_evaluator.jsonl. A tool named "invalid" means the model
+    stream parse_opencode_jsonl() reads — feeds ops/logs/norm_implementer.jsonl
+    / ops/logs/norm_evaluator.jsonl. A tool named "invalid" means the model
     called a nonexistent tool; `detail` then carries opencode's own
     rejection message. Degrades to [] on any parse failure."""
     trace = []
@@ -1257,8 +1257,14 @@ MAX_NORM_REPAIR_ATTEMPTS = 10
 # Separate bound for retrying the evaluator PROCESS itself when it fails to
 # produce any verdict at all (timeout, crash, unparseable report) — that
 # says nothing about whether the code is correct, so it must not consume a
-# repair attempt or discard an otherwise-good round on its own.
-MAX_EVALUATOR_ATTEMPTS = 2
+# repair attempt or discard an otherwise-good round on its own. Raised
+# 2 -> 5 (2026-09-14), matching MAX_IMPLEMENTER_PROCESS_ATTEMPTS: this is
+# the same class of failure (a process-level retry, not a content-quality
+# budget), and the 2-GPU/OLLAMA_SCHED_SPREAD/128k-context change made the
+# same day is specifically aimed at the GPU-contention pressure behind a
+# real share of these process failures — more attempts costs more only if
+# that fix didn't help.
+MAX_EVALUATOR_ATTEMPTS = 5
 # Same idea, for the norm-implementer's own process. run_norm_implementer()
 # returning False now covers three cases: a crash, a timeout, or a session
 # that ended abnormally mid-task despite exiting 0 (see
@@ -1321,7 +1327,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         discard_norm_implementation(
             round_number,
             [f"norm-implementer's process failed, timed out, or was truncated on every attempt "
-             f"(after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see logs/model_calls.jsonl"],
+             f"(after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see ops/logs/model_calls.jsonl"],
         )
         return False
 
@@ -1365,7 +1371,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                     round_number,
                     [f"norm-implementer's repair run failed, timed out, or was truncated on every "
                      f"attempt (after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see "
-                     f"logs/model_calls.jsonl"],
+                     f"ops/logs/model_calls.jsonl"],
                 )
                 return False
             continue
@@ -1399,7 +1405,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             discard_norm_implementation(
                 round_number,
                 [f"norm-evaluator failed to produce a parseable verdict after "
-                 f"{MAX_EVALUATOR_ATTEMPTS} attempts — see logs/model_calls.jsonl"],
+                 f"{MAX_EVALUATOR_ATTEMPTS} attempts — see ops/logs/model_calls.jsonl"],
             )
             return False
 
@@ -1436,7 +1442,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 round_number,
                 [f"norm-implementer's repair run failed, timed out, or was truncated on every "
                  f"attempt (after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see "
-                 f"logs/model_calls.jsonl"],
+                 f"ops/logs/model_calls.jsonl"],
             )
             return False
 
@@ -1444,9 +1450,9 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
 
 
 ROUND_ARTIFACT_PATHS = [
-    "logs",
+    "ops/logs",
     "norm.txt",
-    "plots",
+    "ops/plots",
     "state/runtime.json",
     # A compiled artifact now (engine.institution.scheduler.compile_schedule(),
     # regenerated every round by compile_and_write_schedule()), never
@@ -1479,9 +1485,10 @@ def commit_round(round_number, winning_proposal):
 
     Kept as a separate `git add` from NORM_IMPLEMENTER_TRACKED_PATHS'S own
     staging (not merged into one list): that list also scopes what
-    discard_norm_implementation() may `git clean -fd`, and logs/norm.txt
-    are exactly the forensic record of *why* a round was discarded — they
-    must never be at risk of being wiped by the discard they explain."""
+    discard_norm_implementation() may `git clean -fd`, and ops/logs and
+    norm.txt are exactly the forensic record of *why* a round was
+    discarded — they must never be at risk of being wiped by the discard
+    they explain."""
     existing = [p for p in ROUND_ARTIFACT_PATHS if (ROOT / p).exists()]
     if existing:
         subprocess.run(["git", "add"] + existing, cwd=ROOT, check=True)
