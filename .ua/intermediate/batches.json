@@ -31,18 +31,10 @@
     "actions/rules/critique/__init__.py": [],
     "actions/rules/discuss/__init__.py": [],
     "actions/rules/harvest/__init__.py": [],
-    "actions/rules/harvest/daily_cap.py": [
-      "DailyCap"
-    ],
-    "actions/rules/harvest/daily_quota.py": [
-      "DailyQuota"
-    ],
-    "actions/rules/harvest/daily_total_cap.py": [
-      "DailyTotalCap"
-    ],
-    "actions/rules/harvest/fine_penalty.py": [
-      "FinePenalty"
-    ],
+    "actions/rules/harvest/daily_cap.py": [],
+    "actions/rules/harvest/daily_quota.py": [],
+    "actions/rules/harvest/daily_total_cap.py": [],
+    "actions/rules/harvest/fine_penalty.py": [],
     "actions/rules/propose/__init__.py": [],
     "actions/rules/vote/__init__.py": [],
     "engine/__init__.py": [],
@@ -394,12 +386,7 @@
       "test_cycle_raises_scheduling_conflict_error",
       "test_unknown_after_target_raises_scheduling_conflict_error"
     ],
-    "tests/norm_evaluation/round_1/test_req2_daily_total_cap.py": [
-      "make_state",
-      "fake_call",
-      "run_harvest",
-      "test_daily_total_cap_excess_deposits_to_pot_and_reduces_last_agent"
-    ],
+    "tests/norm_evaluation/round_1/test_req2_daily_total_cap.py": [],
     "tests/regression/test_fluents_invariants.py": [
       "load_fluents",
       "test_exclusive_role_has_one_open_holder",

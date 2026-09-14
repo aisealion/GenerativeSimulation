@@ -1,0 +1,10 @@
+{
+  "type_name": "communal_reserve",
+  "description": "A shared reserve where penalties are deposited and later allocated by the council.",
+  "ownership": "COMMUNAL",
+  "fields": {"balance_kg": {"type": "number", "default": 0.0}},
+  "operations": ["deposit", "withdraw", "read"],
+  "permissions": {"WRITE": {"who": "ROLE:council"}, "READ": {"who": "ALL"}},
+  "custom_handler": null,
+  "introduced_round": 3
+}
