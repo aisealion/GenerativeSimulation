@@ -1128,6 +1128,35 @@ def norm_implementation_missing_spec_errors(round_number):
     return []
 
 
+def norm_implementation_unverified_requirements_errors(round_number):
+    """norm-finalizer already independently re-checks every claimed `owner`
+    file/test before writing state/norm_specs/round_{N}.md, and records
+    what it actually found (not what the norm-implementer merely claimed)
+    in that same file's own trailing json block, as
+    "verification_failures" — but until this check, nothing in the
+    orchestrator ever read that field. A round could finish finalization
+    with real, named verification failures and still proceed to
+    evaluation/commit as if everything were confirmed, since the
+    finalizer's own separate closing report (the one containing this same
+    list) only ever reaches the norm-implementer's own session, never the
+    orchestrator. Added 2026-09-15, found while auditing the self-check
+    family for exactly this kind of already-computed-but-unused signal."""
+    spec_path = ROOT / "state" / "norm_specs" / f"round_{round_number}.md"
+    if not spec_path.is_file():
+        return []  # norm_implementation_missing_spec_errors() already reports this
+    report = extract_json_report(spec_path.read_text(), required_keys={"verification_failures"})
+    if report is None:
+        return []  # no verification_failures field to check — not this function's job
+    failures = report.get("verification_failures") or []
+    if not failures:
+        return []
+    return [
+        f"norm-finalizer's own verification of state/norm_specs/round_{round_number}.md "
+        "found requirement(s) whose claimed owner file or test did not actually hold up:\n"
+        + "\n".join(f"- {failure}" for failure in failures)
+    ]
+
+
 def norm_implementation_no_code_changes_errors():
     """Catches a real, repeatedly-observed failure distinct from a missing
     spec: the norm-implementer produces a closing report claiming success
@@ -1449,6 +1478,8 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         compile_errors += norm_implementation_institution_errors()
         compile_errors += norm_implementation_orphaned_norm_errors()
         compile_errors += norm_implementation_missing_spec_errors(round_number)
+        if not compile_errors:
+            compile_errors += norm_implementation_unverified_requirements_errors(round_number)
         if not compile_errors:
             compile_errors += norm_implementation_no_code_changes_errors()
         if not compile_errors:

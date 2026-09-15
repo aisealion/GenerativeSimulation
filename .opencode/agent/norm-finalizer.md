@@ -92,8 +92,9 @@ rule type, or object type: confirm `state/institution.json`'s matching
 catalog (`actions`/`roles`/`rule_types`/`object_types`) already has a
 matching entry; if not, add it yourself, following the existing schema
 for that catalog exactly — read a few existing entries in the same
-catalog first, never invent a new field shape. Touch nothing else in
-this file.
+catalog first (or `docs/institution-contracts/state-files.md`'s own
+`state/institution.json` schema summary if the catalog is currently
+empty), never invent a new field shape. Touch nothing else in this file.
 
 ## Step 3 — Write `state/norm_specs/round_{N}.md`
 
@@ -160,7 +161,12 @@ Verification:
 Close the file with a fenced ```json block making all of the above
 machine-readable, and a table: `requirement | shape | level | owner |
 verification` — `owner` reflecting what you actually verified in Step 1,
-never what the parent merely claimed.
+never what the parent merely claimed. **This block must also include
+`"verification_failures"` (the same list from Step 1 — empty if none) —
+not just the closing report below.** The orchestrator reads this
+specific file to decide whether the round can be trusted; a verification
+failure that only exists in your separate closing report (which nothing
+outside this session ever sees again) would be invisible to it.
 
 ## Do not
 

@@ -24,36 +24,54 @@
 # in hpc_ollama_entrypoint.sh, run as that one string.
 #
 #SBATCH --job-name=fishery-sim
-#SBATCH --partition=aoraki_gpu_H100    # 80GB VRAM per GPU — gpt-oss:120b alone needs most of
-                                        #   one card, and it shares whichever GPU it's on with
-                                        #   gpt-oss:20b (Ollama swaps between them; see
-                                        #   hpc_ollama_entrypoint.sh). Requesting 2 (below) is a
-                                        #   real single-node, NVLink-connected pair, not a
-                                        #   cross-node request — confirmed directly via `scontrol
-                                        #   show node aoraki16`: this partition's nodes
-                                        #   (aoraki[16,30]) each have 4 physical H100s
-                                        #   (`Gres=gpu:H100:4`) in one chassis; the partition's
-                                        #   own "Max GPUs: 2" is a per-job quota, not the node's
-                                        #   real capacity. Alternative: aoraki_gpu_A100_80GB.
-                                        #   Do NOT use aoraki_gpu_L40 (48GB) or
-                                        #   aoraki_gpu_A100_40GB (40GB) — too small.
-                                        #   Do NOT use the generic aoraki_gpu pool either —
-                                        #   it could land you on an L40/40GB node.
+#SBATCH --partition=aoraki_gpu_H200    # 2026-09-15: moved off aoraki_gpu_H100 (2x 80GB) onto
+                                        #   aoraki44's own partition — 8x H200 144GB per node.
+                                        #   Requires --qos=h200_advanced below; the user's account
+                                        #   was explicitly granted both h200_advanced and
+                                        #   rtx6000_advanced qos, but only h200_advanced actually
+                                        #   targets this node's real hardware — a pasted
+                                        #   "--partition=aoraki_gpu_RTX6000 --qos=rtx6000_advanced"
+                                        #   example was confirmed NOT what's wanted here: RTX 6000
+                                        #   Ada cards are 48GB, a completely different (much
+                                        #   smaller) card from the H200s aoraki44 actually has.
+                                        #   Do NOT use aoraki_gpu_L40 (48GB), aoraki_gpu_A100_40GB
+                                        #   (40GB), or the generic aoraki_gpu pool (could land on
+                                        #   any of the smaller cards above) for this workload.
+#SBATCH --qos=h200_advanced            # required alongside the partition above — omitting this
+                                        #   likely gets the job rejected or defaulted to a qos
+                                        #   without access to aoraki44 at all.
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:2                   # 2 real NVLink-paired H100s on one node (2026-09-14) —
-                                        #   was gpu:1; see OLLAMA_SCHED_SPREAD below for what
-                                        #   this is actually for.
-#SBATCH --cpus-per-task=10             # matches Otago's own example; Aoraki asks for >=2/GPU
-#SBATCH --mem=64G                      # CPU RAM, not GPU VRAM (fixed by the partition above) —
-                                        #   raised 32G -> 64G (2026-09-14): headroom for the
-                                        #   optional Neo4j JVM (ENABLE_NEO4J_MEMORY=1) and the
-                                        #   Understand-Anything pnpm/build-agent step
-                                        #   (BUILD_KNOWLEDGE_GRAPH=1), neither of which had been
-                                        #   directly measured against the old 32G — well under the
-                                        #   aoraki_gpu_H100 partition's own 150G/job cap. Still a
-                                        #   guess, not measured: run a short test round and check
-                                        #   `seff <jobid>` to right-size this for real.
+#SBATCH --gres=gpu:1                   # 2026-09-15: back down to 1 GPU (was 2, on the old H100
+                                        #   partition) — a single H200's 144GB alone is nearly
+                                        #   double one H100's 80GB, comfortably fitting gpt-oss:120b
+                                        #   (norm-implementer/evaluator) and gpt-oss:20b (fisher)
+                                        #   with real headroom even while Ollama swaps between them
+                                        #   on the same card, without needing the old 2-GPU/
+                                        #   OLLAMA_SCHED_SPREAD workaround (removed below) at all.
+#SBATCH --cpus-per-task=16             # raised 10 -> 16 (2026-09-15): aoraki44 has 128 cores
+                                        #   (2x64) total across 8 GPUs — this job uses 1 of those
+                                        #   8, so 16 cores (1/8 of the node's total) is a
+                                        #   proportional share rather than either the old
+                                        #   H100-sized number or the whole node, leaving the other
+                                        #   7 GPUs' worth of CPU for whatever else lands on this
+                                        #   node. Real headroom either way for the opencode/Ollama/
+                                        #   Neo4j-JVM/Understand-Anything-build CPU-side work this
+                                        #   job actually does, none of which is GPU-bound.
+#SBATCH --mem=220G                     # CPU RAM, not GPU VRAM (fixed by the partition/gres above) —
+                                        #   raised 64G -> 220G (2026-09-15) — 220G is this
+                                        #   partition/qos's own confirmed per-job max (the earlier
+                                        #   256G guess, extrapolated from an 8-way proportional
+                                        #   share of aoraki44's 2.2TB, exceeded the real cap and
+                                        #   would have been rejected at submission). Maxing out
+                                        #   the allowed amount rather than a smaller proportional
+                                        #   share, since the request was specifically to increase
+                                        #   it. Real headroom for the optional Neo4j JVM
+                                        #   (ENABLE_NEO4J_MEMORY=1) and Understand-Anything's
+                                        #   pnpm/tsc build (BUILD_KNOWLEDGE_GRAPH=1), neither of
+                                        #   which has been directly measured — but unlike the CPU
+                                        #   figure below, this one is now a real ceiling, not a
+                                        #   guess: sbatch will simply reject anything higher.
 #SBATCH --time=16:00:00                # tune from an observed per-round duration x --max-rounds;
                                         #   shorter requests queue faster on Aoraki (backfill) —
                                         #   if this exceeds the partition's own MaxTime, sbatch
@@ -85,22 +103,14 @@ fi
 
 export OLLAMA_MODELS=/projects/sciences/computing/cranefield_lab/magha601/models
 export MAX_ROUNDS="${MAX_ROUNDS:-100}"
-# Forces Ollama's own scheduler to spread a model's layers across every
-# visible GPU rather than packing it onto as few as possible — the actual
-# point of requesting 2 GPUs above (2026-09-14). gpt-oss:120b alone already
-# fits on one 80GB card (DCGM measured ~63GB peak at the old 65536-token
-# context), so without this Ollama would likely just use one of the two
-# GPUs and leave the second idle; this trades that "fits on one" default
-# for real headroom (a much bigger num_ctx below, more margin generally)
-# by using both. Applies server-wide, not per-model — the 20B fisher model
-# will also be eligible for spreading across both GPUs even though it
-# doesn't need to, since Ollama has no per-model override for this; harmless
-# (just doesn't use the second card's bandwidth for that smaller model),
-# just not the surgical "120B only" scoping that would be ideal. Not
-# verified against the exact Ollama version baked into ollama_shellenv.sif
-# — if unsupported, an unrecognized env var should just be ignored, not
-# fail the job, but this hasn't been confirmed on a real run yet.
-export OLLAMA_SCHED_SPREAD=1
+# OLLAMA_SCHED_SPREAD=1 (forcing Ollama to spread a model's layers across
+# multiple GPUs) was exported here from 2026-09-14 to 2026-09-15, back
+# when this job requested 2 H100s specifically to get real headroom for
+# gpt-oss:120b's context window. Removed on the 2026-09-15 move to a
+# single H200 (144GB — nearly double one H100's 80GB) — there's now only
+# one GPU allocated, so a "spread across every visible GPU" setting has
+# nothing to spread across; re-add it (and --gres=gpu:2 above) only if a
+# real run shows one H200 alone isn't enough headroom after all.
 # Opt-in, off by default — see hpc_ollama_entrypoint.sh for the initial
 # build and engine/simulate.py's refresh_knowledge_graph() for the
 # per-round follow-up, and why neither is on by default (real extra GPU
