@@ -1,0 +1,11 @@
+{
+  "type_name": "communal_ledger",
+  "description": "Ledger recording daily catches and pot balances",
+  "ownership": "ROLE:treasurer",
+  "fields": {"balance_kg": {"type": "number", "default": 0.0}},
+  "operations": ["deposit", "withdraw", "read"],
+  "permissions": {"WRITE": {"who": "ROLE:treasurer"}, "READ": {"who": "ALL"}},
+  "visibility": {"balance_kg": {"who": "ALL"}},
+  "custom_handler": null,
+  "introduced_round": 1
+}

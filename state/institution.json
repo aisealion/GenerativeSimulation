@@ -1,20 +1,59 @@
 {
-  "version": 1,
-  "updated_at_round": null,
+  "version": 2,
+  "updated_at_round": 1,
   "actions": {
-    "harvest": {"spec": "state/actions/harvest.json", "protected": true},
-    "propose": {"spec": "state/actions/propose.json", "protected": true},
-    "critique": {"spec": "state/actions/critique.json", "protected": true},
-    "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "harvest": {
+      "spec": "state/actions/harvest.json",
+      "protected": true
+    },
+    "propose": {
+      "spec": "state/actions/propose.json",
+      "protected": true
+    },
+    "critique": {
+      "spec": "state/actions/critique.json",
+      "protected": true
+    },
+    "vote": {
+      "spec": "state/actions/vote.json",
+      "protected": true
+    },
+    "discuss": {
+      "spec": "state/actions/discuss.json",
+      "protected": true
+    }
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {
+      "exclusive": false,
+      "description": "eligibility to act as a fisher",
+      "introduced_round": 0
+    }
   },
-  "rule_types": {},
-  "object_types": {},
+  "rule_types": {
+    "daily_cap": {
+      "owner": "actions/rules/harvest/daily_cap.py"
+    },
+    "trip_cap": {
+      "owner": "actions/rules/harvest/trip_cap.py"
+    },
+    "treasurer_assign": {
+      "owner": "actions/rules/harvest/treasurer_assign.py"
+    }
+  },
+  "object_types": {
+    "communal_ledger": {
+      "owner": "state/object_types/communal_ledger.json"
+    }
+  },
   "state": {
-    "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg"]
+    "fisher": [
+      "effort",
+      "harvested_kg",
+      "payoff"
+    ],
+    "community": [
+      "stock_kg"
+    ]
   }
 }

@@ -1,0 +1,1 @@
+{"version": 2, "round": 1, "changes": [{"kind": "object_types_added", "name": "communal_ledger", "before": null, "after": {"owner": "state/object_types/communal_ledger.json"}}]}
