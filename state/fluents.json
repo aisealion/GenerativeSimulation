@@ -88,5 +88,15 @@
     "holder": "agent_9",
     "initiated_round": 0,
     "terminated_round": null
+  },
+  {
+    "fluent": "treasurer",
+    "args": [],
+    "holder": "agent_0",
+    "initiated_round": 3,
+    "terminated_round": null,
+    "narration": "agent_0 has been appointed rotating treasurer for the next day.",
+    "visibility": "public",
+    "event_type": "fact_initiated"
   }
 ]

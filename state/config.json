@@ -4,7 +4,7 @@
   "history_window_rounds": 5,
   "rules": {
     "harvest": [
-      {"type": "trip_cap", "params": {"cap_kg": 10}},
+      "seasonal_quota": {"type": "seasonal_quota", "params": {}},
       {"type": "daily_cap"},
       {"type": "treasurer_assign"}
     ]

@@ -5,7 +5,9 @@ class TripCapRule(Rule):
     description = "Enforce per-trip catch cap of 10 kg"
 
     def after_agent(self, ctx, agent_id, record_entry):
-        cap = self.params.get("cap_kg", 10.0)
+        # Reference stock is the lake biomass before any harvest in the season
+        reference_stock = ctx.state["runtime"]["stock_kg"]
+        cap = reference_stock * 0.10  # 10% of reference stock
         harvested = record_entry.get("harvested_kg", 0.0)
         if harvested > cap:
             record_entry["harvested_kg"] = cap
