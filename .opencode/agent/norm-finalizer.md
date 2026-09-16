@@ -21,6 +21,16 @@ permission:
     ".git/*/*": deny
     ".codegraph/*": deny
     ".ua/intermediate/*": deny
+    # __pycache__ isn't anchored under one fixed top-level path — Python
+    # creates one beside every package's .py files (confirmed: depths 0-4
+    # across this repo today). Denying every depth up to 4 covers the real
+    # repo and any new action/rule directory a future round adds at the
+    # same nesting depth.
+    "__pycache__/*": deny
+    "*/__pycache__/*": deny
+    "*/*/__pycache__/*": deny
+    "*/*/*/__pycache__/*": deny
+    "*/*/*/*/__pycache__/*": deny
   edit:
     "*": deny
     "state/norm_specs/*": allow

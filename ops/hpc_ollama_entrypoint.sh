@@ -5,6 +5,23 @@
 set -euo pipefail
 cd "$SLURM_SUBMIT_DIR"
 
+# This repo is small, and reload_project_modules() (engine/simulate.py)
+# already forces every changed module to be re-imported fresh every
+# round regardless of what's cached on disk — the .pyc bytecode cache
+# Python would otherwise write to a __pycache__/ beside every .py file
+# buys essentially nothing here, and was a real, repeated nuisance: the
+# norm-implementer/norm-evaluator/norm-finalizer agents' own read/glob
+# tools kept surfacing these as if they were real files to inspect.
+# Exported once, here, so every Python process this job ever spawns
+# (this script's own one-off python3 calls, the main `python3 -m
+# engine.simulate` invocation below, and every fresh validation
+# subprocess engine/simulate.py spawns via subprocess.run([sys.executable,
+# ...])) inherits it and never writes one in the first place —
+# engine/simulate.py's own clean_pycache_dirs() (called every round) is
+# just the defense-in-depth backstop for whatever's already on disk from
+# before this was set.
+export PYTHONDONTWRITEBYTECODE=1
+
 # A plain `bash script.sh` invocation never sources ~/.bashrc (that only
 # happens for interactive shells) — so even if opencode was installed in a
 # previous run and its PATH line added there, this shell doesn't see it.

@@ -4,6 +4,7 @@ import importlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -1787,11 +1788,82 @@ def reload_project_modules():
             importlib.reload(sys.modules[name])
 
 
+def clean_pycache_dirs():
+    """Removes every __pycache__ directory in the repo. Not needed for
+    correctness — reload_project_modules() above already forces a fresh
+    re-import every round regardless of what's on disk, and
+    PYTHONDONTWRITEBYTECODE=1 (set in hpc_ollama_entrypoint.sh) stops new
+    ones from being written in the first place — this is defense-in-depth
+    for whatever's already on disk (a resumed checkout, a local dev run
+    without that env var set) and for one real, practical reason: the
+    norm-implementer/norm-evaluator/norm-finalizer agents' own `read`/
+    `glob` tools kept surfacing these (harmless bytecode, not source) as
+    if they were real files to inspect, needing five depth-specific
+    permission.read denies apiece just to route around them. Actually
+    removing them is more direct than only denying reads to them."""
+    for cache_dir in ROOT.rglob("__pycache__"):
+        try:
+            shutil.rmtree(cache_dir)
+        except OSError:
+            pass  # best-effort; never worth failing a round over
+
+
+def refresh_codegraph_index():
+    """Full clean rebuild of the CodeGraph index (`unlock` -> `rm -rf
+    .codegraph` -> `init`, never `sync` — see hpc_ollama_entrypoint.sh's
+    own job-start block for the same sequence and why `sync` specifically
+    is avoided, a real hang on Aoraki root-caused to that one command).
+    Re-added here per-round (2026-09-16, by request) as insurance against
+    a stale index — `opencode.jsonc`'s `codegraph serve --mcp` is a
+    *local* MCP server, spawned fresh as a child of each `opencode run`
+    call, not a long-lived process spanning rounds; only the on-disk
+    `.codegraph/codegraph.db` persists between them, and whether a freshly
+    started server re-validates it against the real filesystem before
+    answering queries first was never actually confirmed. A real round
+    already showed a *different* kind of stale-artifact contamination
+    (leftover __pycache__ naming a discarded rule after its own .py file
+    was gone — see clean_pycache_dirs()); this closes the analogous risk
+    for CodeGraph's own index rather than waiting to find out the hard
+    way it has the same one.
+
+    Same graceful-degradation shape as every other optional refresh in
+    this file: no `codegraph` binary, a timeout, or any other failure
+    means the norm-implementer falls back to plain Read/Grep for that
+    round — never worth blocking or crashing a round over."""
+    if shutil.which("codegraph") is None:
+        return
+    try:
+        subprocess.run(
+            ["codegraph", "--no-color", "unlock", "."],
+            cwd=ROOT, capture_output=True, text=True, timeout=30,
+        )
+        shutil.rmtree(ROOT / ".codegraph", ignore_errors=True)
+        result = subprocess.run(
+            ["codegraph", "--no-color", "init", "."],
+            cwd=ROOT, capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode != 0:
+            print("CodeGraph index refresh failed — continuing without it "
+                  "(the norm-implementer falls back to plain Read/Grep):",
+                  file=sys.stderr)
+            print(result.stderr, file=sys.stderr)
+            shutil.rmtree(ROOT / ".codegraph", ignore_errors=True)
+    except subprocess.TimeoutExpired:
+        print("CodeGraph index refresh didn't finish within its timeout — "
+              "continuing without it, same as any other failure here.", file=sys.stderr)
+        shutil.rmtree(ROOT / ".codegraph", ignore_errors=True)
+    except OSError as exc:
+        print(f"CodeGraph index refresh failed to even start ({exc}) — "
+              "continuing without it.", file=sys.stderr)
+
+
 def run_cycle(round_number):
     """Runs every state/schedule.json action gated on for this round, in
     file order. Skips actions already recorded for this round (resuming
     after a crash mid-round). Returns False if the lake collapsed."""
     print(f"\n=== Round {round_number} ===")
+    clean_pycache_dirs()
+    refresh_codegraph_index()
     reload_project_modules()
     state = load_state(round_number)
     schedule = compile_and_write_schedule()

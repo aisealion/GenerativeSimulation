@@ -22,6 +22,18 @@ permission:
     ".git/*/*": deny
     ".codegraph/*": deny
     ".ua/intermediate/*": deny
+    # __pycache__ isn't anchored under one fixed top-level path like the
+    # others above — Python creates one beside every package's .py files,
+    # so it shows up at the repo root and under every package directory
+    # (confirmed directly: depths 0-4 across this repo today, e.g.
+    # __pycache__/, engine/__pycache__/, actions/rules/harvest/__pycache__/).
+    # Denying every depth up to 4 covers the real repo today and any new
+    # action/rule directory a future round adds at the same nesting depth.
+    "__pycache__/*": deny
+    "*/__pycache__/*": deny
+    "*/*/__pycache__/*": deny
+    "*/*/*/__pycache__/*": deny
+    "*/*/*/*/__pycache__/*": deny
   edit:
     "*": deny
     "actions/rules/*/*": allow
@@ -142,10 +154,7 @@ Exactly: `bash`, `edit`, `glob`, `grep`, `read`, `skill`,
 `codegraph_codegraph_explore`, `todowrite`, `write`. No `ls`,
 `print_tree`, `search`, or `exec` — a directory listing goes through
 `bash` (`bash: ls -R`, `bash: find .`). Calling a tool that doesn't exist
-wastes a step and gets rejected. A broad `find .`/`ls -R` will still list
-`ops/`, `.git/`, `.codegraph/`, `.pytest_cache/`, `.venv-fishery/`, and
-`.ua/intermediate/` by name — none of it describes the institution,
-`read` on it is denied, don't spend a call opening any of it.
+wastes a step and gets rejected.
 
 Use `codegraph_codegraph_explore` (structural) and, if
 `.ua/knowledge-graph.json`/`.understand-anything/knowledge-graph.json`

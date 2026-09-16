@@ -79,11 +79,8 @@
   layer doesn't expose, that's out of scope — stop and report it.
 - **`constants/agents.json`** — fixed roster, not yours.
 
-## Operational infra — never relevant, `read` denied
+## Operational infra — `read` denied by permission
 
-`ops/` (SLURM script, entrypoint script, `logs/` — `model_calls.jsonl`
-alone routinely reaches multi-megabyte size — `plots/`), `.git/`,
-`.codegraph/`, `.pytest_cache/`, `.venv-fishery/`, `.ua/intermediate/`.
-None of it describes the institution. A broad `bash: find .`/`ls -R`
-will still list these by name — don't spend a tool call opening any of
-them.
+`ops/`, `.git/`, `.codegraph/`, `.pytest_cache/`, `.venv-fishery/`,
+`.ua/intermediate/`, and every package's own `__pycache__/`. None of it
+describes the institution.
