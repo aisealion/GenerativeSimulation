@@ -6,47 +6,22 @@
   },
   "agent_1": {
     "name": "Mara",
-    "personality_traits": "Prioritize long-term sustainability over short-term gain",
+    "personality_traits": "Follow the community guidelines strictly",
     "is_altruistic": true
   },
   "agent_2": {
     "name": "Toa",
-    "personality_traits": "Prioritize long-term sustainability over short-term gain",
+    "personality_traits": "Fish only what you need to feed your family",
     "is_altruistic": true
   },
   "agent_3": {
     "name": "Rina",
-    "personality_traits": "Consider the needs of the entire community before fishing",
-    "is_altruistic": true
+    "personality_traits": "Your family's needs come first, fish as much as possible",
+    "is_altruistic": false
   },
   "agent_4": {
     "name": "Beti",
-    "personality_traits": "Prioritize long-term sustainability over short-term gain",
-    "is_altruistic": true
-  },
-  "agent_5": {
-    "name": "Solo",
-    "personality_traits": "The lake is there to be used, take your maximum share",
-    "is_altruistic": false
-  },
-  "agent_6": {
-    "name": "Lani",
-    "personality_traits": "The lake is there to be used, take your maximum share",
-    "is_altruistic": false
-  },
-  "agent_7": {
-    "name": "Miro",
-    "personality_traits": "Fish aggressively to ensure your own survival",
-    "is_altruistic": false
-  },
-  "agent_8": {
-    "name": "Nadia",
-    "personality_traits": "Fish aggressively to ensure your own survival",
-    "is_altruistic": false
-  },
-  "agent_9": {
-    "name": "Tevita",
-    "personality_traits": "Get the most value from your fishing effort",
+    "personality_traits": "Focus on your immediate gains from the lake",
     "is_altruistic": false
   }
 }
