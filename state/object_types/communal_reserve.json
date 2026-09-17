@@ -1,0 +1,14 @@
+{
+  "type_name": "communal_reserve",
+  "description": "Community lake reserve for emergencies and surplus.",
+  "ownership": "COMMUNAL",
+  "fields": {"balance_kg": {"type": "number", "default": 0.0}},
+  "operations": ["deposit", "withdraw", "read"],
+  "permissions": {
+    "WRITE": {"who": "ROLE:keeper"},
+    "READ": {"who": "ALL"}
+  },
+  "visibility": {"balance_kg": {"who": "ALL"}},
+  "custom_handler": null,
+  "introduced_round": 1
+}

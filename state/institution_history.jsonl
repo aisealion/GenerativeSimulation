@@ -1,0 +1,1 @@
+{"version": 2, "round": 1, "changes": [{"kind": "roles_added", "name": "keeper", "before": null, "after": {"exclusive": true, "description": "rotating keeper of the shared ledger and reserve", "introduced_round": 1}}, {"kind": "object_types_added", "name": "communal_reserve", "before": null, "after": {"owner": "state/object_types/communal_reserve.json", "introduced_round": 1}}]}

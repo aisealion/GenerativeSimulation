@@ -1,20 +1,64 @@
 {
-  "version": 1,
-  "updated_at_round": null,
+  "version": 2,
+  "updated_at_round": 1,
   "actions": {
-    "harvest": {"spec": "state/actions/harvest.json", "protected": true},
-    "propose": {"spec": "state/actions/propose.json", "protected": true},
-    "critique": {"spec": "state/actions/critique.json", "protected": true},
-    "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "harvest": {
+      "spec": "state/actions/harvest.json",
+      "protected": true
+    },
+    "propose": {
+      "spec": "state/actions/propose.json",
+      "protected": true
+    },
+    "critique": {
+      "spec": "state/actions/critique.json",
+      "protected": true
+    },
+    "vote": {
+      "spec": "state/actions/vote.json",
+      "protected": true
+    },
+    "discuss": {
+      "spec": "state/actions/discuss.json",
+      "protected": true
+    }
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {
+      "exclusive": false,
+      "description": "eligibility to act as a fisher",
+      "introduced_round": 0
+    },
+    "keeper": {
+      "exclusive": true,
+      "description": "rotating keeper of the shared ledger and reserve",
+      "introduced_round": 1
+    }
   },
-  "rule_types": {},
-  "object_types": {},
+  "rule_types": {
+    "cap_rule": {
+      "owner": "actions/rules/harvest/cap_rule.py",
+      "introduced_round": 1
+    },
+    "violation_rule": {
+      "owner": "actions/rules/harvest/violation_rule.py",
+      "introduced_round": 1
+    }
+  },
+  "object_types": {
+    "communal_reserve": {
+      "owner": "state/object_types/communal_reserve.json",
+      "introduced_round": 1
+    }
+  },
   "state": {
-    "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg"]
+    "fisher": [
+      "effort",
+      "harvested_kg",
+      "payoff"
+    ],
+    "community": [
+      "stock_kg"
+    ]
   }
 }
