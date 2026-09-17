@@ -1,0 +1,14 @@
+{
+  "type_name": "communal_pot",
+  "description": "A communal pot where excess catch is deposited.",
+  "ownership": "COMMUNAL",
+  "fields": {"balance_kg": {"type": "number", "default": 0.0}},
+  "operations": ["deposit", "withdraw", "read"],
+  "permissions": {
+    "WRITE": {"who": "ROLE:elder"},
+    "READ": {"who": "ALL"}
+  },
+  "visibility": {"balance_kg": {"who": "ALL"}},
+  "custom_handler": null,
+  "introduced_round": 1
+}

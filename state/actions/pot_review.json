@@ -1,0 +1,10 @@
+{
+  "name": "pot_review",
+  "description": "Elder reviews the communal pot weekly and prepares distribution.",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": "harvest", "before": null},
+  "participation": {"policy": "role_holders", "role": "elder"},
+  "roles": {"actor_role": "elder"},
+  "execution": {"handler": "pot_review"},
+  "prompt": {"template": "You are the elder. The communal pot currently holds {balance_kg:.2f}kg of fish. Prepare to distribute it according to the upcoming vote. Respond with only a confirmation that you are ready."}
+}

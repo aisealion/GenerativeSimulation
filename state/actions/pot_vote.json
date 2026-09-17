@@ -1,0 +1,13 @@
+{
+  "name": "pot_vote",
+  "description": "Fishers and elder vote on how to split the communal pot.",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": "pot_review", "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": null},
+  "execution": {"handler": "generic_agent_decision"},
+  "prompt": {
+    "template": "The communal pot contains {balance_kg:.2f}kg of fish. Propose a split: how many kg should go to immediate community needs (e.g., fuel, net repair) and how many kg to reserve for emergencies. Respond with JSON: {\"immediate_kg\": <number>, \"reserve_kg\": <number>}. The sum must equal the pot balance.",
+    "fields": [{"from": "object", "object_id": "communal_pot", "field": "balance_kg"}]
+  }
+}
