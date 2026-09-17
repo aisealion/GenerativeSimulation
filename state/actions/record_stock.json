@@ -1,0 +1,9 @@
+{
+  "name": "record_stock",
+  "description": "Record lake stock at dawn in communal ledger",
+  "scheduling": {"gate": "true", "after": null, "before": "harvest"},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": null},
+  "execution": {"handler": "record_stock"},
+  "prompt": {"template": "Record stock at dawn. No input needed.\nRespond with {}."}
+}

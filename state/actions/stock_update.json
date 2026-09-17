@@ -1,0 +1,9 @@
+{
+  "name": "stock_update",
+  "description": "Update communal stock after harvest",
+  "scheduling": {"gate": "true", "after": "ledger_verification", "before": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": null},
+  "execution": {"handler": "generic_agent_decision"},
+  "prompt": {"template": "Update stock. No input needed. Respond with {}."}
+}

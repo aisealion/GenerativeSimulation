@@ -51,7 +51,7 @@
     ],
     "holder": "agent_1",
     "initiated_round": 2,
-    "terminated_round": null,
+    "terminated_round": 3,
     "narration": "Infraction: agent_1 exceeded 10kg catch (caught 10.71kg)",
     "visibility": "public",
     "event_type": "infraction_recorded"
@@ -63,7 +63,7 @@
     ],
     "holder": "agent_3",
     "initiated_round": 2,
-    "terminated_round": null,
+    "terminated_round": 3,
     "narration": "Infraction: agent_3 exceeded 10kg catch (caught 13.39kg)",
     "visibility": "public",
     "event_type": "infraction_recorded"
@@ -79,5 +79,53 @@
     "narration": "Infraction: agent_4 exceeded 10kg catch (caught 13.39kg)",
     "visibility": "public",
     "event_type": "infraction_recorded"
+  },
+  {
+    "fluent": "infraction",
+    "args": [
+      "agent_1"
+    ],
+    "holder": "agent_1",
+    "initiated_round": 3,
+    "terminated_round": null,
+    "narration": "Infraction: agent_1 exceeded 10kg catch (caught 11.97kg)",
+    "visibility": "public",
+    "event_type": "infraction_recorded"
+  },
+  {
+    "fluent": "warning",
+    "args": [
+      "agent_1"
+    ],
+    "holder": "agent_1",
+    "initiated_round": 3,
+    "terminated_round": null,
+    "narration": "Warning: agent_1 has received a second infraction.",
+    "visibility": "public",
+    "event_type": "warning_issued"
+  },
+  {
+    "fluent": "infraction",
+    "args": [
+      "agent_3"
+    ],
+    "holder": "agent_3",
+    "initiated_round": 3,
+    "terminated_round": null,
+    "narration": "Infraction: agent_3 exceeded 10kg catch (caught 11.97kg)",
+    "visibility": "public",
+    "event_type": "infraction_recorded"
+  },
+  {
+    "fluent": "warning",
+    "args": [
+      "agent_3"
+    ],
+    "holder": "agent_3",
+    "initiated_round": 3,
+    "terminated_round": null,
+    "narration": "Warning: agent_3 has received a second infraction.",
+    "visibility": "public",
+    "event_type": "warning_issued"
   }
 ]

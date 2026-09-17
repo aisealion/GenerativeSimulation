@@ -2,6 +2,22 @@
   "version": 2,
   "updated_at_round": 1,
   "actions": {
+    "record_stock": {
+      "spec": "state/actions/record_stock.json",
+      "protected": false
+    },
+    "log_trip": {
+      "spec": "state/actions/log_trip.json",
+      "protected": false
+    },
+    "ledger_verification": {
+      "spec": "state/actions/ledger_verification.json",
+      "protected": false
+    },
+    "stock_update": {
+      "spec": "state/actions/stock_update.json",
+      "protected": false
+    },
     "harvest": {
       "spec": "state/actions/harvest.json",
       "protected": true
@@ -29,12 +45,17 @@
       "description": "eligibility to act as a fisher",
       "introduced_round": 0
     },
-    "leader": {
+    "recorder": {
       "exclusive": true,
-      "description": "elected community leader who logs daily catches and infractions",
-      "introduced_round": 1
+      "description": "rotating daily recorder of community ledger",
+      "introduced_round": 3
+    },
+    "clerk": {
+      "exclusive": true,
+      "description": "rotating daily clerk updating lake stock",
+      "introduced_round": 3
     }
-  },
+   },
   "rule_types": {
     "weight_cap": {
       "description": "Enforces 10kg per trip cap and tracks infractions",
@@ -53,7 +74,11 @@
       "owner": "actions/rules/harvest/repeat_offender_ban.py"
     }
   },
-  "object_types": {},
+  "object_types": {
+    "ledger": {
+      "type_name": "ledger"
+    }
+  },
   "state": {
     "fisher": [
       "effort",

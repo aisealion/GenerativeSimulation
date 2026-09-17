@@ -9,6 +9,11 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+import sys
+# Ensure repository root is on PYTHONPATH for imports
+ROOT_PATH = Path(__file__).resolve().parent.parent
+if str(ROOT_PATH) not in sys.path:
+    sys.path.insert(0, str(ROOT_PATH))
 
 from engine.call_log import log_call
 from engine.institution.runtime import ActionRuntime

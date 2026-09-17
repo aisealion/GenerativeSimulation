@@ -1,0 +1,9 @@
+{
+  "name": "ledger_verification",
+  "description": "Verify the communal ledger entries are consistent.",
+  "scheduling": {"gate": "true", "after": "log_trip", "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": null},
+  "execution": {"handler": "ledger_verification"},
+  "prompt": {"template": "Verify ledger consistency. No input needed. Respond with {}."}
+}

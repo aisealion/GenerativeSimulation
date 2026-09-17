@@ -1,0 +1,9 @@
+{
+  "name": "log_trip",
+  "description": "Fisher logs each trip catch weight immediately after the trip",
+  "scheduling": {"gate": "true", "after": "harvest", "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": null},
+  "execution": {"handler": "log_trip"},
+  "prompt": {"template": "Log trip weight. No input needed.\nRespond with {}."}
+}

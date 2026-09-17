@@ -1,12 +1,8 @@
-Policy: Each fisher may take up to 5 % of the lake’s current stock per trip, with a minimum of 1 kg if that 5 % is at least 1 kg; the community’s total daily catch may not exceed 30 % of the lake’s stock; any catch above the 5 % limit is returned immediately and incurs a 10 % penalty on the trimmed excess, and repeat violators are barred for three days.
+Policy: Each fisher may take no more than 10 kg per trip, up to 3 trips per day, and must not exceed 25 % of the lake’s stock at the start of that day in total; any excess must be returned to the lake.
 
-Operationalization: 1. Council composition: elected annually by all fishers with at least one season of experience; includes a clerk chosen by majority vote.
-2. Ledger: holds lake’s stock and daily net catches; updated after each trip.
-3. Trip logging: fisher submits written/e‑log of total catch immediately upon return.
-4. Clerk verification: calculates 5 % of the current stock at that moment; if reported catch >5 %, trims to 5 %, records the trimmed amount, returns it to the lake, and applies a 10 % penalty on the trimmed excess (returned immediately as fine).
-5. Minimum catch: clerk checks net catch; if ≥1 kg it is accepted; if <1 kg and 5 %<1 kg, the log is rejected and the fisher must re‑fish, use reserves, or forfeit the trip.
-6. Stock update: after each accepted trip, ledger subtracts the net catch and adds any returned fish (trimmed amount + penalty).
-7. End‑of‑day review: council totals all accepted net catches; if total >30 % of the stock at that time, the surplus is subtracted from the lake and divided evenly among all fishers (credited to their individual balances), then the ledger is updated.
-8. Repeat offenders: if a fisher exceeds the 5 % quota in two separate trips, the council bars the fisher for three days; the ban lifts after the fisher shows no infractions for two consecutive days following the ban and submits a written statement of compliance.
-9. Reserves: each fisher may draw from personal reserves if a trip fails; reserves are tracked separately and replenished by future accepted catches.
-10. Enforcement: council actions are recorded in the ledger; any penalties or bans are logged with dates and reasons; disputes are resolved at the next community gathering.
+Operationalization: 1. At dawn, the community records the lake’s stock in the communal ledger, using the last evening’s figure or a quick surface measurement.
+2. The 25 % daily limit is calculated from that figure.
+3. Every fisher logs each trip and catch weight immediately after the trip in the shared ledger at the dock.
+4. At sunset, the fisher presents the boat’s scale reading; the community verifies ledger entries against the reading. The community recorder (rotated daily) signs the ledger and any discrepancy is resolved on the spot.
+5. The community clerk updates the lake’s stock in the ledger after sunset, reflecting net catch after any return of excess.
+6. If a fisher’s catch exceeds any of the limits, a quick vote is held; a simple majority of those present imposes a 48‑hour ban and requires the return of the excess.

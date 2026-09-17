@@ -1,0 +1,18 @@
+{
+  "type_name": "ledger",
+  "name": "ledger",
+  "description": "Communal ledger for lake stock and catch entries",
+  "fields": {
+    "stock_start": {"type": "float", "default": 0.0},
+    "entries": {"type": "list", "default": []}
+  },
+  "permissions": {
+    "append": {"who": "ALL"},
+    "set": {"who": "ALL"},
+    "read": {"who": "ALL"}
+  },
+  "visibility": {
+    "stock_start": {"who": "ALL"},
+    "entries": {"who": "ALL"}
+  }
+}
