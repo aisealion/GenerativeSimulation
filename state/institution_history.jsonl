@@ -1,0 +1,1 @@
+{"version": 2, "round": 1, "changes": [{"kind": "roles_added", "name": "leader", "before": null, "after": {"exclusive": true, "description": "elected community leader who logs daily catches and infractions", "introduced_round": 1}}]}

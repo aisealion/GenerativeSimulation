@@ -1,20 +1,55 @@
 {
-  "version": 1,
-  "updated_at_round": null,
+  "version": 2,
+  "updated_at_round": 1,
   "actions": {
-    "harvest": {"spec": "state/actions/harvest.json", "protected": true},
-    "propose": {"spec": "state/actions/propose.json", "protected": true},
-    "critique": {"spec": "state/actions/critique.json", "protected": true},
-    "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "harvest": {
+      "spec": "state/actions/harvest.json",
+      "protected": true
+    },
+    "propose": {
+      "spec": "state/actions/propose.json",
+      "protected": true
+    },
+    "critique": {
+      "spec": "state/actions/critique.json",
+      "protected": true
+    },
+    "vote": {
+      "spec": "state/actions/vote.json",
+      "protected": true
+    },
+    "discuss": {
+      "spec": "state/actions/discuss.json",
+      "protected": true
+    }
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {
+      "exclusive": false,
+      "description": "eligibility to act as a fisher",
+      "introduced_round": 0
+    },
+    "leader": {
+      "exclusive": true,
+      "description": "elected community leader who logs daily catches and infractions",
+      "introduced_round": 1
+    }
   },
-  "rule_types": {},
+  "rule_types": {
+    "weight_cap": {
+      "description": "Enforces 10kg per trip cap and tracks infractions",
+      "owner": "actions/rules/harvest/weight_cap.py"
+    }
+  },
   "object_types": {},
   "state": {
-    "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg"]
+    "fisher": [
+      "effort",
+      "harvested_kg",
+      "payoff"
+    ],
+    "community": [
+      "stock_kg"
+    ]
   }
 }
