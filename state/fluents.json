@@ -43,5 +43,41 @@
     "holder": "agent_4",
     "initiated_round": 0,
     "terminated_round": null
+  },
+  {
+    "fluent": "infraction",
+    "args": [
+      "agent_1"
+    ],
+    "holder": "agent_1",
+    "initiated_round": 2,
+    "terminated_round": null,
+    "narration": "Infraction: agent_1 exceeded 10kg catch (caught 10.71kg)",
+    "visibility": "public",
+    "event_type": "infraction_recorded"
+  },
+  {
+    "fluent": "infraction",
+    "args": [
+      "agent_3"
+    ],
+    "holder": "agent_3",
+    "initiated_round": 2,
+    "terminated_round": null,
+    "narration": "Infraction: agent_3 exceeded 10kg catch (caught 13.39kg)",
+    "visibility": "public",
+    "event_type": "infraction_recorded"
+  },
+  {
+    "fluent": "infraction",
+    "args": [
+      "agent_4"
+    ],
+    "holder": "agent_4",
+    "initiated_round": 2,
+    "terminated_round": null,
+    "narration": "Infraction: agent_4 exceeded 10kg catch (caught 13.39kg)",
+    "visibility": "public",
+    "event_type": "infraction_recorded"
   }
 ]

@@ -39,6 +39,18 @@
     "weight_cap": {
       "description": "Enforces 10kg per trip cap and tracks infractions",
       "owner": "actions/rules/harvest/weight_cap.py"
+    },
+    "percentage_cap": {
+      "description": "Enforces per-fisher 5% of lake stock cap with minimum 1kg",
+      "owner": "actions/rules/harvest/percentage_cap.py"
+    },
+    "daily_cap": {
+      "description": "Enforces community daily catch limit of 30% of lake stock",
+      "owner": "actions/rules/harvest/daily_cap.py"
+    },
+    "repeat_offender_ban": {
+      "description": "Bans repeat offenders who exceed 5% cap twice",
+      "owner": "actions/rules/harvest/repeat_offender_ban.py"
     }
   },
   "object_types": {},

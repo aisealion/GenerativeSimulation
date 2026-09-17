@@ -2,5 +2,5 @@
   "agent_count": 5,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "rules": {"harvest": [{"type": "weight_cap"}] }
+  "rules": {"harvest": [{"type": "weight_cap"}, {"type": "percentage_cap"}, {"type": "daily_cap"}, {"type": "repeat_offender_ban"}] }
 }
