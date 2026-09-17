@@ -242,7 +242,10 @@ cat > .opencode/opencode.json << EOF
       },
       "models": {
         "gpt-oss:120b": { "name": "GPT-OSS 120B (Aoraki Ollama)" },
-        "${OLLAMA_120B_CTX_MODEL_ID}": { "name": "GPT-OSS 120B, ${OLLAMA_NUM_CTX_120B}-token context (Aoraki Ollama)" }
+        "${OLLAMA_120B_CTX_MODEL_ID}": {
+          "name": "GPT-OSS 120B, ${OLLAMA_NUM_CTX_120B}-token context (Aoraki Ollama)",
+          "limit": { "context": ${OLLAMA_NUM_CTX_120B}, "output": ${OLLAMA_NUM_CTX_120B} }
+        }
       }
     }
   }

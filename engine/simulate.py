@@ -339,6 +339,30 @@ def extract_last_step_reason(stdout):
     return last_reason
 
 
+def extract_session_id(stdout):
+    """First sessionID found anywhere in the opencode run --format json
+    JSONL stream (every event in one session carries the same id). Used
+    only by run_norm_implementer_with_retry()'s own bounded 2-attempt
+    session pairing (2026-09-18) — unlike the 2026-09-15 feature this
+    reintroduces a narrow slice of (reverted 2026-09-17 after it caused a
+    real multi-hour collapse from unbounded cross-call growth), this
+    never threads a session id past a single pair of attempts, so it
+    can't reproduce that failure mode. Returns None on any parse failure
+    or if no event carries one."""
+    try:
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            event = json.loads(line)
+            sid = event.get("sessionID") or event.get("part", {}).get("sessionID")
+            if sid:
+                return sid
+    except (json.JSONDecodeError, AttributeError):
+        return None
+    return None
+
+
 def extract_json_report(text, required_keys=()):
     """Pulls the trailing fenced ```json block matching required_keys out of
     an agent's response, scanning from the end backwards so an earlier,
@@ -373,33 +397,76 @@ def extract_evaluation_result(text):
     return matches[-1].upper()
 
 
-def run_norm_implementer(round_number, extra_message=None):
-    """Runs the norm-implementer as an opencode subprocess. Returns True on
-    a clean (returncode 0) run that also ended on a genuine "stop" (see
-    extract_last_step_reason()), False on any failure — a timeout, a
-    crash, a non-zero exit, or a session that was silently truncated
-    mid-task despite exiting 0. Analyzing a real 12-round run found this
-    last case is common (13 of 26 real invocations never reached a
-    deliberate stop) and is very likely why code-writing specifically
-    (which tends to happen only after exploration/spec-writing) so rarely
-    got reached at all — not because the implementation itself was too
-    costly to attempt. The caller treats a False success like a compile
-    error: discard this round's changes and continue, rather than
-    crashing the whole multi-round run or trusting partial work as if it
-    were final.
+def clear_stale_opencode_snapshot_lock():
+    """opencode keeps its own filesystem-snapshot history (used for its
+    interactive undo/revert feature) in a separate bare git repo under
+    ~/.local/share/opencode/snapshot/<project-hash>/<tracking-hash>/ — a
+    completely different repo from this project's own .git/, and one this
+    headless pipeline never actually reads from (nobody is present to
+    invoke "undo"). A real job's opencode.log showed this repo's own
+    index.lock stuck ("fatal: Unable to create '.../index.lock': File
+    exists... a git process may have crashed") across every session for
+    hours, on multiple unrelated jobs — plausible root cause: this
+    project's own subprocess.run(..., timeout=3600) kills only the direct
+    opencode process on a timeout, not any child `git` process opencode
+    itself may have spawned for its own snapshot bookkeeping; a `git`
+    process killed between creating and releasing its lock leaves that
+    lock file orphaned forever, since nothing else ever removes it.
 
-    Always starts a brand-new opencode session, never `--session`
-    continuation — session continuation across retries/repair cycles was
-    tried (2026-09-15) and reverted the same month after a real round
-    showed the actual failure mode it introduces: one continuously-growing
-    session across ~15 calls and ~6 hours eventually became too large for
-    the model to even begin responding to within opencode's own internal
-    provider-header timeout, burning the round's entire process-retry
-    budget on calls that could never have succeeded — simply retrying an
-    oversized session doesn't fix a problem that IS the session's own
-    size. A fresh session every call re-reads files a previous attempt
-    already read, which costs some redundant exploration, but that cost
-    is bounded and known, unlike unbounded context growth."""
+    Safe to clear unconditionally right before every opencode invocation:
+    this project never runs two opencode processes concurrently (every
+    call here is a single blocking subprocess.run()), so any index.lock
+    found at the moment a new call is about to start cannot belong to a
+    still-legitimately-running process — exactly the same reasoning
+    already applied to CodeGraph's own per-round `unlock` in
+    refresh_codegraph_index(). Best-effort: a permissions error or a
+    missing directory is not worth failing a round over."""
+    snapshot_root = Path.home() / ".local" / "share" / "opencode" / "snapshot"
+    if not snapshot_root.is_dir():
+        return
+    try:
+        for lock_path in snapshot_root.rglob("index.lock"):
+            try:
+                lock_path.unlink()
+                print(f"Cleared a stale opencode snapshot lock: {lock_path}")
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def run_norm_implementer(round_number, extra_message=None, session_id=None):
+    """Runs the norm-implementer as an opencode subprocess. Returns
+    (success, session_id) — success is True on a clean (returncode 0) run
+    that also ended on a genuine "stop" (see extract_last_step_reason()),
+    False on any failure — a timeout, a crash, a non-zero exit, or a
+    session that was silently truncated mid-task despite exiting 0.
+    Analyzing a real 12-round run found this last case is common (13 of
+    26 real invocations never reached a deliberate stop) and is very
+    likely why code-writing specifically (which tends to happen only
+    after exploration/spec-writing) so rarely got reached at all — not
+    because the implementation itself was too costly to attempt. The
+    caller treats a False success like a compile error: discard this
+    round's changes and continue, rather than crashing the whole
+    multi-round run or trusting partial work as if it were final.
+
+    session_id, when given, is passed to opencode as `--session <id>` so
+    this call continues that existing session instead of starting a fresh
+    one. The returned session_id is always the real id opencode actually
+    used (extracted from this call's own output, falling back to whatever
+    was passed in if extraction fails). Unbounded cross-call session
+    continuation was tried (2026-09-15) and reverted (2026-09-17) after a
+    real round showed the actual failure mode it introduces: one
+    continuously-growing session across ~15 calls and ~6 hours eventually
+    became too large for the model to even begin responding to within
+    opencode's own internal provider-header timeout, burning the round's
+    entire process-retry budget on calls that could never have succeeded.
+    This function itself doesn't bound anything — it's
+    run_norm_implementer_with_retry()'s own pairing logic (2026-09-18)
+    that caps how far a session_id it discovers is ever threaded forward,
+    specifically to get the "don't re-read everything from scratch on an
+    immediate retry" benefit without reproducing that unbounded growth."""
+    clear_stale_opencode_snapshot_lock()
     print("\n--- invoking norm-implementer ---")
     # State the round number explicitly — the model can't reliably infer it
     # from file contents alone. Also restates the closing-json-block
@@ -432,6 +499,13 @@ def run_norm_implementer(round_number, extra_message=None):
     # `permission.read` denies this agent already has (ops/, cache dirs,
     # protected paths, etc.) are unaffected.
     cmd = ["opencode", "run", "--agent", "norm-implementer", "--format", "json", "--auto"]
+    # --session: continue an existing session instead of starting fresh —
+    # only when the caller actually has one. run_norm_implementer_with_retry()
+    # is the only caller that ever passes one, and only within its own
+    # bounded 2-attempt pairing (2026-09-18) — see this function's own
+    # docstring for why unbounded continuation isn't repeated here.
+    if session_id:
+        cmd += ["--session", session_id]
     model = os.environ.get("NORM_IMPLEMENTER_MODEL") or os.environ.get("OPENCODE_MODEL")
     if model:
         cmd += ["--model", model]
@@ -441,8 +515,13 @@ def run_norm_implementer(round_number, extra_message=None):
     start = time.monotonic()
     try:
         result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=3600)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as e:
         duration_s = time.monotonic() - start
+        # A killed process may still have emitted real JSONL before the
+        # timeout — subprocess.run() attaches whatever was captured to the
+        # exception, so try to recover the session id from it rather than
+        # unconditionally losing track of a session that did get created.
+        timeout_session_id = extract_session_id(getattr(e, "stdout", None) or "") or session_id
         print(f"Round {round_number}: norm-implementer didn't finish within 3600s — "
               f"treating this round's norm implementation as failed, not crashing the run.",
               file=sys.stderr)
@@ -452,16 +531,19 @@ def run_norm_implementer(round_number, extra_message=None):
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
             tool_call_count=None, step_count=None, tool_call_trace=None,
-            last_step_reason=None,
+            last_step_reason=None, session_id=timeout_session_id,
             report=None, error="timeout after 3600s",
         )
-        return False
+        return False, timeout_session_id
 
     duration_s = time.monotonic() - start
     tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
     tool_call_trace = extract_tool_trace(result.stdout)
     last_step_reason = extract_last_step_reason(result.stdout)
     report = extract_json_report(final_text, required_keys={"classification"})
+    # The real id opencode used this call — falls back to whatever was
+    # passed in if this call's own output doesn't parse for some reason.
+    new_session_id = extract_session_id(result.stdout) or session_id
 
     # A session that ended abnormally (see extract_last_step_reason()'s own
     # docstring for the two real truncation signatures this catches) is not
@@ -485,6 +567,7 @@ def run_norm_implementer(round_number, extra_message=None):
         tool_call_count=tool_call_count,
         step_count=step_count,
         tool_call_trace=tool_call_trace,
+        session_id=new_session_id,
         last_step_reason=last_step_reason,
         report=report,
         error=(
@@ -500,14 +583,14 @@ def run_norm_implementer(round_number, extra_message=None):
               f"treating this round's norm implementation as failed, not crashing the run.",
               file=sys.stderr)
         print(result.stderr, file=sys.stderr)
-        return False
+        return False, new_session_id
     if truncated:
         print(f"Round {round_number}: norm-implementer's session ended abnormally (last step "
               f"reason: {last_step_reason!r}, not a genuine 'stop') — likely a failed or "
               f"truncated completion call, not a deliberate finish. Treating this round's "
               f"partial work as failed rather than trusting it.", file=sys.stderr)
-        return False
-    return True
+        return False, new_session_id
+    return True, new_session_id
 
 
 def run_norm_evaluator(round_number, extra_message=None):
@@ -523,6 +606,7 @@ def run_norm_evaluator(round_number, extra_message=None):
     continuation — see run_norm_implementer()'s own docstring for why
     (session continuation across retries was tried and reverted after a
     real collapse it caused)."""
+    clear_stale_opencode_snapshot_lock()
     print("\n--- invoking norm-evaluator ---")
     # Restates the sentinel-line requirement on every invocation, not just
     # on retry — the first attempt was the one failing to include it.
@@ -1357,11 +1441,26 @@ def run_norm_implementer_with_retry(round_number, extra_message=None):
     or consume a MAX_NORM_REPAIR_ATTEMPTS repair attempt. Returns
     True/False — same success contract as run_norm_implementer() itself.
 
-    Each retry starts a brand-new opencode session — no session
-    continuation across attempts (see run_norm_implementer()'s own
-    docstring for why that was tried and reverted)."""
+    Attempts are paired (1&2, 3&4, 5&6, ...), by request (2026-09-18):
+    the second attempt of a pair continues the first's own opencode
+    session (--session <id>) instead of starting fresh, so it doesn't
+    have to re-read every file the first attempt already read before
+    failing; the pair after that always starts fresh again, never
+    threading a session past 2 consecutive attempts. This is a narrow,
+    bounded reintroduction of the session-continuation idea tried
+    unbounded on 2026-09-15 and reverted on 2026-09-17 after a real round
+    showed a session that keeps growing across many consecutive calls can
+    eventually become too large for the model to even respond to at all,
+    burning the whole retry budget on calls that could never succeed.
+    Capping continuation to a single pair means the largest a session can
+    ever get here is 2 attempts' worth of history, then it's discarded —
+    the specific failure mode that made unbounded continuation dangerous
+    can't reproduce at that scale."""
+    session_id = None
     for attempt in range(1, MAX_IMPLEMENTER_PROCESS_ATTEMPTS + 1):
-        success = run_norm_implementer(round_number, extra_message=extra_message)
+        success, session_id = run_norm_implementer(
+            round_number, extra_message=extra_message, session_id=session_id
+        )
         if success:
             return True
         print(f"Round {round_number}: norm-implementer's own process failed, timed out, or was "
@@ -1369,6 +1468,13 @@ def run_norm_implementer_with_retry(round_number, extra_message=None):
               f"retrying the process itself, not spending a repair attempt on it.")
         if attempt < MAX_IMPLEMENTER_PROCESS_ATTEMPTS:
             time.sleep(NORM_IMPLEMENTER_RETRY_DELAY_S)
+        # Odd attempt (1, 3, 5, ...): keep session_id, so the very next
+        # (even) attempt continues it, completing the pair. Even attempt
+        # (2, 4, 6, ...): the pair is now complete — reset so the next
+        # attempt starts a brand-new session rather than extending the
+        # chain further.
+        if attempt % 2 == 0:
+            session_id = None
     return False
 
 

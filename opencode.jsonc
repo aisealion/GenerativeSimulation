@@ -45,7 +45,17 @@
       },
       "models": {
         "gpt-oss:120b": {
-          "name": "GPT-OSS 120B (local Ollama)"
+          "name": "GPT-OSS 120B (local Ollama)",
+          // Matches Aoraki's own extended-context Modelfile (num_ctx, see
+          // ops/hpc_ollama_entrypoint.sh's OLLAMA_NUM_CTX_120B) — added so
+          // opencode's own context-management/compaction logic knows this
+          // model's real window instead of having no declared limit at all
+          // (unlike the litellm models above, which already declare one).
+          // "output" set equal to "context": a self-hosted Ollama model has
+          // no separate max-generation cap the way a hosted API does —
+          // num_ctx is the only real ceiling, so anything smaller here
+          // would be an invented number, not a documented spec.
+          "limit": { "context": 131072, "output": 131072 }
         }
       }
     }

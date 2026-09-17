@@ -6,7 +6,7 @@ def test_succeeds_on_first_attempt_no_sleep_no_extra_calls(monkeypatch):
     sleeps = []
     monkeypatch.setattr(
         simulate_module, "run_norm_implementer",
-        lambda round_number, extra_message=None: calls.append("run") or True,
+        lambda round_number, extra_message=None, session_id=None: (calls.append("run") or True, "ses_1"),
     )
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
 
@@ -19,9 +19,9 @@ def test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt(monkeyp
     attempts = {"n": 0}
     sleeps = []
 
-    def _fake_run(round_number, extra_message=None):
+    def _fake_run(round_number, extra_message=None, session_id=None):
         attempts["n"] += 1
-        return attempts["n"] == simulate_module.MAX_IMPLEMENTER_PROCESS_ATTEMPTS
+        return attempts["n"] == simulate_module.MAX_IMPLEMENTER_PROCESS_ATTEMPTS, "ses_1"
 
     monkeypatch.setattr(simulate_module, "run_norm_implementer", _fake_run)
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
@@ -37,9 +37,9 @@ def test_returns_false_after_exhausting_every_attempt(monkeypatch):
     attempts = {"n": 0}
     sleeps = []
 
-    def _always_fails(round_number, extra_message=None):
+    def _always_fails(round_number, extra_message=None, session_id=None):
         attempts["n"] += 1
-        return False
+        return False, "ses_1"
 
     monkeypatch.setattr(simulate_module, "run_norm_implementer", _always_fails)
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
@@ -56,23 +56,32 @@ def test_the_budget_is_actually_five(monkeypatch):
     assert simulate_module.MAX_IMPLEMENTER_PROCESS_ATTEMPTS == 5
 
 
-def test_every_attempt_starts_a_brand_new_session(monkeypatch):
-    """Session continuation across retries (added 2026-09-15) was reverted
-    the same month: a real round's continuously-growing session eventually
-    became too large for the model to even begin responding to within
-    opencode's own internal timeout, burning the whole retry budget on
-    calls that could never succeed. Each retry attempt must now be an
-    entirely independent run_norm_implementer() call with no session
-    threaded through — run_norm_implementer() itself no longer accepts a
-    session_id at all."""
-    call_count = {"n": 0}
+def test_attempts_are_paired_1_2_then_3_4_then_5_alone(monkeypatch):
+    """Added 2026-09-18, by request: attempt 2 must continue attempt 1's
+    own session, attempt 4 must continue attempt 3's, but attempt 3 must
+    NOT continue attempt 2's session (each pair starts fresh) — a bounded
+    reintroduction of session continuation, capped at 2 consecutive
+    attempts specifically so it can't reproduce the unbounded-growth
+    collapse that got the unbounded version (2026-09-15) reverted
+    (2026-09-17)."""
+    seen_session_ids = []
 
-    def _fake_run(round_number, extra_message=None):
-        call_count["n"] += 1
-        return call_count["n"] == 3
+    def _fake_run(round_number, extra_message=None, session_id=None):
+        seen_session_ids.append(session_id)
+        n = len(seen_session_ids)
+        # Every attempt "discovers" a session id unique to its own pair,
+        # and every attempt fails (forcing the full 5-attempt budget).
+        pair_index = (n - 1) // 2
+        return False, f"ses_pair_{pair_index}"
 
     monkeypatch.setattr(simulate_module, "run_norm_implementer", _fake_run)
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: None)
 
-    assert simulate_module.run_norm_implementer_with_retry(1) is True
-    assert call_count["n"] == 3
+    assert simulate_module.run_norm_implementer_with_retry(1) is False
+    assert seen_session_ids == [
+        None,             # attempt 1: fresh start
+        "ses_pair_0",     # attempt 2: continues attempt 1's discovered session
+        None,             # attempt 3: fresh again — pair 1 is over
+        "ses_pair_1",     # attempt 4: continues attempt 3's discovered session
+        None,             # attempt 5: fresh again — pair 2 is over
+    ]
