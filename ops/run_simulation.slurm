@@ -22,7 +22,7 @@
 # in hpc_ollama_entrypoint.sh, run as that one string.
 #
 #SBATCH --job-name=fishery-sim
-#SBATCH --partition=aoraki_gpu_RTX6000    # 2026-09-15: moved off aoraki_gpu_H100 (2x 80GB) onto
+#SBATCH --partition=aoraki_gpu_H200    # 2026-09-15: moved off aoraki_gpu_H100 (2x 80GB) onto
                                         #   aoraki44's own partition — 8x H200 144GB per node.
                                         #   Requires --qos=h200_advanced below; the user's account
                                         #   was explicitly granted both h200_advanced and
@@ -35,7 +35,7 @@
                                         #   Do NOT use aoraki_gpu_L40 (48GB), aoraki_gpu_A100_40GB
                                         #   (40GB), or the generic aoraki_gpu pool (could land on
                                         #   any of the smaller cards above) for this workload.
-#SBATCH --qos=rtx6000_advanced            # required alongside the partition above — omitting this
+#SBATCH --qos=h200_advanced            # required alongside the partition above — omitting this
                                         #   likely gets the job rejected or defaulted to a qos
                                         #   without access to aoraki44 at all.
 #SBATCH --nodes=1
@@ -47,7 +47,7 @@
                                         #   with real headroom even while Ollama swaps between them
                                         #   on the same card, without needing the old 2-GPU/
                                         #   OLLAMA_SCHED_SPREAD workaround (removed below) at all.
-#SBATCH --cpus-per-task=4             # raised 10 -> 16 (2026-09-15): aoraki44 has 128 cores
+#SBATCH --cpus-per-task=8             # raised 10 -> 16 (2026-09-15): aoraki44 has 128 cores
                                         #   (2x64) total across 8 GPUs — this job uses 1 of those
                                         #   8, so 16 cores (1/8 of the node's total) is a
                                         #   proportional share rather than either the old
@@ -56,7 +56,7 @@
                                         #   node. Real headroom either way for the opencode/Ollama/
                                         #   Neo4j-JVM CPU-side work this job actually does, none of
                                         #   which is GPU-bound.
-#SBATCH --mem=32G                     # CPU RAM, not GPU VRAM (fixed by the partition/gres above) —
+#SBATCH --mem=64G                     # CPU RAM, not GPU VRAM (fixed by the partition/gres above) —
                                         #   raised 64G -> 220G (2026-09-15) — 220G is this
                                         #   partition/qos's own confirmed per-job max (the earlier
                                         #   256G guess, extrapolated from an 8-way proportional
