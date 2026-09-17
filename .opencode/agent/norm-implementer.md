@@ -21,7 +21,6 @@ permission:
     ".git/*": deny
     ".git/*/*": deny
     ".codegraph/*": deny
-    ".ua/intermediate/*": deny
     # __pycache__ isn't anchored under one fixed top-level path like the
     # others above — Python creates one beside every package's .py files,
     # so it shows up at the repo root and under every package directory
@@ -156,14 +155,12 @@ Exactly: `bash`, `edit`, `glob`, `grep`, `read`, `skill`,
 `bash` (`bash: ls -R`, `bash: find .`). Calling a tool that doesn't exist
 wastes a step and gets rejected.
 
-Use `codegraph_codegraph_explore` (structural) and, if
-`.ua/knowledge-graph.json`/`.understand-anything/knowledge-graph.json`
-exists, read it directly (semantic — what a file/function is *for*).
-Query with a short phrase naming an existing analogous pattern
-("existing rotating role assignment," "existing catch cap rule") — never
-a bare category word ("actions," "roles") or the new concept's own name
-(it doesn't exist yet; a query for it correctly returns nothing). If a
-tool call against either index returns nothing, stale, or fails, don't
+Use `codegraph_codegraph_explore` to search for an existing analogous
+pattern before writing something new — query with a short phrase naming
+what you're looking for ("existing rotating role assignment," "existing
+catch cap rule"), never a bare category word ("actions," "roles") or the
+new concept's own name (it doesn't exist yet; a query for it correctly
+returns nothing). If a tool call returns nothing, stale, or fails, don't
 fix it yourself — note it and fall back to Read/Grep.
 
 ## Understand the current institution first

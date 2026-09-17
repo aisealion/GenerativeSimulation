@@ -6,9 +6,7 @@
 # NORM_IMPLEMENTER_MODEL — back on the local Ollama gpt-oss:120b model as
 # of 2026-09-14 (litellm/Kimi-K2.5's quota was exhausted; see CLAUDE.md's
 # "Norm-implementer/evaluator back on the local model" entry) — see
-# hpc_ollama_entrypoint.sh for where these get set. OPENCODE_MODEL is the
-# same local gpt-oss:120b, also used for the optional Understand-Anything
-# knowledge-graph build/refresh (BUILD_KNOWLEDGE_GRAPH=1). Submit
+# hpc_ollama_entrypoint.sh for where these get set. Submit
 # from the repo root: sbatch ops/run_simulation.slurm — this script and
 # hpc_ollama_entrypoint.sh both moved into ops/ on 2026-09-14 (operational/
 # infra scripts, plus logs/ and plots/, out of the repo root specifically
@@ -56,8 +54,8 @@
                                         #   H100-sized number or the whole node, leaving the other
                                         #   7 GPUs' worth of CPU for whatever else lands on this
                                         #   node. Real headroom either way for the opencode/Ollama/
-                                        #   Neo4j-JVM/Understand-Anything-build CPU-side work this
-                                        #   job actually does, none of which is GPU-bound.
+                                        #   Neo4j-JVM CPU-side work this job actually does, none of
+                                        #   which is GPU-bound.
 #SBATCH --mem=32G                     # CPU RAM, not GPU VRAM (fixed by the partition/gres above) —
                                         #   raised 64G -> 220G (2026-09-15) — 220G is this
                                         #   partition/qos's own confirmed per-job max (the earlier
@@ -67,21 +65,14 @@
                                         #   the allowed amount rather than a smaller proportional
                                         #   share, since the request was specifically to increase
                                         #   it. Real headroom for the optional Neo4j JVM
-                                        #   (ENABLE_NEO4J_MEMORY=1) and Understand-Anything's
-                                        #   pnpm/tsc build (BUILD_KNOWLEDGE_GRAPH=1), neither of
-                                        #   which has been directly measured — but unlike the CPU
-                                        #   figure below, this one is now a real ceiling, not a
-                                        #   guess: sbatch will simply reject anything higher.
+                                        #   (ENABLE_NEO4J_MEMORY=1), not directly measured — but
+                                        #   unlike the CPU figure below, this one is now a real
+                                        #   ceiling, not a guess: sbatch will simply reject anything
+                                        #   higher.
 #SBATCH --time=7:00:00                # tune from an observed per-round duration x --max-rounds;
                                         #   shorter requests queue faster on Aoraki (backfill) —
                                         #   if this exceeds the partition's own MaxTime, sbatch
                                         #   rejects the submission outright, so check that if so.
-                                        #   Add real margin if submitting with BUILD_KNOWLEDGE_GRAPH=1
-                                        #   (below): +30min for the one-time initial build, PLUS up to
-                                        #   +10min for EVERY round that actually commits a norm (engine/
-                                        #   simulate.py's refresh_knowledge_graph() runs after each one) —
-                                        #   for a long run with many adopted norms this can dominate total
-                                        #   wall time, not just pad it; size --max-rounds accordingly.
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
 # No --account line: Aoraki gives every user a default account per-partition,
@@ -111,14 +102,6 @@ export MAX_ROUNDS="${MAX_ROUNDS:-100}"
 # one GPU allocated, so a "spread across every visible GPU" setting has
 # nothing to spread across; re-add it (and --gres=gpu:2 above) only if a
 # real run shows one H200 alone isn't enough headroom after all.
-# Opt-in, off by default — see hpc_ollama_entrypoint.sh for the initial
-# build and engine/simulate.py's refresh_knowledge_graph() for the
-# per-round follow-up, and why neither is on by default (real extra GPU
-# time every time, not free like codegraph). Submit with
-# BUILD_KNOWLEDGE_GRAPH=1 sbatch ops/run_simulation.slurm to build a fresh
-# Understand-Anything semantic graph before this run starts AND keep it
-# incrementally refreshed after every round that commits a norm.
-export BUILD_KNOWLEDGE_GRAPH="${BUILD_KNOWLEDGE_GRAPH:-0}"
 
 # Opt-in, off by default — see hpc_ollama_entrypoint.sh for the nested
 # Apptainer Neo4j instance this starts and health-checks before exporting

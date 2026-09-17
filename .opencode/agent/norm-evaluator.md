@@ -20,7 +20,6 @@ permission:
     ".git/*": deny
     ".git/*/*": deny
     ".codegraph/*": deny
-    ".ua/intermediate/*": deny
     # __pycache__ isn't anchored under one fixed top-level path — Python
     # creates one beside every package's .py files (confirmed: depths 0-4
     # across this repo today). Denying every depth up to 4 covers the real
@@ -118,11 +117,9 @@ the object/action contract produces a false `IMPLEMENTATION_ERROR`.
 `tests/norm_evaluation/*`. No `ls`, `print_tree`, `search`, or `exec` —
 any listing goes through `bash` (the allowed commands above) or `glob`.
 
-Before writing any test, use `codegraph_codegraph_explore` and, if
-`.ua/knowledge-graph.json`/`.understand-anything/knowledge-graph.json`
-exists, read it directly, to understand what the norm-implementer's diff
-touches. If a tool call ever returns nothing, stale, or fails, note it
-and fall back to plain Read/Grep.
+Before writing any test, use `codegraph_codegraph_explore` to understand
+what the norm-implementer's diff touches. If a tool call ever returns
+nothing, stale, or fails, note it and fall back to plain Read/Grep.
 
 - Read `norm.txt` and **exactly** `state/norm_specs/round_{N}.md` (not
   `norm_specs/round_{N}.md` at the repo root — a real round mistook the

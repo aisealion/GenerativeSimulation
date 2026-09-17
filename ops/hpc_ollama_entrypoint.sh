@@ -353,21 +353,6 @@ mkdir -p ops/logs
 # local risks silent early truncation, litellm/Kimi-K2.5 risks a total
 # multi-hour stall once quota/rate-limit is hit.
 #
-# UNDERSTAND_MODEL was briefly routed to Kimi-K2.5 too (2026-09-03, same
-# day) after the local gpt-oss-120b model running the UA build-agent calls
-# failed twice for reliability reasons (a silently-denied
-# external_directory permission; then, per a real job's
-# ops/logs/understand-anything-build.log, hallucinating a nonexistent tool
-# name and stopping to ask a clarifying question despite being told not
-# to). Reverted the same day, by request: Kimi-K2.5 is a paid model over
-# the Otago LiteLLM proxy, and UA's calls are large/expensive enough
-# (understand-anything-build.log's own transcripts run well past 100K
-# characters) that routing them there risked exceeding quota — a real,
-# concrete cost that outweighs the reliability gain for this specific,
-# already-opt-in feature. UA is back on the local, free gpt-oss-120b
-# model via OPENCODE_MODEL directly; the two known failure modes above are
-# accepted as a live, unresolved limitation of running UA unattended on
-# that model rather than paid over.
 export NORM_IMPLEMENTER_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
@@ -398,10 +383,9 @@ esac
 # ever set NEO4J_URI, and write_memory_episodes()/render_relevant_memories()
 # both check `if not os.environ.get("NEO4J_URI")` before touching anything
 # memory-related, so its absence was always a silent, correct no-op rather
-# than a crash. Opt-in now via ENABLE_NEO4J_MEMORY=1 (off by default — same
-# reasoning as BUILD_KNOWLEDGE_GRAPH below: real new failure surface and
-# job-startup latency, not something every ordinary run should pay for
-# unverified).
+# than a crash. Opt-in now via ENABLE_NEO4J_MEMORY=1 (off by default — real
+# new failure surface and job-startup latency, not something every
+# ordinary run should pay for unverified).
 #
 # 2026-08-28: switched from a nested-Apptainer-instance approach to a
 # portable binary run as a plain background process instead — a real job
@@ -700,191 +684,16 @@ if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
   fi
 fi
 
-# Understand-Anything: a semantic ("what is this for") complement to
-# CodeGraph's structural ("what calls what") index — see CLAUDE.md's
-# "Understand-Anything" section. Opt-in, off by default: unlike codegraph
-# init (a few seconds, zero LLM calls, pure parsing), building this graph
-# means opencode dispatching a real subagent per batch of files across the
-# whole repo — genuine LLM time on the same GPU the fisher/norm-implementer
-# calls already share, not something every ordinary run should pay for.
-# Set BUILD_KNOWLEDGE_GRAPH=1 to opt in. This is only the ONE-TIME initial
-# build; engine/simulate.py's refresh_knowledge_graph() does the ongoing
-# per-round incremental refresh after that, reading this same env var —
-# without it, the graph built here would just go stale round after round
-# as norms/*.py changes, same problem CodeGraph had before its own
-# per-round refresh got added to the codebase-understanding step above.
-#
-# Skills are installed for opencode the same way codegraph is above
-# (install-if-missing, from the tool's own official installer) — but unlike
-# codegraph, installing the skill files here doesn't require Node.js on this
-# node: it's just `git clone` + symlinks (verified by reading install.sh
-# directly before ever running it — see CLAUDE.md). Node/pnpm would only be
-# needed by the graph-*building* pipeline's own Node scripts, which run
-# inside the opencode subprocess below, in whatever environment opencode
-# itself provides — untested on Aoraki specifically; if that's missing
-# there, expect this whole block to fail and fall through to the
-# graceful-skip path, same as any other failure here.
-if [ "${BUILD_KNOWLEDGE_GRAPH:-0}" = "1" ]; then
-  if ! find "$HOME/.agents/skills" -maxdepth 1 -name 'understand*' -print -quit 2>/dev/null | grep -q .; then
-    echo "Understand-Anything skills not found — installing for opencode"
-    curl -fsSL https://raw.githubusercontent.com/Egonex-AI/Understand-Anything/main/install.sh | bash -s opencode
-  fi
-
-  # install.sh's cmd_install() only git-clones the repo and symlinks skill
-  # files — read directly, it never runs `pnpm install`. That means the
-  # plugin's compiled core (understand-anything-plugin/packages/core/dist/
-  # index.js, produced by the *root* package.json's own `"prepare": "pnpm
-  # --filter @understand-anything/core build"` lifecycle script, which only
-  # fires on a real `pnpm install`) is never actually built by the installer
-  # on its own. Confirmed as a real, repeatable gap across two separate
-  # real opencode sessions, not a one-off: one where the build agent tried to
-  # self-repair it (correctly ran `pnpm install && pnpm build` itself) and got
-  # silently permission-denied — the reason --auto exists below — and a
-  # second, later session where it didn't even attempt a self-repair and
-  # generate-ignore.mjs just crashed with ERR_MODULE_NOT_FOUND importing the
-  # never-built dist/index.js. Two different failure shapes from the same
-  # root cause is a sign this shouldn't be left to an LLM session to notice
-  # and fix each time — it's a deterministic, non-LLM step, so do it directly
-  # here instead of inside the opencode subprocess below.
-  # Don't hardcode one assumed layout — a real Aoraki run showed the
-  # installed plugin actually lives at $HOME/.understand-anything-plugin
-  # directly, NOT nested under $HOME/.understand-anything/repo/
-  # understand-anything-plugin/ the way install.sh's own documented
-  # REPO_DIR default (and this script's own earlier assumption) implied.
-  # Check both: whichever one actually has a package.json is the real one.
-  UA_REPO_DIR=""
-  UA_CORE_DIST=""  # stays empty (never a real file) if no plugin root is found below —
-                    # must be defined unconditionally: set -u would otherwise crash the
-                    # whole job on the fail-fast check further down that reads it.
-  for candidate in \
-    "$HOME/.understand-anything-plugin" \
-    "$HOME/.understand-anything/repo/understand-anything-plugin"; do
-    if [ -f "$candidate/package.json" ]; then
-      UA_REPO_DIR="$candidate"
-      break
-    fi
-  done
-
-  if [ -n "$UA_REPO_DIR" ]; then
-    UA_CORE_DIST="$UA_REPO_DIR/packages/core/dist/index.js"
-    if [ ! -f "$UA_CORE_DIST" ]; then
-      echo "Understand-Anything core not built at $UA_REPO_DIR — running pnpm install (its 'prepare' script builds the core)"
-      # corepack ships with Node >=16.9 but needs an explicit 'enable' to
-      # actually create the pnpm shim alongside node's own binary — a real
-      # run showed `node -v` working but `pnpm -v` failing as "command not
-      # found" in the exact same shell, which is what a never-enabled
-      # corepack looks like. Idempotent and safe to call unconditionally.
-      command -v corepack >/dev/null 2>&1 && corepack enable >/dev/null 2>&1
-      if command -v pnpm >/dev/null 2>&1; then
-        ( cd "$UA_REPO_DIR" && pnpm install ) || \
-          echo "pnpm install failed in $UA_REPO_DIR — continuing; the build-agent invocation below will fail fast on the same missing dist/index.js and fall through to the graceful-skip path" >&2
-      else
-        echo "pnpm still not found on this node after 'corepack enable' — Understand-Anything's core can't be built; continuing without it (graceful-skip path below)" >&2
-      fi
-    fi
-  else
-    echo "No Understand-Anything plugin checkout found under \$HOME (checked" >&2
-    echo "$HOME/.understand-anything-plugin and $HOME/.understand-anything/repo/" >&2
-    echo "understand-anything-plugin) — the skill install above may have used a" >&2
-    echo "different layout than either. Continuing without building the core;" >&2
-    echo "the build-agent invocation below will fall through to the graceful-skip path." >&2
-  fi
-
-  # .ua/ is gitignored and machine-local (see .gitignore) — same reasoning
-  # as .codegraph/ above: nothing to reuse or sync from a previous run on
-  # this same checkout, so always build fresh rather than trying an
-  # incremental update whose correctness here is unverified.
-  rm -rf .ua .understand-anything
-
-  echo "Building the Understand-Anything knowledge graph (BUILD_KNOWLEDGE_GRAPH=1)..."
-  # --agent build: norm-implementer deliberately has permission.task=deny
-  # (a hardening choice, not a technical limit — see CLAUDE.md) so it can
-  # never dispatch the subagents this pipeline needs. opencode's default
-  # "build" agent has no such restriction (permission "*": allow), which is
-  # what actually makes this scriptable via the same `opencode run`
-  # subprocess pattern engine/simulate.py already uses for the
-  # norm-implementer, not a fundamentally different mechanism.
-  # --model reuses OPENCODE_MODEL (the local 120b variant) rather than
-  # pulling or configuring a third model just for this — a brief attempt
-  # to route this to Kimi-K2.5 instead (2026-09-03, same day) was reverted
-  # the same day: paid-model quota cost for UA's large, expensive calls
-  # outweighs the reliability gain for this already-opt-in feature. See
-  # NORM_IMPLEMENTER_MODEL/OPENCODE_MODEL's own comment above for the two
-  # known real failure modes this local model still has, unaddressed.
-  #
-  # --command understand, not a natural-language "Run /understand ..."
-  # message: a real run on gpt-oss-120b confirmed the smaller local model
-  # doesn't reliably infer "this is a skill, read SKILL.md and execute its
-  # steps yourself" from prose — it tried to find and run a literal
-  # `understand` binary instead (`command not found`), then gave up and
-  # printed manual install instructions without ever touching the actual
-  # pipeline, leaving no .ua/ directory at all despite reporting no error to
-  # this script (opencode's own exit code was 0 — a "successful" no-op).
-  # `opencode run --command <name>` invokes the named skill/command
-  # directly and structurally — confirmed to be accepted syntax locally
-  # (reached the auth step, not an argument-parsing error) — instead of
-  # depending on the model correctly inferring skill intent from a message.
-  # Arguments after -- go to the skill as $ARGUMENTS, same as SKILL.md's
-  # own documented parsing (a single string it greps for flags in, not an
-  # argv array), matching how --full/--no-auto-update are described there.
-  #
-  # Trailing message required too — a real run confirmed --command alone
-  # loads the skill into context and then just stops ("The understand
-  # skill is now loaded and ready. Let me know what you'd like to do"),
-  # never executing a single phase, still exit 0. --command answers "what
-  # skill" but apparently not "go run it now" on its own; an explicit
-  # directive is still needed alongside it. Confirmed locally to still be
-  # accepted syntax (reaches the auth step) with both present.
-  #
-  # --auto matters too, found later the same day: with --format json
-  # actually capturing real diagnostics (see refresh_knowledge_graph()),
-  # a real log showed the model correctly diagnosing "need to build core"
-  # and issuing exactly the right `pnpm install && pnpm build` command —
-  # which then got denied: "The user rejected permission to use this
-  # specific tool call." The build agent's external_directory permission
-  # defaults to "ask", and the plugin's own checkout
-  # ($HOME/.understand-anything/repo/...) is outside the project
-  # directory — headless, no one to answer, so it silently auto-denies.
-  # --auto ("auto-approve permissions that are not explicitly denied") is
-  # opencode's own documented mechanism for exactly this unattended case.
-  #
-  # Generous timeout, not a tight one: unverified how long a real run takes
-  # here — if it's still stuck, fail this step loudly and continue without
-  # a graph (norm-implementer's own staleness check already treats a missing graph as
-  # non-blocking — falls back to CodeGraph + direct reading), exactly like
-  # codegraph's own graceful-degradation pattern above, rather than eating
-  # the rest of this job's wall time.
-  build_failed=0
-  # Fail fast instead of paying the 1800s timeout (and the GPU/model time it
-  # burns, shared with the fisher/norm-implementer calls) for a run that's
-  # already known to hit the same ERR_MODULE_NOT_FOUND the pnpm-install step
-  # above just tried to prevent — e.g. pnpm wasn't found on this node, or
-  # `pnpm install` itself failed.
-  if [ ! -f "$UA_CORE_DIST" ]; then
-    echo "Understand-Anything core still missing at $UA_CORE_DIST after the pnpm install attempt — skipping the opencode build call entirely rather than spending 1800s on a run that would fail the same way" >&2
-    build_failed=1
-  elif ! timeout 1800 opencode run --agent build --model "$OPENCODE_MODEL" --auto \
-    --command understand -- "--full --no-auto-update" \
-    "Begin the analysis immediately, following the skill's own instructions completely — do not wait for further input." \
-    > ops/logs/understand-anything-build.log 2>&1; then
-    build_failed=1
-  fi
-  # Exit code alone isn't trustworthy here — a real run returned 0 while
-  # having done nothing at all (gave up internally, printed advice, never
-  # wrote anything). Verify the actual claimed outcome instead of just the
-  # process's own report of it.
-  if [ ! -f .ua/knowledge-graph.json ] && [ ! -f .understand-anything/knowledge-graph.json ]; then
-    build_failed=1
-  fi
-  if [ "$build_failed" = "1" ]; then
-    echo "Understand-Anything build didn't finish within 1800s, failed, or" >&2
-    echo "produced no knowledge-graph.json despite exiting cleanly — see" >&2
-    echo "ops/logs/understand-anything-build.log. Continuing without a knowledge" >&2
-    echo "graph: the norm-implementer will fall back to CodeGraph + direct" >&2
-    echo "reading, which still works, just without the semantic view." >&2
-    rm -rf .ua .understand-anything
-  fi
-fi
+# Understand-Anything (a semantic complement to CodeGraph's structural
+# index) was removed 2026-09-17: across every attempt on record — several
+# distinct failure modes (a silently-denied permission, a hallucinated
+# tool name, an unbuilt plugin core, the model ignoring unattended-mode
+# instructions) fixed one at a time over several weeks — the graph it
+# produces was never once actually read by the norm-implementer, even
+# after the instructions were tightened specifically to require it. Real,
+# repeated engineering cost for a feature that provably never delivered
+# value. See CLAUDE.md's "Understand-Anything" history for the full record
+# of what was tried.
 
 # Run through the venv's interpreter, not the container's bare python3 —
 # that's the whole point of building it above. engine/simulate.py itself

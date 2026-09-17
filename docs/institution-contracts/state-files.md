@@ -81,6 +81,5 @@
 
 ## Operational infra — `read` denied by permission
 
-`ops/`, `.git/`, `.codegraph/`, `.pytest_cache/`, `.venv-fishery/`,
-`.ua/intermediate/`, and every package's own `__pycache__/`. None of it
-describes the institution.
+`ops/`, `.git/`, `.codegraph/`, `.pytest_cache/`, `.venv-fishery/`, and
+every package's own `__pycache__/`. None of it describes the institution.

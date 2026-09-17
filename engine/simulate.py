@@ -339,29 +339,6 @@ def extract_last_step_reason(stdout):
     return last_reason
 
 
-def extract_session_id(stdout):
-    """First sessionID found anywhere in the opencode run --format json
-    JSONL stream (every event in one session carries the same id) — used
-    to continue the SAME opencode session across a retry
-    (run_norm_implementer_with_retry()/implement_and_evaluate_norm()),
-    added 2026-09-15 by request, instead of starting a brand-new session
-    every single attempt. Returns None on any parse failure or if no
-    event carries one — the caller then falls back to starting fresh,
-    exactly like today's behavior."""
-    try:
-        for line in stdout.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            event = json.loads(line)
-            sid = event.get("sessionID") or event.get("part", {}).get("sessionID")
-            if sid:
-                return sid
-    except (json.JSONDecodeError, AttributeError):
-        return None
-    return None
-
-
 def extract_json_report(text, required_keys=()):
     """Pulls the trailing fenced ```json block matching required_keys out of
     an agent's response, scanning from the end backwards so an earlier,
@@ -396,31 +373,33 @@ def extract_evaluation_result(text):
     return matches[-1].upper()
 
 
-def run_norm_implementer(round_number, extra_message=None, session_id=None):
-    """Runs the norm-implementer as an opencode subprocess. Returns
-    (success, session_id) — success is True on a clean (returncode 0) run
-    that also ended on a genuine "stop" (see extract_last_step_reason()),
-    False on any failure — a timeout, a crash, a non-zero exit, or a
-    session that was silently truncated mid-task despite exiting 0.
-    Analyzing a real 12-round run found this last case is common (13 of 26
-    real invocations never reached a deliberate stop) and is very likely
-    why code-writing specifically (which tends to happen only after
-    exploration/spec-writing) so rarely got reached at all — not because
-    the implementation itself was too costly to attempt. The caller treats
-    a False success like a compile error: discard this round's changes and
-    continue, rather than crashing the whole multi-round run or trusting
-    partial work as if it were final.
+def run_norm_implementer(round_number, extra_message=None):
+    """Runs the norm-implementer as an opencode subprocess. Returns True on
+    a clean (returncode 0) run that also ended on a genuine "stop" (see
+    extract_last_step_reason()), False on any failure — a timeout, a
+    crash, a non-zero exit, or a session that was silently truncated
+    mid-task despite exiting 0. Analyzing a real 12-round run found this
+    last case is common (13 of 26 real invocations never reached a
+    deliberate stop) and is very likely why code-writing specifically
+    (which tends to happen only after exploration/spec-writing) so rarely
+    got reached at all — not because the implementation itself was too
+    costly to attempt. The caller treats a False success like a compile
+    error: discard this round's changes and continue, rather than
+    crashing the whole multi-round run or trusting partial work as if it
+    were final.
 
-    session_id, when given, is passed to opencode as `--session <id>` so
-    this call CONTINUES that existing session instead of starting a fresh
-    one — added 2026-09-15 by request, so a retry (process-level or a
-    repair cycle) doesn't have to re-derive everything about the round
-    from scratch by re-reading files a previous session already read. The
-    returned session_id is always the real id opencode actually used
-    (extracted from this call's own output, falling back to whatever was
-    passed in if extraction fails) — the caller threads it into the next
-    call to keep continuing the same session; passing None starts fresh,
-    exactly like before this change."""
+    Always starts a brand-new opencode session, never `--session`
+    continuation — session continuation across retries/repair cycles was
+    tried (2026-09-15) and reverted the same month after a real round
+    showed the actual failure mode it introduces: one continuously-growing
+    session across ~15 calls and ~6 hours eventually became too large for
+    the model to even begin responding to within opencode's own internal
+    provider-header timeout, burning the round's entire process-retry
+    budget on calls that could never have succeeded — simply retrying an
+    oversized session doesn't fix a problem that IS the session's own
+    size. A fresh session every call re-reads files a previous attempt
+    already read, which costs some redundant exploration, but that cost
+    is bounded and known, unlike unbounded context growth."""
     print("\n--- invoking norm-implementer ---")
     # State the round number explicitly — the model can't reliably infer it
     # from file contents alone. Also restates the closing-json-block
@@ -441,8 +420,7 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
         f"(the one containing a \"classification\" key) — this is required every time, not "
         f"just when something went wrong."
     )
-    # --auto: same fix already applied to the build-agent invocations below,
-    # now applied here too (2026-09-15) — a real run's own logs showed the
+    # --auto: (2026-09-15) — a real run's own logs showed the
     # norm-implementer hallucinating a slightly-wrong absolute path on a
     # read/edit call (a doubled letter, a typo'd username) often enough to
     # matter; opencode's external_directory permission defaults to "ask",
@@ -454,13 +432,6 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
     # `permission.read` denies this agent already has (ops/, cache dirs,
     # protected paths, etc.) are unaffected.
     cmd = ["opencode", "run", "--agent", "norm-implementer", "--format", "json", "--auto"]
-    # --session: continue an existing session instead of starting fresh —
-    # only when the caller actually has one (a retry); a genuinely fresh
-    # start (session_id=None) omits this entirely, exactly like before.
-    if session_id:
-        cmd += ["--session", session_id]
-    # NORM_IMPLEMENTER_MODEL takes precedence over OPENCODE_MODEL, which is
-    # shared with the Understand-Anything build-agent calls below.
     model = os.environ.get("NORM_IMPLEMENTER_MODEL") or os.environ.get("OPENCODE_MODEL")
     if model:
         cmd += ["--model", model]
@@ -470,13 +441,8 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
     start = time.monotonic()
     try:
         result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=3600)
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         duration_s = time.monotonic() - start
-        # A killed process may still have emitted real JSONL before the
-        # timeout — subprocess.run() attaches whatever was captured to the
-        # exception, so try to recover the session id from it rather than
-        # unconditionally losing track of a session that did get created.
-        timeout_session_id = extract_session_id(getattr(e, "stdout", None) or "") or session_id
         print(f"Round {round_number}: norm-implementer didn't finish within 3600s — "
               f"treating this round's norm implementation as failed, not crashing the run.",
               file=sys.stderr)
@@ -486,21 +452,16 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
             tool_call_count=None, step_count=None, tool_call_trace=None,
-            last_step_reason=None, session_id=timeout_session_id,
+            last_step_reason=None,
             report=None, error="timeout after 3600s",
         )
-        return False, timeout_session_id
+        return False
 
     duration_s = time.monotonic() - start
     tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
     tool_call_trace = extract_tool_trace(result.stdout)
     last_step_reason = extract_last_step_reason(result.stdout)
     report = extract_json_report(final_text, required_keys={"classification"})
-    # The real id opencode used this call — falls back to whatever was
-    # passed in if this call's own output doesn't parse for some reason,
-    # so a retry never regresses to "no session" just because extraction
-    # failed once.
-    new_session_id = extract_session_id(result.stdout) or session_id
 
     # A session that ended abnormally (see extract_last_step_reason()'s own
     # docstring for the two real truncation signatures this catches) is not
@@ -525,7 +486,6 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
         step_count=step_count,
         tool_call_trace=tool_call_trace,
         last_step_reason=last_step_reason,
-        session_id=new_session_id,
         report=report,
         error=(
             result.stderr.strip() if result.returncode != 0
@@ -540,31 +500,29 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
               f"treating this round's norm implementation as failed, not crashing the run.",
               file=sys.stderr)
         print(result.stderr, file=sys.stderr)
-        return False, new_session_id
+        return False
     if truncated:
         print(f"Round {round_number}: norm-implementer's session ended abnormally (last step "
               f"reason: {last_step_reason!r}, not a genuine 'stop') — likely a failed or "
               f"truncated completion call, not a deliberate finish. Treating this round's "
               f"partial work as failed rather than trusting it.", file=sys.stderr)
-        return False, new_session_id
-    return True, new_session_id
+        return False
+    return True
 
 
-def run_norm_evaluator(round_number, extra_message=None, session_id=None):
+def run_norm_evaluator(round_number, extra_message=None):
     """Mirrors run_norm_implementer()'s subprocess/timeout/logging shape,
-    against the norm-evaluator agent. Returns (evaluation, session_id):
-    evaluation is {"result": "COMPLIANT" | "NEEDS_REPAIR", "text":
-    final_text} on a completed run whose response contains a trusted
-    sentinel line (see extract_evaluation_result() and the zero-tool-call
-    check below), or None on any failure — treated by the caller like a
-    norm-implementer failure: discard, don't crash the rest of the run.
+    against the norm-evaluator agent. Returns {"result": "COMPLIANT" |
+    "NEEDS_REPAIR", "text": final_text} on a completed run whose response
+    contains a trusted sentinel line (see extract_evaluation_result() and
+    the zero-tool-call check below), or None on any failure — treated by
+    the caller like a norm-implementer failure: discard, don't crash the
+    rest of the run.
 
-    session_id, when given, continues that existing opencode session
-    (--session <id>) instead of starting fresh — added 2026-09-15 by
-    request, same reasoning as run_norm_implementer()'s own copy of this.
-    The returned session_id is always returned (even when evaluation is
-    None) so a retry of the evaluator's own process can still continue the
-    same session it just failed on, rather than losing track of it."""
+    Always starts a brand-new opencode session, never `--session`
+    continuation — see run_norm_implementer()'s own docstring for why
+    (session continuation across retries was tried and reverted after a
+    real collapse it caused)."""
     print("\n--- invoking norm-evaluator ---")
     # Restates the sentinel-line requirement on every invocation, not just
     # on retry — the first attempt was the one failing to include it.
@@ -580,8 +538,6 @@ def run_norm_evaluator(round_number, extra_message=None, session_id=None):
     # one round hitting the identical hallucinated-path/external_directory
     # auto-deny, ending abnormally before ever writing a real verdict.
     cmd = ["opencode", "run", "--agent", "norm-evaluator", "--format", "json", "--auto"]
-    if session_id:
-        cmd += ["--session", session_id]
     # Same fallback as run_norm_implementer() — no reason yet to route this
     # agent to a different model than the implementer it's paired with.
     model = os.environ.get("NORM_IMPLEMENTER_MODEL") or os.environ.get("OPENCODE_MODEL")
@@ -592,9 +548,8 @@ def run_norm_evaluator(round_number, extra_message=None, session_id=None):
     start = time.monotonic()
     try:
         result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=1800)
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         duration_s = time.monotonic() - start
-        timeout_session_id = extract_session_id(getattr(e, "stdout", None) or "") or session_id
         print(f"Round {round_number}: norm-evaluator didn't finish within 1800s — "
               f"treating this evaluation as failed, not crashing the run.", file=sys.stderr)
         log_call(
@@ -603,16 +558,14 @@ def run_norm_evaluator(round_number, extra_message=None, session_id=None):
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
             tool_call_count=None, step_count=None, tool_call_trace=None,
-            session_id=timeout_session_id,
             report=None, error="timeout after 1800s",
         )
-        return None, timeout_session_id
+        return None
 
     duration_s = time.monotonic() - start
     tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
     tool_call_trace = extract_tool_trace(result.stdout)
     verdict = extract_evaluation_result(final_text)
-    new_session_id = extract_session_id(result.stdout) or session_id
 
     # Reject a verdict reached with zero tool calls — no read/test actually
     # happened that attempt, regardless of how confident the text sounds.
@@ -637,7 +590,6 @@ def run_norm_evaluator(round_number, extra_message=None, session_id=None):
         tool_call_count=tool_call_count,
         step_count=step_count,
         tool_call_trace=tool_call_trace,
-        session_id=new_session_id,
         # Just the extracted one-word decision, not the full text (already
         # in raw_response). Reflects the rejection above.
         report=(
@@ -652,14 +604,14 @@ def run_norm_evaluator(round_number, extra_message=None, session_id=None):
         print(f"Round {round_number}: norm-evaluator exited with code {result.returncode} — "
               f"treating this evaluation as failed, not crashing the run.", file=sys.stderr)
         print(result.stderr, file=sys.stderr)
-        return None, new_session_id
+        return None
     if verdict is None:
         print(f"Round {round_number}: norm-evaluator's response never contained an "
               f"EVALUATION_RESULT: line — treating this evaluation as failed.", file=sys.stderr)
-        return None, new_session_id
+        return None
     if zero_tool_call_reject:
-        return None, new_session_id
-    return {"result": verdict, "text": final_text}, new_session_id
+        return None
+    return {"result": verdict, "text": final_text}
 
 
 def norm_already_committed(round_number):
@@ -1398,36 +1350,26 @@ MAX_IMPLEMENTER_PROCESS_ATTEMPTS = 5
 NORM_IMPLEMENTER_RETRY_DELAY_S = float(os.environ.get("NORM_IMPLEMENTER_RETRY_DELAY_S", "5"))
 
 
-def run_norm_implementer_with_retry(round_number, extra_message=None, session_id=None):
+def run_norm_implementer_with_retry(round_number, extra_message=None):
     """Retries run_norm_implementer() itself, up to
     MAX_IMPLEMENTER_PROCESS_ATTEMPTS times, on a process-level failure —
     this is not a finding about the code, so it must not be confused with
-    or consume a MAX_NORM_REPAIR_ATTEMPTS repair attempt. Refreshes the
-    knowledge graph before every real attempt (including retries), same as
-    every other call site in this file. Returns (success, session_id) —
-    same success contract as run_norm_implementer() itself.
+    or consume a MAX_NORM_REPAIR_ATTEMPTS repair attempt. Returns
+    True/False — same success contract as run_norm_implementer() itself.
 
-    Each retry here continues the SAME opencode session (added
-    2026-09-15, by request) rather than starting fresh: session_id starts
-    as whatever the caller passed in (None for a genuinely fresh start)
-    and is updated after every attempt — including a failed one — to
-    whatever run_norm_implementer() actually used, so attempt 2 continues
-    attempt 1's session instead of re-deriving everything about the round
-    from scratch by re-reading files a previous session already read."""
-    current_session_id = session_id
+    Each retry starts a brand-new opencode session — no session
+    continuation across attempts (see run_norm_implementer()'s own
+    docstring for why that was tried and reverted)."""
     for attempt in range(1, MAX_IMPLEMENTER_PROCESS_ATTEMPTS + 1):
-        refresh_knowledge_graph(round_number)
-        success, current_session_id = run_norm_implementer(
-            round_number, extra_message=extra_message, session_id=current_session_id
-        )
+        success = run_norm_implementer(round_number, extra_message=extra_message)
         if success:
-            return True, current_session_id
+            return True
         print(f"Round {round_number}: norm-implementer's own process failed, timed out, or was "
               f"truncated mid-task (attempt {attempt}/{MAX_IMPLEMENTER_PROCESS_ATTEMPTS}) — "
               f"retrying the process itself, not spending a repair attempt on it.")
         if attempt < MAX_IMPLEMENTER_PROCESS_ATTEMPTS:
             time.sleep(NORM_IMPLEMENTER_RETRY_DELAY_S)
-    return False, current_session_id
+    return False
 
 
 def implement_and_evaluate_norm(round_number, winning_proposal):
@@ -1440,25 +1382,18 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     single per-round commit); False means either a discard already
     happened, or the round was COMPLIANT but made no changes to stage.
 
-    Refreshes the knowledge graph immediately before every
-    run_norm_implementer()/run_norm_evaluator() call in this function
-    (not just after a commit) so it's fresh at the moment each agent
-    actually reads it — a no-op unless BUILD_KNOWLEDGE_GRAPH=1.
-
-    Two opencode sessions are tracked across this whole function — one for
-    the norm-implementer, one for the norm-evaluator (added 2026-09-15, by
-    request) — and continued (--session <id>) across every retry for that
-    agent within this round: a process retry, a compile-error repair, and
-    an evaluator NEEDS_REPAIR repair all reuse the implementer's one
-    session; the evaluator's own process retries reuse its one session.
-    Neither carries over to a different round — implement_and_evaluate_norm()
-    is called fresh per round, so a genuinely new round always starts both
-    agents with session_id=None (no continuation), same as before this
-    change."""
-    implementer_session_id = None
-    evaluator_session_id = None
-
-    success, implementer_session_id = run_norm_implementer_with_retry(round_number)
+    Every call to either agent starts a brand-new opencode session — no
+    `--session` continuation across a process retry, a compile-error
+    repair, or an evaluator NEEDS_REPAIR repair. Session continuation was
+    tried here (2026-09-15) and reverted the same month: a real round's
+    session grew across ~15 continued calls over ~6 hours until it became
+    too large for the model to even begin responding to within opencode's
+    own internal provider-header timeout, exhausting the entire
+    process-retry budget on calls that could never have succeeded. A
+    fresh session every call costs some redundant re-reading of files a
+    prior attempt already read, but that cost is bounded and known,
+    unlike unbounded context growth."""
+    success = run_norm_implementer_with_retry(round_number)
     if not success:
         discard_norm_implementation(
             round_number,
@@ -1504,9 +1439,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 "implementation beyond what's needed to fix these specific errors. End your "
                 "response with the fenced ```json report block your instructions describe."
             )
-            success, implementer_session_id = run_norm_implementer_with_retry(
-                round_number, extra_message=repair_message, session_id=implementer_session_id
-            )
+            success = run_norm_implementer_with_retry(round_number, extra_message=repair_message)
             if not success:
                 discard_norm_implementation(
                     round_number,
@@ -1520,30 +1453,26 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         evaluation = None
         evaluator_message = None
         for eval_attempt in range(1, MAX_EVALUATOR_ATTEMPTS + 1):
-            refresh_knowledge_graph(round_number)
-            evaluation, evaluator_session_id = run_norm_evaluator(
-                round_number, extra_message=evaluator_message, session_id=evaluator_session_id
-            )
+            evaluation = run_norm_evaluator(round_number, extra_message=evaluator_message)
             if evaluation is not None:
                 break
             print(f"Round {round_number}: norm-evaluator itself produced no usable verdict "
                   f"(attempt {eval_attempt}/{MAX_EVALUATOR_ATTEMPTS}) — retrying the evaluator, "
                   f"not the implementation, since this doesn't say anything about whether the "
                   f"code is actually correct.")
-            # This retry continues the SAME session (session_id above) as
-            # of 2026-09-15 — the model genuinely does have real memory of
-            # the earlier attempt now, so unlike before this change the
-            # message doesn't deny that; it just states plainly what went
-            # wrong and what's needed this time.
+            # This retry starts a brand-new session (no --session
+            # continuation) — the model has no memory of the earlier
+            # attempt, so the message asks it to redo the read-and-test
+            # work from scratch, not just "finish" a prior attempt it
+            # can't actually recall.
             evaluator_message = (
-                f"Your last response for round {round_number} ended without the required "
-                "EVALUATION_RESULT: line — treating that as an incomplete evaluation, not a "
-                "verdict. If you already read norm.txt, the spec, and the diff, and already "
-                "wrote/ran tests, don't redo that work — just finish: reach a verdict from what "
-                "you already found and end your response with EVALUATION_RESULT: COMPLIANT or "
-                "EVALUATION_RESULT: NEEDS_REPAIR, in exactly that form. If you got interrupted "
-                "before actually reading the spec/diff or running any tests, do that now, then "
-                "end with the same required line."
+                f"Round {round_number}'s norm-implementer changes are ready to check. Your "
+                "previous attempt at this ended without the required EVALUATION_RESULT: line — "
+                "treating that as an incomplete evaluation, not a verdict. Read "
+                f"state/norm_specs/round_{round_number}.md and the diff, write and run your own "
+                "tests, and report your verdicts following your standing instructions. End your "
+                "response with the required EVALUATION_RESULT: COMPLIANT or "
+                "EVALUATION_RESULT: NEEDS_REPAIR line — every time, not just when something failed."
             )
         if evaluation is None:
             discard_norm_implementation(
@@ -1581,9 +1510,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             "describe.\n\n"
             f"--- Evaluator's report ---\n{evaluation['text']}\n--- end of report ---"
         )
-        success, implementer_session_id = run_norm_implementer_with_retry(
-            round_number, extra_message=repair_message, session_id=implementer_session_id
-        )
+        success = run_norm_implementer_with_retry(round_number, extra_message=repair_message)
         if not success:
             discard_norm_implementation(
                 round_number,
@@ -1667,97 +1594,6 @@ def commit_round(round_number, winning_proposal):
     else:
         print(f"Round {round_number}: committed round artifacts as {commit_hash} "
               f"(logs, norm.txt, runtime state, plots).")
-
-
-def refresh_knowledge_graph(round_number):
-    """Refreshes the Understand-Anything semantic graph after code changes,
-    so it doesn't stay frozen at whatever it looked like before round 1.
-    Run directly here as its own `build`-agent opencode call, rather than
-    via the plugin's own autoUpdate hooks — those assume the committing
-    agent is the one running `git commit` (this project commits via a
-    plain subprocess) and would otherwise burn norm-implementer step
-    budget on an instruction it's structurally unable to follow
-    (permission.task: deny blocks the subagent dispatch a graph update
-    needs). Gated by BUILD_KNOWLEDGE_GRAPH=1, matching whatever
-    hpc_ollama_entrypoint.sh did at job start; no-op if unset. Failure here
-    is never fatal to the round."""
-    if os.environ.get("BUILD_KNOWLEDGE_GRAPH") != "1":
-        return
-    print(f"\n--- refreshing Understand-Anything knowledge graph (round {round_number}) ---")
-    # --command names the skill directly (a prose message doesn't reliably
-    # get inferred as one). --format json so raw_response actually captures
-    # the session (opencode's default format writes to stderr, not stdout).
-    # --auto because the build agent's external_directory permission
-    # defaults to "ask", and nothing is present to answer it headlessly.
-    cmd = ["opencode", "run", "--agent", "build", "--format", "json", "--auto"]
-    # Uses OPENCODE_MODEL (local), not a paid litellm model — UA's calls
-    # are large enough to risk exceeding a paid quota for this opt-in
-    # feature; the two known local-model reliability gaps (a hallucinated
-    # tool name, ignoring the unattended-mode instruction) are an accepted
-    # limitation rather than routed around.
-    model = os.environ.get("OPENCODE_MODEL")
-    if model:
-        cmd += ["--model", model]
-    # Trailing message required — --command alone loads the skill into
-    # context and stops without executing a single phase.
-    cmd += ["--command", "understand", "--", "--no-auto-update",
-            "Begin the analysis immediately, following the skill's own instructions completely — "
-            "do not wait for further input."]
-
-    start = time.monotonic()
-    try:
-        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=600)
-    except subprocess.TimeoutExpired:
-        print(f"Round {round_number}: knowledge graph refresh timed out after 600s — continuing "
-              f"with the graph as it was; norm-implementer's own staleness check will flag this.")
-        log_call(
-            call="knowledge_graph_refresh", agent_id=None, round=round_number, action=None,
-            model=model, duration_s=600.0, returncode=None, prompt=" ".join(cmd),
-            raw_response=None, parsed_response=None, error="timeout",
-        )
-        return
-
-    duration_s = time.monotonic() - start
-    tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
-    # Exit code alone isn't trustworthy — a silent no-op has been observed
-    # to still return 0. Verify the graph's own stored commit hash actually
-    # caught up to HEAD.
-    error = None if result.returncode == 0 else result.stderr.strip()
-    if error is None and not knowledge_graph_matches_head():
-        error = "opencode exited 0 but the graph's stored commit hash didn't advance to HEAD — likely a silent no-op"
-    if error:
-        print(f"Round {round_number}: knowledge graph refresh FAILED ({error}) — continuing "
-              f"with the graph as it was; norm-implementer's own staleness check will flag "
-              f"this. Model's final response:\n{final_text}", file=sys.stderr)
-    else:
-        print(f"Round {round_number}: knowledge graph refresh OK ({tool_call_count} tool calls, "
-              f"{duration_s:.1f}s) — graph now matches HEAD.")
-    log_call(
-        call="knowledge_graph_refresh", agent_id=None, round=round_number, action=None,
-        model=model, duration_s=round(duration_s, 3), returncode=result.returncode,
-        prompt=" ".join(cmd), raw_response=result.stdout, tool_call_count=tool_call_count,
-        step_count=step_count,
-        parsed_response=final_text, error=error,
-    )
-
-
-def knowledge_graph_matches_head():
-    """True iff a knowledge graph exists and its stored gitCommitHash
-    (meta.json) equals current HEAD — the only reliable way to tell a
-    refresh actually did something, since a failed/no-op call can still
-    exit 0."""
-    for data_dir in (".understand-anything", ".ua"):
-        meta_path = ROOT / data_dir / "meta.json"
-        if meta_path.is_file():
-            try:
-                stored_hash = json.loads(meta_path.read_text()).get("gitCommitHash")
-            except (json.JSONDecodeError, OSError):
-                return False
-            head = subprocess.run(
-                ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
-            ).stdout.strip()
-            return stored_hash == head
-    return False
 
 
 def reload_project_modules():
