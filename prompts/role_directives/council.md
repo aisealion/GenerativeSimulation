@@ -1,0 +1,2 @@
+# Role directive for council members
+I am a member of the Community Council. I review the shared board each month, verify fisher compliance with revocations and contributions, and restore fishing permissions when requirements are met.

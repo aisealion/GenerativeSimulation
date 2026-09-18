@@ -1,7 +1,15 @@
 {
-  "version": 2,
-  "updated_at_round": 1,
+  "version": 3,
+  "updated_at_round": 2,
   "actions": {
+    "council_meeting": {
+      "spec": "state/actions/council_meeting.json",
+      "protected": false
+    },
+    "attend_meeting": {
+      "spec": "state/actions/attend_meeting.json",
+      "protected": false
+    },
     "harvest": {
       "spec": "state/actions/harvest.json",
       "protected": true
@@ -24,6 +32,11 @@
     }
   },
   "roles": {
+    "council": {
+      "exclusive": false,
+      "description": "members of the community council that reviews board and enforces revocations",
+      "introduced_round": 2
+    },
     "fisher": {
       "exclusive": false,
       "description": "eligibility to act as a fisher",
@@ -36,6 +49,14 @@
     }
   },
   "rule_types": {
+    "council_meeting_rule": {
+      "owner": "actions/rules/council_meeting/council_meeting_rule.py",
+      "introduced_round": 2
+    },
+    "attendance_rule": {
+      "owner": "actions/rules/attend_meeting/attendance_rule.py",
+      "introduced_round": 2
+    },
     "cap_rule": {
       "owner": "actions/rules/harvest/cap_rule.py",
       "introduced_round": 1

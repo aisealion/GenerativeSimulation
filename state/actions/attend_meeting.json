@@ -1,0 +1,25 @@
+{
+  "name": "attend_meeting",
+  "description": "Fisher records attendance at council meeting to restore permission.",
+  "scheduling": {
+    "gate": "true",
+    "after": "council_meeting",
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": null
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  },
+  "prompt": {
+    "template": "Did you attend the council meeting this month to restore your fishing permission? Answer yes or no.",
+    "fields": [],
+    "outputs": {
+      "fields": [{"name": "attended", "type": "string"}]
+    }
+  }
+}

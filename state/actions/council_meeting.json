@@ -1,0 +1,22 @@
+{
+  "name": "council_meeting",
+  "description": "Council meets to verify revocation compliance and restore fishing permission.",
+  "scheduling": {
+    "gate": "true",
+    "after": "attend_meeting",
+    "before": null
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "council"
+  },
+  "roles": {
+    "actor_role": "council"
+  },
+  "execution": {
+    "handler": "council_meeting"
+  },
+  "prompt": {
+    "template": "Council meeting: reviewing revoked permissions."
+  }
+}

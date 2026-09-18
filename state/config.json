@@ -3,9 +3,13 @@
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
   "rules": {
-    "harvest": [
-      {"type": "cap_rule", "id": "cap1", "cap_kg": 20},
-      {"type": "violation_rule", "id": "violation1"}
-    ]
+    "council_meeting": [
+      {"type": "council_meeting_rule", "id": "council_meeting1"}
+    ],
+"harvest": [
+    {"type": "cap_rule", "id": "cap1", "cap_kg": 15},
+    {"type": "violation_rule", "id": "violation1"},
+    {"type": "reserve_monitor_rule"}
+  ]
   }
 }
