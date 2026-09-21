@@ -329,17 +329,21 @@ cat > .opencode/opencode.json << EOF
 }
 EOF
 
-if ! command -v opencode >/dev/null 2>&1; then
-  echo "opencode not found (checked \$HOME/.opencode/bin) — installing there"
-  # v2 install endpoint (2026-09-21 migration) — https://opencode.ai/install
-  # (no /v2/) installs v1, a different major version this repo's config
-  # (opencode.jsonc, .opencode/agents/*.md permission arrays) is no longer
-  # compatible with. If a node already has v1 installed under this same
-  # path from before this migration, `command -v opencode` finds it and
-  # this install is skipped — check `opencode --version` manually on a
-  # node that's run this before the migration landed.
-  curl -fsSL https://opencode.ai/v2/install | bash
-fi
+# Always (re)install, not `if ! command -v opencode` — this repo's config
+# (opencode.jsonc's providers/mcp.servers shape, .opencode/agents/*.md's
+# permissions arrays) is v2-only as of the 2026-09-21 migration, and
+# https://opencode.ai/install (no /v2/) installs v1, a different major
+# version those files aren't compatible with. A node that ran this repo
+# before that migration already has v1 sitting at this same
+# $HOME/.opencode/bin path — a presence-only check would find it, skip
+# reinstalling, and silently run stale v1 against v2-shaped config every
+# job after. The installed binary itself is small (unlike the multi-GB
+# Ollama models this script deliberately never auto-pulls above) — paying
+# one small download every job start is cheap insurance against that
+# silent-staleness trap, and the official installer overwrites cleanly on
+# a rerun.
+echo "Installing/updating opencode (v2) at \$HOME/.opencode/bin..."
+curl -fsSL https://opencode.ai/v2/install | bash
 
 # The fisher agent no longer goes through opencode — llm_agents.py calls
 # litellm directly. litellm's response types use pydantic forward
