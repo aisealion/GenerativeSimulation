@@ -148,17 +148,20 @@ def _plot_tool_calls(engineer_rows, plot_dir):
 
 def _agent_step_budget(agent_name, default):
     """Reads the real `steps:` cap straight from the opencode agent's own
-    frontmatter (`.opencode/agent/{agent_name}.md` — the copy
-    engine/simulate.py actually invokes, per CLAUDE.md) rather than
-    hardcoding a number here that could silently drift from it. A plain
-    regex, not a YAML parse — PyYAML isn't a project dependency (checked
-    directly: not in pyproject.toml), and this module has to keep working
-    in the minimal HPC venv, so pulling one in just to read a single
-    top-level integer field isn't worth the new dependency. Falls back to
-    `default` on any read/parse failure, same "telemetry degrades, doesn't
-    block" contract as the rest of this module."""
+    frontmatter (`.opencode/agents/{agent_name}.md` — the copy
+    engine/simulate.py actually invokes, per CLAUDE.md; renamed from
+    `.opencode/agent/` (singular) on the 2026-09-21 opencode v2 migration —
+    v2 still discovers the old singular directory too, but this repo's own
+    copy now lives at the v2-preferred plural path) rather than hardcoding
+    a number here that could silently drift from it. A plain regex, not a
+    YAML parse — PyYAML isn't a project dependency (checked directly: not
+    in pyproject.toml), and this module has to keep working in the minimal
+    HPC venv, so pulling one in just to read a single top-level integer
+    field isn't worth the new dependency. Falls back to `default` on any
+    read/parse failure, same "telemetry degrades, doesn't block" contract
+    as the rest of this module."""
     try:
-        text = (ROOT / ".opencode" / "agent" / f"{agent_name}.md").read_text()
+        text = (ROOT / ".opencode" / "agents" / f"{agent_name}.md").read_text()
         match = re.search(r"^steps:\s*(\d+)", text, re.MULTILINE)
         return int(match.group(1)) if match else default
     except OSError:

@@ -104,7 +104,7 @@ def render_role_directives(agent_id, fluents, round_number):
     rendered; a role a norm-engineer later registers and assigns (a
     rotating recorder/treasurer/steward/monitor) now gets its own
     directive rendered too, with no code change required — this is the
-    actual mechanism `.opencode/agent/norm-engineer.md`'s "the
+    actual mechanism `.opencode/agents/norm-engineer.md`'s "the
     recorder's own role_directives/recorder.md must make this
     responsibility explicit" instruction depends on; before this function
     existed, that file was written but never read for anything but

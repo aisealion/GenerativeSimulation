@@ -1,11 +1,22 @@
 {
+  // 2026-09-21: migrated to opencode v2's config schema (see
+  // https://opencode.ai/v2/docs/migrate-v1/) — provider -> providers,
+  // npm -> package (aisdk: prefix), options -> settings, mcp -> mcp.servers.
+  // NOTE: the published https://opencode.ai/config.json schema has NOT
+  // caught up to v2 yet (confirmed independently: it still validates
+  // against v1 field names like "provider"/"npm"/"options" and rejects
+  // "disabled" on an MCP server, a known, currently-open discrepancy) —
+  // editor validation against $schema may show false-positive squiggles
+  // on these v2 field names. Don't "fix" this file to satisfy the stale
+  // schema; the real opencode v2 binary parses this shape correctly per
+  // its own docs.
   "$schema": "https://opencode.ai/config.json",
   "model": "litellm/Kimi-K2.5",
-  "provider": {
+  "providers": {
     "litellm": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "name": "Otago LiteLLM",
-      "options": {
+      "settings": {
         "baseURL": "https://llm.uod.otago.ac.nz/v1",
         "apiKey": "{env:LITELLM_API_KEY}"
       },
@@ -35,9 +46,9 @@
       }
     },
     "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "name": "Local Ollama",
-      "options": {
+      "settings": {
         // Ollama's OpenAI-compatible endpoint doesn't check the key, but the
         // client library requires some non-empty string here.
         "baseURL": "http://127.0.0.1:11434/v1",
@@ -96,14 +107,20 @@
     }
   },
   "mcp": {
-    "codegraph": {
-      "type": "local",
-      "command": [
-        "codegraph",
-        "serve",
-        "--mcp"
-      ],
-      "enabled": true
+    "servers": {
+      "codegraph": {
+        "type": "local",
+        "command": [
+          "codegraph",
+          "serve",
+          "--mcp"
+        ],
+        // v1 used "enabled": true here — v2's docs explicitly show this
+        // field inverted to "disabled" (see the migration-guide comment
+        // at the top of this file for why $schema validation may still
+        // flag this as wrong; trust the docs, not the stale schema).
+        "disabled": false
+      }
     }
   }
 }

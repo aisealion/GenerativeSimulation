@@ -1,50 +1,33 @@
 ---
 description: Given a completed norm-engineer round's payload (round number, the full per-requirement classification forwarded verbatim from norm-architect, and the files/owners touched), independently verifies every claimed owner file and test actually exist and pass, registers any new action/role/rule_type/object_type in state/institution.json, and writes state/norm_specs/round_{N}.md in the required format. Dispatched by norm-engineer itself via the task tool once implementation is done — never invoked directly by the orchestrator.
 mode: subagent
-permission:
+# v2 permissions: an ordered array of {action, resource, effect} — the
+# LAST matching rule wins (see https://opencode.ai/v2/docs/permissions/).
+# v2's `*` wildcard spans `/`, so one rule per directory now covers every
+# nesting depth (v1 needed a separate line per depth).
+permissions:
   # Operational infra/cache, never relevant to verifying/registering a
-  # round's output — denied by pattern depth (patterns here are matched
-  # single-segment, not "**" globstar, so each real nesting depth needs
-  # its own line).
-  read:
-    "*": allow
-    "ops/*": deny
-    "ops/*/*": deny
-    "ops/*/*/*": deny
-    ".venv-fishery/*": deny
-    ".venv-fishery/*/*": deny
-    ".venv-fishery/*/*/*": deny
-    ".pytest_cache/*": deny
-    ".pytest_cache/*/*": deny
-    ".pytest_cache/*/*/*": deny
-    ".git/*": deny
-    ".git/*/*": deny
-    ".codegraph/*": deny
-    # __pycache__ isn't anchored under one fixed top-level path — Python
-    # creates one beside every package's .py files (confirmed: depths 0-4
-    # across this repo today). Denying every depth up to 4 covers the real
-    # repo and any new action/rule directory a future round adds at the
-    # same nesting depth.
-    "__pycache__/*": deny
-    "*/__pycache__/*": deny
-    "*/*/__pycache__/*": deny
-    "*/*/*/__pycache__/*": deny
-    "*/*/*/*/__pycache__/*": deny
-  edit:
-    "*": deny
-    "state/norm_specs/*": allow
-    "state/institution.json": allow
-  bash:
-    "*": deny
-    "python3 -m py_compile *": allow
-    "python3 -m pytest*": allow
-    "pytest*": allow
-    "git status*": allow
-    "git diff*": allow
-    "grep*": allow
-  webfetch: deny
-  websearch: deny
-  task: deny
+  # round's output.
+  - { action: read, resource: "*", effect: allow }
+  - { action: read, resource: "ops/*", effect: deny }
+  - { action: read, resource: ".venv-fishery/*", effect: deny }
+  - { action: read, resource: ".pytest_cache/*", effect: deny }
+  - { action: read, resource: ".git/*", effect: deny }
+  - { action: read, resource: ".codegraph/*", effect: deny }
+  - { action: read, resource: "*__pycache__/*", effect: deny }
+  - { action: edit, resource: "*", effect: deny }
+  - { action: edit, resource: "state/norm_specs/*", effect: allow }
+  - { action: edit, resource: "state/institution.json", effect: allow }
+  - { action: shell, resource: "*", effect: deny }
+  - { action: shell, resource: "python3 -m py_compile *", effect: allow }
+  - { action: shell, resource: "python3 -m pytest*", effect: allow }
+  - { action: shell, resource: "pytest*", effect: allow }
+  - { action: shell, resource: "git status*", effect: allow }
+  - { action: shell, resource: "git diff*", effect: allow }
+  - { action: shell, resource: "grep*", effect: allow }
+  - { action: webfetch, resource: "*", effect: deny }
+  - { action: websearch, resource: "*", effect: deny }
+  - { action: subagent, resource: "*", effect: deny }
 steps: 200
 ---
 

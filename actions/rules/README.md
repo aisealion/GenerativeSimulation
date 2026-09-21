@@ -135,6 +135,6 @@ wrote the code, with no access to `actions/rules/`/`prompts/`, only to its
 own `tests/norm_evaluation/` — write and run independent tests against
 that spec and the diff, classifying each requirement as compliant, an
 implementation error, under-enforced, or a remaining spec gap. See
-`.opencode/agent/norm-auditor.md` for the full contract, and CLAUDE.md for
+`.opencode/agents/norm-auditor.md` for the full contract, and CLAUDE.md for
 why this is a separate agent rather than another self-check inside
 norm-engineer.

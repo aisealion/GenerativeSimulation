@@ -370,6 +370,6 @@ having to know how either of those work.
 - `docs/institution-recipes/` — step-by-step checklists for each kind of
   change, including a worked example composing several of them for one
   norm.
-- `.opencode/agent/norm-architect.md` / `norm-engineer.md` /
+- `.opencode/agents/norm-architect.md` / `norm-engineer.md` /
   `norm-finalizer.md` / `norm-auditor.md` — the actual instructions given
   to the four agents in section 7's pipeline.

@@ -1,54 +1,48 @@
 ---
 description: Given norm.txt (a Policy statement plus the community's Operationalization of it) for this fishery simulation, read and reason about it — nothing else. Extracts every atomic requirement, classifies it, escalates genuine ambiguity or contradiction back to the proposer, writes a failing pytest suite that pins down each requirement's behavior BEFORE any implementation exists, and hands both the suite and a complete machine-readable requirement checklist to norm-engineer. Never writes implementation code — enforced by permission, not just instruction.
 mode: primary
-permission:
+# v2 permissions: an ordered array of {action, resource, effect} — the
+# LAST matching rule wins, so every broad rule here is followed by its
+# specific exceptions, never the other way around (see
+# https://opencode.ai/v2/docs/permissions/). v2's `*` wildcard spans `/`
+# (matches across path segments) — unlike v1, where it didn't and every
+# real nesting depth needed its own explicit line (the old per-depth
+# enumeration this file used under v1 is gone; one rule per directory now
+# covers every depth, e.g. a single "*__pycache__/*" instead of five
+# depth-specific lines).
+permissions:
   # Operational infra/cache, never relevant to designing a norm's
-  # institutionalization — denied by pattern depth (this opencode version's
-  # patterns are matched single-segment, like the "tests/norm_checks/*/*"
-  # pattern below, not "**" globstar, so each real nesting depth needs its
-  # own line) rather than by directory alone, since `*` here doesn't cross
-  # a `/`.
-  read:
-    "*": allow
-    "ops/*": deny
-    "ops/*/*": deny
-    "ops/*/*/*": deny
-    ".venv-fishery/*": deny
-    ".venv-fishery/*/*": deny
-    ".venv-fishery/*/*/*": deny
-    ".pytest_cache/*": deny
-    ".pytest_cache/*/*": deny
-    ".pytest_cache/*/*/*": deny
-    ".git/*": deny
-    ".git/*/*": deny
-    ".codegraph/*": deny
-    "__pycache__/*": deny
-    "*/__pycache__/*": deny
-    "*/*/__pycache__/*": deny
-    "*/*/*/__pycache__/*": deny
-    "*/*/*/*/__pycache__/*": deny
-  edit:
-    # This is the actual enforcement of "don't let the model write code
-    # first" — structural, not a prompt-level request. Everything except
-    # this round's own test subdirectory is denied outright, including
-    # every path norm-engineer.md is later allowed to touch.
-    "*": deny
-    "tests/norm_checks/*": allow
-    "tests/norm_checks/*/*": allow
-  bash:
-    "*": deny
-    "python3 -m pytest*": allow
-    "pytest*": allow
-    "python3 -m py_compile*": allow
-    "python3 -m engine.clarify_norm*": allow
-    "git status*": allow
-    "git diff*": allow
-    "grep*": allow
-    "codegraph*": allow
-  webfetch: deny
-  websearch: deny
-  task:
-    "*": deny
+  # institutionalization.
+  - { action: read, resource: "*", effect: allow }
+  - { action: read, resource: "ops/*", effect: deny }
+  - { action: read, resource: ".venv-fishery/*", effect: deny }
+  - { action: read, resource: ".pytest_cache/*", effect: deny }
+  - { action: read, resource: ".git/*", effect: deny }
+  - { action: read, resource: ".codegraph/*", effect: deny }
+  - { action: read, resource: "*__pycache__/*", effect: deny }
+  # This is the actual enforcement of "don't let the model write code
+  # first" — structural, not a prompt-level request. Everything except
+  # this round's own test subdirectory is denied outright, including
+  # every path norm-engineer.md is later allowed to touch. Note:
+  # "tests/norm_checks/*" now also matches deeper paths than v1's
+  # single-segment version did (e.g. a hypothetical
+  # tests/norm_checks/round_12/sub/x.py) — harmless here since it only
+  # ever widens what THIS agent may edit within its own already-exclusive
+  # directory, never outside it.
+  - { action: edit, resource: "*", effect: deny }
+  - { action: edit, resource: "tests/norm_checks/*", effect: allow }
+  - { action: shell, resource: "*", effect: deny }
+  - { action: shell, resource: "python3 -m pytest*", effect: allow }
+  - { action: shell, resource: "pytest*", effect: allow }
+  - { action: shell, resource: "python3 -m py_compile*", effect: allow }
+  - { action: shell, resource: "python3 -m engine.clarify_norm*", effect: allow }
+  - { action: shell, resource: "git status*", effect: allow }
+  - { action: shell, resource: "git diff*", effect: allow }
+  - { action: shell, resource: "grep*", effect: allow }
+  - { action: shell, resource: "codegraph*", effect: allow }
+  - { action: webfetch, resource: "*", effect: deny }
+  - { action: websearch, resource: "*", effect: deny }
+  - { action: subagent, resource: "*", effect: deny }
 steps: 400
 ---
 

@@ -1,78 +1,67 @@
 ---
 description: Given a round's frozen requirement checklist (from norm-architect) and its pre-written, currently-failing pytest suite under tests/norm_checks/round_{N}/, implement the fishery simulation's institution so the simulation actually, observably enforces every requirement — until that pre-written suite goes green. Never designs from scratch and never edits the tests it's judged against (structurally denied). Dispatches norm-finalizer once done.
 mode: primary
-permission:
-  # Operational infra/cache, never relevant to institutionalizing a norm —
-  # denied by pattern depth (this opencode version's patterns are matched
-  # single-segment, like the "actions/rules/*/*" edit pattern below, not
-  # "**" globstar, so each real nesting depth needs its own line) rather
-  # than by directory alone, since `*` here doesn't cross a `/`.
-  read:
-    "*": allow
-    "ops/*": deny
-    "ops/*/*": deny
-    "ops/*/*/*": deny
-    ".venv-fishery/*": deny
-    ".venv-fishery/*/*": deny
-    ".venv-fishery/*/*/*": deny
-    ".pytest_cache/*": deny
-    ".pytest_cache/*/*": deny
-    ".pytest_cache/*/*/*": deny
-    ".git/*": deny
-    ".git/*/*": deny
-    ".codegraph/*": deny
-    # __pycache__ isn't anchored under one fixed top-level path like the
-    # others above — Python creates one beside every package's .py files,
-    # so it shows up at the repo root and under every package directory
-    # (confirmed directly: depths 0-4 across this repo today, e.g.
-    # __pycache__/, engine/__pycache__/, actions/rules/harvest/__pycache__/).
-    # Denying every depth up to 4 covers the real repo today and any new
-    # action/rule directory a future round adds at the same nesting depth.
-    "__pycache__/*": deny
-    "*/__pycache__/*": deny
-    "*/*/__pycache__/*": deny
-    "*/*/*/__pycache__/*": deny
-    "*/*/*/*/__pycache__/*": deny
-  edit:
-    "*": deny
-    "actions/rules/*/*": allow
-    "objects/handlers/*": allow
-    "prompts/role_directives/*": allow
-    "actions/prompts/*": allow
-    "prompts/phrasing_map.json": allow
-    "state/config.json": allow
-    "state/fluents.json": allow
-    "state/fluents_schema.md": allow
-    "state/events.json": allow
-    # tests/norm_checks/* is deliberately NOT here — norm-architect owns
-    # that directory exclusively. This agent must be structurally unable
-    # to edit the tests it's being judged against; that's the entire
-    # point of splitting design/test-authoring from implementation across
-    # two separate agents.
-    "state/norm_specs/*": allow
-    "state/institution.json": allow
-    "state/actions/*": allow
-    "state/actions/harvest.json": deny
-    "state/actions/propose.json": deny
-    "state/actions/critique.json": deny
-    "state/actions/vote.json": deny
-    "state/actions/discuss.json": deny
-    "state/object_types/*": allow
-    "state/objects.json": allow
-    "actions/handlers/*": allow
-    "actions/handlers/harvest.py": deny
-    "actions/handlers/propose.py": deny
-    "actions/handlers/critique.py": deny
-    "actions/handlers/vote.py": deny
-    "actions/handlers/discuss.py": deny
-    "engine/simulate.py": allow
-  bash:
-    "*": allow
-  webfetch: deny
-  websearch: deny
-  task:
-    "*": deny
-    "norm-finalizer": allow
+# v2 permissions: an ordered array of {action, resource, effect} — the
+# LAST matching rule wins, so every broad rule here is followed by its
+# specific exceptions, never the other way around (see
+# https://opencode.ai/v2/docs/permissions/). v2's `*` wildcard spans `/`
+# (matches across path segments) — unlike v1, where it didn't and every
+# real nesting depth needed its own explicit line (the old per-depth
+# enumeration this file used under v1 is gone; one rule per directory now
+# covers every depth, e.g. a single "*__pycache__/*" instead of five
+# depth-specific lines). One real consequence of the wider `*`:
+# "actions/rules/*/*" and "objects/handlers/*" below now also match a
+# hypothetical deeper path (e.g. actions/rules/harvest/sub/x.py) that v1's
+# narrower matching would have denied — accepted deliberately, since
+# nothing downstream (discover_rule_types(), discover_handlers()) ever
+# loads or trusts a file at that depth anyway, so a stray edit there would
+# be inert, not a real capability gain.
+permissions:
+  # Operational infra/cache, never relevant to institutionalizing a norm.
+  - { action: read, resource: "*", effect: allow }
+  - { action: read, resource: "ops/*", effect: deny }
+  - { action: read, resource: ".venv-fishery/*", effect: deny }
+  - { action: read, resource: ".pytest_cache/*", effect: deny }
+  - { action: read, resource: ".git/*", effect: deny }
+  - { action: read, resource: ".codegraph/*", effect: deny }
+  - { action: read, resource: "*__pycache__/*", effect: deny }
+  - { action: edit, resource: "*", effect: deny }
+  - { action: edit, resource: "actions/rules/*", effect: allow }
+  - { action: edit, resource: "objects/handlers/*", effect: allow }
+  - { action: edit, resource: "prompts/role_directives/*", effect: allow }
+  - { action: edit, resource: "actions/prompts/*", effect: allow }
+  - { action: edit, resource: "prompts/phrasing_map.json", effect: allow }
+  - { action: edit, resource: "state/config.json", effect: allow }
+  - { action: edit, resource: "state/fluents.json", effect: allow }
+  - { action: edit, resource: "state/fluents_schema.md", effect: allow }
+  - { action: edit, resource: "state/events.json", effect: allow }
+  # tests/norm_checks/* is deliberately NOT here — norm-architect owns
+  # that directory exclusively. This agent must be structurally unable
+  # to edit the tests it's being judged against; that's the entire
+  # point of splitting design/test-authoring from implementation across
+  # two separate agents.
+  - { action: edit, resource: "state/norm_specs/*", effect: allow }
+  - { action: edit, resource: "state/institution.json", effect: allow }
+  - { action: edit, resource: "state/actions/*", effect: allow }
+  - { action: edit, resource: "state/actions/harvest.json", effect: deny }
+  - { action: edit, resource: "state/actions/propose.json", effect: deny }
+  - { action: edit, resource: "state/actions/critique.json", effect: deny }
+  - { action: edit, resource: "state/actions/vote.json", effect: deny }
+  - { action: edit, resource: "state/actions/discuss.json", effect: deny }
+  - { action: edit, resource: "state/object_types/*", effect: allow }
+  - { action: edit, resource: "state/objects.json", effect: allow }
+  - { action: edit, resource: "actions/handlers/*", effect: allow }
+  - { action: edit, resource: "actions/handlers/harvest.py", effect: deny }
+  - { action: edit, resource: "actions/handlers/propose.py", effect: deny }
+  - { action: edit, resource: "actions/handlers/critique.py", effect: deny }
+  - { action: edit, resource: "actions/handlers/vote.py", effect: deny }
+  - { action: edit, resource: "actions/handlers/discuss.py", effect: deny }
+  - { action: edit, resource: "engine/simulate.py", effect: allow }
+  - { action: shell, resource: "*", effect: allow }
+  - { action: webfetch, resource: "*", effect: deny }
+  - { action: websearch, resource: "*", effect: deny }
+  - { action: subagent, resource: "*", effect: deny }
+  - { action: subagent, resource: "norm-finalizer", effect: allow }
 steps: 500
 ---
 

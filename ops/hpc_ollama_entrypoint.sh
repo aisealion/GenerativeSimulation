@@ -74,7 +74,7 @@ export CODEGRAPH_TELEMETRY=0
 # codegraph_explore/impact/callers MCP tool calls are always current
 # without anyone explicitly re-running init/sync per round (that manual
 # per-round refresh — see each agent's own codebase-understanding step in
-# .opencode/agent/ — was itself only ever a workaround for not trusting
+# .opencode/agents/ — was itself only ever a workaround for not trusting
 # this path).
 # Deliberately not the same thing as the original incident: that was
 # specifically `codegraph sync` invoked as a one-shot CLI command outside
@@ -299,14 +299,18 @@ ollama create "$OLLAMA_ENGINEER_CTX_MODEL_ID" -f /tmp/fishery-engineer.Modelfile
 # listed here — the fisher no longer goes through opencode at all (see
 # below), so opencode never needs to know about the 20b model.
 mkdir -p .opencode
+# v2 config schema (2026-09-21 migration) — provider -> providers,
+# npm -> package (aisdk: prefix), options -> settings; same rename set as
+# the committed opencode.jsonc (see that file's own top-of-file comment
+# for the stale-published-schema caveat, which applies here identically).
 cat > .opencode/opencode.json << EOF
 {
   "\$schema": "https://opencode.ai/config.json",
-  "provider": {
+  "providers": {
     "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "name": "Local Ollama (Aoraki)",
-      "options": {
+      "settings": {
         "baseURL": "http://${OLLAMA_HOST}/v1",
         "apiKey": "ollama"
       },
@@ -327,7 +331,14 @@ EOF
 
 if ! command -v opencode >/dev/null 2>&1; then
   echo "opencode not found (checked \$HOME/.opencode/bin) — installing there"
-  curl -fsSL https://opencode.ai/install | bash
+  # v2 install endpoint (2026-09-21 migration) — https://opencode.ai/install
+  # (no /v2/) installs v1, a different major version this repo's config
+  # (opencode.jsonc, .opencode/agents/*.md permission arrays) is no longer
+  # compatible with. If a node already has v1 installed under this same
+  # path from before this migration, `command -v opencode` finds it and
+  # this install is skipped — check `opencode --version` manually on a
+  # node that's run this before the migration landed.
+  curl -fsSL https://opencode.ai/v2/install | bash
 fi
 
 # The fisher agent no longer goes through opencode — llm_agents.py calls

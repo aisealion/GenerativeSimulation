@@ -1,46 +1,34 @@
 ---
 description: Given a round's frozen specification (state/norm_specs/round_N.md), the raw norm.txt text, norm-engineer's diff, and BOTH test suites (norm-architect's pre-written tests/norm_checks/round_N/ and this agent's own tests/norm_evaluation/round_N/), independently judge whether the implementation actually satisfies each requirement — hunting specifically for logical omissions and under-enforcement (a requirement technically covered by a passing test but implemented more weakly than the norm text requires), not just re-deriving pass/fail. Never edits simulation code, never approves its own or norm-engineer's code — a clean model instance, invoked after norm-engineer's compile/runtime/self-correction checks pass, before its changes are committed.
 mode: primary
-permission:
+# v2 permissions: an ordered array of {action, resource, effect} — the
+# LAST matching rule wins (see https://opencode.ai/v2/docs/permissions/).
+# v2's `*` wildcard spans `/`, so one rule per directory now covers every
+# nesting depth (v1 needed a separate line per depth).
+permissions:
   # Operational infra/cache, never relevant to auditing a norm's
-  # implementation — denied by pattern depth (patterns here are matched
-  # single-segment, not "**" globstar, so each real nesting depth needs
-  # its own line).
-  read:
-    "*": allow
-    "ops/*": deny
-    "ops/*/*": deny
-    "ops/*/*/*": deny
-    ".venv-fishery/*": deny
-    ".venv-fishery/*/*": deny
-    ".venv-fishery/*/*/*": deny
-    ".pytest_cache/*": deny
-    ".pytest_cache/*/*": deny
-    ".pytest_cache/*/*/*": deny
-    ".git/*": deny
-    ".git/*/*": deny
-    ".codegraph/*": deny
-    "__pycache__/*": deny
-    "*/__pycache__/*": deny
-    "*/*/__pycache__/*": deny
-    "*/*/*/__pycache__/*": deny
-    "*/*/*/*/__pycache__/*": deny
-  edit:
-    "*": deny
-    "tests/norm_evaluation/*": allow
-  bash:
-    "*": deny
-    "python3 -m py_compile *": allow
-    "python3 -m pytest*": allow
-    "pytest*": allow
-    "git status*": allow
-    "git diff*": allow
-    "git log*": allow
-    "codegraph*": allow
-    "grep*": allow
-  webfetch: deny
-  websearch: deny
-  task: deny
+  # implementation.
+  - { action: read, resource: "*", effect: allow }
+  - { action: read, resource: "ops/*", effect: deny }
+  - { action: read, resource: ".venv-fishery/*", effect: deny }
+  - { action: read, resource: ".pytest_cache/*", effect: deny }
+  - { action: read, resource: ".git/*", effect: deny }
+  - { action: read, resource: ".codegraph/*", effect: deny }
+  - { action: read, resource: "*__pycache__/*", effect: deny }
+  - { action: edit, resource: "*", effect: deny }
+  - { action: edit, resource: "tests/norm_evaluation/*", effect: allow }
+  - { action: shell, resource: "*", effect: deny }
+  - { action: shell, resource: "python3 -m py_compile *", effect: allow }
+  - { action: shell, resource: "python3 -m pytest*", effect: allow }
+  - { action: shell, resource: "pytest*", effect: allow }
+  - { action: shell, resource: "git status*", effect: allow }
+  - { action: shell, resource: "git diff*", effect: allow }
+  - { action: shell, resource: "git log*", effect: allow }
+  - { action: shell, resource: "codegraph*", effect: allow }
+  - { action: shell, resource: "grep*", effect: allow }
+  - { action: webfetch, resource: "*", effect: deny }
+  - { action: websearch, resource: "*", effect: deny }
+  - { action: subagent, resource: "*", effect: deny }
 steps: 300
 ---
 
