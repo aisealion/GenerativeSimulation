@@ -1,13 +1,20 @@
 #!/bin/bash
 #
 # Runs the fishery simulation on Aoraki (University of Otago HPC). The
-# fisher agent runs on the local Ollama gpt-oss:20b model (FISHER_MODEL);
-# the norm-implementer/norm-evaluator (opencode) agents route to
-# NORM_IMPLEMENTER_MODEL — back on the local Ollama gpt-oss:120b model as
-# of 2026-09-14 (litellm/Kimi-K2.5's quota was exhausted; see CLAUDE.md's
-# "Norm-implementer/evaluator back on the local model" entry) — see
-# hpc_ollama_entrypoint.sh for where these get set. Submit
-# from the repo root: sbatch ops/run_simulation.slurm — this script and
+# fisher agent runs on the local Ollama gpt-oss:20b model (FISHER_MODEL).
+# The norm pipeline is now three separate opencode agents/roles
+# (2026-09-21, dual-model/TDD/auditor split — see engine/simulate.py's
+# run_norm_architect()/run_norm_engineer()/run_norm_auditor()):
+# norm-architect and norm-auditor route to NORM_ARCHITECT_MODEL/
+# NORM_AUDITOR_MODEL (local Ollama DeepSeek-R1), norm-engineer routes to
+# NORM_ENGINEER_MODEL (local Ollama Qwen3-Coder-Next) — replacing the
+# single NORM_IMPLEMENTER_MODEL shared by the old norm-implementer/
+# norm-evaluator pair. That pair had been back on a local Ollama model
+# (gpt-oss:120b) since 2026-09-14 (litellm/Kimi-K2.5's quota was
+# exhausted; see CLAUDE.md's "Norm-implementer/evaluator back on the
+# local model" entry) — see hpc_ollama_entrypoint.sh for where all of
+# these vars get set. Submit from the repo root: sbatch
+# ops/run_simulation.slurm — this script and
 # hpc_ollama_entrypoint.sh both moved into ops/ on 2026-09-14 (operational/
 # infra scripts, plus logs/ and plots/, out of the repo root specifically
 # so opencode's own read/glob/grep exploration never wastes a tool call on
@@ -43,10 +50,19 @@
 #SBATCH --gres=gpu:1                   # 2026-09-15: back down to 1 GPU (was 2, on the old H100
                                         #   partition) — a single H200's 144GB alone is nearly
                                         #   double one H100's 80GB, comfortably fitting gpt-oss:120b
-                                        #   (norm-implementer/evaluator) and gpt-oss:20b (fisher)
-                                        #   with real headroom even while Ollama swaps between them
-                                        #   on the same card, without needing the old 2-GPU/
-                                        #   OLLAMA_SCHED_SPREAD workaround (removed below) at all.
+                                        #   (norm-implementer/evaluator, pre-2026-09-21) and
+                                        #   gpt-oss:20b (fisher) with real headroom even while
+                                        #   Ollama swaps between them on the same card, without
+                                        #   needing the old 2-GPU/OLLAMA_SCHED_SPREAD workaround
+                                        #   (removed below) at all.
+                                        #   2026-09-21: the norm pipeline swapped gpt-oss:120b for
+                                        #   two new models (DeepSeek-R1:70b + Qwen3-Coder-Next —
+                                        #   see hpc_ollama_entrypoint.sh). VRAM headroom for THIS
+                                        #   combination (those two + gpt-oss:20b, still swapped on
+                                        #   one GPU) is UNVERIFIED — never run before. If a real
+                                        #   job OOMs, raise this back to --gres=gpu:2 and re-add
+                                        #   OLLAMA_SCHED_SPREAD=1 below (both still documented,
+                                        #   just currently unused) as the first fallback.
 #SBATCH --cpus-per-task=4             # raised 10 -> 16 (2026-09-15): aoraki44 has 128 cores
                                         #   (2x64) total across 8 GPUs — this job uses 1 of those
                                         #   8, so 16 cores (1/8 of the node's total) is a

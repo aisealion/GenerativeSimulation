@@ -1,6 +1,6 @@
 # State files — what each one is for, who owns what
 
-## Norm-implementer-writable
+## Norm-engineer-writable
 
 - **`state/config.json`** — `"rules"`: a dict keyed by action name, each
   value a list of `{"type": ..., "id"?: ..., "lifecycle"?: {...},
@@ -46,7 +46,11 @@
   to `norm_specs/round_{N}.md` at the repo root instead (dropping the
   `state/` prefix), which the orchestrator's check can't find, discarding
   otherwise-real work over a path typo.
-- **`tests/norm_checks/`** — yours (naming convention in its own README).
+- **`tests/norm_checks/round_{N}/`** — **not yours** — `norm-architect`'s
+  exclusive surface, written before you ever run (naming convention in
+  its own README). You read every test there before writing any code, but
+  cannot edit it (denied by permission) — it's the pre-written target
+  your implementation must satisfy, not something you author or adjust.
 - **`prompts/role_directives/{role}.md`**, action-spec `prompt.template` —
   see `action-contract.md`/`role-contract.md`.
 - **`prompts/phrasing_map.json`** — the fourth-wall boundary: no internal
@@ -66,9 +70,10 @@
   value here, including `runtime["rules"][key]` or
   `runtime["objects"][id]["fields"]` — a rule's/object's own persistent
   state is written by simulation code at run time, never pre-seeded.
-- **`tests/norm_evaluation/`** — the `norm-evaluator` subagent's own
-  surface. Never edit it, never let a test failing there change your mind
-  about what the spec says — report the disagreement.
+- **`tests/norm_evaluation/`** — `norm-auditor`'s own surface (a separate
+  model instance that never wrote the code). Never edit it, never let a
+  test failing there change your mind about what the spec says — report
+  the disagreement.
 - **`tests/regression/`** — fixed, human-owned. Never weaken or delete a
   test to make it pass; say so explicitly and stop if you believe one is
   wrong.

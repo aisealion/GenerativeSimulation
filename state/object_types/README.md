@@ -18,7 +18,7 @@ Keeping a declaration and its accumulating runtime values apart is
 deliberate: exactly the same reason `state/config.json["rules"][action_name]`
 entries never hold a rule's own running balance (that's
 `runtime["rules"][key]`, via `ctx.rule_state(key)`) — a
-norm-implementer-writable file must never also be where the running
+norm-engineer-writable file must never also be where the running
 simulation's own numbers live.
 
 **Ships empty by design**, same principle and same reason as

@@ -1,20 +1,20 @@
-"""Fixed simulation physics — never editable by the norm-implementer,
+"""Fixed simulation physics — never editable by the norm-engineer,
 regardless of what any norm asks for. Ported directly from Gupta et al.'s
 CPR-game codebase (Codes/Gupta/CPRG_fishing, branch origin/hiromu/llm-norm,
 ostrom3/Agent.py and Model.py), not this project's own design — a norm can
-change caps, deposits, bans, and schedules (all implementer-owned, in
+change caps, deposits, bans, and schedules (all engineer-owned, in
 actions/rules/ and actions/), but the underlying catch equation, regrowth
 rate, and survival economics below are the fixed rules of the world those
 choices play out against, not something a community vote should be able
 to rewrite.
 
-Lives under engine/ specifically so it's outside the norm-implementer's
+Lives under engine/ specifically so it's outside the norm-engineer's
 permission.edit allowlist (actions/rules/*/*, actions/*, prompts/*, plus a
 few named files) by construction, the same way engine/simulate.py and
 engine/llm_agents.py already are. The rate constants below live here for
 the same reason the equations do, not in state/config.json (which the
-norm-implementer can freely edit) — a fixed formula reading a
-norm-implementer-editable rate is exactly as rewritable as the formula
+norm-engineer can freely edit) — a fixed formula reading a
+norm-engineer-editable rate is exactly as rewritable as the formula
 itself would be.
 
 `available_stock()` moved in from the old `mechanisms/stock_check.py`

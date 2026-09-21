@@ -115,7 +115,7 @@ class RuleSet:
     """Every active Rule for one action this round, in
     state["config"]["rules"][action_name] order — built fresh per
     ActionContext (see engine.institution.context.ActionContext), never
-    cached, so a norm-implementer's mid-run edit to a rule file takes
+    cached, so a norm-engineer's mid-run edit to a rule file takes
     effect immediately."""
 
     rules: list
@@ -235,7 +235,7 @@ def tick_rule_lifecycles(config, fluents, round_number):
     `rule_active` fluent (see state/fluents_schema.md) the exact round its
     own "lifecycle" (a state["config"]["rules"][action][i]["lifecycle"]
     entry) naturally expires, so a rule given a bounded duration never
-    needs the norm-implementer to hand-write termination logic or
+    needs the norm-engineer to hand-write termination logic or
     remember to close rule_active itself. A no-op for any rule with no
     lifecycle set. `args` is keyed by both action and type — a type_name
     is only unique within its own action's rule directory, so both are

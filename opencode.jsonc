@@ -46,16 +46,51 @@
       "models": {
         "gpt-oss:120b": {
           "name": "GPT-OSS 120B (local Ollama)",
-          // Matches Aoraki's own extended-context Modelfile (num_ctx, see
-          // ops/hpc_ollama_entrypoint.sh's OLLAMA_NUM_CTX_120B) — added so
-          // opencode's own context-management/compaction logic knows this
-          // model's real window instead of having no declared limit at all
-          // (unlike the litellm models above, which already declare one).
-          // "output" set equal to "context": a self-hosted Ollama model has
-          // no separate max-generation cap the way a hosted API does —
-          // num_ctx is the only real ceiling, so anything smaller here
-          // would be an invented number, not a documented spec.
           "limit": { "context": 131072, "output": 131072 }
+        },
+        // norm-architect and norm-auditor both route to this by default
+        // (NORM_ARCHITECT_MODEL / NORM_AUDITOR_MODEL, see engine/simulate.py)
+        // — two separate opencode sessions against the same weights is
+        // fine ("never let the model that wrote the code approve its own
+        // work" is about session/context separation, not the model tag).
+        // Exact tag is a placeholder — override via env var if your local
+        // Ollama registry names it differently.
+        //
+        // deepseek-r1:70b is a Llama-3.3-70B distillation, NOT the same
+        // architecture as gpt-oss:120b — don't copy that model's 131072
+        // figure over blindly. It advertises a 128K ceiling (inherited
+        // from its Llama-3.3 base), but real-world reports (Ollama's own
+        // community guidance, multiple hosted-API providers) converge on
+        // noticeably degraded quality well before that, and its own long
+        // chain-of-thought reasoning eats into whatever context budget is
+        // set aside for output. 65536 (64K) context / 32768 (32K) output
+        // is a middle ground actually exercised elsewhere (Azure AI
+        // Foundry, AWS Bedrock both cap DeepSeek-R1 output at 32768) —
+        // override via OLLAMA_NUM_CTX_ARCHITECT if a real run shows this
+        // is too tight or too generous.
+        "deepseek-r1:70b": {
+          "name": "DeepSeek-R1 70B (local Ollama, reasoning/audit)",
+          "limit": { "context": 65536, "output": 32768 }
+        },
+        // norm-engineer routes to this by default (NORM_ENGINEER_MODEL).
+        // Exact tag is a placeholder — override via env var if needed.
+        //
+        // qwen3-coder:30b (Qwen3-Coder-30B-A3B, a sparse MoE — 30B total,
+        // ~3B active per token) natively supports 262144 (256K) context,
+        // over 2x gpt-oss:120b's 131072 — kept at 131072 here anyway,
+        // deliberately not raised to match its own native ceiling: this
+        // repo's real observed need (an agentic session with 80+ tool
+        // calls) was satisfied by 131072 for the analogous role
+        // (gpt-oss:120b), and doubling context here would double this
+        // model's own KV-cache VRAM cost for no demonstrated benefit,
+        // compounding the already-unverified VRAM headroom for this new
+        // model combination (see hpc_ollama_entrypoint.sh's own comment).
+        // Output raised to 65536, the model's own documented "recommended
+        // max" (vs. 32768 "standard") — code-generation turns can produce
+        // large multi-file diffs in one response.
+        "qwen3-coder:30b": {
+          "name": "Qwen3-Coder-Next (local Ollama, engineering)",
+          "limit": { "context": 131072, "output": 65536 }
         }
       }
     }

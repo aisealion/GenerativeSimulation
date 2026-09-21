@@ -70,11 +70,12 @@ export CODEGRAPH_TELEMETRY=0
 # CODEGRAPH_NO_DAEMON removed (2026-08-27) — trying CodeGraph's actual
 # standard/intended design: opencode.jsonc's `codegraph serve --mcp` runs a
 # background file-watcher that keeps the index live on its own, so the
-# norm-implementer's codegraph_explore/impact/callers MCP tool calls are
-# always current without anyone explicitly re-running init/sync per round
-# (that manual per-round refresh — see .opencode/agent/norm-implementer.md's
-# codebase-understanding step — was itself only ever a workaround for not
-# trusting this path).
+# norm pipeline agents' (norm-architect/norm-engineer/norm-auditor)
+# codegraph_explore/impact/callers MCP tool calls are always current
+# without anyone explicitly re-running init/sync per round (that manual
+# per-round refresh — see each agent's own codebase-understanding step in
+# .opencode/agent/ — was itself only ever a workaround for not trusting
+# this path).
 # Deliberately not the same thing as the original incident: that was
 # specifically `codegraph sync` invoked as a one-shot CLI command outside
 # the daemon's own control (its docs describe sync as normally
@@ -83,19 +84,20 @@ export CODEGRAPH_TELEMETRY=0
 # only ever left off out of low-cost caution, not because it was the
 # confirmed cause. Still, this is a real, not-fully-eliminated risk in the
 # specific repeated-across-many-rounds production context that standalone
-# reproduction never exercised — engine/simulate.py's run_norm_implementer()
-# was hardened the same day to catch a hung/failed opencode invocation and
-# discard that round rather than crash the whole multi-round run, so a
-# recurrence here costs one round, not the rest of the job. Re-add
-# `export CODEGRAPH_NO_DAEMON=1` above to revert to the previous
-# manual-refresh-only behavior if this turns out to still be the cause.
+# reproduction never exercised — engine/simulate.py's run_norm_engineer()
+# (run_norm_implementer() at the time) was hardened the same day to catch
+# a hung/failed opencode invocation and discard that round rather than
+# crash the whole multi-round run, so a recurrence here costs one round,
+# not the rest of the job. Re-add `export CODEGRAPH_NO_DAEMON=1` above to
+# revert to the previous manual-refresh-only behavior if this turns out to
+# still be the cause.
 
 # .codegraph/ is a local, per-checkout index — never committed to git (see
 # .gitignore) — so it doesn't exist yet on a fresh clone of this repo, which
 # is exactly the situation on a cluster you haven't run this on before.
 # Without it, opencode.jsonc's codegraph MCP server finds no index and
-# exposes no tools at all, and the norm-implementer silently falls back to
-# plain Read/Grep instead of codegraph_explore — no error, just quietly
+# exposes no tools at all, and the norm pipeline agents silently fall back
+# to plain Read/Grep instead of codegraph_explore — no error, just quietly
 # worse exploration.
 #
 # Always a full clean init, never `codegraph sync` — this is the actual
@@ -136,7 +138,7 @@ if ! timeout 120 codegraph --no-color init .; then
   echo "specific thing that was hanging before — see the comment above). If" >&2
   echo "this is still failing, the cause is something not yet isolated by any" >&2
   echo "reproduction tried so far. Continuing without a CodeGraph index: the" >&2
-  echo "norm-implementer will fall back to plain Read/Grep, which still works," >&2
+  echo "the norm pipeline agents will fall back to plain Read/Grep, which still works," >&2
   echo "just with worse exploration." >&2
   rm -rf .codegraph
 fi
@@ -165,12 +167,40 @@ if [ "$ready" != true ]; then
   exit 1
 fi
 
-# Two different models for the two agent types: the fisher (many small,
-# fast decisions per round — 10 agents x 3 actions) runs on gpt-oss:20b;
-# the norm-implementer (one heavier code-editing call per round, via
-# opencode) runs on gpt-oss:120b. Both must already be present — same
-# never-auto-pull policy as before, just checked twice now.
-for MODEL_TAG in "gpt-oss:20b" "gpt-oss:120b"; do
+# Two base tags for the norm pipeline's reasoning/audit and engineering
+# roles (2026-09-21: replaced gpt-oss:120b here — norm-architect and
+# norm-auditor both route to DeepSeek-R1, norm-engineer routes to
+# Qwen3-Coder-Next, per the dual-model/TDD/auditor split — see
+# engine/simulate.py's run_norm_architect()/run_norm_engineer()/
+# run_norm_auditor()). Parameterized as overridable vars, not hardcoded
+# inline, specifically so a real Ollama-registry tag mismatch is a
+# one-line fix here rather than a script rewrite.
+DEEPSEEK_R1_TAG="${DEEPSEEK_R1_TAG:-deepseek-r1:70b}"
+QWEN3_CODER_TAG="${QWEN3_CODER_TAG:-qwen3-coder:30b}"
+
+# Dense 70B (DeepSeek-R1) has all 70B parameters active per token, unlike
+# gpt-oss:120b's sparse MoE (far fewer active params despite the larger
+# total) — so per-token latency for the architect/auditor role may be
+# noticeably different from the old 120b norm-implementer's, not
+# necessarily faster just because "70B < 120B." Genuinely open question
+# for the first real timed run on this hardware, not asserted either way
+# here.
+#
+# VRAM headroom for this specific model combination (DeepSeek-R1:70b +
+# Qwen3-Coder-Next alongside gpt-oss:20b, all swapped on one GPU by
+# Ollama) is UNVERIFIED — this repo has never run it. The single-H200
+# (144GB) GPU allocation below was sized and confirmed against a
+# different pair (gpt-oss:120b + gpt-oss:20b, see run_simulation.slurm's
+# own comment); it is not re-confirmed for this new pair. If a real run
+# OOMs, the documented first fallback is run_simulation.slurm's
+# `--gres=gpu:1` -> `--gres=gpu:2` plus re-adding `OLLAMA_SCHED_SPREAD=1`
+# (both explicitly removed-but-available per that file's own history).
+#
+# Fisher (many small, fast decisions per round — 10 agents x 3 actions)
+# still runs on gpt-oss:20b, untouched by this change. All three model
+# tags must already be present — same never-auto-pull policy as before,
+# just checked three times now instead of twice.
+for MODEL_TAG in "gpt-oss:20b" "$DEEPSEEK_R1_TAG" "$QWEN3_CODER_TAG"; do
   echo "Checking ${MODEL_TAG} is present under OLLAMA_MODELS=${OLLAMA_MODELS:-<unset>} (not downloading it)..."
   if ! ollama list | grep -q "$MODEL_TAG"; then
     echo "${MODEL_TAG} not found via 'ollama list'. You said this is already" >&2
@@ -183,51 +213,91 @@ for MODEL_TAG in "gpt-oss:20b" "gpt-oss:120b"; do
 done
 
 # Ollama caps every model's context window at 4096 tokens by default,
-# regardless of what the model itself supports (gpt-oss:120b advertises
-# 128K, gpt-oss:20b also well beyond 4096) — confirmed elsewhere to fail
-# *silently* when exceeded: a response with only reasoning tokens and no
-# actual answer, not a clear error. That's very likely what the earlier
+# regardless of what the model itself supports — confirmed elsewhere to
+# fail *silently* when exceeded: a response with only reasoning tokens and
+# no actual answer, not a clear error. That's very likely what the earlier
 # "no JSON object found in agent response: ''" retries were actually
 # hitting, not a random transient hiccup — this repo's prompts grow every
 # round (history window, codegraph_explore output, and now a 10-agent
 # proposals list for the vote action). Create an extended-context variant
 # of each model rather than relying on the 4096 default.
 #
-# Two independent sizes, not one shared value: the 120b norm-implementer's
-# sessions accumulate a long multi-turn tool-call history (a real session
-# has hit 80+ tool calls) and benefit from real headroom; the 20b fisher
-# makes far more calls per round (up to agent_count x ~4) but each one is
-# a single short persona+action prompt with no growing tool-call
-# history, so doubling its context too would just cost KV-cache memory on
-# every one of those many calls for no benefit. Override either
-# independently if needed.
+# Three independent context sizes, not one shared value: the architect's
+# and engineer's sessions accumulate a long multi-turn tool-call history
+# (a real session has hit 80+ tool calls) and benefit from real headroom;
+# the 20b fisher makes far more calls per round (up to agent_count x ~4)
+# but each one is a single short persona+action prompt with no growing
+# tool-call history, so doubling its context too would just cost KV-cache
+# memory on every one of those many calls for no benefit. Override any of
+# the three independently if needed.
 #
-# 120B raised 65536 -> 131072 (128k, 2026-09-14) — gpt-oss:120b's own
-# advertised context ceiling, matching the request to request 2 real
-# NVLink-paired H100s on one node (run_simulation.slurm's --gres=gpu:2 +
-# OLLAMA_SCHED_SPREAD=1) specifically to give this bigger context real
-# VRAM headroom rather than crowding the one GPU it used to share alone
-# with the 20b fisher model.
+# 2026-09-21: norm-architect/norm-auditor (deepseek-r1) and norm-engineer
+# (qwen3-coder) sizes are no longer copied from gpt-oss:120b's own 131072
+# figure — that was a different architecture with its own advertised
+# ceiling. Real per-model numbers (see opencode.jsonc's own comment for
+# sourcing):
+#   - deepseek-r1:70b is a Llama-3.3-70B distillation: advertises a 128K
+#     ceiling, but real-world reports (Ollama's own community guidance,
+#     multiple hosted-API providers) converge on noticeably degraded
+#     quality well before that, and its own long chain-of-thought
+#     reasoning competes with output for the same context budget. 64K
+#     context / 32K output is a middle ground actually exercised
+#     elsewhere (Azure AI Foundry, AWS Bedrock both cap DeepSeek-R1
+#     output at 32768).
+#   - qwen3-coder:30b (a sparse MoE, ~3B active params) natively supports
+#     262144 (256K) — over 2x gpt-oss:120b's 131072 — but kept at 131072
+#     here anyway, deliberately not raised to match its own native
+#     ceiling: this repo's real observed need (an agentic session with
+#     80+ tool calls) was satisfied by 131072 for the analogous role
+#     (gpt-oss:120b), and doubling context would double this model's own
+#     KV-cache VRAM cost for no demonstrated benefit, compounding the
+#     already-unverified VRAM headroom noted above for this new model
+#     combination. Output raised to 65536, the model's own documented
+#     "recommended max" (vs. 32768 "standard") — code-generation turns
+#     can produce large multi-file diffs in one response.
+# num_predict (separate from num_ctx) caps a single response's own length
+# — Ollama's Modelfile PARAMETER for what other APIs call max_tokens/
+# max_output_tokens. Previously left unset for gpt-oss:120b/20b (Ollama's
+# own default there is effectively "until num_ctx is exhausted"); set
+# explicitly here since DeepSeek-R1's long reasoning traces and
+# Qwen3-Coder's own documented output ceiling are both real, provider-
+# recommended limits distinct from their context windows, not just
+# "whatever's left of num_ctx."
 OLLAMA_NUM_CTX_20B="${OLLAMA_NUM_CTX_20B:-32768}"
-OLLAMA_NUM_CTX_120B="${OLLAMA_NUM_CTX_120B:-131072}"
+OLLAMA_NUM_CTX_ARCHITECT="${OLLAMA_NUM_CTX_ARCHITECT:-65536}"
+OLLAMA_NUM_PREDICT_ARCHITECT="${OLLAMA_NUM_PREDICT_ARCHITECT:-32768}"
+OLLAMA_NUM_CTX_ENGINEER="${OLLAMA_NUM_CTX_ENGINEER:-131072}"
+OLLAMA_NUM_PREDICT_ENGINEER="${OLLAMA_NUM_PREDICT_ENGINEER:-65536}"
 OLLAMA_20B_CTX_MODEL_ID="gpt-oss-20b-${OLLAMA_NUM_CTX_20B}ctx"
-OLLAMA_120B_CTX_MODEL_ID="gpt-oss-120b-${OLLAMA_NUM_CTX_120B}ctx"
+OLLAMA_ARCHITECT_CTX_MODEL_ID="deepseek-r1-70b-${OLLAMA_NUM_CTX_ARCHITECT}ctx"
+OLLAMA_ENGINEER_CTX_MODEL_ID="qwen3-coder-30b-${OLLAMA_NUM_CTX_ENGINEER}ctx"
 
 echo "Creating extended-context variant ${OLLAMA_20B_CTX_MODEL_ID} (num_ctx=${OLLAMA_NUM_CTX_20B}) from gpt-oss:20b..."
 printf 'FROM gpt-oss:20b\nPARAMETER num_ctx %s\n' "$OLLAMA_NUM_CTX_20B" > /tmp/fishery-20b.Modelfile
 ollama create "$OLLAMA_20B_CTX_MODEL_ID" -f /tmp/fishery-20b.Modelfile
 
-echo "Creating extended-context variant ${OLLAMA_120B_CTX_MODEL_ID} (num_ctx=${OLLAMA_NUM_CTX_120B}) from gpt-oss:120b..."
-printf 'FROM gpt-oss:120b\nPARAMETER num_ctx %s\n' "$OLLAMA_NUM_CTX_120B" > /tmp/fishery-120b.Modelfile
-ollama create "$OLLAMA_120B_CTX_MODEL_ID" -f /tmp/fishery-120b.Modelfile
+# norm-auditor deliberately reuses this same variant (never creates a
+# third) — Ollama dedups layers by hash, so this costs no extra disk/VRAM,
+# and "never let the model that wrote the code approve its own work" is
+# already satisfied by never sharing an opencode --session between agent
+# types, independent of whether the auditor's tag matches the architect's.
+echo "Creating extended-context variant ${OLLAMA_ARCHITECT_CTX_MODEL_ID} (num_ctx=${OLLAMA_NUM_CTX_ARCHITECT}, num_predict=${OLLAMA_NUM_PREDICT_ARCHITECT}) from ${DEEPSEEK_R1_TAG}..."
+printf 'FROM %s\nPARAMETER num_ctx %s\nPARAMETER num_predict %s\n' \
+  "$DEEPSEEK_R1_TAG" "$OLLAMA_NUM_CTX_ARCHITECT" "$OLLAMA_NUM_PREDICT_ARCHITECT" > /tmp/fishery-architect.Modelfile
+ollama create "$OLLAMA_ARCHITECT_CTX_MODEL_ID" -f /tmp/fishery-architect.Modelfile
+
+echo "Creating extended-context variant ${OLLAMA_ENGINEER_CTX_MODEL_ID} (num_ctx=${OLLAMA_NUM_CTX_ENGINEER}, num_predict=${OLLAMA_NUM_PREDICT_ENGINEER}) from ${QWEN3_CODER_TAG}..."
+printf 'FROM %s\nPARAMETER num_ctx %s\nPARAMETER num_predict %s\n' \
+  "$QWEN3_CODER_TAG" "$OLLAMA_NUM_CTX_ENGINEER" "$OLLAMA_NUM_PREDICT_ENGINEER" > /tmp/fishery-engineer.Modelfile
+ollama create "$OLLAMA_ENGINEER_CTX_MODEL_ID" -f /tmp/fishery-engineer.Modelfile
 
 # Point opencode's "ollama" provider at THIS job's actual (randomly-assigned)
 # port instead of the committed opencode.jsonc's fixed 127.0.0.1:11434
 # default. .opencode/opencode.json is gitignored — opencode merges it in
 # automatically as an extra project-local config layer, nothing tracked
-# gets touched. Only the 120b variant needs to be listed here — the fisher
-# no longer goes through opencode at all (see below), so opencode never
-# needs to know about the 20b model.
+# gets touched. Only the architect/engineer context variants need to be
+# listed here — the fisher no longer goes through opencode at all (see
+# below), so opencode never needs to know about the 20b model.
 mkdir -p .opencode
 cat > .opencode/opencode.json << EOF
 {
@@ -241,10 +311,13 @@ cat > .opencode/opencode.json << EOF
         "apiKey": "ollama"
       },
       "models": {
-        "gpt-oss:120b": { "name": "GPT-OSS 120B (Aoraki Ollama)" },
-        "${OLLAMA_120B_CTX_MODEL_ID}": {
-          "name": "GPT-OSS 120B, ${OLLAMA_NUM_CTX_120B}-token context (Aoraki Ollama)",
-          "limit": { "context": ${OLLAMA_NUM_CTX_120B}, "output": ${OLLAMA_NUM_CTX_120B} }
+        "${OLLAMA_ARCHITECT_CTX_MODEL_ID}": {
+          "name": "DeepSeek-R1 70B, ${OLLAMA_NUM_CTX_ARCHITECT}-token context (Aoraki Ollama)",
+          "limit": { "context": ${OLLAMA_NUM_CTX_ARCHITECT}, "output": ${OLLAMA_NUM_PREDICT_ARCHITECT} }
+        },
+        "${OLLAMA_ENGINEER_CTX_MODEL_ID}": {
+          "name": "Qwen3-Coder-Next, ${OLLAMA_NUM_CTX_ENGINEER}-token context (Aoraki Ollama)",
+          "limit": { "context": ${OLLAMA_NUM_CTX_ENGINEER}, "output": ${OLLAMA_NUM_PREDICT_ENGINEER} }
         }
       }
     }
@@ -332,54 +405,74 @@ echo "litellm/pydantic/pydantic-core verified working inside ${FISHERY_VENV}."
 mkdir -p ops/logs
 # FISHER_MODEL drives the fisher's direct litellm calls — stays the local
 # Ollama 20b model (up to agent_count x 3 calls per round, so it needs to
-# be the fast/local one).
+# be the fast/local one). Untouched by the 2026-09-21 dual-model/TDD/
+# auditor split below.
 #
-# NORM_IMPLEMENTER_MODEL routes the norm-implementer's (and norm-evaluator's
-# — it shares this same fallback) opencode invocations specifically.
-# History: litellm/Kimi-K2.5 -> local gpt-oss-120b (2026-09-04, Kimi-K2.5
-# quota exhausted) -> litellm/Kimi-K2.5 again (2026-09-10, after a 12-round
-# local run showed its own real reliability cost: roughly half of all
+# NORM_ARCHITECT_MODEL / NORM_ENGINEER_MODEL / NORM_AUDITOR_MODEL route
+# the norm pipeline's three opencode agents independently as of
+# 2026-09-21 (previously a single NORM_IMPLEMENTER_MODEL shared by
+# norm-implementer and norm-evaluator both) — norm-architect and
+# norm-auditor to DeepSeek-R1 (reasoning/audit), norm-engineer to
+# Qwen3-Coder-Next (execution). engine/simulate.py's own model-selection
+# still falls back to NORM_IMPLEMENTER_MODEL/OPENCODE_MODEL if any of the
+# three new vars is unset, for anyone running this outside a freshly
+# updated entrypoint — but this script always sets all three explicitly.
+#
+# Prior history, when this was one shared model for both agents: litellm/
+# Kimi-K2.5 -> local gpt-oss-120b (2026-09-04, Kimi-K2.5 quota exhausted)
+# -> litellm/Kimi-K2.5 again (2026-09-10, after a 12-round local run
+# showed its own real reliability cost: roughly half of all
 # norm-implementer invocations never reached a genuine stop, and 3 calls
-# hung for their full timeout with zero output — see the local-model entry
-# still below this one). Back to local gpt-oss-120b again (2026-09-11),
-# after the litellm path failed even harder in the very next real run: round
-# 1 completed fine (654s, 82 tool calls, a real genuine stop), then every
-# single implementer call from round 2 onward — 6 in a row across 3
-# rounds — hung for the exact full 3600s timeout with zero output. Not a
-# gradual flakiness pattern like the local model's; a hard, total,
-# starts-at-one-clean-point failure, consistent with the Otago proxy
-# hitting a quota/rate limit or going unresponsive partway through round
-# 1's own real usage (98 tool-call round-trips), with opencode's own
-# retry/backoff against that stuck rather than failing fast. Both local
-# and remote paths now have a real, directly-observed failure mode on
-# record — pick based on which cost is more tolerable for a given run:
-# local risks silent early truncation, litellm/Kimi-K2.5 risks a total
-# multi-hour stall once quota/rate-limit is hit.
+# hung for their full timeout with zero output). Back to local
+# gpt-oss-120b again (2026-09-11), after the litellm path failed even
+# harder in the very next real run: round 1 completed fine (654s, 82 tool
+# calls, a real genuine stop), then every single implementer call from
+# round 2 onward — 6 in a row across 3 rounds — hung for the exact full
+# 3600s timeout with zero output. Not a gradual flakiness pattern like the
+# local model's; a hard, total, starts-at-one-clean-point failure,
+# consistent with the Otago proxy hitting a quota/rate limit or going
+# unresponsive partway through round 1's own real usage (98 tool-call
+# round-trips), with opencode's own retry/backoff against that stuck
+# rather than failing fast. Both local and remote paths had a real,
+# directly-observed failure mode on record — the same tradeoff applies to
+# each of the three vars below independently now.
 #
-export NORM_IMPLEMENTER_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
-export OPENCODE_MODEL="ollama/${OLLAMA_120B_CTX_MODEL_ID}"
+export NORM_ARCHITECT_MODEL="ollama/${OLLAMA_ARCHITECT_CTX_MODEL_ID}"
+export NORM_AUDITOR_MODEL="ollama/${OLLAMA_ARCHITECT_CTX_MODEL_ID}"
+export NORM_ENGINEER_MODEL="ollama/${OLLAMA_ENGINEER_CTX_MODEL_ID}"
+# Ultimate fallback, kept for engine/simulate.py's own env-var fallback
+# chain (NORM_ARCHITECT_MODEL/NORM_ENGINEER_MODEL/NORM_AUDITOR_MODEL, each
+# falling back through NORM_IMPLEMENTER_MODEL, to this) — this script
+# itself never relies on the fallback since it sets all three above.
+export OPENCODE_MODEL="ollama/${OLLAMA_ARCHITECT_CTX_MODEL_ID}"
 export FISHER_MODEL="ollama/${OLLAMA_20B_CTX_MODEL_ID}"
 
-# Only actually required when NORM_IMPLEMENTER_MODEL (above) is routed
-# through the Otago LiteLLM proxy — matched generically (litellm/*) rather
-# than hardcoding "Kimi-K2.5" so this check stays correct regardless of
-# which litellm-hosted model it's pointed at later. A hard requirement
+# Only actually required when one of the norm-pipeline model vars above is
+# routed through the Otago LiteLLM proxy — matched generically (litellm/*)
+# rather than hardcoding "Kimi-K2.5" so this check stays correct
+# regardless of which litellm-hosted model it's pointed at later. Checked
+# per-var now (2026-09-21) rather than against one shared
+# NORM_IMPLEMENTER_MODEL, since the three roles can each be pointed at a
+# different provider independently — a single-var check would silently
+# miss any of the other two being routed to litellm. A hard requirement
 # here made sense when every run always needed it; it doesn't anymore now
-# that the default is back to a local model needing no key at all — this
-# used to unconditionally exit 1 even when nothing in the run actually
-# depended on LITELLM_API_KEY.
-case "$NORM_IMPLEMENTER_MODEL" in
-  litellm/*)
-    if [ -z "${LITELLM_API_KEY:-}" ]; then
-      echo "NORM_IMPLEMENTER_MODEL=$NORM_IMPLEMENTER_MODEL but LITELLM_API_KEY isn't" >&2
-      echo "set in this job's environment — every round's norm-implementer call" >&2
-      echo "would fail. sbatch propagates the submitting shell's environment by" >&2
-      echo "default, so export LITELLM_API_KEY before running sbatch, or pass it" >&2
-      echo "explicitly: sbatch --export=ALL,LITELLM_API_KEY=... run_simulation.slurm" >&2
-      exit 1
-    fi
-    ;;
-esac
+# that the default is a local model needing no key at all — this used to
+# unconditionally exit 1 even when nothing in the run actually depended on
+# LITELLM_API_KEY.
+for VAR_NAME in NORM_ARCHITECT_MODEL NORM_ENGINEER_MODEL NORM_AUDITOR_MODEL; do
+  case "${!VAR_NAME}" in
+    litellm/*)
+      if [ -z "${LITELLM_API_KEY:-}" ]; then
+        echo "${VAR_NAME}=${!VAR_NAME} but LITELLM_API_KEY isn't set in this job's" >&2
+        echo "environment — every round's call routed through it would fail. sbatch" >&2
+        echo "propagates the submitting shell's environment by default, so export" >&2
+        echo "LITELLM_API_KEY before running sbatch, or pass it explicitly:" >&2
+        echo "sbatch --export=ALL,LITELLM_API_KEY=... run_simulation.slurm" >&2
+        exit 1
+      fi
+      ;;
+  esac
+done
 
 # Neo4j / Graphiti memory layer (engine/memory/) — previously "local-only
 # infra, never deployed on Aoraki" (see CLAUDE.md), by design: nothing here
@@ -654,11 +747,12 @@ if [ "${ENABLE_NEO4J_MEMORY:-0}" = "1" ]; then
             echo "Neo4j reachable at $NEO4J_URI — memory layer enabled for this run."
             # engine/memory/client.py falls back to local Ollama for both the
             # memory LLM and embedder whenever LITELLM_API_KEY isn't set —
-            # gpt-oss:120b is already required/present per the check above,
-            # but nomic-embed-text (the embedder fallback) isn't pulled
-            # anywhere else, and unlike the two gpt-oss models this one is
-            # small enough (~274MB) to just pull here rather than requiring
-            # it to already be present.
+            # a required model is already present per the check above
+            # (DEEPSEEK_R1_TAG/QWEN3_CODER_TAG/gpt-oss:20b), but
+            # nomic-embed-text (the embedder fallback) isn't pulled
+            # anywhere else, and unlike those it's small enough (~274MB)
+            # to just pull here rather than requiring it to already be
+            # present.
             if [ -z "${LITELLM_API_KEY:-}" ]; then
               echo "LITELLM_API_KEY not set — memory layer will use local Ollama; pulling nomic-embed-text..."
               if ! ollama pull nomic-embed-text; then
@@ -704,7 +798,7 @@ fi
 # engine/monitoring.py (engine/call_log, mechanisms/*, actions/*) is
 # stdlib-only, so this venv (litellm/pydantic/python-dotenv/matplotlib,
 # no --system-site-packages) has everything the run needs; the opencode
-# subprocess call for the norm-implementer is an external binary,
+# subprocess call for the norm pipeline agents is an external binary,
 # unaffected by which Python interpreter launched it.
 # Run as a module (-m engine.simulate), not a script path, so `engine`
 # resolves as a package relative to $SLURM_SUBMIT_DIR (the repo root and

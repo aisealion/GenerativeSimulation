@@ -27,21 +27,23 @@ except ImportError as exc:
 
 ROOT = Path(__file__).resolve().parent.parent
 # Dedicated per-agent logs, written alongside the shared ops/logs/model_calls.jsonl.
-NORM_IMPLEMENTER_LOG_PATH = ROOT / "ops" / "logs" / "norm_implementer.jsonl"
-NORM_EVALUATOR_LOG_PATH = ROOT / "ops" / "logs" / "norm_evaluator.jsonl"
+NORM_ARCHITECT_LOG_PATH = ROOT / "ops" / "logs" / "norm_architect.jsonl"
+NORM_ENGINEER_LOG_PATH = ROOT / "ops" / "logs" / "norm_engineer.jsonl"
+NORM_AUDITOR_LOG_PATH = ROOT / "ops" / "logs" / "norm_auditor.jsonl"
 COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 100
 
-# Everything the norm-implementer is allowed to touch. Staged (git add) by
-# stage_norm_implementation() and reverted (git checkout/clean) by
-# discard_norm_implementation() on a discard.
-NORM_IMPLEMENTER_TRACKED_PATHS = [
-    # state/runtime.json is never here — simulation-owned, never the
-    # implementer's to write; kept off so a discard's `git clean -fd`
-    # can never touch it. state/schedule.json is ALSO never here any
-    # more, for the same reason, one level removed: it's now a COMPILED
-    # artifact (engine.institution.scheduler.compile_schedule(), rebuilt
-    # every round from state/actions/*.json's own scheduling.after/before)
+# Everything a norm round is allowed to touch, across both norm-architect
+# (tests/norm_checks only) and norm-engineer (everything else here).
+# Staged (git add) by stage_norm_implementation() and reverted (git
+# checkout/clean) by discard_norm_implementation() on a discard.
+NORM_ROUND_TRACKED_PATHS = [
+    # state/runtime.json is never here — simulation-owned, never a norm
+    # round's to write; kept off so a discard's `git clean -fd` can never
+    # touch it. state/schedule.json is ALSO never here any more, for the
+    # same reason, one level removed: it's now a COMPILED artifact
+    # (engine.institution.scheduler.compile_schedule(), rebuilt every
+    # round from state/actions/*.json's own scheduling.after/before)
     # rather than something hand-edited — see ROUND_ARTIFACT_PATHS below.
     # "actions" covers both actions/handlers/*.py AND
     # actions/rules/{action_name}/*.py — rule plugins moved under actions/
@@ -50,9 +52,10 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     "actions",
     "objects",
     "prompts",
-    # Implementer-authored tests for its own rule/action changes.
+    # norm-architect's pre-implementation tests (written before
+    # norm-engineer runs at all) for this round's rule/action changes.
     "tests/norm_checks",
-    # The norm-evaluator's own generated tests — must revert alongside the
+    # The norm-auditor's own generated tests — must revert alongside the
     # rule/action code they test if this round is discarded.
     "tests/norm_evaluation",
     "state/config.json",
@@ -71,6 +74,19 @@ NORM_IMPLEMENTER_TRACKED_PATHS = [
     # Editable so an edit here is actually staged and syntax-checked.
     "engine/simulate.py",
 ]
+
+# A narrower view of the above, used ONLY by
+# norm_implementation_no_code_changes_errors() — "tests/norm_checks" is
+# excluded here because norm-architect writes there *before*
+# norm-engineer ever runs, so it's already dirty by the time that check
+# executes. Using the full NORM_ROUND_TRACKED_PATHS list there would let
+# a norm-engineer that touched nothing at all slip past undetected, since
+# the architect's own pre-existing test files would already satisfy a
+# bare "is anything dirty" check. Every other use of the tracked-paths
+# list (compile-checking, discard, staging) intentionally keeps using the
+# full list — both suites must still be revertible on discard and
+# compile-checked regardless of who authored them.
+NORM_ENGINEER_CODE_PATHS = [p for p in NORM_ROUND_TRACKED_PATHS if p != "tests/norm_checks"]
 
 # Never touchable by a norm round — fixed physics, the generic institution
 # kernel, and the 5 protected actions' own declarative specs/handlers.
@@ -158,7 +174,7 @@ def compile_and_write_schedule():
     action catalog plus each state/actions/*.json's own
     scheduling.after/before/gate — schedule.json is now a COMPILED
     artifact (engine.institution.scheduler.compile_schedule()), never
-    hand-edited, so a norm-implementer round that added or reordered an
+    hand-edited, so a norm round that added or reordered an
     action can never leave it silently out of sync with institution.json
     (a whole bug class the old hand-maintained file had no check for at
     all). Called at the top of every round, and once before main()'s own
@@ -288,8 +304,8 @@ def parse_opencode_jsonl(stdout):
 
 def extract_tool_trace(stdout):
     """Ordered list of {"tool": name} per tool_use event in the same JSONL
-    stream parse_opencode_jsonl() reads — feeds ops/logs/norm_implementer.jsonl
-    / ops/logs/norm_evaluator.jsonl. A tool named "invalid" means the model
+    stream parse_opencode_jsonl() reads — feeds ops/logs/norm_architect.jsonl
+    / ops/logs/norm_engineer.jsonl / ops/logs/norm_auditor.jsonl. A tool named "invalid" means the model
     called a nonexistent tool; `detail` then carries opencode's own
     rejection message. Degrades to [] on any parse failure."""
     trace = []
@@ -320,11 +336,13 @@ def extract_last_step_reason(stdout):
     meaning the session ended before the model was actually done, not
     because it chose to stop: "tool-calls" as the very last event (the
     session ended right after a tool call, with no follow-up turn at all —
-    7 of 26 real norm-implementer invocations on that run), and "unknown"
-    paired with all-zero token counts (6 of 26) — the underlying model
+    7 of 26 real invocations on that run, back when this pipeline stage
+    was a single combined norm-implementer agent), and "unknown" paired
+    with all-zero token counts (6 of 26) — the underlying model
     completion itself silently failed or returned empty, and opencode
     still exited 0, indistinguishable from a real success by returncode
-    alone. See run_norm_implementer()'s use of this."""
+    alone. See run_norm_engineer()'s and run_norm_architect()'s use of
+    this."""
     last_reason = None
     try:
         for line in stdout.splitlines():
@@ -342,8 +360,8 @@ def extract_last_step_reason(stdout):
 def extract_session_id(stdout):
     """First sessionID found anywhere in the opencode run --format json
     JSONL stream (every event in one session carries the same id). Used
-    only by run_norm_implementer_with_retry()'s own bounded 2-attempt
-    session pairing (2026-09-18) — unlike the 2026-09-15 feature this
+    only by run_norm_engineer_with_retry()'s and run_norm_architect_with_retry()'s
+    own bounded 2-attempt session pairing (2026-09-18) — unlike the 2026-09-15 feature this
     reintroduces a narrow slice of (reverted 2026-09-17 after it caused a
     real multi-hour collapse from unbounded cross-call growth), this
     never threads a session id past a single pair of attempts, so it
@@ -383,15 +401,17 @@ def extract_json_report(text, required_keys=()):
     return None
 
 
-EVALUATION_RESULT_RE = re.compile(r"EVALUATION_RESULT:\s*(COMPLIANT|NEEDS_REPAIR)\b", re.IGNORECASE)
+AUDIT_RESULT_RE = re.compile(r"AUDIT_RESULT:\s*(COMPLIANT|NEEDS_REPAIR)\b", re.IGNORECASE)
 
 
-def extract_evaluation_result(text):
-    """Finds EVALUATION_RESULT: COMPLIANT|NEEDS_REPAIR anywhere in the
-    response (case-insensitive, last match wins) — simpler and more
-    reliable than requiring a specific JSON shape, which real evaluator
-    responses kept failing to reproduce exactly. Returns None if absent."""
-    matches = EVALUATION_RESULT_RE.findall(text)
+def extract_audit_result(text):
+    """Finds AUDIT_RESULT: COMPLIANT|NEEDS_REPAIR anywhere in the response
+    (case-insensitive, last match wins) — simpler and more reliable than
+    requiring a specific JSON shape, which real auditor responses kept
+    failing to reproduce exactly (this sentinel-line convention, and the
+    reasoning for it, carries over unchanged from the norm-evaluator this
+    agent replaces). Returns None if absent."""
+    matches = AUDIT_RESULT_RE.findall(text)
     if not matches:
         return None
     return matches[-1].upper()
@@ -435,20 +455,180 @@ def clear_stale_opencode_snapshot_lock():
         pass
 
 
-def run_norm_implementer(round_number, extra_message=None, session_id=None):
-    """Runs the norm-implementer as an opencode subprocess. Returns
+def run_norm_architect(round_number, extra_message=None, session_id=None):
+    """Runs the norm-architect as an opencode subprocess. Returns
+    (success, session_id, report) — success is True on a clean
+    (returncode 0) run that also ended on a genuine "stop" (see
+    extract_last_step_reason()), produced a parseable requirements report
+    (extract_json_report(..., required_keys={"requirements"})), AND left
+    at least one test_*.py file under tests/norm_checks/round_{N}/. False
+    on any failure — a timeout, a crash, a non-zero exit, a truncated
+    session, a missing/unparseable report, or no test files actually
+    written — all treated the same way: a process-level failure, not a
+    finding about the round's content, so it consumes
+    MAX_ARCHITECT_PROCESS_ATTEMPTS' own budget (see
+    run_norm_architect_with_retry()), never MAX_NORM_REPAIR_ATTEMPTS.
+    report is None whenever success is False.
+
+    Mirrors run_norm_engineer()'s subprocess/timeout/session-continuation
+    shape exactly — see that function's own docstring for the
+    reasoning behind the 3600s timeout and the bounded session-pairing
+    scheme; nothing about that reasoning is specific to code-writing."""
+    clear_stale_opencode_snapshot_lock()
+    print("\n--- invoking norm-architect ---")
+    message = extra_message or (
+        f"This is round {round_number}. norm.txt has been updated for this round. "
+        f"Read it, design every requirement, and write a failing pytest suite for each "
+        f"one to exactly tests/norm_checks/round_{round_number}/ — following your "
+        f"standing instructions. Do not implement any code; you cannot anyway "
+        f"(your permission.edit denies everything outside that one directory). "
+        f"End your response with the fenced ```json report block your instructions "
+        f"describe (the one containing a \"requirements\" key) — this is required "
+        f"every time, not just when something went wrong."
+    )
+    # --auto: same reasoning as run_norm_engineer()'s own copy of this
+    # comment — opencode's external_directory permission defaults to
+    # "ask", and with nobody present to answer in this headless subprocess
+    # it silently auto-denies, ending the session abnormally mid-tool-call
+    # rather than recovering. --auto only auto-approves what isn't
+    # explicitly denied, so this agent's actual permission.edit/bash/read
+    # denies (nearly everything, by design) are unaffected.
+    cmd = ["opencode", "run", "--agent", "norm-architect", "--format", "json", "--auto"]
+    if session_id:
+        cmd += ["--session", session_id]
+    model = (
+        os.environ.get("NORM_ARCHITECT_MODEL")
+        or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var
+        or os.environ.get("OPENCODE_MODEL")
+    )
+    if model:
+        cmd += ["--model", model]
+    cmd.append(message)
+
+    start = time.monotonic()
+    try:
+        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=3600)
+    except subprocess.TimeoutExpired as e:
+        duration_s = time.monotonic() - start
+        timeout_session_id = extract_session_id(getattr(e, "stdout", None) or "") or session_id
+        print(f"Round {round_number}: norm-architect didn't finish within 3600s — "
+              f"treating this round's norm design as failed, not crashing the run.",
+              file=sys.stderr)
+        log_call(
+            also_log_to=NORM_ARCHITECT_LOG_PATH,
+            call="norm_architect", agent_id=None, round=round_number, action=None,
+            model=model, duration_s=round(duration_s, 3), returncode=None,
+            prompt=message, raw_response=None, parsed_response=None,
+            tool_call_count=None, step_count=None, tool_call_trace=None,
+            last_step_reason=None, session_id=timeout_session_id,
+            report=None, error="timeout after 3600s",
+        )
+        return False, timeout_session_id, None
+
+    duration_s = time.monotonic() - start
+    tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
+    tool_call_trace = extract_tool_trace(result.stdout)
+    last_step_reason = extract_last_step_reason(result.stdout)
+    report = extract_json_report(final_text, required_keys={"requirements"})
+    new_session_id = extract_session_id(result.stdout) or session_id
+    truncated = result.returncode == 0 and last_step_reason not in (None, "stop")
+
+    tests_dir = ROOT / "tests" / "norm_checks" / f"round_{round_number}"
+    wrote_tests = tests_dir.is_dir() and any(tests_dir.glob("test_*.py"))
+
+    log_call(
+        also_log_to=NORM_ARCHITECT_LOG_PATH,
+        call="norm_architect",
+        agent_id=None,
+        round=round_number,
+        action=None,
+        model=model,
+        duration_s=round(duration_s, 3),
+        returncode=result.returncode,
+        prompt=message,
+        raw_response=result.stdout,
+        parsed_response=None,
+        tool_call_count=tool_call_count,
+        step_count=step_count,
+        tool_call_trace=tool_call_trace,
+        session_id=new_session_id,
+        last_step_reason=last_step_reason,
+        report=report,
+        error=(
+            result.stderr.strip() if result.returncode != 0
+            else f"session ended abnormally (last step reason: {last_step_reason!r}, not 'stop')"
+            if truncated else None if (report is not None and wrote_tests)
+            else "no parseable \"requirements\" report" if report is None
+            else f"no test_*.py files found under {tests_dir.relative_to(ROOT)}"
+        ),
+    )
+
+    print(final_text)
+    if result.returncode != 0:
+        print(f"Round {round_number}: norm-architect exited with code {result.returncode} — "
+              f"treating this round's norm design as failed, not crashing the run.",
+              file=sys.stderr)
+        print(result.stderr, file=sys.stderr)
+        return False, new_session_id, None
+    if truncated:
+        print(f"Round {round_number}: norm-architect's session ended abnormally (last step "
+              f"reason: {last_step_reason!r}, not a genuine 'stop') — likely a failed or "
+              f"truncated completion call, not a deliberate finish. Treating this round's "
+              f"partial work as failed rather than trusting it.", file=sys.stderr)
+        return False, new_session_id, None
+    if report is None:
+        print(f"Round {round_number}: norm-architect's response never contained a parseable "
+              f"\"requirements\" json report — treating this round's design as failed.",
+              file=sys.stderr)
+        return False, new_session_id, None
+    if not wrote_tests:
+        print(f"Round {round_number}: norm-architect produced a requirements report but no "
+              f"test_*.py files under tests/norm_checks/round_{round_number}/ — treating "
+              f"this round's design as failed (no failing tests means norm-engineer has "
+              f"nothing concrete to build against).", file=sys.stderr)
+        return False, new_session_id, None
+    return True, new_session_id, report
+
+
+def render_engineer_kickoff(requirements_json, round_number):
+    """Serializes norm-architect's FULL requirements payload — every field
+    it worked out per requirement, not a trimmed summary — into
+    norm-engineer's kickoff message, alongside the literal path to this
+    round's pre-written failing suite. This is the entire handoff:
+    norm-engineer never re-reads norm.txt's own reasoning path, only this
+    payload plus the tests, so nothing here can be assumed "the engineer
+    already knows from before."."""
+    tests_dir = f"tests/norm_checks/round_{round_number}/"
+    return (
+        f"This is round {round_number}. norm-architect has designed every requirement and "
+        f"written a failing pytest suite to exactly {tests_dir} — read every test there "
+        f"before writing any code. Below is the complete requirement checklist, verbatim, "
+        f"as norm-architect produced it; treat it as the full specification, not a summary "
+        f"to re-derive from norm.txt yourself:\n\n"
+        f"```json\n{json.dumps(requirements_json, indent=2)}\n```\n\n"
+        f"Implement every requirement until {tests_dir} passes, following your standing "
+        f"instructions. Once done, dispatch norm-finalizer with this same checklist "
+        f"forwarded verbatim. End your response with the fenced ```json report block your "
+        f"instructions describe (the one containing a \"spec_path\" key) — this is required "
+        f"every time, not just when something went wrong."
+    )
+
+
+def run_norm_engineer(round_number, extra_message=None, session_id=None):
+    """Runs the norm-engineer as an opencode subprocess. Returns
     (success, session_id) — success is True on a clean (returncode 0) run
     that also ended on a genuine "stop" (see extract_last_step_reason()),
     False on any failure — a timeout, a crash, a non-zero exit, or a
     session that was silently truncated mid-task despite exiting 0.
-    Analyzing a real 12-round run found this last case is common (13 of
-    26 real invocations never reached a deliberate stop) and is very
-    likely why code-writing specifically (which tends to happen only
-    after exploration/spec-writing) so rarely got reached at all — not
-    because the implementation itself was too costly to attempt. The
-    caller treats a False success like a compile error: discard this
-    round's changes and continue, rather than crashing the whole
-    multi-round run or trusting partial work as if it were final.
+    Analyzing a real 12-round run (back when this agent also did its own
+    design reasoning, before the norm-architect split) found the
+    truncated-session case common (13 of 26 real invocations never
+    reached a deliberate stop) and very likely why code-writing
+    specifically (which tended to happen only after exploration/spec-
+    writing) so rarely got reached at all. The caller treats a False
+    success like a compile error: discard this round's changes and
+    continue, rather than crashing the whole multi-round run or trusting
+    partial work as if it were final.
 
     session_id, when given, is passed to opencode as `--session <id>` so
     this call continues that existing session instead of starting a fresh
@@ -462,51 +642,47 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
     opencode's own internal provider-header timeout, burning the round's
     entire process-retry budget on calls that could never have succeeded.
     This function itself doesn't bound anything — it's
-    run_norm_implementer_with_retry()'s own pairing logic (2026-09-18)
+    run_norm_engineer_with_retry()'s own pairing logic (2026-09-18)
     that caps how far a session_id it discovers is ever threaded forward,
     specifically to get the "don't re-read everything from scratch on an
     immediate retry" benefit without reproducing that unbounded growth."""
     clear_stale_opencode_snapshot_lock()
-    print("\n--- invoking norm-implementer ---")
-    # State the round number explicitly — the model can't reliably infer it
-    # from file contents alone. Also restates the closing-json-block
-    # requirement AND the implement-first/spec-last ordering on every
-    # invocation, not just on repair — the ordering exists specifically
-    # because writing the spec first was the thing repeatedly mistaken for
-    # "done" (see norm_implementation_no_code_changes_errors()).
+    print("\n--- invoking norm-engineer ---")
+    # The orchestrator always supplies extra_message (render_engineer_kickoff()
+    # on the first call, a repair message on every later one) — this
+    # fallback only matters for a direct/test call that omits it.
     message = extra_message or (
-        f"This is round {round_number}. norm.txt has been updated for this round. "
-        f"Read it and implement accordingly, following your standing instructions. "
-        f"Implement every requirement FIRST — then, as your LAST step, write your "
-        f"institutional design specification (documenting what you actually built) to "
-        f"exactly state/norm_specs/round_{round_number}.md "
-        f"— use {round_number} for the round number, not a number inferred from any other file. "
-        f"Do not stop after writing this file's design in your head without having "
-        f"implemented it; do not write the file itself until implementation is done. "
-        f"End your response with the fenced ```json report block your instructions describe "
-        f"(the one containing a \"classification\" key) — this is required every time, not "
+        f"This is round {round_number}. Read the requirements checklist norm-architect "
+        f"left you and the failing tests under tests/norm_checks/round_{round_number}/, "
+        f"then implement accordingly, following your standing instructions. End your "
+        f"response with the fenced ```json report block your instructions describe "
+        f"(the one containing a \"spec_path\" key) — this is required every time, not "
         f"just when something went wrong."
     )
-    # --auto: (2026-09-15) — a real run's own logs showed the
-    # norm-implementer hallucinating a slightly-wrong absolute path on a
-    # read/edit call (a doubled letter, a typo'd username) often enough to
-    # matter; opencode's external_directory permission defaults to "ask",
-    # and with nobody present to answer in this headless subprocess it
-    # silently auto-denies — the session then ends abnormally mid-tool-call
-    # rather than recovering, which is a real share of why a round needs so
-    # many process retries. --auto only auto-approves what isn't explicitly
+    # --auto: (2026-09-15) — a real run's own logs showed this agent
+    # hallucinating a slightly-wrong absolute path on a read/edit call (a
+    # doubled letter, a typo'd username) often enough to matter;
+    # opencode's external_directory permission defaults to "ask", and with
+    # nobody present to answer in this headless subprocess it silently
+    # auto-denies — the session then ends abnormally mid-tool-call rather
+    # than recovering, which is a real share of why a round needs so many
+    # process retries. --auto only auto-approves what isn't explicitly
     # denied, so the actual `permission.edit`/`permission.bash`/
     # `permission.read` denies this agent already has (ops/, cache dirs,
-    # protected paths, etc.) are unaffected.
-    cmd = ["opencode", "run", "--agent", "norm-implementer", "--format", "json", "--auto"]
+    # protected paths, tests/norm_checks/*, etc.) are unaffected.
+    cmd = ["opencode", "run", "--agent", "norm-engineer", "--format", "json", "--auto"]
     # --session: continue an existing session instead of starting fresh —
-    # only when the caller actually has one. run_norm_implementer_with_retry()
+    # only when the caller actually has one. run_norm_engineer_with_retry()
     # is the only caller that ever passes one, and only within its own
     # bounded 2-attempt pairing (2026-09-18) — see this function's own
     # docstring for why unbounded continuation isn't repeated here.
     if session_id:
         cmd += ["--session", session_id]
-    model = os.environ.get("NORM_IMPLEMENTER_MODEL") or os.environ.get("OPENCODE_MODEL")
+    model = (
+        os.environ.get("NORM_ENGINEER_MODEL")
+        or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var
+        or os.environ.get("OPENCODE_MODEL")
+    )
     if model:
         cmd += ["--model", model]
     cmd.append(message)
@@ -522,12 +698,12 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
         # exception, so try to recover the session id from it rather than
         # unconditionally losing track of a session that did get created.
         timeout_session_id = extract_session_id(getattr(e, "stdout", None) or "") or session_id
-        print(f"Round {round_number}: norm-implementer didn't finish within 3600s — "
+        print(f"Round {round_number}: norm-engineer didn't finish within 3600s — "
               f"treating this round's norm implementation as failed, not crashing the run.",
               file=sys.stderr)
         log_call(
-            also_log_to=NORM_IMPLEMENTER_LOG_PATH,
-            call="norm_implementer", agent_id=None, round=round_number, action=None,
+            also_log_to=NORM_ENGINEER_LOG_PATH,
+            call="norm_engineer", agent_id=None, round=round_number, action=None,
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
             tool_call_count=None, step_count=None, tool_call_trace=None,
@@ -540,7 +716,7 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
     tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
     tool_call_trace = extract_tool_trace(result.stdout)
     last_step_reason = extract_last_step_reason(result.stdout)
-    report = extract_json_report(final_text, required_keys={"classification"})
+    report = extract_json_report(final_text, required_keys={"spec_path"})
     # The real id opencode used this call — falls back to whatever was
     # passed in if this call's own output doesn't parse for some reason.
     new_session_id = extract_session_id(result.stdout) or session_id
@@ -553,8 +729,8 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
     truncated = result.returncode == 0 and last_step_reason not in (None, "stop")
 
     log_call(
-        also_log_to=NORM_IMPLEMENTER_LOG_PATH,
-        call="norm_implementer",
+        also_log_to=NORM_ENGINEER_LOG_PATH,
+        call="norm_engineer",
         agent_id=None,
         round=round_number,
         action=None,
@@ -579,13 +755,13 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
 
     print(final_text)
     if result.returncode != 0:
-        print(f"Round {round_number}: norm-implementer exited with code {result.returncode} — "
+        print(f"Round {round_number}: norm-engineer exited with code {result.returncode} — "
               f"treating this round's norm implementation as failed, not crashing the run.",
               file=sys.stderr)
         print(result.stderr, file=sys.stderr)
         return False, new_session_id
     if truncated:
-        print(f"Round {round_number}: norm-implementer's session ended abnormally (last step "
+        print(f"Round {round_number}: norm-engineer's session ended abnormally (last step "
               f"reason: {last_step_reason!r}, not a genuine 'stop') — likely a failed or "
               f"truncated completion call, not a deliberate finish. Treating this round's "
               f"partial work as failed rather than trusting it.", file=sys.stderr)
@@ -593,38 +769,44 @@ def run_norm_implementer(round_number, extra_message=None, session_id=None):
     return True, new_session_id
 
 
-def run_norm_evaluator(round_number, extra_message=None):
-    """Mirrors run_norm_implementer()'s subprocess/timeout/logging shape,
-    against the norm-evaluator agent. Returns {"result": "COMPLIANT" |
-    "NEEDS_REPAIR", "text": final_text} on a completed run whose response
-    contains a trusted sentinel line (see extract_evaluation_result() and
-    the zero-tool-call check below), or None on any failure — treated by
-    the caller like a norm-implementer failure: discard, don't crash the
-    rest of the run.
+def run_norm_auditor(round_number, extra_message=None):
+    """Mirrors run_norm_engineer()'s subprocess/timeout/logging shape,
+    against the norm-auditor agent — a clean model instance that never
+    wrote the code it's reviewing (see NORM_AUDITOR_MODEL below). Returns
+    {"result": "COMPLIANT" | "NEEDS_REPAIR", "text": final_text} on a
+    completed run whose response contains a trusted sentinel line (see
+    extract_audit_result() and the zero-tool-call check below), or None
+    on any failure — treated by the caller like a norm-engineer failure:
+    discard, don't crash the rest of the run.
 
     Always starts a brand-new opencode session, never `--session`
-    continuation — see run_norm_implementer()'s own docstring for why
+    continuation — see run_norm_engineer()'s own docstring for why
     (session continuation across retries was tried and reverted after a
     real collapse it caused)."""
     clear_stale_opencode_snapshot_lock()
-    print("\n--- invoking norm-evaluator ---")
+    print("\n--- invoking norm-auditor ---")
     # Restates the sentinel-line requirement on every invocation, not just
     # on retry — the first attempt was the one failing to include it.
     message = extra_message or (
-        f"Round {round_number}'s norm-implementer changes are ready to check. Read "
-        f"state/norm_specs/round_{round_number}.md and the diff, write and run your own "
-        "tests, and report your verdicts following your standing instructions. End your "
-        "response with the required EVALUATION_RESULT: COMPLIANT or "
-        "EVALUATION_RESULT: NEEDS_REPAIR line — every time, not just when something failed."
+        f"Round {round_number}'s norm-engineer changes are ready to audit. Read "
+        f"state/norm_specs/round_{round_number}.md, norm.txt, the diff, and both "
+        f"tests/norm_checks/round_{round_number}/ (norm-architect's pre-written suite) and "
+        "your own newly-written tests, and report your verdicts following your standing "
+        "instructions — specifically hunting for logical omissions and under-enforcement, "
+        "not just re-deriving pass/fail. End your response with the required "
+        "AUDIT_RESULT: COMPLIANT or AUDIT_RESULT: NEEDS_REPAIR line — every time, not just "
+        "when something failed."
     )
-    # --auto: same reasoning as run_norm_implementer()'s own copy of this
+    # --auto: same reasoning as run_norm_engineer()'s own copy of this
     # comment (2026-09-15) — a real run showed 4 of 5 evaluator attempts in
     # one round hitting the identical hallucinated-path/external_directory
     # auto-deny, ending abnormally before ever writing a real verdict.
-    cmd = ["opencode", "run", "--agent", "norm-evaluator", "--format", "json", "--auto"]
-    # Same fallback as run_norm_implementer() — no reason yet to route this
-    # agent to a different model than the implementer it's paired with.
-    model = os.environ.get("NORM_IMPLEMENTER_MODEL") or os.environ.get("OPENCODE_MODEL")
+    cmd = ["opencode", "run", "--agent", "norm-auditor", "--format", "json", "--auto"]
+    model = (
+        os.environ.get("NORM_AUDITOR_MODEL")
+        or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var
+        or os.environ.get("OPENCODE_MODEL")
+    )
     if model:
         cmd += ["--model", model]
     cmd.append(message)
@@ -634,11 +816,11 @@ def run_norm_evaluator(round_number, extra_message=None):
         result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=1800)
     except subprocess.TimeoutExpired:
         duration_s = time.monotonic() - start
-        print(f"Round {round_number}: norm-evaluator didn't finish within 1800s — "
-              f"treating this evaluation as failed, not crashing the run.", file=sys.stderr)
+        print(f"Round {round_number}: norm-auditor didn't finish within 1800s — "
+              f"treating this audit as failed, not crashing the run.", file=sys.stderr)
         log_call(
-            also_log_to=NORM_EVALUATOR_LOG_PATH,
-            call="norm_evaluator", agent_id=None, round=round_number, action=None,
+            also_log_to=NORM_AUDITOR_LOG_PATH,
+            call="norm_auditor", agent_id=None, round=round_number, action=None,
             model=model, duration_s=round(duration_s, 3), returncode=None,
             prompt=message, raw_response=None, parsed_response=None,
             tool_call_count=None, step_count=None, tool_call_trace=None,
@@ -649,19 +831,19 @@ def run_norm_evaluator(round_number, extra_message=None):
     duration_s = time.monotonic() - start
     tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
     tool_call_trace = extract_tool_trace(result.stdout)
-    verdict = extract_evaluation_result(final_text)
+    verdict = extract_audit_result(final_text)
 
     # Reject a verdict reached with zero tool calls — no read/test actually
     # happened that attempt, regardless of how confident the text sounds.
     zero_tool_call_reject = verdict is not None and tool_call_count == 0
     if zero_tool_call_reject:
-        print(f"Round {round_number}: norm-evaluator reached a verdict ({verdict}) with zero "
+        print(f"Round {round_number}: norm-auditor reached a verdict ({verdict}) with zero "
               f"tool calls — no read/test was actually performed, so this verdict is not "
               f"trusted.", file=sys.stderr)
 
     log_call(
-        also_log_to=NORM_EVALUATOR_LOG_PATH,
-        call="norm_evaluator",
+        also_log_to=NORM_AUDITOR_LOG_PATH,
+        call="norm_auditor",
         agent_id=None,
         round=round_number,
         action=None,
@@ -685,13 +867,13 @@ def run_norm_evaluator(round_number, extra_message=None):
 
     print(final_text)
     if result.returncode != 0:
-        print(f"Round {round_number}: norm-evaluator exited with code {result.returncode} — "
-              f"treating this evaluation as failed, not crashing the run.", file=sys.stderr)
+        print(f"Round {round_number}: norm-auditor exited with code {result.returncode} — "
+              f"treating this audit as failed, not crashing the run.", file=sys.stderr)
         print(result.stderr, file=sys.stderr)
         return None
     if verdict is None:
-        print(f"Round {round_number}: norm-evaluator's response never contained an "
-              f"EVALUATION_RESULT: line — treating this evaluation as failed.", file=sys.stderr)
+        print(f"Round {round_number}: norm-auditor's response never contained an "
+              f"AUDIT_RESULT: line — treating this audit as failed.", file=sys.stderr)
         return None
     if zero_tool_call_reject:
         return None
@@ -733,7 +915,7 @@ def norm_implementation_compile_errors():
     errors = []
     py_files = set()
     json_files = set()
-    for tracked in NORM_IMPLEMENTER_TRACKED_PATHS:
+    for tracked in NORM_ROUND_TRACKED_PATHS:
         path = ROOT / tracked
         if path.is_dir():
             py_files.update(path.rglob("*.py"))
@@ -960,7 +1142,7 @@ def norm_implementation_protected_path_violations():
     touched = result.stdout.strip()
     if not touched:
         return []
-    return [f"norm-implementer touched protected path(s), never allowed:\n{touched}"]
+    return [f"norm-engineer touched protected path(s), never allowed:\n{touched}"]
 
 
 def norm_implementation_institution_errors():
@@ -1042,7 +1224,7 @@ def norm_implementation_institution_errors():
 
 
 def norm_implementation_orphaned_norm_errors():
-    """Catches a norm-implementer round that creates a new
+    """Catches a norm-engineer round that creates a new
     actions/rules/{action_name}/{name}.py plugin (a real,
     correctly-written Rule subclass) without adding its type_name to
     state["config"]["rules"][action_name] — the class compiles and passes
@@ -1168,14 +1350,14 @@ def norm_implementation_missing_spec_errors(round_number):
 def norm_implementation_unverified_requirements_errors(round_number):
     """norm-finalizer already independently re-checks every claimed `owner`
     file/test before writing state/norm_specs/round_{N}.md, and records
-    what it actually found (not what the norm-implementer merely claimed)
+    what it actually found (not what norm-engineer merely claimed)
     in that same file's own trailing json block, as
     "verification_failures" — but until this check, nothing in the
     orchestrator ever read that field. A round could finish finalization
     with real, named verification failures and still proceed to
-    evaluation/commit as if everything were confirmed, since the
+    audit/commit as if everything were confirmed, since the
     finalizer's own separate closing report (the one containing this same
-    list) only ever reaches the norm-implementer's own session, never the
+    list) only ever reaches norm-engineer's own session, never the
     orchestrator. Added 2026-09-15, found while auditing the self-check
     family for exactly this kind of already-computed-but-unused signal."""
     spec_path = ROOT / "state" / "norm_specs" / f"round_{round_number}.md"
@@ -1196,32 +1378,38 @@ def norm_implementation_unverified_requirements_errors(round_number):
 
 def norm_implementation_no_code_changes_errors():
     """Catches a real, repeatedly-observed failure distinct from a missing
-    spec: the norm-implementer produces a closing report claiming success
-    while making zero actual code/config/fluent changes — one real round's
-    own closing report was literally {"classification": "success",
-    "message": "Round 8 norm specification written..."}, nothing else, not
-    even the documented report schema. norm-implementer.md now instructs
-    writing state/norm_specs/round_{N}.md *last*, after implementation, for
+    spec: norm-engineer produces a closing report claiming success while
+    making zero actual code/config/fluent changes — one real round's own
+    closing report was literally {"classification": "success", "message":
+    "Round 8 norm specification written..."}, nothing else, not even the
+    documented report schema. norm-engineer.md now instructs writing
+    state/norm_specs/round_{N}.md *last*, after implementation, for
     exactly this reason (a polished-looking spec written first was the
     thing the model kept mistaking for "done") — but that's a prompt-level
     instruction, not a technical guarantee, so this check still exists as
     the backstop regardless of whether the round even got as far as writing
     a spec. Checked here mechanically via git status against
-    NORM_IMPLEMENTER_TRACKED_PATHS (state/norm_specs is deliberately not on
-    that list, so a spec-only round — or a round that wrote nothing at
-    all — leaves nothing there to see) — never by trusting the model's own
-    self-reported classification, which doesn't reliably match the real
-    schema anyway.
+    NORM_ENGINEER_CODE_PATHS — deliberately NOT the full
+    NORM_ROUND_TRACKED_PATHS list, because norm-architect writes
+    tests/norm_checks/round_{N}/ *before* norm-engineer ever runs, so that
+    directory is already dirty by the time this check executes; using the
+    full list here would let a norm-engineer that touched nothing at all
+    slip past, since the architect's own pre-existing tests would already
+    satisfy a bare "is anything dirty" check. state/norm_specs is
+    deliberately not on either list, so a spec-only round — or a round
+    that wrote nothing at all — leaves nothing there to see either way —
+    never by trusting the model's own self-reported classification, which
+    doesn't reliably match the real schema anyway.
 
     Same known blind spot as everywhere else this exact path list is used
-    for a "did the implementer do something" check: state/fluents.json can
+    for a "did the engineer do something" check: state/fluents.json can
     be dirtied by ordinary harvest physics (an agent dying) independent of
-    any implementer action, so a round that coincides with a death and
+    any engineer action, so a round that coincides with a death and
     changes nothing else would slip past this. Accepted deliberately, by
     the same standing decision already made for stage_norm_implementation()
     — not re-litigated here."""
     result = subprocess.run(
-        ["git", "status", "--porcelain", "--"] + NORM_IMPLEMENTER_TRACKED_PATHS,
+        ["git", "status", "--porcelain", "--"] + NORM_ENGINEER_CODE_PATHS,
         cwd=ROOT, capture_output=True, text=True, check=True,
     )
     if result.stdout.strip():
@@ -1241,13 +1429,13 @@ def norm_implementation_no_code_changes_errors():
 
 
 def discard_norm_implementation(round_number, errors):
-    """Rolls back everything the norm-implementer touched this round —
-    `errors` states the actual reason (a compile/syntax failure, a
-    protected-path violation, an institution.json drift mismatch, a
-    process failure/timeout, or unresolved evaluator findings after
-    repairs run out), printed and logged verbatim rather than a generic
-    header."""
-    print(f"\nRound {round_number}: discarding this round's norm-implementer changes —", file=sys.stderr)
+    """Rolls back everything this round's norm-architect/norm-engineer
+    touched — `errors` states the actual reason (a compile/syntax
+    failure, a protected-path violation, an institution.json drift
+    mismatch, a process failure/timeout, or unresolved auditor findings
+    after repairs run out), printed and logged verbatim rather than a
+    generic header."""
+    print(f"\nRound {round_number}: discarding this round's norm changes —", file=sys.stderr)
     print("continuing with the previous round's mechanics unchanged. Reason(s):", file=sys.stderr)
     for error in errors:
         print(f"  {error}", file=sys.stderr)
@@ -1255,7 +1443,7 @@ def discard_norm_implementation(round_number, errors):
     # Durable, unlike stderr (gitignored slurm-*.err) — the reason for a
     # discard must survive in git history.
     log_call(
-        call="norm_implementer_discarded",
+        call="norm_round_discarded",
         agent_id=None,
         round=round_number,
         action=None,
@@ -1273,7 +1461,7 @@ def discard_norm_implementation(round_number, errors):
     # that actually exist there. `git clean -fd` already handles a
     # brand-new untracked path on its own.
     existing_paths = [
-        p for p in NORM_IMPLEMENTER_TRACKED_PATHS
+        p for p in NORM_ROUND_TRACKED_PATHS
         if subprocess.run(
             ["git", "cat-file", "-e", f"HEAD:{p}"], cwd=ROOT, capture_output=True
         ).returncode == 0
@@ -1284,7 +1472,7 @@ def discard_norm_implementation(round_number, errors):
             cwd=ROOT, check=True, capture_output=True, text=True,
         )
     subprocess.run(
-        ["git", "clean", "-fd", "--"] + NORM_IMPLEMENTER_TRACKED_PATHS,
+        ["git", "clean", "-fd", "--"] + NORM_ROUND_TRACKED_PATHS,
         cwd=ROOT, check=True, capture_output=True, text=True,
     )
 
@@ -1360,20 +1548,21 @@ def record_institution_changes(round_number):
 
 
 def stage_norm_implementation(round_number):
-    """Stages (git add only, never commits) the norm-implementer's tracked
-    paths; the actual `git commit` happens in commit_round() below, which
-    combines this with the round's own artifacts into a single commit.
-    Staging happens here regardless of model behavior — the
-    norm-implementer is unreliable about committing its own work."""
-    subprocess.run(["git", "add"] + NORM_IMPLEMENTER_TRACKED_PATHS, cwd=ROOT, check=True)
+    """Stages (git add only, never commits) this round's norm pipeline
+    tracked paths; the actual `git commit` happens in commit_round()
+    below, which combines this with the round's own artifacts into a
+    single commit. Staging happens here regardless of model behavior —
+    neither norm-architect nor norm-engineer is reliable about committing
+    its own work."""
+    subprocess.run(["git", "add"] + NORM_ROUND_TRACKED_PATHS, cwd=ROOT, check=True)
     staged = subprocess.run(
         ["git", "diff", "--cached", "--name-only"], cwd=ROOT, capture_output=True, text=True, check=True
     ).stdout.strip()
 
     if not staged:
-        print(f"Round {round_number}: norm-implementer made no changes in the tracked paths — nothing to commit.")
+        print(f"Round {round_number}: no changes in the norm pipeline's tracked paths — nothing to commit.")
         log_call(
-            call="norm_implementer_no_changes",
+            call="norm_round_no_changes",
             agent_id=None, round=round_number, action=None, model=None,
             duration_s=None, returncode=None, prompt=None,
             raw_response=None, parsed_response=None, error=None,
@@ -1400,46 +1589,84 @@ def stage_norm_implementation(round_number):
 # to see how many real attempts a model actually needs against a clearly-
 # quoted error before this number should be revisited downward instead.
 MAX_NORM_REPAIR_ATTEMPTS = 10
-# Separate bound for retrying the evaluator PROCESS itself when it fails to
+# Separate bound for retrying the auditor PROCESS itself when it fails to
 # produce any verdict at all (timeout, crash, unparseable report) — that
 # says nothing about whether the code is correct, so it must not consume a
 # repair attempt or discard an otherwise-good round on its own. Raised
-# 2 -> 5 (2026-09-14), matching MAX_IMPLEMENTER_PROCESS_ATTEMPTS: this is
+# 2 -> 5 (2026-09-14), matching MAX_ENGINEER_PROCESS_ATTEMPTS: this is
 # the same class of failure (a process-level retry, not a content-quality
 # budget), and the 2-GPU/OLLAMA_SCHED_SPREAD/128k-context change made the
 # same day is specifically aimed at the GPU-contention pressure behind a
 # real share of these process failures — more attempts costs more only if
 # that fix didn't help.
-MAX_EVALUATOR_ATTEMPTS = 5
-# Same idea, for the norm-implementer's own process. run_norm_implementer()
+MAX_AUDITOR_ATTEMPTS = 5
+# Same idea, for norm-architect's own process — it shares the exact same
+# reasoning and value as MAX_ENGINEER_PROCESS_ATTEMPTS below, since
+# nothing about a truncated-session process failure is specific to
+# code-writing versus design-and-test-writing.
+MAX_ARCHITECT_PROCESS_ATTEMPTS = 5
+# Same idea again, for norm-engineer's own process. run_norm_engineer()
 # returning False now covers three cases: a crash, a timeout, or a session
 # that ended abnormally mid-task despite exiting 0 (see
-# extract_last_step_reason()). Analyzing a real 12-round run found the
-# third case alone accounted for roughly half of all invocations — treating
-# any of these as an unretried hard failure (as a bare run_norm_implementer()
-# call would) discarded close to half of all rounds before real work ever
-# had a chance to happen, regardless of whether the eventual code would
-# have been fine. Raised from 2 to 5 (2026-09-14) after a real round hit
-# the identical "session ended abnormally (last step reason: 'tool-calls')"
-# signature on both of its 2 allowed attempts and was discarded despite the
-# actual code issue never having had a chance to be attempted — the failure
-# looks session-level/transient, not a deterministic code problem, so a
-# wider budget is worth the added worst-case wall time.
-MAX_IMPLEMENTER_PROCESS_ATTEMPTS = 5
+# extract_last_step_reason()). Analyzing a real 12-round run (back when
+# this agent also did its own design reasoning, before the norm-architect
+# split) found the third case alone accounted for roughly half of all
+# invocations — treating any of these as an unretried hard failure (as a
+# bare run_norm_engineer() call would) discarded close to half of all
+# rounds before real work ever had a chance to happen, regardless of
+# whether the eventual code would have been fine. Raised from 2 to 5
+# (2026-09-14) after a real round hit the identical "session ended
+# abnormally (last step reason: 'tool-calls')" signature on both of its 2
+# allowed attempts and was discarded despite the actual code issue never
+# having had a chance to be attempted — the failure looks
+# session-level/transient, not a deterministic code problem, so a wider
+# budget is worth the added worst-case wall time.
+MAX_ENGINEER_PROCESS_ATTEMPTS = 5
 # A small pause between process-retry attempts — matches the existing
 # CALL_DELAY_S convention in engine/llm_agents.py for fisher/critique call
 # retries, but kept as its own env var since an opencode subprocess call is
 # far heavier than one litellm completion; reusing LLM_CALL_DELAY_S would
-# couple two unrelated costs.
-NORM_IMPLEMENTER_RETRY_DELAY_S = float(os.environ.get("NORM_IMPLEMENTER_RETRY_DELAY_S", "5"))
+# couple two unrelated costs. Shared by both the architect's and the
+# engineer's own retry loop below — the same class of pause for the same
+# class of failure.
+NORM_ENGINEER_RETRY_DELAY_S = float(os.environ.get("NORM_ENGINEER_RETRY_DELAY_S", "5"))
 
 
-def run_norm_implementer_with_retry(round_number, extra_message=None):
-    """Retries run_norm_implementer() itself, up to
-    MAX_IMPLEMENTER_PROCESS_ATTEMPTS times, on a process-level failure —
+def run_norm_architect_with_retry(round_number, extra_message=None):
+    """Retries run_norm_architect() itself, up to
+    MAX_ARCHITECT_PROCESS_ATTEMPTS times, on a process-level failure — this
+    is not a finding about the round's design, so it must not consume a
+    MAX_NORM_REPAIR_ATTEMPTS repair attempt. Returns (success, report) —
+    report is norm-architect's parsed requirements json on success, None
+    otherwise.
+
+    Identical paired-session-continuation scheme to
+    run_norm_engineer_with_retry() below — see that function's own
+    docstring for why attempts are paired (1&2, 3&4, ...) rather than
+    either fully independent or unboundedly continued."""
+    session_id = None
+    for attempt in range(1, MAX_ARCHITECT_PROCESS_ATTEMPTS + 1):
+        success, session_id, report = run_norm_architect(
+            round_number, extra_message=extra_message, session_id=session_id
+        )
+        if success:
+            return True, report
+        print(f"Round {round_number}: norm-architect's own process failed, timed out, or was "
+              f"truncated mid-task (attempt {attempt}/{MAX_ARCHITECT_PROCESS_ATTEMPTS}) — "
+              f"retrying the process itself, not spending a repair attempt on it.")
+        if attempt < MAX_ARCHITECT_PROCESS_ATTEMPTS:
+            time.sleep(NORM_ENGINEER_RETRY_DELAY_S)
+        if attempt % 2 == 0:
+            session_id = None
+    return False, None
+
+
+def run_norm_engineer_with_retry(round_number, extra_message=None):
+    """Retries run_norm_engineer() itself, up to
+    MAX_ENGINEER_PROCESS_ATTEMPTS times, on a process-level failure —
     this is not a finding about the code, so it must not be confused with
     or consume a MAX_NORM_REPAIR_ATTEMPTS repair attempt. Returns
-    True/False — same success contract as run_norm_implementer() itself.
+    True/False — same success contract as run_norm_engineer() itself.
 
     Attempts are paired (1&2, 3&4, 5&6, ...), by request (2026-09-18):
     the second attempt of a pair continues the first's own opencode
@@ -1457,17 +1684,17 @@ def run_norm_implementer_with_retry(round_number, extra_message=None):
     the specific failure mode that made unbounded continuation dangerous
     can't reproduce at that scale."""
     session_id = None
-    for attempt in range(1, MAX_IMPLEMENTER_PROCESS_ATTEMPTS + 1):
-        success, session_id = run_norm_implementer(
+    for attempt in range(1, MAX_ENGINEER_PROCESS_ATTEMPTS + 1):
+        success, session_id = run_norm_engineer(
             round_number, extra_message=extra_message, session_id=session_id
         )
         if success:
             return True
-        print(f"Round {round_number}: norm-implementer's own process failed, timed out, or was "
-              f"truncated mid-task (attempt {attempt}/{MAX_IMPLEMENTER_PROCESS_ATTEMPTS}) — "
+        print(f"Round {round_number}: norm-engineer's own process failed, timed out, or was "
+              f"truncated mid-task (attempt {attempt}/{MAX_ENGINEER_PROCESS_ATTEMPTS}) — "
               f"retrying the process itself, not spending a repair attempt on it.")
-        if attempt < MAX_IMPLEMENTER_PROCESS_ATTEMPTS:
-            time.sleep(NORM_IMPLEMENTER_RETRY_DELAY_S)
+        if attempt < MAX_ENGINEER_PROCESS_ATTEMPTS:
+            time.sleep(NORM_ENGINEER_RETRY_DELAY_S)
         # Odd attempt (1, 3, 5, ...): keep session_id, so the very next
         # (even) attempt continues it, completing the pair. Even attempt
         # (2, 4, 6, ...): the pair is now complete — reset so the next
@@ -1478,33 +1705,76 @@ def run_norm_implementer_with_retry(round_number, extra_message=None):
     return False
 
 
-def implement_and_evaluate_norm(round_number, winning_proposal):
-    """The per-round pipeline: implement -> compile/runtime-check (with its
-    own bounded repair retry) -> independent evaluation -> repair-or-stage.
-    A loop because both a compile error and an evaluator NEEDS_REPAIR
-    finding can send the norm-implementer back for another attempt,
-    sharing one MAX_NORM_REPAIR_ATTEMPTS budget. Returns True iff the
-    norm-implementer's changes were staged (ready for commit_round()'s own
-    single per-round commit); False means either a discard already
-    happened, or the round was COMPLIANT but made no changes to stage.
+def norm_implementation_failing_tests_errors(round_number):
+    """Self-Correction Gate: runs norm-architect's pre-written suite for
+    this round and returns a stack-trace-bearing error on failure. Pure
+    Python, no LLM call — feeds the EXISTING MAX_NORM_REPAIR_ATTEMPTS loop
+    (via the same compile_errors list every other check already populates)
+    rather than a new parallel loop, so a failing test gets fed straight
+    back to norm-engineer as a repair message exactly like a compile
+    error would.
 
-    Every call to either agent starts a brand-new opencode session — no
-    `--session` continuation across a process retry, a compile-error
-    repair, or an evaluator NEEDS_REPAIR repair. Session continuation was
-    tried here (2026-09-15) and reverted the same month: a real round's
-    session grew across ~15 continued calls over ~6 hours until it became
-    too large for the model to even begin responding to within opencode's
-    own internal provider-header timeout, exhausting the entire
-    process-retry budget on calls that could never have succeeded. A
-    fresh session every call costs some redundant re-reading of files a
-    prior attempt already read, but that cost is bounded and known,
-    unlike unbounded context growth."""
-    success = run_norm_implementer_with_retry(round_number)
+    Returns [] if the round's test directory doesn't exist — that's
+    norm-architect's own failure, already caught upstream by
+    run_norm_architect()'s own check, not this function's job to
+    re-report."""
+    tests_dir = ROOT / "tests" / "norm_checks" / f"round_{round_number}"
+    if not tests_dir.is_dir():
+        return []
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", str(tests_dir), "-q"],
+        cwd=ROOT, capture_output=True, text=True, timeout=300,
+    )
+    if result.returncode == 0:
+        return []
+    detail = (result.stdout.strip() + "\n" + result.stderr.strip()).strip()
+    return [
+        f"tests/norm_checks/round_{round_number}/ (norm-architect's pre-written suite) is "
+        f"still failing:\n{detail}"
+    ]
+
+
+def implement_and_evaluate_norm(round_number, winning_proposal):
+    """The per-round pipeline: design (norm-architect, writes failing
+    tests + a requirements checklist) -> implement (norm-engineer, against
+    that checklist and those tests) -> compile/runtime/self-correction
+    checks (with a bounded repair retry) -> independent audit ->
+    repair-or-stage. The main loop exists because a compile error, a
+    failing pre-written test, or an auditor NEEDS_REPAIR finding can all
+    send norm-engineer back for another attempt, sharing one
+    MAX_NORM_REPAIR_ATTEMPTS budget. Returns True iff norm-engineer's
+    changes were staged (ready for commit_round()'s own single per-round
+    commit); False means either a discard already happened, or the round
+    was COMPLIANT but made no changes to stage.
+
+    Every call to any of the three agents starts a brand-new opencode
+    session — no `--session` continuation across a process retry, a
+    compile-error repair, or an auditor NEEDS_REPAIR repair. Session
+    continuation was tried here (2026-09-15) and reverted the same month:
+    a real round's session grew across ~15 continued calls over ~6 hours
+    until it became too large for the model to even begin responding to
+    within opencode's own internal provider-header timeout, exhausting the
+    entire process-retry budget on calls that could never have succeeded.
+    A fresh session every call costs some redundant re-reading of files a
+    prior attempt already read, but that cost is bounded and known, unlike
+    unbounded context growth."""
+    architect_ok, requirements_json = run_norm_architect_with_retry(round_number)
+    if not architect_ok:
+        discard_norm_implementation(
+            round_number,
+            [f"norm-architect's process failed, timed out, or was truncated on every attempt "
+             f"(after {MAX_ARCHITECT_PROCESS_ATTEMPTS} tries) — see ops/logs/model_calls.jsonl"],
+        )
+        return False
+
+    success = run_norm_engineer_with_retry(
+        round_number, extra_message=render_engineer_kickoff(requirements_json, round_number),
+    )
     if not success:
         discard_norm_implementation(
             round_number,
-            [f"norm-implementer's process failed, timed out, or was truncated on every attempt "
-             f"(after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see ops/logs/model_calls.jsonl"],
+            [f"norm-engineer's process failed, timed out, or was truncated on every attempt "
+             f"(after {MAX_ENGINEER_PROCESS_ATTEMPTS} tries) — see ops/logs/model_calls.jsonl"],
         )
         return False
 
@@ -1525,6 +1795,12 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         if not compile_errors:
             compile_errors += norm_implementation_no_code_changes_errors()
         if not compile_errors:
+            # Self-Correction Gate: norm-architect's pre-written suite must
+            # actually pass before an LLM-driven audit is even attempted —
+            # cheaper and more specific feedback than a full norm-auditor
+            # round-trip for a failure this mechanical check already found.
+            compile_errors += norm_implementation_failing_tests_errors(round_number)
+        if not compile_errors:
             runtime_error = norm_implementation_runtime_errors()
             if runtime_error:
                 compile_errors = [runtime_error]
@@ -1532,38 +1808,39 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             if attempt > MAX_NORM_REPAIR_ATTEMPTS:
                 discard_norm_implementation(round_number, compile_errors)
                 return False
-            print(f"\nRound {round_number}: norm-implementer's changes have compile/validation "
+            print(f"\nRound {round_number}: norm-engineer's changes have compile/validation "
                   f"errors — sending back for repair (attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}), "
                   f"instead of discarding on the first occurrence.")
             repair_message = (
                 f"Round {round_number}'s implementation has compile/validation errors that must "
-                f"be fixed before it can even be evaluated:\n\n{chr(10).join(compile_errors)}\n\n"
+                f"be fixed before it can even be audited:\n\n{chr(10).join(compile_errors)}\n\n"
                 "Fix exactly these errors, then re-run your own verification step "
                 "(python3 -m py_compile on every file you touched, plus pytest tests/regression/ "
-                "and tests/norm_checks/) yourself before finishing — don't rely on this message "
-                "alone to catch the next issue. Don't change anything else about your "
-                "implementation beyond what's needed to fix these specific errors. End your "
-                "response with the fenced ```json report block your instructions describe."
+                f"and tests/norm_checks/round_{round_number}/) yourself before finishing — don't "
+                "rely on this message alone to catch the next issue. Don't change anything else "
+                "about your implementation beyond what's needed to fix these specific errors. "
+                "End your response with the fenced ```json report block your instructions "
+                "describe."
             )
-            success = run_norm_implementer_with_retry(round_number, extra_message=repair_message)
+            success = run_norm_engineer_with_retry(round_number, extra_message=repair_message)
             if not success:
                 discard_norm_implementation(
                     round_number,
-                    [f"norm-implementer's repair run failed, timed out, or was truncated on every "
-                     f"attempt (after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see "
+                    [f"norm-engineer's repair run failed, timed out, or was truncated on every "
+                     f"attempt (after {MAX_ENGINEER_PROCESS_ATTEMPTS} tries) — see "
                      f"ops/logs/model_calls.jsonl"],
                 )
                 return False
             continue
 
-        evaluation = None
-        evaluator_message = None
-        for eval_attempt in range(1, MAX_EVALUATOR_ATTEMPTS + 1):
-            evaluation = run_norm_evaluator(round_number, extra_message=evaluator_message)
-            if evaluation is not None:
+        audit = None
+        auditor_message = None
+        for audit_attempt in range(1, MAX_AUDITOR_ATTEMPTS + 1):
+            audit = run_norm_auditor(round_number, extra_message=auditor_message)
+            if audit is not None:
                 break
-            print(f"Round {round_number}: norm-evaluator itself produced no usable verdict "
-                  f"(attempt {eval_attempt}/{MAX_EVALUATOR_ATTEMPTS}) — retrying the evaluator, "
+            print(f"Round {round_number}: norm-auditor itself produced no usable verdict "
+                  f"(attempt {audit_attempt}/{MAX_AUDITOR_ATTEMPTS}) — retrying the auditor, "
                   f"not the implementation, since this doesn't say anything about whether the "
                   f"code is actually correct.")
             # This retry starts a brand-new session (no --session
@@ -1571,57 +1848,59 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             # attempt, so the message asks it to redo the read-and-test
             # work from scratch, not just "finish" a prior attempt it
             # can't actually recall.
-            evaluator_message = (
-                f"Round {round_number}'s norm-implementer changes are ready to check. Your "
-                "previous attempt at this ended without the required EVALUATION_RESULT: line — "
-                "treating that as an incomplete evaluation, not a verdict. Read "
-                f"state/norm_specs/round_{round_number}.md and the diff, write and run your own "
-                "tests, and report your verdicts following your standing instructions. End your "
-                "response with the required EVALUATION_RESULT: COMPLIANT or "
-                "EVALUATION_RESULT: NEEDS_REPAIR line — every time, not just when something failed."
+            auditor_message = (
+                f"Round {round_number}'s norm-engineer changes are ready to audit. Your "
+                "previous attempt at this ended without the required AUDIT_RESULT: line — "
+                "treating that as an incomplete audit, not a verdict. Read "
+                f"state/norm_specs/round_{round_number}.md, norm.txt, the diff, and both "
+                f"tests/norm_checks/round_{round_number}/ and your own newly-written tests, and "
+                "report your verdicts following your standing instructions. End your response "
+                "with the required AUDIT_RESULT: COMPLIANT or AUDIT_RESULT: NEEDS_REPAIR line — "
+                "every time, not just when something failed."
             )
-        if evaluation is None:
+        if audit is None:
             discard_norm_implementation(
                 round_number,
-                [f"norm-evaluator failed to produce a parseable verdict after "
-                 f"{MAX_EVALUATOR_ATTEMPTS} attempts — see ops/logs/model_calls.jsonl"],
+                [f"norm-auditor failed to produce a parseable verdict after "
+                 f"{MAX_AUDITOR_ATTEMPTS} attempts — see ops/logs/model_calls.jsonl"],
             )
             return False
 
-        if evaluation["result"] == "COMPLIANT":
+        if audit["result"] == "COMPLIANT":
             record_institution_changes(round_number)
             return stage_norm_implementation(round_number)
 
-        # The evaluator's own free-text report is handed back verbatim as
+        # The auditor's own free-text report is handed back verbatim as
         # the repair prompt — no structured verdict list to re-parse.
         if attempt > MAX_NORM_REPAIR_ATTEMPTS:
             discard_norm_implementation(
                 round_number,
-                [f"norm-evaluator returned NEEDS_REPAIR after {MAX_NORM_REPAIR_ATTEMPTS} repair "
-                 f"attempt(s). Evaluator's final report:\n\n{evaluation['text']}"],
+                [f"norm-auditor returned NEEDS_REPAIR after {MAX_NORM_REPAIR_ATTEMPTS} repair "
+                 f"attempt(s). Auditor's final report:\n\n{audit['text']}"],
             )
             return False
 
-        print(f"\nRound {round_number}: norm-evaluator returned NEEDS_REPAIR — sending back to "
-              f"norm-implementer (repair attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}).")
+        print(f"\nRound {round_number}: norm-auditor returned NEEDS_REPAIR — sending back to "
+              f"norm-engineer (repair attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}).")
         repair_message = (
-            f"Round {round_number}'s evaluator found problems — read its full report below "
+            f"Round {round_number}'s auditor found problems — read its full report below "
             "carefully and fix exactly what it identifies. If it's a code/implementation "
-            "problem, fix the implementation. If it's a genuine gap in the specification (an "
-            f"ambiguity the evaluator's own tests exposed), redo that requirement's "
-            f"clarification in state/norm_specs/round_{round_number}.md (ask a sharper question "
-            "than last time), then adjust the implementation for whatever the resolution "
-            "changes. Follow your standing instructions for handling a repair re-invocation. "
-            "End your response with the fenced ```json report block your instructions "
-            "describe.\n\n"
-            f"--- Evaluator's report ---\n{evaluation['text']}\n--- end of report ---"
+            "problem (including an under-enforced requirement — a weaker mechanism than the "
+            "norm's own text demands), fix the implementation. If it's a genuine gap in the "
+            f"specification (an ambiguity the auditor's own tests exposed), redo that "
+            f"requirement's clarification in state/norm_specs/round_{round_number}.md (ask a "
+            "sharper question than last time), then adjust the implementation for whatever the "
+            "resolution changes. Follow your standing instructions for handling a repair "
+            "re-invocation. End your response with the fenced ```json report block your "
+            "instructions describe.\n\n"
+            f"--- Auditor's report ---\n{audit['text']}\n--- end of report ---"
         )
-        success = run_norm_implementer_with_retry(round_number, extra_message=repair_message)
+        success = run_norm_engineer_with_retry(round_number, extra_message=repair_message)
         if not success:
             discard_norm_implementation(
                 round_number,
-                [f"norm-implementer's repair run failed, timed out, or was truncated on every "
-                 f"attempt (after {MAX_IMPLEMENTER_PROCESS_ATTEMPTS} tries) — see "
+                [f"norm-engineer's repair run failed, timed out, or was truncated on every "
+                 f"attempt (after {MAX_ENGINEER_PROCESS_ATTEMPTS} tries) — see "
                  f"ops/logs/model_calls.jsonl"],
             )
             return False
@@ -1641,7 +1920,7 @@ ROUND_ARTIFACT_PATHS = [
     # whatever institution.json/state/actions survive the discard anyway).
     "state/schedule.json",
     # Written by record_institution_changes(), only ever after a COMPLIANT
-    # round — orchestrator-owned, never a norm-implementer edit target
+    # round — orchestrator-owned, never a norm-engineer edit target
     # (institution.json's own content is; the version/history bookkeeping
     # derived from it isn't).
     "state/institution_history.jsonl",
@@ -1663,7 +1942,7 @@ def commit_round(round_number, winning_proposal):
     actually staged this round; otherwise the commit uses a generic
     artifacts message.
 
-    Kept as a separate `git add` from NORM_IMPLEMENTER_TRACKED_PATHS'S own
+    Kept as a separate `git add` from NORM_ROUND_TRACKED_PATHS'S own
     staging (not merged into one list): that list also scopes what
     discard_norm_implementation() may `git clean -fd`, and ops/logs and
     norm.txt are exactly the forensic record of *why* a round was
@@ -1689,10 +1968,10 @@ def commit_round(round_number, winning_proposal):
 
     if winning_proposal:
         print(f"Committed round {round_number} as {commit_hash}: {winning_proposal['policy'][:72]}")
-        # Distinct from norm_implementer_discarded/norm_implementer_no_changes
+        # Distinct from norm_round_discarded/norm_round_no_changes
         # so a plot can read a clean, mutually-exclusive per-round signal.
         log_call(
-            call="norm_implementer_committed",
+            call="norm_round_committed",
             agent_id=None, round=round_number, action=None, model=None,
             duration_s=None, returncode=None, prompt=None,
             raw_response=None, parsed_response=None, commit_hash=commit_hash, error=None,
@@ -1704,7 +1983,7 @@ def commit_round(round_number, winning_proposal):
 
 def reload_project_modules():
     """Python caches imported modules for the life of the process — without
-    this, a norm-implementer edit to roles/*.py, actions/handlers/*.py,
+    this, a norm-engineer edit to roles/*.py, actions/handlers/*.py,
     actions/rules/{action}/*.py, or objects/handlers/*.py never takes
     effect within a single continuous run.
 
@@ -1723,7 +2002,7 @@ def reload_project_modules():
     solve any more.
 
     engine/institution/*.py itself is deliberately never reloaded here —
-    it's off-limits to the norm-implementer by construction (nothing in
+    it's off-limits to norm-engineer by construction (nothing in
     it is on any tracked-path list), so nothing there can change mid-run."""
     for prefix in ("roles", "actions", "objects"):
         for name in sorted(n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")):
@@ -1738,7 +2017,7 @@ def clean_pycache_dirs():
     ones from being written in the first place — this is defense-in-depth
     for whatever's already on disk (a resumed checkout, a local dev run
     without that env var set) and for one real, practical reason: the
-    norm-implementer/norm-evaluator/norm-finalizer agents' own `read`/
+    norm-architect/norm-engineer/norm-auditor/norm-finalizer agents' own `read`/
     `glob` tools kept surfacing these (harmless bytecode, not source) as
     if they were real files to inspect, needing five depth-specific
     permission.read denies apiece just to route around them. Actually
@@ -1770,7 +2049,7 @@ def refresh_codegraph_index():
 
     Same graceful-degradation shape as every other optional refresh in
     this file: no `codegraph` binary, a timeout, or any other failure
-    means the norm-implementer falls back to plain Read/Grep for that
+    means the norm pipeline agents fall back to plain Read/Grep for that
     round — never worth blocking or crashing a round over."""
     if shutil.which("codegraph") is None:
         return
@@ -1786,7 +2065,7 @@ def refresh_codegraph_index():
         )
         if result.returncode != 0:
             print("CodeGraph index refresh failed — continuing without it "
-                  "(the norm-implementer falls back to plain Read/Grep):",
+                  "(the norm pipeline agents fall back to plain Read/Grep):",
                   file=sys.stderr)
             print(result.stderr, file=sys.stderr)
             shutil.rmtree(ROOT / ".codegraph", ignore_errors=True)
@@ -1854,7 +2133,7 @@ def run_cycle(round_number):
     norm_staged = False
     if winning_proposal:
         if norm_already_committed(round_number):
-            print(f"\nRound {round_number}: norm-implementer already committed for this round, skipping.")
+            print(f"\nRound {round_number}: norm changes already committed for this round, skipping.")
         else:
             norm_text = (
                 f"Policy: {winning_proposal['policy']}\n\n"
@@ -1880,7 +2159,7 @@ def round_is_complete(runtime, fluents, schedule, round_number):
 
 
 def ensure_run_branch():
-    """Never let a run's state/code changes or norm-implementer commits land
+    """Never let a run's state/code changes or norm pipeline commits land
     on whatever branch we happened to start on (main included). If we're
     already on a sim/ run branch, keep going on it; otherwise cut a new one."""
     current = subprocess.run(

@@ -11,7 +11,7 @@ directory's own README): most institutional objects a norm actually
 introduces (a pool, a ledger, a permit) are fully expressible through the
 generic operations plus a declarative `state/object_types/{type}.json`
 spec — reaching for a custom handler when a generic operation would do
-defeats the point of keeping the norm-implementer's object-code surface
+defeats the point of keeping the norm-engineer's object-code surface
 small, the same way a pre-built rule would defeat the point of studying
 whether a norm can be operationalized from scratch.
 

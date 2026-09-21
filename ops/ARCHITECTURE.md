@@ -12,15 +12,25 @@ this document is the map, that directory is the reference.
 
 A common-pool-resource fishery simulation: `agent_count` fisher agents
 (LLM-driven) repeatedly harvest a shared lake, propose and vote on
-community norms, and one further agent — the **norm-implementer** —
-translates whatever norm wins a vote into an actual change to the
-simulation's own rules, so the next round's harvest genuinely behaves
-differently. A separate **norm-evaluator** independently tests that
-implementation before it's trusted, and a **norm-finalizer** subagent
-records what was actually built. Everything the fishers *do* each round
-(harvest, propose, critique, vote) is itself built on the same generic
-"institutional action" machinery the norm-implementer uses to add new
-institutional behavior — there's one mechanism, not two.
+community norms, and a three-stage pipeline institutionalizes whatever
+norm wins a vote. **norm-architect** reads the norm and, before any code
+exists, writes a failing pytest suite plus a complete requirement
+checklist — this is a dual-model, test-driven-development split: a
+reasoning-specialized model designs and pins down intent in tests first,
+so the coding model that follows has a concrete, checkable target rather
+than inventing its own definition of "done." **norm-engineer** then
+implements against that checklist and those tests until they pass, so the
+next round's harvest genuinely behaves differently, and dispatches
+**norm-finalizer** (a subagent) to independently verify and record what
+was actually built. Last, **norm-auditor** — a separate model instance
+that never wrote the code — reviews the norm's raw text, the diff, and
+both test suites together, specifically hunting for logical omissions and
+under-enforcement (a requirement a test technically passes but the code
+satisfies more weakly than the norm's own text demands) before the round
+is trusted. Everything the fishers *do* each round (harvest, propose,
+critique, vote) is itself built on the same generic "institutional
+action" machinery norm-engineer uses to add new institutional
+behavior — there's one mechanism, not two.
 
 ## 2. Component map
 
@@ -62,9 +72,10 @@ flowchart TB
     end
 
     subgraph NormPipeline["The norm pipeline — opencode agents"]
-        IMPL["norm-implementer"]
-        EVAL["norm-evaluator"]
+        ARCH["norm-architect (design + failing tests)"]
+        ENG["norm-engineer (implementation)"]
         FIN["norm-finalizer"]
+        AUD["norm-auditor"]
     end
 
     MAIN --> SCHED
@@ -86,13 +97,15 @@ flowchart TB
     CTX --> FLUENTS
     CTX --> EVENTS
     MAIN --> NormPipeline
-    IMPL --> ASPEC
-    IMPL --> CONF
-    IMPL --> RULEFILES
-    IMPL --> HANDLERS
-    IMPL --> FIN
+    ARCH -.failing tests first.-> HANDLERS
+    ARCH --> ENG
+    ENG --> ASPEC
+    ENG --> CONF
+    ENG --> RULEFILES
+    ENG --> HANDLERS
+    ENG --> FIN
     FIN --> ISPEC
-    EVAL -.tests.-> HANDLERS
+    AUD -.audits.-> HANDLERS
 ```
 
 ## 3. The round lifecycle
@@ -125,7 +138,7 @@ sequenceDiagram
     Cycle->>Cycle: run every configured rule's after_round()
     alt a norm was adopted this round (vote's own result)
         Cycle->>Cycle: implement_and_evaluate_norm(round_number, winning_proposal)
-        Note over Cycle: this is the norm-implementer / norm-evaluator / norm-finalizer flow — section 7
+        Note over Cycle: this is the norm-architect / norm-engineer / norm-finalizer / norm-auditor flow — section 7
     end
     Cycle->>State: update_plots(), commit_round()
     Cycle-->>Main: True (continue) / False (lake collapsed)
@@ -238,7 +251,7 @@ Because this compiles fresh every round, inserting a new action between
 two existing ones is purely a matter of that new action's own spec naming
 the right `after`/`before` — the two existing actions are never touched,
 and `state/schedule.json` itself is never a legitimate edit target for
-anyone (the norm-implementer's own permissions deny writing to it
+anyone (the norm-engineer's own permissions deny writing to it
 outright).
 
 Each entry's `gate` (also compiled from the spec, e.g.
@@ -256,42 +269,50 @@ committed (safe to resume after a crash).
 ```mermaid
 sequenceDiagram
     participant Cycle as run_cycle()
-    participant Impl as norm-implementer (opencode)
-    participant Checks as engine/simulate.py<br/>compile/institution/runtime checks
+    participant Arch as norm-architect (opencode)
+    participant Eng as norm-engineer (opencode)
+    participant Checks as engine/simulate.py<br/>compile/institution/runtime/<br/>self-correction checks
     participant Fin as norm-finalizer (subagent)
-    participant Eval as norm-evaluator (opencode)
+    participant Aud as norm-auditor (opencode)
     participant Git as commit_round()
 
-    Cycle->>Impl: implement_and_evaluate_norm(round, winning_proposal)
-    Note over Impl: reads norm.txt, classifies requirements,<br/>edits actions/rules/, actions/handlers/,<br/>state/config.json, state/institution.json, etc.
-    Impl->>Fin: dispatch via the task tool,<br/>with its full requirement classification
-    Fin->>Fin: independently re-verify every claimed<br/>owner file/test; register new catalog entries
-    Fin-->>Impl: writes state/norm_specs/round_N.md
+    Cycle->>Arch: run_norm_architect_with_retry(round)
+    Note over Arch: reads norm.txt, classifies every requirement,<br/>writes a failing pytest suite to<br/>tests/norm_checks/round_N/ — no implementation code
+    Arch-->>Cycle: requirements JSON checklist (complete, verbatim)
 
-    Cycle->>Checks: compile / institution-drift / orphaned-rule / runtime checks
+    Cycle->>Eng: run_norm_engineer_with_retry(round, checklist + tests path)
+    Note over Eng: implements against the checklist until the<br/>pre-written suite passes — edits actions/rules/,<br/>actions/handlers/, state/config.json, state/institution.json, etc.
+    Eng->>Fin: dispatch via the task tool,<br/>forwarding the architect's checklist verbatim
+    Fin->>Fin: independently re-verify every claimed<br/>owner file/test; register new catalog entries
+    Fin-->>Eng: writes state/norm_specs/round_N.md
+
+    Cycle->>Checks: compile / institution-drift / orphaned-rule /<br/>tests/norm_checks/round_N/ (Self-Correction Gate) / runtime checks
     alt a check fails
-        Checks-->>Impl: repair message with the specific error
-        Note over Impl,Checks: loops back — bounded by MAX_NORM_REPAIR_ATTEMPTS
+        Checks-->>Eng: repair message with the specific error<br/>(a failing pre-written test includes its stack trace)
+        Note over Eng,Checks: loops back — bounded by MAX_NORM_REPAIR_ATTEMPTS
     else clean
-        Cycle->>Eval: run_norm_evaluator(round)
-        Eval->>Eval: writes and runs its own tests against<br/>the diff, independent of tests/norm_checks/
-        Eval-->>Cycle: EVALUATION_RESULT: COMPLIANT or NEEDS_REPAIR
+        Cycle->>Aud: run_norm_auditor(round)
+        Note over Aud: a separate model instance that never wrote the code —<br/>reads norm.txt + diff + BOTH test suites,<br/>hunting specifically for under-enforcement
+        Aud->>Aud: writes and runs its own tests against<br/>the diff, independent of tests/norm_checks/
+        Aud-->>Cycle: AUDIT_RESULT: COMPLIANT or NEEDS_REPAIR
         alt NEEDS_REPAIR
-            Cycle->>Impl: repair message with the evaluator's report
-            Note over Impl,Eval: loops back — same repair budget
+            Cycle->>Eng: repair message with the auditor's report
+            Note over Eng,Aud: loops back — same repair budget
         else COMPLIANT
             Cycle->>Git: stage + commit this round's changes
         end
     end
 ```
 
-If the implementer's own opencode process fails, times out, or gets
-truncated mid-task, `run_norm_implementer_with_retry()` retries the same
-session (a separate, smaller retry budget from the repair loop above,
-since a process failure says nothing about whether the code itself is
-wrong). If nothing ever produces a compliant, verified result within
-budget, the round's changes are discarded (`discard_norm_implementation()`)
-and the simulation continues under the previous mechanics.
+If norm-architect's own opencode process fails, times out, or gets
+truncated mid-task (or produces no requirements JSON, or writes no
+tests), `run_norm_architect_with_retry()` retries — a separate, smaller
+retry budget from the repair loop above, since a process failure says
+nothing about whether the design itself is wrong. Same for
+norm-engineer's own process via `run_norm_engineer_with_retry()`. If
+nothing ever produces a compliant, verified result within budget, the
+round's changes are discarded (`discard_norm_implementation()`) and the
+simulation continues under the previous mechanics.
 
 ## 8. How state gets updated
 
@@ -303,10 +324,10 @@ things, on different cadences:
 | `state/runtime.json` | Per-round records (`rounds`), current lake stock, alive/dead agents, cumulative payoff, rule/object persistent state | `ActionRuntime.run_action()` after every action; simulation-owned, never hand-edited |
 | `state/fluents.json` | Interval facts with a start and possibly an end — roles, bans, `rule_active` | `roles.roles.set_fact()`/`end_fact()`, called from inside a rule/handler |
 | `state/events.json` | Point-in-time occurrences — an object mutation, a one-off announcement | `ctx.events.emit(...)` / `ObjectRuntime`'s own `narration` kwarg |
-| `state/config.json` | Which rule types are *currently active* per action, and their parameters | The norm-implementer, when a norm activates/changes a rule |
-| `state/objects.json` | Institutional object *instances* (declarations only — never field values) | The norm-implementer, when a norm introduces a ledger/pool/permit |
+| `state/config.json` | Which rule types are *currently active* per action, and their parameters | The norm-engineer, when a norm activates/changes a rule |
+| `state/objects.json` | Institutional object *instances* (declarations only — never field values) | The norm-engineer, when a norm introduces a ledger/pool/permit |
 | `state["runtime"]["objects"]` | The *mutable* field values for those instances | `ObjectRuntime`, at run time, seeded from the type's own declared defaults on first touch |
-| `state/institution.json` | The structural catalog — which actions/roles/rule types/object types exist at all, plus a version number | The norm-implementer (content), the orchestrator (`version`/`updated_at_round`, after a compliant round) |
+| `state/institution.json` | The structural catalog — which actions/roles/rule types/object types exist at all, plus a version number | The norm-engineer (content), the orchestrator (`version`/`updated_at_round`, after a compliant round) |
 | `state/institution_history.jsonl` | An append-only diff log of every structural change | `record_institution_changes()`, automatically, right before a compliant round's commit |
 | `state/schedule.json` | The compiled action order for this run | `compile_schedule()`, every round — never hand-edited |
 
@@ -315,7 +336,7 @@ exists, a rule type is active, an action is registered) and its **live
 value** (an object's current balance, whether a rule is currently
 in-lifecycle, who currently holds a rotating role) are always kept in
 different places, updated by different code, on purpose — a
-norm-implementer-editable declaration file must never also be where the
+norm-engineer-editable declaration file must never also be where the
 simulation's own accumulated numbers live, or reverting a bad round would
 either destroy real data or leave stale numbers pointing at nothing.
 
@@ -341,7 +362,7 @@ having to know how either of those work.
 ## 10. Where to look next
 
 - `docs/institution-contracts/architecture.md` — the same routing logic
-  (rule vs. action vs. object vs. role) from the norm-implementer's own
+  (rule vs. action vs. object vs. role) from the norm-engineer's own
   point of view, with the Level 1-4 cost ladder.
 - `docs/institution-contracts/action-contract.md` /
   `rule-contract.md` / `object-contract.md` / `role-contract.md` /
@@ -349,6 +370,6 @@ having to know how either of those work.
 - `docs/institution-recipes/` — step-by-step checklists for each kind of
   change, including a worked example composing several of them for one
   norm.
-- `.opencode/agent/norm-implementer.md` / `norm-evaluator.md` /
-  `norm-finalizer.md` — the actual instructions given to the three agents
-  in section 7's pipeline.
+- `.opencode/agent/norm-architect.md` / `norm-engineer.md` /
+  `norm-finalizer.md` / `norm-auditor.md` — the actual instructions given
+  to the four agents in section 7's pipeline.

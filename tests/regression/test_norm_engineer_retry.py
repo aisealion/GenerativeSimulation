@@ -5,12 +5,12 @@ def test_succeeds_on_first_attempt_no_sleep_no_extra_calls(monkeypatch):
     calls = []
     sleeps = []
     monkeypatch.setattr(
-        simulate_module, "run_norm_implementer",
+        simulate_module, "run_norm_engineer",
         lambda round_number, extra_message=None, session_id=None: (calls.append("run") or True, "ses_1"),
     )
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
 
-    assert simulate_module.run_norm_implementer_with_retry(1) is True
+    assert simulate_module.run_norm_engineer_with_retry(1) is True
     assert calls == ["run"]
     assert sleeps == []
 
@@ -21,16 +21,16 @@ def test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt(monkeyp
 
     def _fake_run(round_number, extra_message=None, session_id=None):
         attempts["n"] += 1
-        return attempts["n"] == simulate_module.MAX_IMPLEMENTER_PROCESS_ATTEMPTS, "ses_1"
+        return attempts["n"] == simulate_module.MAX_ENGINEER_PROCESS_ATTEMPTS, "ses_1"
 
-    monkeypatch.setattr(simulate_module, "run_norm_implementer", _fake_run)
+    monkeypatch.setattr(simulate_module, "run_norm_engineer", _fake_run)
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
 
-    assert simulate_module.run_norm_implementer_with_retry(1) is True
-    assert attempts["n"] == simulate_module.MAX_IMPLEMENTER_PROCESS_ATTEMPTS
+    assert simulate_module.run_norm_engineer_with_retry(1) is True
+    assert attempts["n"] == simulate_module.MAX_ENGINEER_PROCESS_ATTEMPTS
     # One sleep between each pair of attempts, never after the final
     # (successful) one.
-    assert sleeps == [simulate_module.NORM_IMPLEMENTER_RETRY_DELAY_S] * (simulate_module.MAX_IMPLEMENTER_PROCESS_ATTEMPTS - 1)
+    assert sleeps == [simulate_module.NORM_ENGINEER_RETRY_DELAY_S] * (simulate_module.MAX_ENGINEER_PROCESS_ATTEMPTS - 1)
 
 
 def test_returns_false_after_exhausting_every_attempt(monkeypatch):
@@ -41,19 +41,19 @@ def test_returns_false_after_exhausting_every_attempt(monkeypatch):
         attempts["n"] += 1
         return False, "ses_1"
 
-    monkeypatch.setattr(simulate_module, "run_norm_implementer", _always_fails)
+    monkeypatch.setattr(simulate_module, "run_norm_engineer", _always_fails)
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
 
-    assert simulate_module.run_norm_implementer_with_retry(1) is False
-    assert attempts["n"] == simulate_module.MAX_IMPLEMENTER_PROCESS_ATTEMPTS
-    assert len(sleeps) == simulate_module.MAX_IMPLEMENTER_PROCESS_ATTEMPTS - 1
+    assert simulate_module.run_norm_engineer_with_retry(1) is False
+    assert attempts["n"] == simulate_module.MAX_ENGINEER_PROCESS_ATTEMPTS
+    assert len(sleeps) == simulate_module.MAX_ENGINEER_PROCESS_ATTEMPTS - 1
 
 
 def test_the_budget_is_actually_five(monkeypatch):
     """Pins the specific value requested (2026-09-14): a persistently
     truncating session should get several real chances before the round
     is discarded, not just two."""
-    assert simulate_module.MAX_IMPLEMENTER_PROCESS_ATTEMPTS == 5
+    assert simulate_module.MAX_ENGINEER_PROCESS_ATTEMPTS == 5
 
 
 def test_attempts_are_paired_1_2_then_3_4_then_5_alone(monkeypatch):
@@ -74,10 +74,10 @@ def test_attempts_are_paired_1_2_then_3_4_then_5_alone(monkeypatch):
         pair_index = (n - 1) // 2
         return False, f"ses_pair_{pair_index}"
 
-    monkeypatch.setattr(simulate_module, "run_norm_implementer", _fake_run)
+    monkeypatch.setattr(simulate_module, "run_norm_engineer", _fake_run)
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: None)
 
-    assert simulate_module.run_norm_implementer_with_retry(1) is False
+    assert simulate_module.run_norm_engineer_with_retry(1) is False
     assert seen_session_ids == [
         None,             # attempt 1: fresh start
         "ses_pair_0",     # attempt 2: continues attempt 1's discovered session

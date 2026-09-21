@@ -101,10 +101,10 @@ def render_role_directives(agent_id, fluents, round_number):
     `fisher.md`-only read. Every agent holds `"fisher"` from round 0 (see
     `generate_agents.py`), which stays first in that catalog, so this
     always includes at least the same text render_persona() always
-    rendered; a role a norm-implementer later registers and assigns (a
+    rendered; a role a norm-engineer later registers and assigns (a
     rotating recorder/treasurer/steward/monitor) now gets its own
     directive rendered too, with no code change required — this is the
-    actual mechanism `.opencode/agent/norm-implementer.md`'s "the
+    actual mechanism `.opencode/agent/norm-engineer.md`'s "the
     recorder's own role_directives/recorder.md must make this
     responsibility explicit" instruction depends on; before this function
     existed, that file was written but never read for anything but
@@ -441,8 +441,9 @@ def _critique_context():
     own context-gathering — the critique agent has no persona/state passed
     to it any other way. Not subject to prompts/'s fourth-wall rule (that
     applies to fisher-facing text only) — this agent is explicitly an
-    out-of-character analytical role, same footing as the norm-implementer/
-    evaluator, so plain internal names are fine here. Degrades gracefully
+    out-of-character analytical role, same footing as the norm pipeline
+    agents (architect/engineer/auditor), so plain internal names are fine
+    here. Degrades gracefully
     (empty-but-valid summary) if state/institution.json doesn't exist yet
     rather than raising — this call must never be the reason a round fails."""
     agents = json.loads((ROOT / "constants" / "agents.json").read_text())

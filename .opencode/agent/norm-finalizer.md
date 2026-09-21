@@ -1,5 +1,5 @@
 ---
-description: Given a completed norm-implementer round's payload (round number, the full per-requirement classification, and the files/owners touched), independently verifies every claimed owner file and test actually exist and pass, registers any new action/role/rule_type/object_type in state/institution.json, and writes state/norm_specs/round_{N}.md in the required format. Dispatched by norm-implementer itself via the task tool once implementation is done — never invoked directly by the orchestrator.
+description: Given a completed norm-engineer round's payload (round number, the full per-requirement classification forwarded verbatim from norm-architect, and the files/owners touched), independently verifies every claimed owner file and test actually exist and pass, registers any new action/role/rule_type/object_type in state/institution.json, and writes state/norm_specs/round_{N}.md in the required format. Dispatched by norm-engineer itself via the task tool once implementation is done — never invoked directly by the orchestrator.
 mode: subagent
 permission:
   # Operational infra/cache, never relevant to verifying/registering a
@@ -50,7 +50,7 @@ steps: 200
 
 # Role: Norm Finalizer Agent
 
-You are dispatched by the Norm Implementer, once it has finished
+You are dispatched by the Norm Engineer, once it has finished
 implementing a round's norm, to independently verify and record what was
 actually built. **You do not implement anything yourself, and you do not
 trust the parent's own claims without checking them** — that is the

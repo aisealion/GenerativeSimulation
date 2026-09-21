@@ -6,7 +6,7 @@
 #     fields/operations/permissions/visibility). Ships empty by default,
 #     same "no seed content" principle as actions/rules/.
 #   - state/objects.json — DECLARATIONS only ({"id", "type", "lifecycle"?}),
-#     norm-implementer-owned, exactly like state/config.json["rules"][action_name]'s
+#     norm-engineer-owned, exactly like state/config.json["rules"][action_name]'s
 #     own entries — never mutated by the running simulation.
 #   - state["runtime"]["objects"][object_id]["fields"] — the actual mutable
 #     field values, simulation-owned, mirroring runtime["rules"][key]'s own
@@ -16,7 +16,7 @@
 # Conflating declaration and mutable state in one implementer-writable file
 # is exactly the failure shape this project's config.json/runtime.json
 # split already exists to avoid — see CLAUDE.md's own history for why
-# state/runtime.json stays off the norm-implementer's tracked paths.
+# state/runtime.json stays off the norm-engineer's tracked paths.
 #
 # Every generic operation (deposit/withdraw/set/append/read) is
 # permission-checked against the object type's own declared `permissions`;
@@ -72,7 +72,7 @@ class ObjectRuntime:
     def _fields(self, object_id, spec):
         """The mutable field dict for this object, lazily seeded from the
         type's own declared defaults on first touch — never pre-populated
-        by a norm-implementer edit to state/objects.json itself."""
+        by a norm-engineer edit to state/objects.json itself."""
         record = self.runtime_objects.setdefault(object_id, {})
         fields = record.setdefault("fields", {})
         for field_name, field_spec in spec.get("fields", {}).items():

@@ -1,8 +1,11 @@
-"""CLI the norm-implementer agent invokes (via Bash) during its institutional
-design step to ask the fisher who proposed the round's adopted rule what an
-ambiguous or incomplete requirement actually means. Never used to change
-norm.txt, and never answered by the norm-implementer itself — only the
-proposer's own call_fisher_agent() response counts. Logged through the same
+"""CLI the norm-architect agent invokes (via Bash) during its design step
+to ask the fisher who proposed the round's adopted rule what an ambiguous
+or incomplete requirement actually means — or to put a specific
+contradiction/gap in the norm's own text to them directly, a real critique
+rather than a neutral clarifying question (norm-architect.md's "Critique,
+not just clarify" section). Never used to change norm.txt, and never
+answered by norm-architect itself — only the proposer's own
+call_fisher_agent() response counts. Logged through the same
 log_call()/ops/logs/model_calls.jsonl path every other fisher call uses
 (call="fisher", action="clarify"), so no separate log file is needed to
 review these after the fact.

@@ -52,7 +52,7 @@ field value.**
 Mutable field values are simulation-owned, in
 `state["runtime"]["objects"][object_id]["fields"]` — never seed or edit
 them, for the same reason `state/runtime.json` is read-only: a
-norm-implementer-writable file must never also be where the running
+norm-engineer-writable file must never also be where the running
 simulation's own accumulated numbers live, or a discard/revert would
 either lose real data or leave a stale declaration pointing at numbers
 that no longer make sense. A field's default (from the type's own spec)

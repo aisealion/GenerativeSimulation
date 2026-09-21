@@ -16,7 +16,7 @@ seed/example `Rule` implementations, on purpose (the same reasoning that
 kept top-level `norms/` empty before this directory replaced it — see
 CLAUDE.md). Round 1 must always operationalize its adopted norm from
 scratch: a pre-built cap/reserve/ban rule sitting here from the start
-would let the norm-implementer just tune parameters on an
+would let the norm-engineer just tune parameters on an
 already-correct implementation instead of actually writing one, which
 defeats the point of studying whether it can.
 
@@ -121,15 +121,20 @@ instead of writing another one.
 
 ## How a norm gets verified before it's committed
 
-The norm-implementer writes a formal requirement list to
-`state/norm_specs/round_{N}.md` *before* touching any code (its own
-institutional design step), classifying each requirement's clarity and
-resolving anything ambiguous or incomplete via a short dialogue with the
-fisher who proposed the rule. Once code exists, a separate
-`norm-evaluator` subagent — with no access to `actions/rules/`/`prompts/`,
-only to its own `tests/norm_evaluation/` — writes and runs independent
-tests against that spec and classifies each requirement as compliant, an
-implementation error, or a remaining spec gap. See
-`.opencode/agent/norm-evaluator.md` for the full contract, and CLAUDE.md
-for why this is a second agent rather than another self-check inside the
-norm-implementer.
+`norm-architect` writes a formal requirement checklist and a failing
+pytest suite (`tests/norm_checks/round_{N}/`) *before* any implementation
+code exists — classifying each requirement's clarity and resolving
+anything ambiguous, incomplete, or internally contradictory via a short,
+pointed dialogue with the fisher who proposed the rule. `norm-engineer`
+then implements against that checklist and those tests, with no access to
+edit them, until they pass — dispatching `norm-finalizer` (which
+independently re-verifies everything claimed) to write the frozen spec to
+`state/norm_specs/round_{N}.md` once implementation is done. Only once
+code exists does `norm-auditor` — a separate model instance that never
+wrote the code, with no access to `actions/rules/`/`prompts/`, only to its
+own `tests/norm_evaluation/` — write and run independent tests against
+that spec and the diff, classifying each requirement as compliant, an
+implementation error, under-enforced, or a remaining spec gap. See
+`.opencode/agent/norm-auditor.md` for the full contract, and CLAUDE.md for
+why this is a separate agent rather than another self-check inside
+norm-engineer.

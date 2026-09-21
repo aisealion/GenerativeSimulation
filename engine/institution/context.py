@@ -84,7 +84,7 @@ class ActionContext:
         """Cross-round-persistent state for the rule with this key — a
         reserve balance, a ban countdown. Backed by runtime["rules"][key],
         saved to state/runtime.json like everything else the simulation
-        writes — never pre-seeded by the norm-implementer directly."""
+        writes — never pre-seeded by the norm-engineer directly."""
         return self.state["runtime"].setdefault("rules", {}).setdefault(key, {})
 
     def round_scratch(self, key):

@@ -2,7 +2,7 @@
 every round by engine/simulate.py's run_cycle(). Headless by construction
 (matplotlib.use("Agg") below) — this has to render on Aoraki, which has no
 display. Human/Claude-owned tooling, nothing here is in the
-norm-implementer's permission.edit allowlist or relevant to its job.
+norm pipeline agents' permission.edit allowlists or relevant to their job.
 
 Fixed filenames, overwritten every round rather than one-per-round
 snapshots — that's what makes them "live": open the PNG once and it keeps
@@ -135,13 +135,13 @@ def _plot_active_agents(harvest_rounds, config, plot_dir):
     _save(fig, plot_dir / "active_agents.png")
 
 
-def _plot_tool_calls(implementer_rows, plot_dir):
+def _plot_tool_calls(engineer_rows, plot_dir):
     fig, ax = plt.subplots(figsize=(9, 5))
-    ax.set_title("Norm-implementer tool calls per round")
+    ax.set_title("Norm-engineer tool calls per round")
     ax.set_xlabel("round")
     ax.set_ylabel("tool calls")
-    rounds = [row["round"] for row in implementer_rows]
-    counts = [row.get("tool_call_count") or 0 for row in implementer_rows]
+    rounds = [row["round"] for row in engineer_rows]
+    counts = [row.get("tool_call_count") or 0 for row in engineer_rows]
     ax.bar(rounds, counts)
     _save(fig, plot_dir / "tool_calls.png")
 
@@ -168,16 +168,22 @@ def _agent_step_budget(agent_name, default):
 def _plot_steps(call_log, plot_dir):
     """Step count (one full model turn — see parse_opencode_jsonl()'s own
     docstring for how this differs from tool-call count) per invocation,
-    for both norm-implementer and norm-evaluator on one chart, each against
-    its own steps: budget as a reference line — added 2026-09-09, by
-    request, specifically so it's visible how close a real round is
-    running to actually exhausting its budget (the failure mode
-    PHASE/Section 16's own "ran out of budget" handling exists for),
-    rather than only ever inferring that after the fact from a truncated
-    response."""
-    implementer_rows = [row for row in call_log if row.get("call") == "norm_implementer"]
-    evaluator_rows = [row for row in call_log if row.get("call") == "norm_evaluator"]
-    if not implementer_rows and not evaluator_rows:
+    for all three norm pipeline agents on one chart, each against its own
+    steps: budget as a reference line — added 2026-09-09, by request,
+    specifically so it's visible how close a real round is running to
+    actually exhausting its budget (the failure mode PHASE/Section 16's
+    own "ran out of budget" handling exists for), rather than only ever
+    inferring that after the fact from a truncated response. Extended
+    2026-09-21 from two series (norm-implementer/norm-evaluator) to three
+    (norm-architect/norm-engineer/norm-auditor) for the dual-model/TDD/
+    auditor split."""
+    series = [
+        ("norm_architect", "norm-architect", "tab:blue", -0.25),
+        ("norm_engineer", "norm-engineer", "tab:orange", 0.0),
+        ("norm_auditor", "norm-auditor", "tab:green", 0.25),
+    ]
+    rows_by_call = {tag: [row for row in call_log if row.get("call") == tag] for tag, _, _, _ in series}
+    if not any(rows_by_call.values()):
         return
 
     fig, ax = plt.subplots(figsize=(9, 5))
@@ -185,53 +191,52 @@ def _plot_steps(call_log, plot_dir):
     ax.set_xlabel("round")
     ax.set_ylabel("steps used")
 
-    if implementer_rows:
-        rounds = [row["round"] for row in implementer_rows]
-        counts = [row.get("step_count") or 0 for row in implementer_rows]
-        ax.bar([r - 0.2 for r in rounds], counts, width=0.4, color="tab:blue", label="norm-implementer")
-    if evaluator_rows:
-        rounds = [row["round"] for row in evaluator_rows]
-        counts = [row.get("step_count") or 0 for row in evaluator_rows]
-        ax.bar([r + 0.2 for r in rounds], counts, width=0.4, color="tab:orange", label="norm-evaluator")
-
-    implementer_budget = _agent_step_budget("norm-implementer", 500)
-    evaluator_budget = _agent_step_budget("norm-evaluator", 300)
-    ax.axhline(implementer_budget, color="tab:blue", linestyle="--", linewidth=1,
-               label=f"norm-implementer budget ({implementer_budget})")
-    ax.axhline(evaluator_budget, color="tab:orange", linestyle="--", linewidth=1,
-               label=f"norm-evaluator budget ({evaluator_budget})")
+    for tag, label, color, offset in series:
+        rows = rows_by_call[tag]
+        if not rows:
+            continue
+        rounds = [row["round"] for row in rows]
+        counts = [row.get("step_count") or 0 for row in rows]
+        ax.bar([r + offset for r in rounds], counts, width=0.25, color=color, label=label)
+        budget = _agent_step_budget(label, 500)
+        ax.axhline(budget, color=color, linestyle="--", linewidth=1, label=f"{label} budget ({budget})")
     ax.legend(fontsize=7)
     _save(fig, plot_dir / "steps.png")
 
 
 def _plot_commits(call_log, plot_dir):
     fig, ax = plt.subplots(figsize=(9, 5))
-    ax.set_title("Norm-implementer outcome per round")
+    ax.set_title("Norm round outcome per round")
     ax.set_xlabel("round")
-    colors = {"norm_implementer_committed": "tab:green", "norm_implementer_discarded": "tab:red",
-              "norm_implementer_no_changes": "tab:gray"}
+    colors = {"norm_round_committed": "tab:green", "norm_round_discarded": "tab:red",
+              "norm_round_no_changes": "tab:gray"}
     outcome_rows = [row for row in call_log if row.get("call") in colors]
     for outcome, color in colors.items():
         rounds = [row["round"] for row in outcome_rows if row["call"] == outcome]
         if rounds:
-            ax.bar(rounds, [1] * len(rounds), color=color, label=outcome.replace("norm_implementer_", ""))
+            ax.bar(rounds, [1] * len(rounds), color=color, label=outcome.replace("norm_round_", ""))
     ax.set_yticks([])
     ax.legend(fontsize=8)
     _save(fig, plot_dir / "commits.png")
 
 
-def _plot_tests(implementer_rows, plot_dir):
+def _plot_tests(architect_rows, plot_dir):
+    """Tests norm-architect wrote per round, before any implementation
+    existed — color reflects tests_confirmed_red (its own self-check that
+    every test it wrote actually collects and fails for the right reason),
+    not pass/fail against a finished implementation (that's
+    tests/norm_evaluation/'s job, tracked separately by norm-auditor)."""
     fig, ax = plt.subplots(figsize=(9, 5))
-    ax.set_title("norm_checks/ tests written per round (color = pass/fail)")
+    ax.set_title("norm_checks/round_N/ tests written per round (color = confirmed red)")
     ax.set_xlabel("round")
     ax.set_ylabel("tests written")
-    for row in implementer_rows:
+    for row in architect_rows:
         report = row.get("report") or {}
-        written = report.get("norm_check_tests_written") or []
+        written = report.get("test_files_written") or []
         if not written:
             continue
-        passed = report.get("norm_check_tests_pass")
-        ax.bar(row["round"], len(written), color="tab:green" if passed else "tab:red")
+        confirmed_red = report.get("tests_confirmed_red")
+        ax.bar(row["round"], len(written), color="tab:green" if confirmed_red else "tab:red")
     _save(fig, plot_dir / "tests.png")
 
 
@@ -250,10 +255,12 @@ def update_plots(state):
             _plot_active_agents(harvest_rounds, config, plot_dir)
 
         call_log = _read_call_log()
-        implementer_rows = [row for row in call_log if row.get("call") == "norm_implementer"]
-        if implementer_rows:
-            _plot_tool_calls(implementer_rows, plot_dir)
-            _plot_tests(implementer_rows, plot_dir)
+        architect_rows = [row for row in call_log if row.get("call") == "norm_architect"]
+        engineer_rows = [row for row in call_log if row.get("call") == "norm_engineer"]
+        if engineer_rows:
+            _plot_tool_calls(engineer_rows, plot_dir)
+        if architect_rows:
+            _plot_tests(architect_rows, plot_dir)
         _plot_commits(call_log, plot_dir)
         _plot_steps(call_log, plot_dir)
     except Exception as exc:

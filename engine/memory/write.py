@@ -9,8 +9,8 @@ from graphiti_core.nodes import EpisodeType
 
 from engine.memory.client import ensure_indices, graphiti, round_reference_time, run_async
 
-# Seeded from the norm-implementer's six templates (see
-# .opencode/agent/norm-implementer.md:
+# Seeded from norm-architect's six design templates (see
+# .opencode/agent/norm-architect.md:
 # role_fluent, periodic_check, threshold_obligation, reporting_obligation,
 # graduated_sanction, new_action) plus the events that already occur every
 # game today (vote_outcome, proposal_made, routine_harvest). Scores 1-10 —

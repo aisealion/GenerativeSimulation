@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Shows what the norm-implementer actually did in a session — every tool
-call (codegraph_explore queries, files read, files edited), not just the
-final summary text that ops/logs/model_calls.jsonl captures. Our own
-logging only sees stdout; this reads opencode's own session store for the
-real tool-call trace.
+"""Shows what a norm pipeline agent (norm-architect/norm-engineer/
+norm-auditor) actually did in a session — every tool call
+(codegraph_explore queries, files read, files edited), not just the final
+summary text that ops/logs/model_calls.jsonl captures. Our own logging
+only sees stdout; this reads opencode's own session store for the real
+tool-call trace.
 
 Usage (run from the repo root — this script itself lives under ops/,
 alongside run_simulation.slurm/hpc_ollama_entrypoint.sh/logs/plots, kept
 out of the repo root so opencode's own read/glob/grep exploration never
 wastes a tool call on it; see CLAUDE.md's "ops/ split" entry):
-  python3 ops/inspect_session.py              # most recent norm-implementer session
-  python3 ops/inspect_session.py --list       # list all norm-implementer sessions
+  python3 ops/inspect_session.py              # most recent matching session
+  python3 ops/inspect_session.py --list       # list all matching sessions
   python3 ops/inspect_session.py <session_id> # a specific session (any agent)
 """
 import json
@@ -29,7 +30,7 @@ def list_sessions():
     return json.loads(result.stdout)
 
 
-def find_norm_implementer_sessions():
+def find_norm_pipeline_sessions():
     sessions = list_sessions()
     matches = [s for s in sessions if any(m in s["title"].lower() for m in TITLE_MARKERS)]
     return sorted(matches, key=lambda s: s["created"], reverse=True)
@@ -73,7 +74,7 @@ def main():
     args = sys.argv[1:]
 
     if args and args[0] == "--list":
-        for s in find_norm_implementer_sessions():
+        for s in find_norm_pipeline_sessions():
             print(s["id"], s["title"])
         return
 
@@ -81,9 +82,9 @@ def main():
         print_trace(args[0])
         return
 
-    matches = find_norm_implementer_sessions()
+    matches = find_norm_pipeline_sessions()
     if not matches:
-        print("No norm-implementer sessions found yet.")
+        print("No norm pipeline sessions found yet.")
         return
     print_trace(matches[0]["id"])
 
