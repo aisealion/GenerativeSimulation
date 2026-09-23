@@ -1,0 +1,21 @@
+{
+  "type_name": "communal_ledger",
+  "description": "A shared ledger for recording catch weight and reserve deposits",
+  "ownership": "COMMUNAL",
+  "fields": {
+    "entries": {
+      "type": "list",
+      "default": []
+    }
+  },
+  "operations": ["add_entry", "read", "get_balance"],
+  "permissions": {
+    "WRITE": {"who": "ROLE:bin_guard"},
+    "READ": {"who": "ALL"}
+  },
+  "visibility": {
+    "entries": {"who": "ALL"}
+  },
+  "custom_handler": null,
+  "introduced_round": 4
+}

@@ -1,0 +1,22 @@
+{
+  "spec_path": "state/norm_specs/round_3.md",
+  "requirements_built": ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"],
+  "files_touched": [
+    "state/institution.json",
+    "state/actions/record_catch.json",
+    "state/actions/select_witness.json", 
+    "state/actions/submit_log.json",
+    "actions/rules/submit_log/review_log.py",
+    "actions/rules/submit_log/verify_return.py",
+    "actions/rules/submit_log/spot_check.py",
+    "actions/rules/submit_log/enforce_delivery.py",
+    "objects/handlers/communal_bin.py",
+    "prompts/role_directives/council.md",
+    "state/config.json"
+  ],
+  "regression_pass": true,
+  "norm_check_tests_pass": true,
+  "denied_permission_needed": false,
+  "ran_out_of_budget": false,
+  "finalization_failed": false
+}

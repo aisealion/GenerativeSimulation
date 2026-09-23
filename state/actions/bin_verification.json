@@ -1,0 +1,31 @@
+{
+  "name": "bin_verification",
+  "description": "Verify ledger matches bin weight, call vote if mismatch, enforce penalty based on majority decision.",
+  "scheduling": {
+    "gate": "true"
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "bin_guard"
+  },
+  "roles": {
+    "actor_role": "bin_guard"
+  },
+  "execution": {
+    "handler": "actions/handlers/bin_verification.py"
+  },
+  "prompt": {
+    "template": "As the bin guard, you are responsible for verifying that the ledger entries for each fisher's catch match the actual weights recorded on the communal bin scale.\n\nCurrent ledger entries: {ledger_entries}\n\nPrevious violations: {previous_violations}\n\nYou must:\n1. Compare the ledger weight against the bin weight\n2. If they don't match, call a vote among present fishers\n3. If a vote is called, enforce the penalty based on the majority decision\n4. Record the verification result in the ledger\n\nPlease decide whether to call a vote and whether to enforce a penalty.",
+    "fields": [
+      {
+        "from": "object",
+        "object_id": "community_ledger",
+        "field": "entries"
+      },
+      {
+        "from": "state",
+        "path": "runtime.bin_guard.previous_violations"
+      }
+    ]
+  }
+}

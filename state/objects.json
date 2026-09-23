@@ -1,1 +1,6 @@
-[]
+[
+  {
+    "id": "community_ledger",
+    "type": "communal_ledger"
+  }
+]

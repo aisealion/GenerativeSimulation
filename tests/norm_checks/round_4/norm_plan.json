@@ -1,0 +1,191 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "OBJECT",
+      "description": "A shared ledger for recording catch weight and reserve deposits, with an associated communal bin and scale.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "persistent": true,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "The communal ledger is visible to all fishers after each trip."
+        ]
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ROLE",
+      "description": "Bin guard role, assigned alphabetically from the community roster with equal rotation among fishers.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "Who is the current bin guard.",
+          "Their own duty status as bin guard."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Previous guards to ensure fair rotation."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Verify ledger matches bin weight, call vote if mismatch, enforce penalty based on majority decision.",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The proper procedure for verification and voting."
+        ],
+        "decides": [
+          "Whether to call a vote.",
+          "Whether to enforce the penalty."
+        ],
+        "may_do": [
+          "Call a vote among present fishers.",
+          "Enforce reduced catch limit."
+        ],
+        "may_not_do": [],
+        "remembers": [
+          "Previous violations and penalties for future decisions."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "Limit next trip catch to 8kg if penalty enforced.",
+      "attached_to": "R3",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Take more than 8kg on the next trip if penalized."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "LIFECYCLE",
+      "description": "Ensure each fisher performs guard duty equally over time.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "duration_rounds": null
+    },
+    {
+      "id": "R6",
+      "type": "VISIBILITY",
+      "description": "All fishers can see ledger entries after each trip.",
+      "target": "R1",
+      "audience": "all_fishers",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "Ledger entries are posted immediately after each trip."
+        ]
+      }
+    }
+  ],
+  "acceptance_tests": [
+    {
+      "requirement": "R2",
+      "scenario": "guard_assignment_check",
+      "given": {
+        "current_roster": [
+          "Alice",
+          "Bob",
+          "Charlie",
+          "David",
+          "Eve"
+        ]
+      },
+      "when": {
+        "next_trip": true
+      },
+      "expect": {
+        "new_guard": "Alice"
+      }
+    },
+    {
+      "requirement": "R3",
+      "scenario": "verification_penalty_vote",
+      "given": {
+        "ledger_weight": 10,
+        "bin_weight": 8
+      },
+      "when": {
+        "guard_check": true
+      },
+      "expect": {
+        "vote_called": true
+      }
+    },
+    {
+      "requirement": "R4",
+      "scenario": "enforce_8kg_limit",
+      "given": {
+        "previous_penalty": true,
+        "current_catch": 9
+      },
+      "when": {
+        "next_trip": true
+      },
+      "expect": {
+        "catch_limited_to": 8
+      }
+    },
+    {
+      "requirement": "R6",
+      "scenario": "visibility_check",
+      "given": {
+        "trip_completed": true,
+        "ledger_updated": true
+      },
+      "when": {
+        "any_fisher_checks": true
+      },
+      "expect": {
+        "ledger_visible": true
+      }
+    }
+  ],
+  "open_critiques": [
+    {
+      "requirement": "R3",
+      "critique_question": "What happens if a vote doesn't reach the required majority? Is there any specified outcome?"
+    }
+  ]
+}
