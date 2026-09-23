@@ -63,7 +63,7 @@
                                         #   job OOMs, raise this back to --gres=gpu:2 and re-add
                                         #   OLLAMA_SCHED_SPREAD=1 below (both still documented,
                                         #   just currently unused) as the first fallback.
-#SBATCH --cpus-per-task=4             # raised 10 -> 16 (2026-09-15): aoraki44 has 128 cores
+#SBATCH --cpus-per-task=16             # raised 10 -> 16 (2026-09-15): aoraki44 has 128 cores
                                         #   (2x64) total across 8 GPUs — this job uses 1 of those
                                         #   8, so 16 cores (1/8 of the node's total) is a
                                         #   proportional share rather than either the old
@@ -72,7 +72,7 @@
                                         #   node. Real headroom either way for the opencode/Ollama/
                                         #   Neo4j-JVM CPU-side work this job actually does, none of
                                         #   which is GPU-bound.
-#SBATCH --mem=32G                     # CPU RAM, not GPU VRAM (fixed by the partition/gres above) —
+#SBATCH --mem=150G                     # CPU RAM, not GPU VRAM (fixed by the partition/gres above) —
                                         #   raised 64G -> 220G (2026-09-15) — 220G is this
                                         #   partition/qos's own confirmed per-job max (the earlier
                                         #   256G guess, extrapolated from an 8-way proportional

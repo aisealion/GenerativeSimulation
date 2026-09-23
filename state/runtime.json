@@ -1,6 +1,6 @@
 {
-  "round": 1,
-  "stock_kg": 275.4,
+  "round": 2,
+  "stock_kg": 249.97317603623998,
   "rounds": [
     {
       "agents": {
@@ -373,15 +373,59 @@
       "winning_proposer": "agent_0",
       "round": 1,
       "action": "vote"
+    },
+    {
+      "agents": {
+        "agent_0": {
+          "effort": 0.2,
+          "harvested_kg": 2.754,
+          "reasoning": "I\u2019ll aim for about 1kg today to keep my reserves safe, staying well below the 5kg limit and leaving plenty of fish for the rest of the community.",
+          "note": null,
+          "participated": true
+        },
+        "agent_1": {
+          "effort": 0.3,
+          "harvested_kg": 4.130999999999999,
+          "reasoning": "I only need a small catch to keep my reserves, so I'll fish lightly.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.04,
+          "harvested_kg": 0.5508000000000001,
+          "reasoning": "I need roughly 1kg to keep myself fed; at current fish level that means about 4% effort should get me just over that, keeping within the 5kg limit.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 1.0,
+          "harvested_kg": 13.77,
+          "reasoning": "I need to bring home as much as I can to feed my family and keep my reserves safe.",
+          "note": null,
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 1.0,
+          "harvested_kg": 13.77,
+          "reasoning": "I need at least 1\u202fkg to eat, and the community rule lets me take up to 3\u202fkg per trip; I'll put in full effort to get the maximum haul I\u2019m allowed.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_before": 275.4,
+      "stock_kg_after_harvest": 240.42419999999998,
+      "stock_kg_after_regrowth": 249.97317603623998,
+      "round": 2,
+      "action": "harvest"
     }
   ],
   "objects": {},
   "payoff": {
-    "agent_0": 0.5,
-    "agent_1": 9.5,
-    "agent_2": 0.5,
-    "agent_3": 14.0,
-    "agent_4": 0.5
+    "agent_0": 2.254,
+    "agent_1": 12.631,
+    "agent_2": 0.05080000000000018,
+    "agent_3": 26.77,
+    "agent_4": 13.27
   },
   "dead_agents": []
 }
