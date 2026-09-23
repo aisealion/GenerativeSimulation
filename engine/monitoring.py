@@ -171,38 +171,36 @@ def _agent_step_budget(agent_name, default):
 def _plot_steps(call_log, plot_dir):
     """Step count (one full model turn — see parse_opencode_jsonl()'s own
     docstring for how this differs from tool-call count) per invocation,
-    for all three norm pipeline agents on one chart, each against its own
-    steps: budget as a reference line — added 2026-09-09, by request,
-    specifically so it's visible how close a real round is running to
-    actually exhausting its budget (the failure mode PHASE/Section 16's
-    own "ran out of budget" handling exists for), rather than only ever
-    inferring that after the fact from a truncated response. Extended
-    2026-09-21 from two series (norm-implementer/norm-evaluator) to three
-    (norm-architect/norm-engineer/norm-auditor) for the dual-model/TDD/
-    auditor split."""
-    series = [
-        ("norm_architect", "norm-architect", "tab:blue", -0.25),
-        ("norm_engineer", "norm-engineer", "tab:orange", 0.0),
-        ("norm_auditor", "norm-auditor", "tab:green", 0.25),
-    ]
-    rows_by_call = {tag: [row for row in call_log if row.get("call") == tag] for tag, _, _, _ in series}
-    if not any(rows_by_call.values()):
+    against norm-engineer's own steps: budget as a reference line — added
+    2026-09-09, by request, specifically so it's visible how close a real
+    round is running to actually exhausting its budget (the failure mode
+    PHASE/Section 16's own "ran out of budget" handling exists for),
+    rather than only ever inferring that after the fact from a truncated
+    response. Extended 2026-09-21 from two series (norm-implementer/
+    norm-evaluator) to three (norm-architect/norm-engineer/norm-auditor)
+    for the dual-model/TDD/auditor split, then back down to just
+    norm-engineer alone (2026-09-22/23) — norm-architect and norm-auditor
+    both stopped running through opencode entirely (DeepSeek-R1 doesn't
+    support tool calling on Ollama — see call_norm_architect_agent()'s
+    own docstring in engine/llm_agents.py), so neither has a steps:
+    budget or a step_count at all any more — both are plain completion
+    calls, the same shape as the fisher/critique calls this module never
+    charted either. norm-engineer is now the only opencode-driven agent
+    left in this pipeline."""
+    engineer_rows = [row for row in call_log if row.get("call") == "norm_engineer"]
+    if not engineer_rows:
         return
 
     fig, ax = plt.subplots(figsize=(9, 5))
-    ax.set_title("Agent step count per invocation (vs. each agent's own steps: budget)")
+    ax.set_title("norm-engineer step count per invocation (vs. its own steps: budget)")
     ax.set_xlabel("round")
     ax.set_ylabel("steps used")
 
-    for tag, label, color, offset in series:
-        rows = rows_by_call[tag]
-        if not rows:
-            continue
-        rounds = [row["round"] for row in rows]
-        counts = [row.get("step_count") or 0 for row in rows]
-        ax.bar([r + offset for r in rounds], counts, width=0.25, color=color, label=label)
-        budget = _agent_step_budget(label, 500)
-        ax.axhline(budget, color=color, linestyle="--", linewidth=1, label=f"{label} budget ({budget})")
+    rounds = [row["round"] for row in engineer_rows]
+    counts = [row.get("step_count") or 0 for row in engineer_rows]
+    ax.bar(rounds, counts, width=0.5, color="tab:orange", label="norm-engineer")
+    budget = _agent_step_budget("norm-engineer", 500)
+    ax.axhline(budget, color="tab:orange", linestyle="--", linewidth=1, label=f"budget ({budget})")
     ax.legend(fontsize=7)
     _save(fig, plot_dir / "steps.png")
 
@@ -224,22 +222,28 @@ def _plot_commits(call_log, plot_dir):
 
 
 def _plot_tests(architect_rows, plot_dir):
-    """Tests norm-architect wrote per round, before any implementation
-    existed — color reflects tests_confirmed_red (its own self-check that
-    every test it wrote actually collects and fails for the right reason),
-    not pass/fail against a finished implementation (that's
-    tests/norm_evaluation/'s job, tracked separately by norm-auditor)."""
+    """One bar per norm-architect call attempt, green if that attempt's
+    completion call itself succeeded (returned real text), red if it
+    errored — call_norm_architect_agent() (engine/llm_agents.py) logs the
+    raw completion call only, not a parsed report (extracting the
+    ```python test file and ```json requirements block, and writing the
+    file, both happen afterward in engine.simulate.run_norm_architect(),
+    a separate step this log row doesn't see) — so this chart tracks call
+    health per round, not test count or redness the way it did back when
+    norm-architect ran through opencode and logged its own parsed report
+    directly (pre-2026-09-22)."""
     fig, ax = plt.subplots(figsize=(9, 5))
-    ax.set_title("norm_checks/round_N/ tests written per round (color = confirmed red)")
+    ax.set_title("norm-architect completion calls per round (color = call succeeded)")
     ax.set_xlabel("round")
-    ax.set_ylabel("tests written")
+    ax.set_ylabel("attempts")
+    counts_by_round = {}
     for row in architect_rows:
-        report = row.get("report") or {}
-        written = report.get("test_files_written") or []
-        if not written:
+        round_number = row.get("round")
+        if round_number is None:
             continue
-        confirmed_red = report.get("tests_confirmed_red")
-        ax.bar(row["round"], len(written), color="tab:green" if confirmed_red else "tab:red")
+        counts_by_round.setdefault(round_number, []).append(row.get("error") is None)
+    for round_number, outcomes in sorted(counts_by_round.items()):
+        ax.bar(round_number, len(outcomes), color="tab:green" if any(outcomes) else "tab:red")
     _save(fig, plot_dir / "tests.png")
 
 

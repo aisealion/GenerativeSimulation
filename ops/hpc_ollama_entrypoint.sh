@@ -69,13 +69,16 @@ export CODEGRAPH_TELEMETRY=0
 #
 # CODEGRAPH_NO_DAEMON removed (2026-08-27) — trying CodeGraph's actual
 # standard/intended design: opencode.jsonc's `codegraph serve --mcp` runs a
-# background file-watcher that keeps the index live on its own, so the
-# norm pipeline agents' (norm-architect/norm-engineer/norm-auditor)
-# codegraph_explore/impact/callers MCP tool calls are always current
-# without anyone explicitly re-running init/sync per round (that manual
-# per-round refresh — see each agent's own codebase-understanding step in
-# .opencode/agents/ — was itself only ever a workaround for not trusting
-# this path).
+# background file-watcher that keeps the index live on its own, so
+# norm-engineer's own codegraph_explore/impact/callers MCP tool calls are
+# always current without anyone explicitly re-running init/sync per round
+# (that manual per-round refresh — see its own codebase-understanding
+# step in .opencode/agents/norm-engineer.md — was itself only ever a
+# workaround for not trusting this path). Neither norm-architect
+# (2026-09-22) nor norm-auditor (2026-09-23) use this at all any more —
+# both stopped running through opencode and have no tools of any kind;
+# see engine/llm_agents.py's call_norm_architect_agent()/
+# call_norm_auditor_agent().
 # Deliberately not the same thing as the original incident: that was
 # specifically `codegraph sync` invoked as a one-shot CLI command outside
 # the daemon's own control (its docs describe sync as normally
@@ -424,14 +427,20 @@ mkdir -p ops/logs
 # auditor split below.
 #
 # NORM_ARCHITECT_MODEL / NORM_ENGINEER_MODEL / NORM_AUDITOR_MODEL route
-# the norm pipeline's three opencode agents independently as of
-# 2026-09-21 (previously a single NORM_IMPLEMENTER_MODEL shared by
-# norm-implementer and norm-evaluator both) — norm-architect and
-# norm-auditor to DeepSeek-R1 (reasoning/audit), norm-engineer to
-# Qwen3-Coder-Next (execution). engine/simulate.py's own model-selection
-# still falls back to NORM_IMPLEMENTER_MODEL/OPENCODE_MODEL if any of the
-# three new vars is unset, for anyone running this outside a freshly
-# updated entrypoint — but this script always sets all three explicitly.
+# the norm pipeline's three roles independently as of 2026-09-21
+# (previously a single NORM_IMPLEMENTER_MODEL shared by norm-implementer
+# and norm-evaluator both) — norm-architect and norm-auditor to
+# DeepSeek-R1 (reasoning/audit), norm-engineer to Qwen3-Coder-Next
+# (execution). Only NORM_ENGINEER_MODEL still routes an actual opencode
+# `--model` flag — norm-architect (2026-09-22) and norm-auditor
+# (2026-09-23) read their own env var directly in a plain litellm
+# completion call instead (see engine/llm_agents.py's
+# _resolve_completion_kwargs(), which accepts the exact same
+# "provider/name" value shape, so these vars didn't need to change format
+# when those two roles stopped running through opencode). Each of the
+# three falls back to NORM_IMPLEMENTER_MODEL/OPENCODE_MODEL if unset, for
+# anyone running this outside a freshly updated entrypoint — but this
+# script always sets all three explicitly.
 #
 # Prior history, when this was one shared model for both agents: litellm/
 # Kimi-K2.5 -> local gpt-oss-120b (2026-09-04, Kimi-K2.5 quota exhausted)

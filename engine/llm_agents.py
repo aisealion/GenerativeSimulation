@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -563,3 +564,354 @@ def _parse_json_object(raw):
     if not match:
         raise RuntimeError(f"no JSON object found in agent response: {raw!r}")
     return json.loads(match.group(0))
+
+
+NORM_ARCHITECT_LOG_PATH = ROOT / "ops" / "logs" / "norm_architect.jsonl"
+MAX_ARCHITECT_ATTEMPTS = 3
+ARCHITECT_CALL_DELAY_S = float(os.environ.get("LLM_CALL_DELAY_S", "2"))
+
+# 2026-09-22: norm-architect used to run as a full opencode agent (bash,
+# edit, glob, grep, read, codegraph_explore, write) — a real HPC run
+# showed every single invocation failing instantly (~2s, zero tool calls)
+# with a 400 API error: "registry.ollama.ai/library/deepseek-r1-...
+# does not support tools". Root cause, confirmed against upstream reports
+# (github.com/sst/opencode/issues/2123, github.com/ollama/ollama/issues/
+# 12719): Ollama's default deepseek-r1 registry tags predate DeepSeek's
+# own May 2025 tool-calling update and simply don't ship a chat template
+# that supports the OpenAI `tools` request field — opencode always sends
+# one (it's an inherently agentic framework), so every call was rejected
+# before the model ever saw the prompt, regardless of context/output size
+# tuning. But norm-architect never actually needed real filesystem
+# access: its whole job is reading a fixed bundle of text (norm.txt +
+# the institution contracts) and producing text (one pytest file + a
+# JSON requirements checklist) — exactly what a plain, tool-free
+# completion call already does for the fisher/critique agents above.
+# litellm.completion() only sends a `tools` field when the caller passes
+# one; since this function never does, this call is immune to the same
+# 400 regardless of the model's own template support.
+NORM_ARCHITECT_SYSTEM_PROMPT = """You are the Norm Architect for a multi-agent fishery simulation. Each
+round you are given norm.txt (a Policy statement plus the community's
+Operationalization of it) and a fixed bundle of reference material. Your
+job is reading, reasoning, and test-authoring ONLY — never
+implementation. You have NO TOOLS and no filesystem access: you cannot
+read, write, or execute anything yourself. Everything you need is in this
+message; everything you produce must be in your response text, nothing
+else. Never claim to have read or written a file, called a tool, or run a
+command — you cannot.
+
+You are not the norm's author: never invent obligations, rights,
+sanctions, or objectives its own text doesn't already entail. Extract
+EVERY atomic actor+verb+object requirement from the Operationalization,
+clause by clause — never a paraphrase of a whole sentence. Two
+verb-phrases sharing one actor are still two requirements. Err toward
+over-splitting. Distinguish genuine agent judgment (weighs, judges,
+inspects, decides, reviews-and-rules, verifies, contests, appeals,
+testifies, exercises discretion) from deterministic arithmetic, and
+either from inventory (a noun that's state, not a decision) — route by
+what the requirement IS, never by which path is cheaper. Reuse an
+existing rule/object/action type (see the institution catalog in your
+reference bundle) before inventing a new one.
+
+## Critique, not just clarify
+
+When a requirement's clarity is AMBIGUOUS or INCOMPLETE, or you find two
+clauses of norm.txt in genuine tension, don't silently pick a best-effort
+reading. Put it in your response's "open_critiques" array (see JSON
+format below) as a real critique of the norm's own text — name the
+specific gap or contradiction plainly ("clause 2 requires X but clause 4
+implies not-X — which governs, and why wasn't this addressed?"), not a
+vague "what did you mean." You'll be given the proposer's answer in a
+follow-up message and asked to finalize your tests and checklist using
+it. Never ask for approval or code — only what the rule means.
+
+## Write the failing test suite
+
+Write ONE complete pytest file (not several) covering every requirement.
+It must fail red against the current code — nothing implementing this
+round's norm exists yet, so a well-written test simply won't pass until
+someone builds it. Write however many test cases each requirement
+actually needs — never just one: at minimum the compliant path, the
+non-compliant/penalty path wherever the requirement implies a violation,
+and boundary cases the norm's own numbers imply (exactly at a threshold,
+just under it, just over it). Build the fabricated `state` realistically,
+through the shapes your reference bundle's contracts describe — exercise
+the real handler/rule/action machinery, never a bare unit test of a class
+in isolation. A structural requirement (a new rule type actually
+activated in state/config.json, a new role actually assignable) needs its
+own test too, not just the functional behavior once triggered.
+
+## Output format — exactly two fenced blocks, nothing after the second one
+
+A fenced ```python block containing the complete test file, then a fenced
+```json block with this shape:
+
+```json
+{
+  "requirements": [
+    {
+      "requirement": "...", "purpose": "...", "actor": "...", "level": 1,
+      "action_attached_to": "harvest", "action_or_decision": "...",
+      "existing_owner_or_new": "new rule type: actions/rules/harvest/example.py",
+      "inputs": "...", "outputs": "...", "state_read": "...",
+      "state_changed": ["state/config.json"], "timing_frequency": "...",
+      "participation": "...", "gate": "...", "institutional_consequence": "...",
+      "agent_visible_information": "...", "verification": ["the test function name(s) covering it"],
+      "clarity": "CLEAR", "clarity_critique": null, "clarity_resolution": null
+    }
+  ],
+  "open_critiques": [
+    {"requirement": "...", "critique_question": "..."}
+  ]
+}
+```
+A requirement routed to a new institutional object additionally carries
+`object_type_name`, `purpose`, `ownership`, `fields`, `operations`,
+`permissions`, `visibility`, `custom_logic`, `lifecycle`, `instances`. One
+routed to a new action additionally carries `action_name`, `level` (2/4),
+`actor`, `purpose`, `decision_or_action`, `inputs`, `output`,
+`state_changes`, `after`, `frequency`, `gate`, `enforcement`,
+`interaction`. `open_critiques` is `[]` if nothing is unresolved.
+`requirements` includes every requirement, even one you couldn't fully
+design — give it `"existing_owner_or_new": "NOT_DESIGNED_THIS_ROUND"` plus
+a `"reason"` field rather than omitting it."""
+
+
+def _build_norm_architect_prompt(round_number, norm_text, context_bundle, resolutions=None):
+    sections = [
+        f"This is round {round_number}.",
+        "## norm.txt (this round's adopted Policy + Operationalization)",
+        norm_text,
+        "## Reference bundle (the only context you have — no tools, read nothing else)",
+        context_bundle,
+    ]
+    if resolutions:
+        sections.append(
+            "## Answers to your open critiques from a previous pass\n\n"
+            + "\n\n".join(
+                f"Q: {r['critique_question']}\nA: {r['answer']}" for r in resolutions
+            )
+            + "\n\nProduce your FINAL, complete test file and requirements JSON now, "
+              "incorporating these resolutions — update each affected requirement's "
+              "clarity_resolution field and adjust your tests to actually assert the "
+              "resolved behavior where it matters. Any remaining open_critiques must be "
+              "genuinely new ones these answers didn't already cover."
+        )
+    else:
+        sections.append(
+            "Design every requirement and write your test file and requirements JSON now, "
+            "following your standing instructions."
+        )
+    return "\n\n".join(sections)
+
+
+def call_norm_architect_agent(round_number, norm_text, context_bundle, resolutions=None):
+    """Returns the raw response text on success, or None after exhausting
+    MAX_ARCHITECT_ATTEMPTS — the caller (engine.simulate) is responsible
+    for extracting the ```python test file and ```json requirements block
+    from that text; this function only owns the completion call itself,
+    matching call_fisher_agent/call_critique_agent's own division of
+    labor. `resolutions`, when given, is a list of {"critique_question",
+    "answer"} dicts from a previous pass's open_critiques, folded into a
+    second, finalizing call."""
+    user_prompt = _build_norm_architect_prompt(round_number, norm_text, context_bundle, resolutions)
+    model_spec = (
+        os.environ.get("NORM_ARCHITECT_MODEL")
+        or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var
+        or os.environ.get("OPENCODE_MODEL")
+        or DEFAULT_FISHER_MODEL
+    )
+    completion_kwargs = _resolve_completion_kwargs(model_spec)
+
+    last_error = None
+    for attempt in range(1, MAX_ARCHITECT_ATTEMPTS + 1):
+        start = time.monotonic()
+        raw_text = ""
+        error = None
+        try:
+            response = litellm.completion(
+                messages=[
+                    {"role": "system", "content": NORM_ARCHITECT_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                timeout=1800,
+                **completion_kwargs,
+            )
+            raw_text = response.choices[0].message.content or ""
+        except Exception as exc:
+            error = str(exc)
+        duration_s = time.monotonic() - start
+
+        log_call(
+            also_log_to=NORM_ARCHITECT_LOG_PATH,
+            call="norm_architect",
+            agent_id=None,
+            round=round_number,
+            action=None,
+            model=model_spec,
+            attempt=attempt,
+            duration_s=round(duration_s, 3),
+            returncode=0 if error is None else 1,
+            prompt=user_prompt,
+            raw_response=raw_text,
+            parsed_response=None,
+            error=error if error else (None if raw_text.strip() else "empty response"),
+        )
+
+        if not error and raw_text.strip():
+            return raw_text
+        last_error = error or "empty response"
+        print(f"  [norm-architect round {round_number} attempt {attempt}/{MAX_ARCHITECT_ATTEMPTS} "
+              f"failed: {last_error} — retrying]")
+        if attempt < MAX_ARCHITECT_ATTEMPTS:
+            time.sleep(ARCHITECT_CALL_DELAY_S)
+
+    print(f"Round {round_number}: norm-architect call failed after {MAX_ARCHITECT_ATTEMPTS} "
+          f"attempts: {last_error}", file=sys.stderr)
+    return None
+
+
+NORM_AUDITOR_LOG_PATH = ROOT / "ops" / "logs" / "norm_auditor.jsonl"
+MAX_AUDITOR_ATTEMPTS = 3
+AUDITOR_CALL_DELAY_S = float(os.environ.get("LLM_CALL_DELAY_S", "2"))
+
+# 2026-09-23: norm-auditor moved to the same no-tools direct-completion
+# shape as norm-architect (see call_norm_architect_agent()'s own
+# docstring for the root cause — DeepSeek-R1 doesn't support tool calling
+# on Ollama). It never actually needed real tools either: its job is
+# reading two fixed texts (the raw norm and the round's diff) and judging
+# whether the second one actually satisfies the first — a plain
+# completion call does that exactly as well as an opencode agent with
+# read/glob/grep/bash tools did, without the "does not support tools" 400
+# and without the extra latency of a real agentic session. By request,
+# this also drops the earlier design's requirement that the auditor write
+# its OWN independent pytest suite (tests/norm_evaluation/round_N/) —
+# a direct text-level cross-reference of norm vs. code, the same
+# "Software Regulatory Compliance Auditor" framing requested, catches the
+# exact failure class that mattered (a norm-engineer that wrote
+# syntactically fine code and even passing tests that are themselves
+# quietly wrong — e.g. flipping a >10%-over-quota / else-$1,000 threshold
+# into a flat $5,000 fine) without needing the auditor to independently
+# reimplement test-writing on top of that.
+NORM_AUDITOR_SYSTEM_PROMPT = """You are a strict Software Regulatory Compliance Auditor for a multi-agent
+fishery simulation. Your job is to cross-reference a completed code
+change against the original fishery norm document it's supposed to
+implement, and find logical gaps, omissions, or errors — including ones
+that still compile cleanly and pass their own tests. You have NO TOOLS
+and no filesystem access beyond what's in this message: you cannot read
+another file, run the tests yourself, or check anything not given to you
+here.
+
+You are auditing, not implementing: never suggest new normative content
+the norm's own text doesn't already entail, never edit anything, never
+approve code because it merely runs without crashing.
+
+The single most important failure class to hunt for is UNDER-ENFORCEMENT
+— code that is technically present, compiles, and even has a test that
+passes, but implements the norm's own requirement more weakly or crudely
+than its text demands. Two concrete examples of exactly this:
+- The norm requires a 48-hour cooldown period for a violation; the code
+  only sets a boolean flag (`has_violated: true`) with no timestamp or
+  duration check at all — every test asserting "the flag gets set" would
+  pass, while the actual 48-hour requirement is completely unenforced.
+- The norm says "fine a boat $5,000 if it exceeds its monthly quota by
+  more than 10%, or $1,000 if it exceeds it by 10% or less"; the code
+  applies a flat $5,000 fine regardless of the actual overage percentage,
+  or miscalculates the 10% threshold itself (off-by-one, wrong base
+  quantity, inverted comparison).
+Look specifically for a norm clause containing a duration, a threshold, a
+rate, a count, or a conditional (if/else) split, and check whether the
+code's own conditional logic and magnitudes actually match — not just
+whether *a* consequence fires.
+
+## Output format
+
+Write your analysis of what you checked and what you found. Then, as the
+LAST thing in your response, on its own line:
+- If the code fully and correctly implements everything the norm
+  document requires, with no under-enforcement, output exactly:
+  AUDIT_PASSED
+- If you find any gap, omission, or under-enforcement, do NOT output that
+  phrase — instead end with a clear, specific description of exactly
+  what rule was violated or missed, quoting both the norm's own text and
+  the code's actual (wrong) behavior, precise enough that a developer
+  could fix it from your description alone."""
+
+
+def _build_norm_auditor_prompt(round_number, norm_text, diff_text):
+    return (
+        f"This is round {round_number}. Audit norm-engineer's completed changes below.\n\n"
+        f"## [ORIGINAL FISHERY NORM DOCUMENT] (norm.txt)\n\n{norm_text}\n\n"
+        f"## [GENERATED CODE IMPLEMENTATION] (this round's diff)\n\n"
+        f"```diff\n{diff_text}\n```\n\n"
+        f"Cross-reference the code against the norm. Did the developer miss any subtle edge "
+        f"case, exemption, or conditional calculation explicitly demanded by the norm? "
+        f"Follow your standing instructions and output format."
+    )
+
+
+def call_norm_auditor_agent(round_number, norm_text, diff_text):
+    """Returns the raw response text on success, or None after exhausting
+    MAX_AUDITOR_ATTEMPTS. The caller (engine.simulate) checks the response
+    for the literal AUDIT_PASSED sentinel; this function only owns the
+    completion call itself, matching call_norm_architect_agent's own
+    division of labor. Always a fresh, independent call — never reuses
+    any session/context the code-writing model touched, which is the
+    actual mechanism behind "never let the model that wrote the code
+    approve its own work" (a NORM_AUDITOR_MODEL pointed at the same
+    weights as NORM_ARCHITECT_MODEL is fine; what matters is that this
+    call never sees norm-engineer's own reasoning, only its final diff)."""
+    user_prompt = _build_norm_auditor_prompt(round_number, norm_text, diff_text)
+    model_spec = (
+        os.environ.get("NORM_AUDITOR_MODEL")
+        or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var
+        or os.environ.get("OPENCODE_MODEL")
+        or DEFAULT_FISHER_MODEL
+    )
+    completion_kwargs = _resolve_completion_kwargs(model_spec)
+
+    last_error = None
+    for attempt in range(1, MAX_AUDITOR_ATTEMPTS + 1):
+        start = time.monotonic()
+        raw_text = ""
+        error = None
+        try:
+            response = litellm.completion(
+                messages=[
+                    {"role": "system", "content": NORM_AUDITOR_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                timeout=1800,
+                **completion_kwargs,
+            )
+            raw_text = response.choices[0].message.content or ""
+        except Exception as exc:
+            error = str(exc)
+        duration_s = time.monotonic() - start
+
+        log_call(
+            also_log_to=NORM_AUDITOR_LOG_PATH,
+            call="norm_auditor",
+            agent_id=None,
+            round=round_number,
+            action=None,
+            model=model_spec,
+            attempt=attempt,
+            duration_s=round(duration_s, 3),
+            returncode=0 if error is None else 1,
+            prompt=user_prompt,
+            raw_response=raw_text,
+            parsed_response=None,
+            error=error if error else (None if raw_text.strip() else "empty response"),
+        )
+
+        if not error and raw_text.strip():
+            return raw_text
+        last_error = error or "empty response"
+        print(f"  [norm-auditor round {round_number} attempt {attempt}/{MAX_AUDITOR_ATTEMPTS} "
+              f"failed: {last_error} — retrying]")
+        if attempt < MAX_AUDITOR_ATTEMPTS:
+            time.sleep(AUDITOR_CALL_DELAY_S)
+
+    print(f"Round {round_number}: norm-auditor call failed after {MAX_AUDITOR_ATTEMPTS} "
+          f"attempts: {last_error}", file=sys.stderr)
+    return None

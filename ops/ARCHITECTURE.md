@@ -71,11 +71,11 @@ flowchart TB
         SCHEDJSON["state/schedule.json (compiled)"]
     end
 
-    subgraph NormPipeline["The norm pipeline — opencode agents"]
-        ARCH["norm-architect (design + failing tests)"]
-        ENG["norm-engineer (implementation)"]
-        FIN["norm-finalizer"]
-        AUD["norm-auditor"]
+    subgraph NormPipeline["The norm pipeline"]
+        ARCH["norm-architect (design + failing tests)<br/>plain litellm completion, no tools"]
+        ENG["norm-engineer (implementation)<br/>opencode agent"]
+        FIN["norm-finalizer<br/>opencode subagent"]
+        AUD["norm-auditor (audit)<br/>plain litellm completion, no tools"]
     end
 
     MAIN --> SCHED
@@ -269,11 +269,11 @@ committed (safe to resume after a crash).
 ```mermaid
 sequenceDiagram
     participant Cycle as run_cycle()
-    participant Arch as norm-architect (opencode)
+    participant Arch as norm-architect<br/>(plain litellm completion, no tools)
     participant Eng as norm-engineer (opencode)
     participant Checks as engine/simulate.py<br/>compile/institution/runtime/<br/>self-correction checks
     participant Fin as norm-finalizer (subagent)
-    participant Aud as norm-auditor (opencode)
+    participant Aud as norm-auditor<br/>(plain litellm completion, no tools)
     participant Git as commit_round()
 
     Cycle->>Arch: run_norm_architect_with_retry(round)
@@ -292,9 +292,8 @@ sequenceDiagram
         Note over Eng,Checks: loops back — bounded by MAX_NORM_REPAIR_ATTEMPTS
     else clean
         Cycle->>Aud: run_norm_auditor(round)
-        Note over Aud: a separate model instance that never wrote the code —<br/>reads norm.txt + diff + BOTH test suites,<br/>hunting specifically for under-enforcement
-        Aud->>Aud: writes and runs its own tests against<br/>the diff, independent of tests/norm_checks/
-        Aud-->>Cycle: AUDIT_RESULT: COMPLIANT or NEEDS_REPAIR
+        Note over Aud: a separate model instance that never wrote the code —<br/>reads norm.txt + the round's diff directly,<br/>hunting specifically for under-enforcement
+        Aud-->>Cycle: response text, ending with AUDIT_PASSED<br/>iff fully compliant, else a specific critique
         alt NEEDS_REPAIR
             Cycle->>Eng: repair message with the auditor's report
             Note over Eng,Aud: loops back — same repair budget
@@ -304,12 +303,30 @@ sequenceDiagram
     end
 ```
 
-If norm-architect's own opencode process fails, times out, or gets
-truncated mid-task (or produces no requirements JSON, or writes no
-tests), `run_norm_architect_with_retry()` retries — a separate, smaller
-retry budget from the repair loop above, since a process failure says
-nothing about whether the design itself is wrong. Same for
-norm-engineer's own process via `run_norm_engineer_with_retry()`. If
+norm-architect (2026-09-22) and norm-auditor (2026-09-23) both stopped
+running through opencode — a real run showed DeepSeek-R1 failing every
+single invocation instantly with a 400 API error ("does not support
+tools"), since Ollama's deepseek-r1 registry tags don't ship a
+tool-calling chat template and opencode always sends one. Neither ever
+actually needed real filesystem tools: norm-architect's whole job is
+reading a fixed text bundle and producing text, and norm-auditor's is
+cross-referencing two fixed texts (norm.txt and the round's diff, fetched
+directly by `run_norm_auditor()`'s own `_norm_round_diff_text()`) and
+judging whether the second satisfies the first. Both are now plain,
+tool-free `litellm.completion()` calls (`call_norm_architect_agent()` /
+`call_norm_auditor_agent()` in `engine/llm_agents.py`, the same shape as
+the fisher/critique calls) — each one's own retry budget lives inside
+that function, the same place those calls' retry loops live, not in a
+separate opencode subprocess/session layer. If either completion call
+fails outright, the round is discarded immediately; a norm-architect
+response with no parseable test file + requirements checklist, or a
+norm-auditor response with no `AUDIT_PASSED` sentinel, is instead handled
+by the existing content-level paths (design failure vs. NEEDS_REPAIR
+respectively) — no separate opencode-process-retry loop for either any
+more. If norm-engineer's own opencode process fails, times out, or gets
+truncated mid-task, `run_norm_engineer_with_retry()` retries — a
+separate, smaller retry budget from the repair loop above, since a
+process failure says nothing about whether the code itself is wrong. If
 nothing ever produces a compliant, verified result within budget, the
 round's changes are discarded (`discard_norm_implementation()`) and the
 simulation continues under the previous mechanics.
@@ -370,6 +387,11 @@ having to know how either of those work.
 - `docs/institution-recipes/` — step-by-step checklists for each kind of
   change, including a worked example composing several of them for one
   norm.
-- `.opencode/agents/norm-architect.md` / `norm-engineer.md` /
-  `norm-finalizer.md` / `norm-auditor.md` — the actual instructions given
-  to the four agents in section 7's pipeline.
+- `engine/llm_agents.py`'s `NORM_ARCHITECT_SYSTEM_PROMPT` /
+  `NORM_AUDITOR_SYSTEM_PROMPT` — norm-architect's and norm-auditor's
+  actual standing instructions (both are plain completion calls, not
+  opencode agents, so neither has a `.opencode/agents/*.md` file of its
+  own).
+- `.opencode/agents/norm-engineer.md` / `norm-finalizer.md` — the actual
+  instructions given to the two remaining opencode agents in section 7's
+  pipeline.

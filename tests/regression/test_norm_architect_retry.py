@@ -1,96 +1,181 @@
+"""norm-architect stopped running through opencode on 2026-09-22 — a real
+HPC run showed every invocation failing instantly with a 400 API error
+("does not support tools"), because Ollama's deepseek-r1 registry tags
+don't ship a tool-calling chat template (opencode always sends a `tools`
+field; a plain completion call never does). It's now a direct, tool-free
+litellm completion (call_norm_architect_agent() in engine/llm_agents.py)
+that returns raw text; engine.simulate.run_norm_architect() extracts a
+fenced ```python test file and a fenced ```json requirements block from
+that text and writes the test file to disk itself, since the model has no
+write tool of its own any more. These tests replace the old paired-
+opencode-session retry tests, which asserted mechanics (session
+continuation, a 5-attempt process-retry budget) that no longer exist —
+retries now live inside call_norm_architect_agent() itself, the same
+place call_fisher_agent's/call_critique_agent's own retry loops live."""
+import json
+
 import engine.simulate as simulate_module
 
 
-def test_succeeds_on_first_attempt_no_sleep_no_extra_calls(monkeypatch):
+def _requirements_json(**overrides):
+    payload = {
+        "requirements": [{"requirement": "example", "clarity": "CLEAR"}],
+        "open_critiques": [],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _response(code="def test_example():\n    assert False\n", report=None, open_critiques=()):
+    report = report if report is not None else _requirements_json(open_critiques=list(open_critiques))
+    return f"```python\n{code}```\n\n```json\n{json.dumps(report)}\n```\n"
+
+
+def test_writes_the_test_file_and_returns_the_report_on_a_clean_response(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
     calls = []
-    sleeps = []
     monkeypatch.setattr(
-        simulate_module, "run_norm_architect",
-        lambda round_number, extra_message=None, session_id=None: (
-            calls.append("run") or True, "ses_1", {"requirements": []}
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None: (
+            calls.append(resolutions) or _response()
         ),
     )
-    monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
 
-    success, report = simulate_module.run_norm_architect_with_retry(1)
+    success, report = simulate_module.run_norm_architect(3)
+
     assert success is True
-    assert report == {"requirements": []}
-    assert calls == ["run"]
-    assert sleeps == []
+    assert report["requirements"][0]["requirement"] == "example"
+    assert calls == [None]  # no second, finalizing call when there's nothing to resolve
+    written = tmp_path / "tests" / "norm_checks" / "round_3" / "test_round_3.py"
+    assert written.is_file()
+    assert "def test_example" in written.read_text()
 
 
-def test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt(monkeypatch):
-    attempts = {"n": 0}
-    sleeps = []
+def test_returns_false_when_the_completion_call_itself_fails(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None: None,
+    )
 
-    def _fake_run(round_number, extra_message=None, session_id=None):
-        attempts["n"] += 1
-        succeeded = attempts["n"] == simulate_module.MAX_ARCHITECT_PROCESS_ATTEMPTS
-        return succeeded, "ses_1", ({"requirements": []} if succeeded else None)
+    success, report = simulate_module.run_norm_architect(3)
 
-    monkeypatch.setattr(simulate_module, "run_norm_architect", _fake_run)
-    monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
-
-    success, report = simulate_module.run_norm_architect_with_retry(1)
-    assert success is True
-    assert report == {"requirements": []}
-    assert attempts["n"] == simulate_module.MAX_ARCHITECT_PROCESS_ATTEMPTS
-    # One sleep between each pair of attempts, never after the final
-    # (successful) one.
-    assert sleeps == [simulate_module.NORM_ENGINEER_RETRY_DELAY_S] * (simulate_module.MAX_ARCHITECT_PROCESS_ATTEMPTS - 1)
-
-
-def test_returns_false_and_none_report_after_exhausting_every_attempt(monkeypatch):
-    attempts = {"n": 0}
-    sleeps = []
-
-    def _always_fails(round_number, extra_message=None, session_id=None):
-        attempts["n"] += 1
-        return False, "ses_1", None
-
-    monkeypatch.setattr(simulate_module, "run_norm_architect", _always_fails)
-    monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
-
-    success, report = simulate_module.run_norm_architect_with_retry(1)
     assert success is False
     assert report is None
-    assert attempts["n"] == simulate_module.MAX_ARCHITECT_PROCESS_ATTEMPTS
-    assert len(sleeps) == simulate_module.MAX_ARCHITECT_PROCESS_ATTEMPTS - 1
+    assert not (tmp_path / "tests").exists()
 
 
-def test_the_budget_is_actually_five(monkeypatch):
-    """Same value and reasoning as MAX_ENGINEER_PROCESS_ATTEMPTS — nothing
-    about a truncated-session process failure is specific to code-writing
-    versus design-and-test-writing, so the architect gets the same bounded
-    number of real chances before the round is discarded."""
-    assert simulate_module.MAX_ARCHITECT_PROCESS_ATTEMPTS == 5
+def test_returns_false_when_response_has_no_python_block(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None: (
+            f"```json\n{json.dumps(_requirements_json())}\n```\n"
+        ),
+    )
 
+    success, report = simulate_module.run_norm_architect(3)
 
-def test_attempts_are_paired_1_2_then_3_4_then_5_alone(monkeypatch):
-    """Same paired-session-continuation scheme as
-    run_norm_engineer_with_retry() — attempt 2 must continue attempt 1's
-    own session, attempt 4 must continue attempt 3's, but attempt 3 must
-    NOT continue attempt 2's session (each pair starts fresh)."""
-    seen_session_ids = []
-
-    def _fake_run(round_number, extra_message=None, session_id=None):
-        seen_session_ids.append(session_id)
-        n = len(seen_session_ids)
-        # Every attempt "discovers" a session id unique to its own pair,
-        # and every attempt fails (forcing the full 5-attempt budget).
-        pair_index = (n - 1) // 2
-        return False, f"ses_pair_{pair_index}", None
-
-    monkeypatch.setattr(simulate_module, "run_norm_architect", _fake_run)
-    monkeypatch.setattr(simulate_module.time, "sleep", lambda s: None)
-
-    success, report = simulate_module.run_norm_architect_with_retry(1)
     assert success is False
     assert report is None
-    assert seen_session_ids == [
-        None,             # attempt 1: fresh start
-        "ses_pair_0",     # attempt 2: continues attempt 1's discovered session
-        None,             # attempt 3: fresh again — pair 1 is over
-        "ses_pair_1",     # attempt 4: continues attempt 3's discovered session
-        None,             # attempt 5: fresh again — pair 2 is over
+
+
+def test_returns_false_when_response_has_no_requirements_key(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None: _response(
+            report={"something_else": True},
+        ),
+    )
+
+    success, report = simulate_module.run_norm_architect(3)
+
+    assert success is False
+    assert report is None
+
+
+def test_returns_false_when_the_written_test_file_does_not_even_compile(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None: _response(
+            code="def test_broken(:\n    pass\n",  # syntax error
+        ),
+    )
+
+    success, report = simulate_module.run_norm_architect(3)
+
+    assert success is False
+    assert report is None
+
+
+def test_resolves_open_critiques_and_uses_the_finalizing_pass_output(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+
+    first_response = _response(
+        code="def test_draft():\n    assert False\n",
+        open_critiques=[{"requirement": "example", "critique_question": "what governs here?"}],
+    )
+    final_response = _response(code="def test_final():\n    assert False\n")
+    pass_count = {"n": 0}
+
+    def _fake_call(round_number, norm_text, context_bundle, resolutions=None):
+        pass_count["n"] += 1
+        if resolutions is None:
+            return first_response
+        assert resolutions == [{"critique_question": "what governs here?", "answer": "the later clause"}]
+        return final_response
+
+    asked = []
+
+    def _fake_ask(round_number, question):
+        asked.append(question)
+        return {"answer": "the later clause", "reasoning": "..."}
+
+    monkeypatch.setattr(simulate_module, "call_norm_architect_agent", _fake_call)
+    monkeypatch.setattr(simulate_module, "ask_norm_proposer", _fake_ask)
+
+    success, report = simulate_module.run_norm_architect(7)
+
+    assert success is True
+    assert pass_count["n"] == 2  # draft pass + finalizing pass
+    assert asked == ["what governs here?"]
+    written = (tmp_path / "tests" / "norm_checks" / "round_7" / "test_round_7.py").read_text()
+    assert "def test_final" in written  # the finalizing pass's output won, not the draft
+
+
+def test_caps_critique_resolution_at_the_shared_round_budget(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+    many_critiques = [
+        {"requirement": f"r{i}", "critique_question": f"question {i}?"} for i in range(8)
     ]
+
+    def _fake_call(round_number, norm_text, context_bundle, resolutions=None):
+        if resolutions is None:
+            return _response(open_critiques=many_critiques)
+        return _response()
+
+    asked = []
+    monkeypatch.setattr(simulate_module, "call_norm_architect_agent", _fake_call)
+    monkeypatch.setattr(
+        simulate_module, "ask_norm_proposer",
+        lambda round_number, question: (asked.append(question) or {"answer": "ok"}),
+    )
+
+    success, _ = simulate_module.run_norm_architect(1)
+
+    assert success is True
+    assert len(asked) == simulate_module.MAX_NORM_CLARIFICATIONS_PER_ROUND
+
+
+def test_run_norm_architect_with_retry_is_a_thin_passthrough(monkeypatch):
+    monkeypatch.setattr(simulate_module, "run_norm_architect", lambda round_number: (True, {"requirements": []}))
+    assert simulate_module.run_norm_architect_with_retry(9) == (True, {"requirements": []})

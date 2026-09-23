@@ -70,13 +70,17 @@
   value here, including `runtime["rules"][key]` or
   `runtime["objects"][id]["fields"]` — a rule's/object's own persistent
   state is written by simulation code at run time, never pre-seeded.
-- **`tests/norm_evaluation/`** — `norm-auditor`'s own surface (a separate
-  model instance that never wrote the code). Never edit it, never let a
-  test failing there change your mind about what the spec says — report
-  the disagreement.
 - **`tests/regression/`** — fixed, human-owned. Never weaken or delete a
   test to make it pass; say so explicitly and stop if you believe one is
   wrong.
+- **norm-auditor writes nothing at all** (2026-09-23) — it's a plain,
+  tool-free completion call that reads norm.txt and your diff directly
+  and reports a verdict as text; it never runs its own pytest suite
+  against `tests/norm_checks/round_{N}/`. A NEEDS_REPAIR report from it
+  is therefore always prose describing a specific gap (often
+  under-enforcement — a weaker mechanism than the norm's own text
+  demands, even though your existing tests still pass), never a failing
+  test of its own to point at.
 - **`prompts/persona_template.md`** — human-owned, essentially never
   yours.
 - **`engine/institution/`**, **`engine/physics.py`**, **`roles/roles.py`**

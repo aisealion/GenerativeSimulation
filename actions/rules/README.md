@@ -131,10 +131,10 @@ edit them, until they pass — dispatching `norm-finalizer` (which
 independently re-verifies everything claimed) to write the frozen spec to
 `state/norm_specs/round_{N}.md` once implementation is done. Only once
 code exists does `norm-auditor` — a separate model instance that never
-wrote the code, with no access to `actions/rules/`/`prompts/`, only to its
-own `tests/norm_evaluation/` — write and run independent tests against
-that spec and the diff, classifying each requirement as compliant, an
-implementation error, under-enforced, or a remaining spec gap. See
-`.opencode/agents/norm-auditor.md` for the full contract, and CLAUDE.md for
-why this is a separate agent rather than another self-check inside
-norm-engineer.
+wrote the code — cross-reference the raw norm.txt text directly against
+the round's actual diff, hunting specifically for under-enforcement (code
+that's technically present, and even passes `tests/norm_checks/`, but
+implements a requirement more weakly than the norm's own text demands).
+See `NORM_AUDITOR_SYSTEM_PROMPT` in `engine/llm_agents.py` for its full
+standing instructions, and CLAUDE.md for why this is a separate agent
+rather than another self-check inside norm-engineer.

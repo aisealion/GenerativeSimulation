@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 
 from engine.call_log import log_call
+from engine.clarify_norm import ask_norm_proposer
+from engine.llm_agents import call_norm_architect_agent, call_norm_auditor_agent
 from engine.institution.runtime import ActionRuntime
 from engine.institution.scheduler import compile_schedule
 from engine.institution.history import diff_institution
@@ -27,9 +29,13 @@ except ImportError as exc:
 
 ROOT = Path(__file__).resolve().parent.parent
 # Dedicated per-agent logs, written alongside the shared ops/logs/model_calls.jsonl.
-NORM_ARCHITECT_LOG_PATH = ROOT / "ops" / "logs" / "norm_architect.jsonl"
+# norm-architect's and norm-auditor's own (ops/logs/norm_architect.jsonl /
+# norm_auditor.jsonl) are now written directly from
+# engine.llm_agents.call_norm_architect_agent()/call_norm_auditor_agent()
+# instead of from here — see that module's own NORM_ARCHITECT_LOG_PATH /
+# NORM_AUDITOR_LOG_PATH — since they're plain completion calls now, not
+# opencode subprocesses this file drives.
 NORM_ENGINEER_LOG_PATH = ROOT / "ops" / "logs" / "norm_engineer.jsonl"
-NORM_AUDITOR_LOG_PATH = ROOT / "ops" / "logs" / "norm_auditor.jsonl"
 COLLAPSE_THRESHOLD_KG = 0
 DEFAULT_MAX_ROUNDS = 100
 
@@ -54,10 +60,11 @@ NORM_ROUND_TRACKED_PATHS = [
     "prompts",
     # norm-architect's pre-implementation tests (written before
     # norm-engineer runs at all) for this round's rule/action changes.
+    # tests/norm_evaluation is NOT here — norm-auditor stopped writing its
+    # own independent test suite there on 2026-09-23; it's a plain
+    # completion call now that cross-references norm.txt against the
+    # diff directly (see call_norm_auditor_agent() in engine/llm_agents.py).
     "tests/norm_checks",
-    # The norm-auditor's own generated tests — must revert alongside the
-    # rule/action code they test if this round is discarded.
-    "tests/norm_evaluation",
     "state/config.json",
     "state/fluents.json",
     "state/fluents_schema.md",
@@ -401,20 +408,23 @@ def extract_json_report(text, required_keys=()):
     return None
 
 
-AUDIT_RESULT_RE = re.compile(r"AUDIT_RESULT:\s*(COMPLIANT|NEEDS_REPAIR)\b", re.IGNORECASE)
+AUDIT_PASSED_RE = re.compile(r"\bAUDIT_PASSED\b", re.IGNORECASE)
 
 
 def extract_audit_result(text):
-    """Finds AUDIT_RESULT: COMPLIANT|NEEDS_REPAIR anywhere in the response
-    (case-insensitive, last match wins) — simpler and more reliable than
-    requiring a specific JSON shape, which real auditor responses kept
-    failing to reproduce exactly (this sentinel-line convention, and the
-    reasoning for it, carries over unchanged from the norm-evaluator this
-    agent replaces). Returns None if absent."""
-    matches = AUDIT_RESULT_RE.findall(text)
-    if not matches:
-        return None
-    return matches[-1].upper()
+    """Finds the literal AUDIT_PASSED sentinel anywhere in the response —
+    norm-auditor's own standing instructions (NORM_AUDITOR_SYSTEM_PROMPT,
+    engine/llm_agents.py) say to output exactly this phrase, on its own
+    line, as the last thing in its response, iff the code fully satisfies
+    the norm with no under-enforcement — and to end with a specific
+    description of the gap instead, never this phrase, otherwise. Returns
+    "COMPLIANT" or "NEEDS_REPAIR" — never None: unlike the older two-
+    keyword AUDIT_RESULT: COMPLIANT|NEEDS_REPAIR sentinel this replaces,
+    there's no separate "well-formed but says nothing" state to detect
+    here — any response missing the pass phrase is, by construction,
+    NEEDS_REPAIR, the same never-silently-coerced-to-a-pass stance that
+    convention already had."""
+    return "COMPLIANT" if AUDIT_PASSED_RE.search(text) else "NEEDS_REPAIR"
 
 
 def clear_stale_opencode_snapshot_lock():
@@ -455,139 +465,156 @@ def clear_stale_opencode_snapshot_lock():
         pass
 
 
-def run_norm_architect(round_number, extra_message=None, session_id=None):
-    """Runs the norm-architect as an opencode subprocess. Returns
-    (success, session_id, report) — success is True on a clean
-    (returncode 0) run that also ended on a genuine "stop" (see
-    extract_last_step_reason()), produced a parseable requirements report
-    (extract_json_report(..., required_keys={"requirements"})), AND left
-    at least one test_*.py file under tests/norm_checks/round_{N}/. False
-    on any failure — a timeout, a crash, a non-zero exit, a truncated
-    session, a missing/unparseable report, or no test files actually
-    written — all treated the same way: a process-level failure, not a
-    finding about the round's content, so it consumes
-    MAX_ARCHITECT_PROCESS_ATTEMPTS' own budget (see
-    run_norm_architect_with_retry()), never MAX_NORM_REPAIR_ATTEMPTS.
-    report is None whenever success is False.
+def _norm_architect_context_bundle():
+    """The fixed reference bundle handed to norm-architect in place of the
+    tool-based exploration it used to do (codegraph_explore, selective doc
+    reads) — see call_norm_architect_agent() in engine/llm_agents.py for
+    why it has no tools at all any more. Assembled fresh every call so it
+    always reflects the current on-disk institution, never cached."""
+    parts = []
 
-    Mirrors run_norm_engineer()'s subprocess/timeout/session-continuation
-    shape exactly — see that function's own docstring for the
-    reasoning behind the 3600s timeout and the bounded session-pairing
-    scheme; nothing about that reasoning is specific to code-writing."""
-    clear_stale_opencode_snapshot_lock()
-    print("\n--- invoking norm-architect ---")
-    message = extra_message or (
-        f"This is round {round_number}. norm.txt has been updated for this round. "
-        f"Read it, design every requirement, and write a failing pytest suite for each "
-        f"one to exactly tests/norm_checks/round_{round_number}/ — following your "
-        f"standing instructions. Do not implement any code; you cannot anyway "
-        f"(your permission.edit denies everything outside that one directory). "
-        f"End your response with the fenced ```json report block your instructions "
-        f"describe (the one containing a \"requirements\" key) — this is required "
-        f"every time, not just when something went wrong."
-    )
-    # --auto: same reasoning as run_norm_engineer()'s own copy of this
-    # comment — opencode's external_directory permission defaults to
-    # "ask", and with nobody present to answer in this headless subprocess
-    # it silently auto-denies, ending the session abnormally mid-tool-call
-    # rather than recovering. --auto only auto-approves what isn't
-    # explicitly denied, so this agent's actual permission.edit/bash/read
-    # denies (nearly everything, by design) are unaffected.
-    cmd = ["opencode", "run", "--agent", "norm-architect", "--format", "json", "--auto"]
-    if session_id:
-        cmd += ["--session", session_id]
-    model = (
-        os.environ.get("NORM_ARCHITECT_MODEL")
-        or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var
-        or os.environ.get("OPENCODE_MODEL")
-    )
-    if model:
-        cmd += ["--model", model]
-    cmd.append(message)
-
-    start = time.monotonic()
-    try:
-        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=3600)
-    except subprocess.TimeoutExpired as e:
-        duration_s = time.monotonic() - start
-        timeout_session_id = extract_session_id(getattr(e, "stdout", None) or "") or session_id
-        print(f"Round {round_number}: norm-architect didn't finish within 3600s — "
-              f"treating this round's norm design as failed, not crashing the run.",
-              file=sys.stderr)
-        log_call(
-            also_log_to=NORM_ARCHITECT_LOG_PATH,
-            call="norm_architect", agent_id=None, round=round_number, action=None,
-            model=model, duration_s=round(duration_s, 3), returncode=None,
-            prompt=message, raw_response=None, parsed_response=None,
-            tool_call_count=None, step_count=None, tool_call_trace=None,
-            last_step_reason=None, session_id=timeout_session_id,
-            report=None, error="timeout after 3600s",
+    institution_path = ROOT / "state" / "institution.json"
+    if institution_path.is_file():
+        parts.append(
+            "### state/institution.json (the current structural catalog — check "
+            "here before inventing a new rule/object/action type)\n```json\n"
+            f"{institution_path.read_text().strip()}\n```"
         )
-        return False, timeout_session_id, None
 
-    duration_s = time.monotonic() - start
-    tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
-    tool_call_trace = extract_tool_trace(result.stdout)
-    last_step_reason = extract_last_step_reason(result.stdout)
-    report = extract_json_report(final_text, required_keys={"requirements"})
-    new_session_id = extract_session_id(result.stdout) or session_id
-    truncated = result.returncode == 0 and last_step_reason not in (None, "stop")
+    rule_files = sorted(
+        str(p.relative_to(ROOT)) for p in (ROOT / "actions" / "rules").glob("*/*.py")
+        if p.name != "__init__.py"
+    ) if (ROOT / "actions" / "rules").is_dir() else []
+    handler_files = sorted(
+        str(p.relative_to(ROOT)) for p in (ROOT / "actions" / "handlers").glob("*.py")
+    ) if (ROOT / "actions" / "handlers").is_dir() else []
+    parts.append(
+        "### Existing rule plugin files (reuse a matching shape via config before "
+        "writing a new one)\n" + ("\n".join(rule_files) if rule_files else "(none yet)")
+        + "\n\n### Existing action handler files\n"
+        + ("\n".join(handler_files) if handler_files else "(none yet)")
+    )
+
+    for doc_name in (
+        "architecture.md", "action-contract.md", "rule-contract.md",
+        "object-contract.md", "role-contract.md", "state-files.md",
+    ):
+        doc_path = ROOT / "docs" / "institution-contracts" / doc_name
+        if doc_path.is_file():
+            parts.append(f"### docs/institution-contracts/{doc_name}\n{doc_path.read_text().strip()}")
+
+    return "\n\n".join(parts)
+
+
+def _extract_fenced_block(text, lang):
+    """Last fenced ```<lang> block in text, scanning from the end — same
+    "don't get fooled by an earlier example block" reasoning as
+    extract_json_report(). Returns None if none found."""
+    matches = re.findall(rf"```{lang}\s*\n(.*?)```", text, re.DOTALL)
+    return matches[-1].strip() if matches else None
+
+
+MAX_NORM_CLARIFICATIONS_PER_ROUND = 5
+
+
+def run_norm_architect(round_number):
+    """Runs norm-architect as a direct, tool-free litellm completion (see
+    call_norm_architect_agent() in engine/llm_agents.py for why it stopped
+    running through opencode) and writes its output to disk itself, since
+    the model has no write tool of its own any more. Returns
+    (success, report) — report is the parsed requirements json on
+    success, None otherwise. A second, finalizing completion call happens
+    only if the first pass reported open_critiques and the round's shared
+    clarification budget (MAX_NORM_CLARIFICATIONS_PER_ROUND) isn't already
+    exhausted — mirrors the old opencode-based agent's "one question at a
+    time, up to 5 exchanges total for the whole round" cap, just resolved
+    in one batch up front rather than interactively."""
+    norm_path = ROOT / "norm.txt"
+    if not norm_path.is_file():
+        print(f"Round {round_number}: norm.txt is missing — nothing for norm-architect to "
+              f"design against.", file=sys.stderr)
+        return False, None
+    norm_text = norm_path.read_text()
+    context_bundle = _norm_architect_context_bundle()
+
+    print("\n--- invoking norm-architect ---")
+    raw_text = call_norm_architect_agent(round_number, norm_text, context_bundle)
+    if raw_text is None:
+        return False, None
+
+    code = _extract_fenced_block(raw_text, "python")
+    report = _extract_fenced_block(raw_text, "json")
+    report = json.loads(report) if report else None
+
+    open_critiques = (report or {}).get("open_critiques") or []
+    if open_critiques and code is not None and report is not None:
+        budget = min(len(open_critiques), MAX_NORM_CLARIFICATIONS_PER_ROUND)
+        if budget < len(open_critiques):
+            print(f"Round {round_number}: norm-architect raised {len(open_critiques)} open "
+                  f"critiques but the round's shared clarification budget only allows "
+                  f"{budget} — resolving the first {budget}, the rest stay unresolved "
+                  f"(reflected as-is in the requirements this round proceeds with).")
+        resolutions = []
+        for critique in open_critiques[:budget]:
+            question = critique.get("critique_question")
+            if not question:
+                continue
+            try:
+                answer = ask_norm_proposer(round_number, question)
+            except RuntimeError as exc:
+                print(f"Round {round_number}: couldn't resolve a norm-architect critique "
+                      f"({exc}) — proceeding with the first pass's own best-effort reading.",
+                      file=sys.stderr)
+                continue
+            resolutions.append({
+                "critique_question": question,
+                "answer": answer.get("answer", answer),
+            })
+
+        if resolutions:
+            print(f"Round {round_number}: resolved {len(resolutions)} norm-architect "
+                  f"critique(s) — asking it to finalize.")
+            final_text = call_norm_architect_agent(
+                round_number, norm_text, context_bundle, resolutions=resolutions,
+            )
+            if final_text is not None:
+                final_code = _extract_fenced_block(final_text, "python")
+                final_report_raw = _extract_fenced_block(final_text, "json")
+                if final_code is not None and final_report_raw is not None:
+                    try:
+                        code, report = final_code, json.loads(final_report_raw)
+                    except json.JSONDecodeError:
+                        print(f"Round {round_number}: norm-architect's finalizing pass didn't "
+                              f"produce parseable JSON — keeping the first pass's own output.",
+                              file=sys.stderr)
+
+    if code is None:
+        print(f"Round {round_number}: norm-architect's response never contained a fenced "
+              f"```python test file — treating this round's design as failed.", file=sys.stderr)
+        return False, None
+    if report is None or "requirements" not in report:
+        print(f"Round {round_number}: norm-architect's response never contained a parseable "
+              f"```json block with a \"requirements\" key — treating this round's design as "
+              f"failed.", file=sys.stderr)
+        return False, None
 
     tests_dir = ROOT / "tests" / "norm_checks" / f"round_{round_number}"
-    wrote_tests = tests_dir.is_dir() and any(tests_dir.glob("test_*.py"))
+    tests_dir.mkdir(parents=True, exist_ok=True)
+    test_path = tests_dir / f"test_round_{round_number}.py"
+    test_path.write_text(code if code.endswith("\n") else code + "\n")
 
-    log_call(
-        also_log_to=NORM_ARCHITECT_LOG_PATH,
-        call="norm_architect",
-        agent_id=None,
-        round=round_number,
-        action=None,
-        model=model,
-        duration_s=round(duration_s, 3),
-        returncode=result.returncode,
-        prompt=message,
-        raw_response=result.stdout,
-        parsed_response=None,
-        tool_call_count=tool_call_count,
-        step_count=step_count,
-        tool_call_trace=tool_call_trace,
-        session_id=new_session_id,
-        last_step_reason=last_step_reason,
-        report=report,
-        error=(
-            result.stderr.strip() if result.returncode != 0
-            else f"session ended abnormally (last step reason: {last_step_reason!r}, not 'stop')"
-            if truncated else None if (report is not None and wrote_tests)
-            else "no parseable \"requirements\" report" if report is None
-            else f"no test_*.py files found under {tests_dir.relative_to(ROOT)}"
-        ),
+    compile_check = subprocess.run(
+        [sys.executable, "-m", "py_compile", str(test_path)],
+        cwd=ROOT, capture_output=True, text=True,
     )
+    if compile_check.returncode != 0:
+        print(f"Round {round_number}: norm-architect's test file doesn't even compile:\n"
+              f"{compile_check.stderr.strip()}", file=sys.stderr)
+        return False, None
 
-    print(final_text)
-    if result.returncode != 0:
-        print(f"Round {round_number}: norm-architect exited with code {result.returncode} — "
-              f"treating this round's norm design as failed, not crashing the run.",
-              file=sys.stderr)
-        print(result.stderr, file=sys.stderr)
-        return False, new_session_id, None
-    if truncated:
-        print(f"Round {round_number}: norm-architect's session ended abnormally (last step "
-              f"reason: {last_step_reason!r}, not a genuine 'stop') — likely a failed or "
-              f"truncated completion call, not a deliberate finish. Treating this round's "
-              f"partial work as failed rather than trusting it.", file=sys.stderr)
-        return False, new_session_id, None
-    if report is None:
-        print(f"Round {round_number}: norm-architect's response never contained a parseable "
-              f"\"requirements\" json report — treating this round's design as failed.",
-              file=sys.stderr)
-        return False, new_session_id, None
-    if not wrote_tests:
-        print(f"Round {round_number}: norm-architect produced a requirements report but no "
-              f"test_*.py files under tests/norm_checks/round_{round_number}/ — treating "
-              f"this round's design as failed (no failing tests means norm-engineer has "
-              f"nothing concrete to build against).", file=sys.stderr)
-        return False, new_session_id, None
-    return True, new_session_id, report
+    print(f"Round {round_number}: norm-architect wrote {test_path.relative_to(ROOT)} "
+          f"({len(report['requirements'])} requirement(s)).")
+    return True, report
 
 
 def render_engineer_kickoff(requirements_json, round_number):
@@ -769,115 +796,68 @@ def run_norm_engineer(round_number, extra_message=None, session_id=None):
     return True, new_session_id
 
 
-def run_norm_auditor(round_number, extra_message=None):
-    """Mirrors run_norm_engineer()'s subprocess/timeout/logging shape,
-    against the norm-auditor agent — a clean model instance that never
-    wrote the code it's reviewing (see NORM_AUDITOR_MODEL below). Returns
-    {"result": "COMPLIANT" | "NEEDS_REPAIR", "text": final_text} on a
-    completed run whose response contains a trusted sentinel line (see
-    extract_audit_result() and the zero-tool-call check below), or None
-    on any failure — treated by the caller like a norm-engineer failure:
+def _norm_round_diff_text():
+    """The round's actual code diff, handed to norm-auditor as its
+    [GENERATED CODE IMPLEMENTATION] — the same path scope norm-engineer
+    is allowed to touch (NORM_ENGINEER_CODE_PATHS: everything except
+    norm-architect's own tests/norm_checks/, which the auditor isn't
+    reviewing — it's judging the *code* against the *norm text* directly,
+    not against a pre-written test's own possibly-incomplete
+    expectations). `git diff` alone misses a brand-new untracked rule
+    file (a real, common case — a norm's first round almost always adds
+    one), so untracked .py files under the same path scope are appended
+    with their full content too."""
+    diff_result = subprocess.run(
+        ["git", "diff", "--"] + NORM_ENGINEER_CODE_PATHS,
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    )
+    parts = [diff_result.stdout]
+
+    status_result = subprocess.run(
+        ["git", "status", "--porcelain", "--"] + NORM_ENGINEER_CODE_PATHS,
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    )
+    for line in status_result.stdout.splitlines():
+        if not line.startswith("??"):
+            continue
+        rel_path = line[3:].strip()
+        full_path = ROOT / rel_path
+        if full_path.is_file():
+            parts.append(f"--- new file: {rel_path} ---\n{full_path.read_text()}")
+
+    return "\n\n".join(p for p in parts if p.strip()) or "(no changes found)"
+
+
+def run_norm_auditor(round_number):
+    """Audits this round's norm-engineer changes against the raw norm
+    text — a clean model instance that never wrote the code it's
+    reviewing (see call_norm_auditor_agent() in engine/llm_agents.py for
+    why this is a plain completion call, not an opencode agent, as of
+    2026-09-23). Returns {"result": "COMPLIANT" | "NEEDS_REPAIR", "text":
+    final_text} on a completed call, or None if the call itself failed
+    after exhausting its own retry budget (MAX_AUDITOR_ATTEMPTS, inside
+    that function) — treated by the caller like a norm-engineer failure:
     discard, don't crash the rest of the run.
 
-    Always starts a brand-new opencode session, never `--session`
-    continuation — see run_norm_engineer()'s own docstring for why
-    (session continuation across retries was tried and reverted after a
-    real collapse it caused)."""
-    clear_stale_opencode_snapshot_lock()
+    Always a fresh completion call, never any shared session/context with
+    whatever call wrote the code — the actual mechanism behind "never let
+    the model that wrote the code approve its own work.\""""
     print("\n--- invoking norm-auditor ---")
-    # Restates the sentinel-line requirement on every invocation, not just
-    # on retry — the first attempt was the one failing to include it.
-    message = extra_message or (
-        f"Round {round_number}'s norm-engineer changes are ready to audit. Read "
-        f"state/norm_specs/round_{round_number}.md, norm.txt, the diff, and both "
-        f"tests/norm_checks/round_{round_number}/ (norm-architect's pre-written suite) and "
-        "your own newly-written tests, and report your verdicts following your standing "
-        "instructions — specifically hunting for logical omissions and under-enforcement, "
-        "not just re-deriving pass/fail. End your response with the required "
-        "AUDIT_RESULT: COMPLIANT or AUDIT_RESULT: NEEDS_REPAIR line — every time, not just "
-        "when something failed."
-    )
-    # --auto: same reasoning as run_norm_engineer()'s own copy of this
-    # comment (2026-09-15) — a real run showed 4 of 5 evaluator attempts in
-    # one round hitting the identical hallucinated-path/external_directory
-    # auto-deny, ending abnormally before ever writing a real verdict.
-    cmd = ["opencode", "run", "--agent", "norm-auditor", "--format", "json", "--auto"]
-    model = (
-        os.environ.get("NORM_AUDITOR_MODEL")
-        or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var
-        or os.environ.get("OPENCODE_MODEL")
-    )
-    if model:
-        cmd += ["--model", model]
-    cmd.append(message)
+    norm_path = ROOT / "norm.txt"
+    if not norm_path.is_file():
+        print(f"Round {round_number}: norm.txt is missing — nothing for norm-auditor to "
+              f"audit against.", file=sys.stderr)
+        return None
+    norm_text = norm_path.read_text()
+    diff_text = _norm_round_diff_text()
 
-    start = time.monotonic()
-    try:
-        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=1800)
-    except subprocess.TimeoutExpired:
-        duration_s = time.monotonic() - start
-        print(f"Round {round_number}: norm-auditor didn't finish within 1800s — "
-              f"treating this audit as failed, not crashing the run.", file=sys.stderr)
-        log_call(
-            also_log_to=NORM_AUDITOR_LOG_PATH,
-            call="norm_auditor", agent_id=None, round=round_number, action=None,
-            model=model, duration_s=round(duration_s, 3), returncode=None,
-            prompt=message, raw_response=None, parsed_response=None,
-            tool_call_count=None, step_count=None, tool_call_trace=None,
-            report=None, error="timeout after 1800s",
-        )
+    raw_text = call_norm_auditor_agent(round_number, norm_text, diff_text)
+    if raw_text is None:
         return None
 
-    duration_s = time.monotonic() - start
-    tool_call_count, step_count, final_text = parse_opencode_jsonl(result.stdout)
-    tool_call_trace = extract_tool_trace(result.stdout)
-    verdict = extract_audit_result(final_text)
-
-    # Reject a verdict reached with zero tool calls — no read/test actually
-    # happened that attempt, regardless of how confident the text sounds.
-    zero_tool_call_reject = verdict is not None and tool_call_count == 0
-    if zero_tool_call_reject:
-        print(f"Round {round_number}: norm-auditor reached a verdict ({verdict}) with zero "
-              f"tool calls — no read/test was actually performed, so this verdict is not "
-              f"trusted.", file=sys.stderr)
-
-    log_call(
-        also_log_to=NORM_AUDITOR_LOG_PATH,
-        call="norm_auditor",
-        agent_id=None,
-        round=round_number,
-        action=None,
-        model=model,
-        duration_s=round(duration_s, 3),
-        returncode=result.returncode,
-        prompt=message,
-        raw_response=result.stdout,
-        parsed_response=None,
-        tool_call_count=tool_call_count,
-        step_count=step_count,
-        tool_call_trace=tool_call_trace,
-        # Just the extracted one-word decision, not the full text (already
-        # in raw_response). Reflects the rejection above.
-        report=(
-            {"result": verdict, "rejected_zero_tool_calls": True} if zero_tool_call_reject
-            else ({"result": verdict} if verdict else None)
-        ),
-        error=None if result.returncode == 0 else result.stderr.strip(),
-    )
-
-    print(final_text)
-    if result.returncode != 0:
-        print(f"Round {round_number}: norm-auditor exited with code {result.returncode} — "
-              f"treating this audit as failed, not crashing the run.", file=sys.stderr)
-        print(result.stderr, file=sys.stderr)
-        return None
-    if verdict is None:
-        print(f"Round {round_number}: norm-auditor's response never contained an "
-              f"AUDIT_RESULT: line — treating this audit as failed.", file=sys.stderr)
-        return None
-    if zero_tool_call_reject:
-        return None
-    return {"result": verdict, "text": final_text}
+    verdict = extract_audit_result(raw_text)
+    print(raw_text)
+    return {"result": verdict, "text": raw_text}
 
 
 def norm_already_committed(round_number):
@@ -1589,22 +1569,20 @@ def stage_norm_implementation(round_number):
 # to see how many real attempts a model actually needs against a clearly-
 # quoted error before this number should be revisited downward instead.
 MAX_NORM_REPAIR_ATTEMPTS = 10
-# Separate bound for retrying the auditor PROCESS itself when it fails to
-# produce any verdict at all (timeout, crash, unparseable report) — that
-# says nothing about whether the code is correct, so it must not consume a
-# repair attempt or discard an otherwise-good round on its own. Raised
-# 2 -> 5 (2026-09-14), matching MAX_ENGINEER_PROCESS_ATTEMPTS: this is
-# the same class of failure (a process-level retry, not a content-quality
-# budget), and the 2-GPU/OLLAMA_SCHED_SPREAD/128k-context change made the
-# same day is specifically aimed at the GPU-contention pressure behind a
-# real share of these process failures — more attempts costs more only if
-# that fix didn't help.
-MAX_AUDITOR_ATTEMPTS = 5
-# Same idea, for norm-architect's own process — it shares the exact same
-# reasoning and value as MAX_ENGINEER_PROCESS_ATTEMPTS below, since
-# nothing about a truncated-session process failure is specific to
-# code-writing versus design-and-test-writing.
-MAX_ARCHITECT_PROCESS_ATTEMPTS = 5
+# norm-auditor no longer has its own process-retry budget here (2026-09-23)
+# — since it stopped running through opencode (see call_norm_auditor_agent()
+# in engine/llm_agents.py for why), its own bounded retry loop
+# (MAX_AUDITOR_ATTEMPTS, in that same module) already lives inside the
+# plain completion call itself, the same place call_fisher_agent's/
+# call_critique_agent's retry loops already live — there's no separate
+# subprocess/session layer above it to retry any more.
+# norm-architect no longer has its own process-retry budget here (2026-09-22)
+# — since it stopped running through opencode (see call_norm_architect_agent()
+# in engine/llm_agents.py for why), its own bounded retry loop
+# (MAX_ARCHITECT_ATTEMPTS, in that same module) already lives inside the
+# plain completion call itself, the same place call_fisher_agent's/
+# call_critique_agent's retry loops already live — there's no separate
+# subprocess/session layer above it to retry any more.
 # Same idea again, for norm-engineer's own process. run_norm_engineer()
 # returning False now covers three cases: a crash, a timeout, or a session
 # that ended abnormally mid-task despite exiting 0 (see
@@ -1632,33 +1610,18 @@ MAX_ENGINEER_PROCESS_ATTEMPTS = 5
 NORM_ENGINEER_RETRY_DELAY_S = float(os.environ.get("NORM_ENGINEER_RETRY_DELAY_S", "5"))
 
 
-def run_norm_architect_with_retry(round_number, extra_message=None):
-    """Retries run_norm_architect() itself, up to
-    MAX_ARCHITECT_PROCESS_ATTEMPTS times, on a process-level failure — this
-    is not a finding about the round's design, so it must not consume a
-    MAX_NORM_REPAIR_ATTEMPTS repair attempt. Returns (success, report) —
-    report is norm-architect's parsed requirements json on success, None
-    otherwise.
-
-    Identical paired-session-continuation scheme to
-    run_norm_engineer_with_retry() below — see that function's own
-    docstring for why attempts are paired (1&2, 3&4, ...) rather than
-    either fully independent or unboundedly continued."""
-    session_id = None
-    for attempt in range(1, MAX_ARCHITECT_PROCESS_ATTEMPTS + 1):
-        success, session_id, report = run_norm_architect(
-            round_number, extra_message=extra_message, session_id=session_id
-        )
-        if success:
-            return True, report
-        print(f"Round {round_number}: norm-architect's own process failed, timed out, or was "
-              f"truncated mid-task (attempt {attempt}/{MAX_ARCHITECT_PROCESS_ATTEMPTS}) — "
-              f"retrying the process itself, not spending a repair attempt on it.")
-        if attempt < MAX_ARCHITECT_PROCESS_ATTEMPTS:
-            time.sleep(NORM_ENGINEER_RETRY_DELAY_S)
-        if attempt % 2 == 0:
-            session_id = None
-    return False, None
+def run_norm_architect_with_retry(round_number):
+    """Thin pass-through to run_norm_architect() — kept as its own function
+    (rather than inlining it at the call site in implement_and_evaluate_norm())
+    purely so that function's own call shape didn't need to change across
+    the 2026-09-22 rewrite. Its own retry budget (MAX_ARCHITECT_ATTEMPTS)
+    now lives inside call_norm_architect_agent() in engine/llm_agents.py,
+    the same place call_fisher_agent's/call_critique_agent's retry loops
+    already live — there's no separate opencode subprocess/session layer
+    above it to retry any more (see that function's own docstring for why:
+    DeepSeek-R1 on Ollama doesn't support tool calling, so norm-architect
+    stopped running through opencode entirely)."""
+    return run_norm_architect(round_number)
 
 
 def run_norm_engineer_with_retry(round_number, extra_message=None):
@@ -1762,8 +1725,8 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     if not architect_ok:
         discard_norm_implementation(
             round_number,
-            [f"norm-architect's process failed, timed out, or was truncated on every attempt "
-             f"(after {MAX_ARCHITECT_PROCESS_ATTEMPTS} tries) — see ops/logs/model_calls.jsonl"],
+            ["norm-architect failed to produce a usable test file and requirements checklist "
+             "— see ops/logs/norm_architect.jsonl and ops/logs/model_calls.jsonl"],
         )
         return False
 
@@ -1833,36 +1796,18 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 return False
             continue
 
-        audit = None
-        auditor_message = None
-        for audit_attempt in range(1, MAX_AUDITOR_ATTEMPTS + 1):
-            audit = run_norm_auditor(round_number, extra_message=auditor_message)
-            if audit is not None:
-                break
-            print(f"Round {round_number}: norm-auditor itself produced no usable verdict "
-                  f"(attempt {audit_attempt}/{MAX_AUDITOR_ATTEMPTS}) — retrying the auditor, "
-                  f"not the implementation, since this doesn't say anything about whether the "
-                  f"code is actually correct.")
-            # This retry starts a brand-new session (no --session
-            # continuation) — the model has no memory of the earlier
-            # attempt, so the message asks it to redo the read-and-test
-            # work from scratch, not just "finish" a prior attempt it
-            # can't actually recall.
-            auditor_message = (
-                f"Round {round_number}'s norm-engineer changes are ready to audit. Your "
-                "previous attempt at this ended without the required AUDIT_RESULT: line — "
-                "treating that as an incomplete audit, not a verdict. Read "
-                f"state/norm_specs/round_{round_number}.md, norm.txt, the diff, and both "
-                f"tests/norm_checks/round_{round_number}/ and your own newly-written tests, and "
-                "report your verdicts following your standing instructions. End your response "
-                "with the required AUDIT_RESULT: COMPLIANT or AUDIT_RESULT: NEEDS_REPAIR line — "
-                "every time, not just when something failed."
-            )
+        # No outer retry loop here any more (2026-09-23) — norm-auditor's
+        # own process-level retry budget (MAX_AUDITOR_ATTEMPTS) now lives
+        # inside call_norm_auditor_agent() itself (engine/llm_agents.py),
+        # the same place call_fisher_agent's/call_critique_agent's retry
+        # loops already live, since it's a plain completion call now, not
+        # an opencode subprocess this function drove its own retries around.
+        audit = run_norm_auditor(round_number)
         if audit is None:
             discard_norm_implementation(
                 round_number,
-                [f"norm-auditor failed to produce a parseable verdict after "
-                 f"{MAX_AUDITOR_ATTEMPTS} attempts — see ops/logs/model_calls.jsonl"],
+                ["norm-auditor failed to produce a usable verdict — see "
+                 "ops/logs/norm_auditor.jsonl and ops/logs/model_calls.jsonl"],
             )
             return False
 

@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Shows what a norm pipeline agent (norm-architect/norm-engineer/
-norm-auditor) actually did in a session — every tool call
+"""Shows what an opencode-driven norm pipeline agent (norm-engineer or its
+norm-finalizer subagent) actually did in a session — every tool call
 (codegraph_explore queries, files read, files edited), not just the final
 summary text that ops/logs/model_calls.jsonl captures. Our own logging
 only sees stdout; this reads opencode's own session store for the real
-tool-call trace.
+tool-call trace. Doesn't apply to norm-architect or norm-auditor — as of
+2026-09-22/23 both are plain, tool-free litellm completion calls (see
+engine/llm_agents.py) with no opencode session to inspect; their own
+prompt/response is already fully captured in ops/logs/norm_architect.jsonl
+/ norm_auditor.jsonl.
 
 Usage (run from the repo root — this script itself lives under ops/,
 alongside run_simulation.slurm/hpc_ollama_entrypoint.sh/logs/plots, kept
