@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at_round": null,
+  "updated_at_round": 0,
   "actions": {
     "harvest": {"spec": "state/actions/harvest.json", "protected": true},
     "propose": {"spec": "state/actions/propose.json", "protected": true},
@@ -11,7 +11,12 @@
   "roles": {
     "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
   },
-  "rule_types": {},
+  "rule_types": {
+    "planned_catch": {
+      "description": "Ensure all fishers report their planned catch amounts before harvest",
+      "owner": "actions/rules/harvest/planned_catch.py"
+    }
+  },
   "object_types": {},
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
