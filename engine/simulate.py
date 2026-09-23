@@ -7,7 +7,9 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from engine.call_log import log_call
@@ -78,6 +80,11 @@ NORM_ROUND_TRACKED_PATHS = [
     # state/norm_specs is NOT here — see ROUND_ARTIFACT_PATHS below. A spec
     # must survive a discard as the forensic record of what was analyzed.
     "state/institution.json",
+    # 2026-09-24: _gather_norm_evidence()'s own output — the structured,
+    # per-requirement package norm-auditor reads instead of a raw diff.
+    # Harness-generated (not written by any LLM call), but still needs to
+    # revert on a discard like everything else the round produced.
+    "state/norm_evidence",
     # Editable so an edit here is actually staged and syntax-checked.
     "engine/simulate.py",
 ]
@@ -86,14 +93,20 @@ NORM_ROUND_TRACKED_PATHS = [
 # norm_implementation_no_code_changes_errors() — "tests/norm_checks" is
 # excluded here because norm-architect writes there *before*
 # norm-engineer ever runs, so it's already dirty by the time that check
-# executes. Using the full NORM_ROUND_TRACKED_PATHS list there would let
-# a norm-engineer that touched nothing at all slip past undetected, since
-# the architect's own pre-existing test files would already satisfy a
-# bare "is anything dirty" check. Every other use of the tracked-paths
-# list (compile-checking, discard, staging) intentionally keeps using the
-# full list — both suites must still be revertible on discard and
-# compile-checked regardless of who authored them.
-NORM_ENGINEER_CODE_PATHS = [p for p in NORM_ROUND_TRACKED_PATHS if p != "tests/norm_checks"]
+# executes; "state/norm_evidence" is excluded for the same reason one
+# level later — _gather_norm_evidence() itself only runs after this check
+# already has, but excluding it here keeps this list's own meaning
+# consistent ("norm-engineer's own code changes"), not because it would
+# otherwise cause a false negative. Using the full NORM_ROUND_TRACKED_PATHS
+# list here would let a norm-engineer that touched nothing at all slip
+# past undetected, since the architect's own pre-existing test files
+# would already satisfy a bare "is anything dirty" check. Every other use
+# of the tracked-paths list (compile-checking, discard, staging)
+# intentionally keeps using the full list — everything must still be
+# revertible on discard and compile-checked regardless of who authored it.
+NORM_ENGINEER_CODE_PATHS = [
+    p for p in NORM_ROUND_TRACKED_PATHS if p not in ("tests/norm_checks", "state/norm_evidence")
+]
 
 # Never touchable by a norm round — fixed physics, the generic institution
 # kernel, and the 5 protected actions' own declarative specs/handlers.
@@ -336,31 +349,57 @@ def extract_tool_trace(stdout):
 
 
 def extract_last_step_reason(stdout):
-    """Returns the `reason` field of the LAST step_finish event in the
-    stream, or None if none found / on parse failure. A genuine, deliberate
-    end of turn always reports "stop". Two other real, confirmed
-    truncation signatures found analyzing an actual 12-round run, both
-    meaning the session ended before the model was actually done, not
-    because it chose to stop: "tool-calls" as the very last event (the
-    session ended right after a tool call, with no follow-up turn at all —
-    7 of 26 real invocations on that run, back when this pipeline stage
-    was a single combined norm-implementer agent), and "unknown" paired
-    with all-zero token counts (6 of 26) — the underlying model
-    completion itself silently failed or returned empty, and opencode
-    still exited 0, indistinguishable from a real success by returncode
-    alone. See run_norm_engineer()'s and run_norm_architect()'s use of
-    this."""
+    """Returns "stop" if the stream's last real content event is a "text"
+    event (the model's last action was producing its final response, not
+    calling a tool — a genuine, deliberate end of turn), "tool-calls" if
+    it's a "tool_use" event instead (the session ended right after a tool
+    call, with no follow-up turn at all — a real truncation), the last
+    step_finish event's own `reason` field as a fallback if neither a
+    "text" nor a "tool_use" event ever appeared at all (an empty/failed
+    completion — see below), or None on parse failure / a totally empty
+    stream. See run_norm_engineer()'s use of this.
+
+    2026-09-24 fix: previously returned the `reason` field off the LAST
+    step_finish event, full stop. That broke completely under opencode
+    v2: a real 5-attempt round showed EVERY attempt's step_finish events
+    saying "tool-calls" and nothing else — even attempts whose actual
+    final event was a complete, well-formed text response ending in a
+    valid fenced ```json report block. v2 evidently doesn't emit a
+    closing step_finish/reason:"stop" event after a text-only final turn
+    the way v1 did, so the old logic always fell back to the
+    second-to-last (tool-related) step_finish and misclassified every
+    genuinely-complete session as truncated — discarding real, correct
+    work after exhausting the full retry budget, round after round.
+    Checking the actual last content event's own type instead sidesteps
+    this entirely — it doesn't depend on whether a terminal step_finish
+    ever arrives.
+
+    The original empty-completion signature this function also existed to
+    catch ("unknown" paired with all-zero token counts — 6 of 26 real
+    invocations on an early 12-round run, the underlying model completion
+    itself silently failing or returning empty) never has ANY text or
+    tool_use event to inspect in the first place, so it still falls
+    through to the old step_finish-reason lookup as a fallback — this fix
+    only changes behavior for streams that ended with real content."""
     last_reason = None
+    last_content_type = None
     try:
         for line in stdout.splitlines():
             line = line.strip()
             if not line:
                 continue
             event = json.loads(line)
-            if event.get("type") == "step_finish":
+            event_type = event.get("type")
+            if event_type == "step_finish":
                 last_reason = event.get("part", {}).get("reason")
+            elif event_type in ("text", "tool_use"):
+                last_content_type = event_type
     except (json.JSONDecodeError, AttributeError):
         return None
+    if last_content_type == "text":
+        return "stop"
+    if last_content_type == "tool_use":
+        return "tool-calls"
     return last_reason
 
 
@@ -470,40 +509,132 @@ def _norm_architect_context_bundle():
     tool-based exploration it used to do (codegraph_explore, selective doc
     reads) — see call_norm_architect_agent() in engine/llm_agents.py for
     why it has no tools at all any more. Assembled fresh every call so it
-    always reflects the current on-disk institution, never cached."""
+    always reflects the current on-disk institution, never cached.
+
+    2026-09-24: trimmed to architecture.md ONLY — action-contract.md/
+    rule-contract.md/object-contract.md/role-contract.md/state-files.md
+    are deliberately excluded now. Those are field-level IMPLEMENTATION
+    contracts (JSON spec shapes, Python hook signatures, exact state file
+    paths) — exactly the "which file, which Python shape" decisions
+    norm-architect no longer makes at all (semantic compilation only; see
+    NORM_ARCHITECT_SYSTEM_PROMPT). architecture.md alone is the
+    "conceptual model" doc — it teaches the actual ROLE/ACTION/OBJECT/
+    RULE distinctions without naming a single file path for norm-architect
+    to (necessarily incorrectly) guess at. norm-engineer still gets all
+    six contracts, unchanged, via its own opencode read/glob tools."""
     parts = []
 
     institution_path = ROOT / "state" / "institution.json"
     if institution_path.is_file():
         parts.append(
             "### state/institution.json (the current structural catalog — check "
-            "here before inventing a new rule/object/action type)\n```json\n"
+            "here before saying a requirement needs a brand new concept)\n```json\n"
             f"{institution_path.read_text().strip()}\n```"
         )
 
-    rule_files = sorted(
-        str(p.relative_to(ROOT)) for p in (ROOT / "actions" / "rules").glob("*/*.py")
-        if p.name != "__init__.py"
-    ) if (ROOT / "actions" / "rules").is_dir() else []
-    handler_files = sorted(
-        str(p.relative_to(ROOT)) for p in (ROOT / "actions" / "handlers").glob("*.py")
-    ) if (ROOT / "actions" / "handlers").is_dir() else []
-    parts.append(
-        "### Existing rule plugin files (reuse a matching shape via config before "
-        "writing a new one)\n" + ("\n".join(rule_files) if rule_files else "(none yet)")
-        + "\n\n### Existing action handler files\n"
-        + ("\n".join(handler_files) if handler_files else "(none yet)")
-    )
-
-    for doc_name in (
-        "architecture.md", "action-contract.md", "rule-contract.md",
-        "object-contract.md", "role-contract.md", "state-files.md",
-    ):
-        doc_path = ROOT / "docs" / "institution-contracts" / doc_name
-        if doc_path.is_file():
-            parts.append(f"### docs/institution-contracts/{doc_name}\n{doc_path.read_text().strip()}")
+    doc_path = ROOT / "docs" / "institution-contracts" / "architecture.md"
+    if doc_path.is_file():
+        parts.append(f"### docs/institution-contracts/architecture.md\n{doc_path.read_text().strip()}")
 
     return "\n\n".join(parts)
+
+
+VALID_NORM_PLAN_REQUIREMENT_TYPES = {"ROLE", "ACTION", "OBJECT", "RULE", "VISIBILITY", "LIFECYCLE", "UNRESOLVED"}
+# Types where a fisher's actual experience changes — every requirement of
+# one of these types needs at least one acceptance test, per
+# validate_norm_plan() below. OBJECT (pure inventory, no decision) and
+# LIFECYCLE (a duration attached to something else already tested) are
+# deliberately excluded — see architecture.md's own "inventory vs.
+# decision vs. rule" distinction.
+NORM_PLAN_TYPES_REQUIRING_TESTS = {"ROLE", "ACTION", "RULE", "VISIBILITY"}
+
+
+def validate_norm_plan(plan):
+    """The deterministic Harness Validator — pure Python, no LLM call,
+    sitting between norm-architect and norm-engineer. Catches structural
+    incompleteness (a missing field, a dangling reference, a requirement
+    nobody wrote a test for) before an expensive opencode session ever
+    starts, the same "cheap check first" reasoning behind every other
+    norm_implementation_*_errors() function in this file. Returns a list
+    of human-readable problem strings (empty if the plan is structurally
+    sound) — never judges whether the plan is semantically RIGHT, only
+    whether it's complete enough for norm-engineer to act on."""
+    errors = []
+    requirements = plan.get("requirements")
+    if not isinstance(requirements, list) or not requirements:
+        return ["\"requirements\" must be a non-empty list"]
+
+    seen_ids = set()
+    for i, req in enumerate(requirements):
+        label = f"requirements[{i}]"
+        req_id = req.get("id")
+        if not req_id:
+            errors.append(f"{label} has no \"id\"")
+            continue
+        label = f"requirement {req_id!r}"
+        if req_id in seen_ids:
+            errors.append(f"{label}: duplicate id — every requirement needs a unique id")
+        seen_ids.add(req_id)
+
+        req_type = req.get("type")
+        if req_type not in VALID_NORM_PLAN_REQUIREMENT_TYPES:
+            errors.append(
+                f"{label}: \"type\" is {req_type!r}, must be one of "
+                f"{sorted(VALID_NORM_PLAN_REQUIREMENT_TYPES)}"
+            )
+            continue
+        if req_type == "UNRESOLVED":
+            if not req.get("reason"):
+                errors.append(f"{label}: type UNRESOLVED needs a \"reason\" field")
+            continue
+        if not req.get("description"):
+            errors.append(f"{label}: missing \"description\"")
+
+        if req_type in ("ROLE", "ACTION", "RULE", "VISIBILITY") and not req.get("agent_experience"):
+            errors.append(
+                f"{label}: type {req_type} needs an \"agent_experience\" block — what does a "
+                f"fisher actually know/decide/may-do/may-not-do/remember/observe because of this?"
+            )
+
+    acceptance_tests = plan.get("acceptance_tests") or []
+    tested_requirement_ids = set()
+    for i, test in enumerate(acceptance_tests):
+        label = f"acceptance_tests[{i}]"
+        test_req = test.get("requirement")
+        if not test_req:
+            errors.append(f"{label} has no \"requirement\"")
+            continue
+        if test_req not in seen_ids:
+            errors.append(f"{label}: \"requirement\" {test_req!r} doesn't match any requirement id")
+            continue
+        tested_requirement_ids.add(test_req)
+        if not test.get("scenario"):
+            errors.append(f"{label} (requirement {test_req!r}): missing \"scenario\"")
+        for field in ("given", "when", "expect"):
+            # Presence, not truthiness — an empty {} is a legitimate "no
+            # preconditions" scenario, not a missing field.
+            if field not in test:
+                errors.append(f"{label} (requirement {test_req!r}): missing \"{field}\"")
+
+    for req in requirements:
+        req_id = req.get("id")
+        if req_id and req.get("type") in NORM_PLAN_TYPES_REQUIRING_TESTS and req_id not in tested_requirement_ids:
+            errors.append(
+                f"requirement {req_id!r} (type {req.get('type')}) has no acceptance_tests entry "
+                f"referencing it — every requirement that changes what a fisher experiences needs "
+                f"at least one given/when/expect scenario"
+            )
+
+    for i, critique in enumerate(plan.get("open_critiques") or []):
+        critique_req = critique.get("requirement")
+        if critique_req and critique_req not in seen_ids:
+            errors.append(
+                f"open_critiques[{i}]: \"requirement\" {critique_req!r} doesn't match any requirement id"
+            )
+        if not critique.get("critique_question"):
+            errors.append(f"open_critiques[{i}]: missing \"critique_question\"")
+
+    return errors
 
 
 def _extract_fenced_block(text, lang):
@@ -520,15 +651,29 @@ MAX_NORM_CLARIFICATIONS_PER_ROUND = 5
 def run_norm_architect(round_number):
     """Runs norm-architect as a direct, tool-free litellm completion (see
     call_norm_architect_agent() in engine/llm_agents.py for why it stopped
-    running through opencode) and writes its output to disk itself, since
+    running through opencode) and writes its plan to disk itself, since
     the model has no write tool of its own any more. Returns
-    (success, report) — report is the parsed requirements json on
-    success, None otherwise. A second, finalizing completion call happens
-    only if the first pass reported open_critiques and the round's shared
-    clarification budget (MAX_NORM_CLARIFICATIONS_PER_ROUND) isn't already
-    exhausted — mirrors the old opencode-based agent's "one question at a
-    time, up to 5 exchanges total for the whole round" cap, just resolved
-    in one batch up front rather than interactively."""
+    (success, plan) — plan is the parsed norm_plan json (requirements +
+    acceptance_tests) on success, None otherwise.
+
+    2026-09-24: no longer extracts or writes a Python test file at all —
+    norm-architect writes acceptance-test SPECIFICATIONS
+    (given/when/expect), and norm-engineer (which actually has repo
+    access and understands fixtures/ActionContext) translates those into
+    real pytest as its own first implementation step. See
+    NORM_ARCHITECT_SYSTEM_PROMPT for why, and render_engineer_kickoff()
+    for the handoff.
+
+    A second, finalizing completion call happens if the first pass either
+    reported open_critiques (resolved via ask_norm_proposer(), same as
+    before) or if validate_norm_plan() — the deterministic Harness
+    Validator, no LLM call — found structural problems (a missing
+    agent_experience block, a requirement with no acceptance test, a
+    dangling reference). Both fold into the SAME second pass, one bounded
+    extra call, not two separate retry loops. If the plan is still
+    structurally invalid after that second pass, this is a real design
+    failure, not a process hiccup: return (False, None) and let the round
+    be discarded, same contract as every other failure path here."""
     norm_path = ROOT / "norm.txt"
     if not norm_path.is_file():
         print(f"Round {round_number}: norm.txt is missing — nothing for norm-architect to "
@@ -542,19 +687,29 @@ def run_norm_architect(round_number):
     if raw_text is None:
         return False, None
 
-    code = _extract_fenced_block(raw_text, "python")
-    report = _extract_fenced_block(raw_text, "json")
-    report = json.loads(report) if report else None
+    plan_raw = _extract_fenced_block(raw_text, "json")
+    try:
+        plan = json.loads(plan_raw) if plan_raw else None
+    except json.JSONDecodeError:
+        plan = None
 
-    open_critiques = (report or {}).get("open_critiques") or []
-    if open_critiques and code is not None and report is not None:
+    if plan is None or "requirements" not in plan:
+        print(f"Round {round_number}: norm-architect's response never contained a parseable "
+              f"```json block with a \"requirements\" key — treating this round's design as "
+              f"failed.", file=sys.stderr)
+        return False, None
+
+    open_critiques = plan.get("open_critiques") or []
+    validator_errors = validate_norm_plan(plan)
+
+    if open_critiques or validator_errors:
+        resolutions = []
         budget = min(len(open_critiques), MAX_NORM_CLARIFICATIONS_PER_ROUND)
         if budget < len(open_critiques):
             print(f"Round {round_number}: norm-architect raised {len(open_critiques)} open "
                   f"critiques but the round's shared clarification budget only allows "
                   f"{budget} — resolving the first {budget}, the rest stay unresolved "
-                  f"(reflected as-is in the requirements this round proceeds with).")
-        resolutions = []
+                  f"(reflected as-is in the plan this round proceeds with).")
         for critique in open_critiques[:budget]:
             question = critique.get("critique_question")
             if not question:
@@ -571,73 +726,97 @@ def run_norm_architect(round_number):
                 "answer": answer.get("answer", answer),
             })
 
+        if validator_errors:
+            print(f"Round {round_number}: the harness found {len(validator_errors)} structural "
+                  f"problem(s) in norm-architect's plan — asking it to fix them.")
         if resolutions:
             print(f"Round {round_number}: resolved {len(resolutions)} norm-architect "
                   f"critique(s) — asking it to finalize.")
+
+        if resolutions or validator_errors:
             final_text = call_norm_architect_agent(
-                round_number, norm_text, context_bundle, resolutions=resolutions,
+                round_number, norm_text, context_bundle,
+                resolutions=resolutions or None, validator_errors=validator_errors or None,
             )
             if final_text is not None:
-                final_code = _extract_fenced_block(final_text, "python")
-                final_report_raw = _extract_fenced_block(final_text, "json")
-                if final_code is not None and final_report_raw is not None:
-                    try:
-                        code, report = final_code, json.loads(final_report_raw)
-                    except json.JSONDecodeError:
-                        print(f"Round {round_number}: norm-architect's finalizing pass didn't "
-                              f"produce parseable JSON — keeping the first pass's own output.",
-                              file=sys.stderr)
+                final_plan_raw = _extract_fenced_block(final_text, "json")
+                try:
+                    final_plan = json.loads(final_plan_raw) if final_plan_raw else None
+                except json.JSONDecodeError:
+                    final_plan = None
+                if final_plan is not None and "requirements" in final_plan:
+                    plan = final_plan
+                    validator_errors = validate_norm_plan(plan)
+                else:
+                    print(f"Round {round_number}: norm-architect's finalizing pass didn't "
+                          f"produce a parseable plan — keeping the first pass's own output.",
+                          file=sys.stderr)
 
-    if code is None:
-        print(f"Round {round_number}: norm-architect's response never contained a fenced "
-              f"```python test file — treating this round's design as failed.", file=sys.stderr)
-        return False, None
-    if report is None or "requirements" not in report:
-        print(f"Round {round_number}: norm-architect's response never contained a parseable "
-              f"```json block with a \"requirements\" key — treating this round's design as "
-              f"failed.", file=sys.stderr)
+    if validator_errors:
+        print(f"Round {round_number}: norm-architect's plan is still structurally invalid after "
+              f"its finalizing pass — treating this round's design as failed:\n"
+              + "\n".join(f"  - {e}" for e in validator_errors), file=sys.stderr)
         return False, None
 
     tests_dir = ROOT / "tests" / "norm_checks" / f"round_{round_number}"
     tests_dir.mkdir(parents=True, exist_ok=True)
-    test_path = tests_dir / f"test_round_{round_number}.py"
-    test_path.write_text(code if code.endswith("\n") else code + "\n")
+    plan_path = tests_dir / "norm_plan.json"
+    plan_path.write_text(json.dumps(plan, indent=2) + "\n")
 
-    compile_check = subprocess.run(
-        [sys.executable, "-m", "py_compile", str(test_path)],
-        cwd=ROOT, capture_output=True, text=True,
-    )
-    if compile_check.returncode != 0:
-        print(f"Round {round_number}: norm-architect's test file doesn't even compile:\n"
-              f"{compile_check.stderr.strip()}", file=sys.stderr)
-        return False, None
-
-    print(f"Round {round_number}: norm-architect wrote {test_path.relative_to(ROOT)} "
-          f"({len(report['requirements'])} requirement(s)).")
-    return True, report
+    print(f"Round {round_number}: norm-architect wrote {plan_path.relative_to(ROOT)} "
+          f"({len(plan['requirements'])} requirement(s), "
+          f"{len(plan.get('acceptance_tests') or [])} acceptance test(s)).")
+    return True, plan
 
 
-def render_engineer_kickoff(requirements_json, round_number):
-    """Serializes norm-architect's FULL requirements payload — every field
-    it worked out per requirement, not a trimmed summary — into
-    norm-engineer's kickoff message, alongside the literal path to this
-    round's pre-written failing suite. This is the entire handoff:
-    norm-engineer never re-reads norm.txt's own reasoning path, only this
-    payload plus the tests, so nothing here can be assumed "the engineer
-    already knows from before."."""
+def render_engineer_kickoff(norm_plan, round_number):
+    """Serializes norm-architect's FULL plan — every requirement and every
+    acceptance test it wrote, not a trimmed summary — into norm-engineer's
+    kickoff message. This is the entire handoff: norm-engineer never
+    re-reads norm.txt's own reasoning path, only this plan, so nothing
+    here can be assumed "the engineer already knows from before."
+
+    2026-09-24: norm-architect no longer writes Python at all (see
+    run_norm_architect()) — only given/when/expect acceptance-test
+    SPECIFICATIONS. norm-engineer's job now explicitly starts with
+    translating those into a real pytest file, using the exact
+    test_{requirement_id}_{scenario} naming convention
+    _gather_norm_evidence() depends on to map pass/fail back to a
+    requirement — *then* implementing until that suite passes. The
+    given/when/expect values themselves are frozen at norm-architect time
+    and must be asserted against literally, not reinvented — the one
+    deliberate self-grading guardrail this handoff still has, now that
+    the same agent authors both the tests and the implementation (see
+    _gather_norm_evidence()'s literal-value grep for the other half of
+    this guardrail, and norm-auditor's own independent read of raw
+    norm.txt for the real backstop)."""
     tests_dir = f"tests/norm_checks/round_{round_number}/"
+    test_path = f"{tests_dir}test_round_{round_number}.py"
     return (
         f"This is round {round_number}. norm-architect has designed every requirement and "
-        f"written a failing pytest suite to exactly {tests_dir} — read every test there "
-        f"before writing any code. Below is the complete requirement checklist, verbatim, "
-        f"as norm-architect produced it; treat it as the full specification, not a summary "
-        f"to re-derive from norm.txt yourself:\n\n"
-        f"```json\n{json.dumps(requirements_json, indent=2)}\n```\n\n"
-        f"Implement every requirement until {tests_dir} passes, following your standing "
-        f"instructions. Once done, dispatch norm-finalizer with this same checklist "
-        f"forwarded verbatim. End your response with the fenced ```json report block your "
-        f"instructions describe (the one containing a \"spec_path\" key) — this is required "
-        f"every time, not just when something went wrong."
+        f"written acceptance-test specifications (no Python — plain given/when/expect facts). "
+        f"Below is its complete plan, verbatim; treat it as the full specification, not a "
+        f"summary to re-derive from norm.txt yourself:\n\n"
+        f"```json\n{json.dumps(norm_plan, indent=2)}\n```\n\n"
+        f"Your job, in order:\n"
+        f"1. Translate every entry in \"acceptance_tests\" into a real pytest test function "
+        f"in exactly {test_path} — name each one test_{{requirement}}_{{scenario}} (e.g. "
+        f"\"requirement\": \"R2\", \"scenario\": \"compliant_decision\" becomes "
+        f"test_R2_compliant_decision) so the given/expect values you assert against are the "
+        f"literal ones in the plan above, never invented or loosened. Build the fabricated "
+        f"state realistically through the real handler/rule/action machinery, following "
+        f"docs/institution-contracts/. It must fail red first — nothing implementing this "
+        f"round's norm exists yet.\n"
+        f"2. Implement every requirement, routing each by its \"type\" (ROLE/ACTION/OBJECT/"
+        f"RULE/VISIBILITY/LIFECYCLE) through the matching docs/institution-recipes/ entry, "
+        f"until {tests_dir} passes. Every ROLE/ACTION/RULE/VISIBILITY requirement's own "
+        f"\"agent_experience\" block is a real requirement, not decoration — a fisher must "
+        f"actually come to know/decide/may-do/remember/observe what it says, not just have it "
+        f"computed in Python.\n\n"
+        f"Once done, dispatch norm-finalizer with this same plan forwarded verbatim. End your "
+        f"response with the fenced ```json report block your instructions describe (the one "
+        f"containing a \"spec_path\" key) — this is required every time, not just when "
+        f"something went wrong."
     )
 
 
@@ -796,36 +975,107 @@ def run_norm_engineer(round_number, extra_message=None, session_id=None):
     return True, new_session_id
 
 
-def _norm_round_diff_text():
-    """The round's actual code diff, handed to norm-auditor as its
-    [GENERATED CODE IMPLEMENTATION] — the same path scope norm-engineer
-    is allowed to touch (NORM_ENGINEER_CODE_PATHS: everything except
-    norm-architect's own tests/norm_checks/, which the auditor isn't
-    reviewing — it's judging the *code* against the *norm text* directly,
-    not against a pre-written test's own possibly-incomplete
-    expectations). `git diff` alone misses a brand-new untracked rule
-    file (a real, common case — a norm's first round almost always adds
-    one), so untracked .py files under the same path scope are appended
-    with their full content too."""
-    diff_result = subprocess.run(
-        ["git", "diff", "--"] + NORM_ENGINEER_CODE_PATHS,
-        cwd=ROOT, capture_output=True, text=True, check=True,
-    )
-    parts = [diff_result.stdout]
+def _gather_norm_evidence(round_number, plan):
+    """Assembles the structured per-requirement evidence package
+    norm-auditor reviews instead of a raw diff (2026-09-24, by request) —
+    "does this evidence demonstrate the norm was actually instantiated?"
+    is a task DeepSeek-R1 is much better suited to than "does this diff
+    look right?". Composed from two independently-verified sources,
+    reusing existing machinery rather than reinventing either:
 
-    status_result = subprocess.run(
-        ["git", "status", "--porcelain", "--"] + NORM_ENGINEER_CODE_PATHS,
-        cwd=ROOT, capture_output=True, text=True, check=True,
-    )
-    for line in status_result.stdout.splitlines():
-        if not line.startswith("??"):
+    1. Structural evidence: norm-finalizer's own requirement_evidence
+       claims from state/norm_specs/round_{N}.md's trailing json block —
+       norm-finalizer already independently verifies these itself (see
+       its own "Verify, don't transcribe" step) before writing them, the
+       same verify-don't-trust pattern
+       norm_implementation_unverified_requirements_errors() already reads
+       from that same file for a different purpose.
+    2. Acceptance-test evidence: runs tests/norm_checks/round_{N}/ once
+       with --junit-xml (a built-in pytest flag — no new dependency,
+       unlike a json-report plugin) and parses per-test pass/fail from
+       the XML via the stdlib's xml.etree.ElementTree, matching each
+       test_{id}_{scenario} function back to its requirement id.
+
+    Also runs the one structural self-grading guardrail this handoff
+    still has (see render_engineer_kickoff()'s own docstring): a grep of
+    the generated test file for each acceptance test's literal
+    given/expect values, noted as evidence either way — flagged, not
+    blocking, since norm-auditor's own independent read of raw norm.txt
+    is the real backstop.
+
+    Written to state/norm_evidence/round_{N}.json and returned."""
+    evidence = {req["id"]: [] for req in plan.get("requirements", []) if req.get("id")}
+
+    spec_path = ROOT / "state" / "norm_specs" / f"round_{round_number}.md"
+    if spec_path.is_file():
+        spec_report = extract_json_report(spec_path.read_text(), required_keys={"requirement_evidence"})
+        if spec_report:
+            for req_id, claims in (spec_report.get("requirement_evidence") or {}).items():
+                evidence.setdefault(req_id, []).extend(claims)
+
+    tests_dir = ROOT / "tests" / "norm_checks" / f"round_{round_number}"
+    test_path = tests_dir / f"test_round_{round_number}.py"
+    if not test_path.is_file():
+        for req_id in evidence:
+            evidence[req_id].append(
+                f"no {test_path.relative_to(ROOT)} file was ever written — no acceptance tests to run"
+            )
+        evidence_dir = ROOT / "state" / "norm_evidence"
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / f"round_{round_number}.json").write_text(json.dumps(evidence, indent=2) + "\n")
+        return evidence
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        junit_path = Path(tmp_dir) / "results.xml"
+        subprocess.run(
+            [sys.executable, "-m", "pytest", str(tests_dir), f"--junit-xml={junit_path}", "-q"],
+            cwd=ROOT, capture_output=True, text=True, timeout=300,
+        )
+        if junit_path.is_file():
+            try:
+                testcases = list(ET.parse(junit_path).getroot().iter("testcase"))
+            except ET.ParseError:
+                testcases = []
+            for testcase in testcases:
+                test_name = testcase.get("name") or ""
+                req_id = next((r for r in evidence if test_name.startswith(f"test_{r}_")), None)
+                if req_id is None:
+                    continue
+                failure = testcase.find("failure")
+                error = testcase.find("error")
+                if failure is not None:
+                    evidence[req_id].append(
+                        f"acceptance test {test_name}: FAIL — {(failure.get('message') or '').strip()}"
+                    )
+                elif error is not None:
+                    evidence[req_id].append(
+                        f"acceptance test {test_name}: ERROR — {(error.get('message') or '').strip()}"
+                    )
+                else:
+                    evidence[req_id].append(f"acceptance test {test_name}: PASS")
+
+    test_source = test_path.read_text()
+    for acceptance_test in plan.get("acceptance_tests") or []:
+        req_id = acceptance_test.get("requirement")
+        if req_id not in evidence:
             continue
-        rel_path = line[3:].strip()
-        full_path = ROOT / rel_path
-        if full_path.is_file():
-            parts.append(f"--- new file: {rel_path} ---\n{full_path.read_text()}")
+        literal_values = [
+            str(v) for section in ("given", "when", "expect")
+            for v in (acceptance_test.get(section) or {}).values()
+        ]
+        missing = [v for v in literal_values if v and str(v) not in test_source]
+        if missing:
+            evidence[req_id].append(
+                f"self-grading guardrail: the generated test for scenario "
+                f"{acceptance_test.get('scenario')!r} doesn't reference the plan's own literal "
+                f"value(s) {missing} — norm-engineer may have loosened or reinterpreted the spec "
+                f"rather than asserting it literally"
+            )
 
-    return "\n\n".join(p for p in parts if p.strip()) or "(no changes found)"
+    evidence_dir = ROOT / "state" / "norm_evidence"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    (evidence_dir / f"round_{round_number}.json").write_text(json.dumps(evidence, indent=2) + "\n")
+    return evidence
 
 
 def run_norm_auditor(round_number):
@@ -841,7 +1091,12 @@ def run_norm_auditor(round_number):
 
     Always a fresh completion call, never any shared session/context with
     whatever call wrote the code — the actual mechanism behind "never let
-    the model that wrote the code approve its own work.\""""
+    the model that wrote the code approve its own work."
+
+    2026-09-24: reads norm-architect's frozen plan back off disk itself
+    (the same self-contained pattern this function already used for
+    norm.txt) and calls _gather_norm_evidence() to assemble the structured
+    evidence package — replacing the old raw git-diff payload."""
     print("\n--- invoking norm-auditor ---")
     norm_path = ROOT / "norm.txt"
     if not norm_path.is_file():
@@ -849,9 +1104,22 @@ def run_norm_auditor(round_number):
               f"audit against.", file=sys.stderr)
         return None
     norm_text = norm_path.read_text()
-    diff_text = _norm_round_diff_text()
 
-    raw_text = call_norm_auditor_agent(round_number, norm_text, diff_text)
+    plan_path = ROOT / "tests" / "norm_checks" / f"round_{round_number}" / "norm_plan.json"
+    if not plan_path.is_file():
+        print(f"Round {round_number}: {plan_path.relative_to(ROOT)} is missing — nothing for "
+              f"norm-auditor to audit against.", file=sys.stderr)
+        return None
+    try:
+        plan = json.loads(plan_path.read_text())
+    except json.JSONDecodeError as exc:
+        print(f"Round {round_number}: {plan_path.relative_to(ROOT)} isn't valid JSON ({exc}) — "
+              f"treating this audit as failed.", file=sys.stderr)
+        return None
+
+    evidence = _gather_norm_evidence(round_number, plan)
+
+    raw_text = call_norm_auditor_agent(round_number, norm_text, plan, evidence)
     if raw_text is None:
         return None
 
@@ -1721,17 +1989,17 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     A fresh session every call costs some redundant re-reading of files a
     prior attempt already read, but that cost is bounded and known, unlike
     unbounded context growth."""
-    architect_ok, requirements_json = run_norm_architect_with_retry(round_number)
+    architect_ok, norm_plan = run_norm_architect_with_retry(round_number)
     if not architect_ok:
         discard_norm_implementation(
             round_number,
-            ["norm-architect failed to produce a usable test file and requirements checklist "
-             "— see ops/logs/norm_architect.jsonl and ops/logs/model_calls.jsonl"],
+            ["norm-architect failed to produce a structurally valid plan — see "
+             "ops/logs/norm_architect.jsonl and ops/logs/model_calls.jsonl"],
         )
         return False
 
     success = run_norm_engineer_with_retry(
-        round_number, extra_message=render_engineer_kickoff(requirements_json, round_number),
+        round_number, extra_message=render_engineer_kickoff(norm_plan, round_number),
     )
     if not success:
         discard_norm_implementation(

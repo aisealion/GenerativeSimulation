@@ -583,20 +583,33 @@ ARCHITECT_CALL_DELAY_S = float(os.environ.get("LLM_CALL_DELAY_S", "2"))
 # before the model ever saw the prompt, regardless of context/output size
 # tuning. But norm-architect never actually needed real filesystem
 # access: its whole job is reading a fixed bundle of text (norm.txt +
-# the institution contracts) and producing text (one pytest file + a
-# JSON requirements checklist) — exactly what a plain, tool-free
-# completion call already does for the fisher/critique agents above.
-# litellm.completion() only sends a `tools` field when the caller passes
-# one; since this function never does, this call is immune to the same
-# 400 regardless of the model's own template support.
+# the institution's conceptual model) and producing text — exactly what a
+# plain, tool-free completion call already does for the fisher/critique
+# agents above. litellm.completion() only sends a `tools` field when the
+# caller passes one; since this function never does, this call is immune
+# to the same 400 regardless of the model's own template support.
+#
+# 2026-09-24: reworked from a rich, implementation-flavored requirement
+# table (file paths, `state_changed` lists, a raw Python test file it
+# couldn't run or verify) into pure semantic compilation, by request.
+# norm-architect has no way to confirm a file path or Python shape is
+# correct — it has no tools — so asking it to name one was asking it to
+# guess at exactly the thing it's least equipped to get right. It now
+# classifies each requirement into one of institution.md's own concepts
+# (ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE) and writes
+# acceptance-test SPECIFICATIONS (given/when/expect), not Python —
+# norm-engineer (which has real repo access and understands
+# ActionContext/fixtures) owns both "which file" and "how to test it in
+# real pytest" now. See render_engineer_kickoff() in engine/simulate.py.
 NORM_ARCHITECT_SYSTEM_PROMPT = """You are the Norm Architect for a multi-agent fishery simulation. Each
 round you are given norm.txt (a Policy statement plus the community's
 Operationalization of it) and a fixed bundle of reference material. Your
-job is reading, reasoning, and test-authoring ONLY — never
-implementation. You have NO TOOLS and no filesystem access: you cannot
-read, write, or execute anything yourself. Everything you need is in this
-message; everything you produce must be in your response text, nothing
-else. Never claim to have read or written a file, called a tool, or run a
+job is semantic compilation ONLY: turn the norm's own text into a
+structured institutional plan. You never decide *how* something gets
+built — no file paths, no Python, no state/config.json keys, no function
+names. That's norm-engineer's job; it has the repository, you don't. You
+have NO TOOLS and no filesystem access beyond what's in this message.
+Never claim to have read or written a file, called a tool, or run a
 command — you cannot.
 
 You are not the norm's author: never invent obligations, rights,
@@ -604,13 +617,54 @@ sanctions, or objectives its own text doesn't already entail. Extract
 EVERY atomic actor+verb+object requirement from the Operationalization,
 clause by clause — never a paraphrase of a whole sentence. Two
 verb-phrases sharing one actor are still two requirements. Err toward
-over-splitting. Distinguish genuine agent judgment (weighs, judges,
-inspects, decides, reviews-and-rules, verifies, contests, appeals,
-testifies, exercises discretion) from deterministic arithmetic, and
-either from inventory (a noun that's state, not a decision) — route by
-what the requirement IS, never by which path is cheaper. Reuse an
-existing rule/object/action type (see the institution catalog in your
-reference bundle) before inventing a new one.
+over-splitting.
+
+## Classify every requirement into exactly one type
+
+- **ROLE** — a structural position exists (who holds it, does it rotate,
+  is it exclusive). Not the same as the decision its holder makes.
+- **ACTION** — a genuine agent decision: weighs, judges, inspects,
+  decides, reviews-and-rules, verifies, contests, appeals, testifies,
+  exercises discretion, or *produces* a value through perception/sampling
+  (an estimate, a report) even when the "true" number is already known
+  internally. Mark `judgment_required: true`. Never route arithmetic here
+  just because it's convenient, and never silently reduce a real judgment
+  call to a number — both are real, previously-observed failure modes.
+- **OBJECT** — inventory: a pool, ledger, permit, or place that holds
+  state something else reads/writes. Never a decision, never a new
+  concept just because the norm's text introduces a new noun.
+- **RULE** — deterministic arithmetic over values that already exist: a
+  cap, fee, reserve deposit, ban countdown. No judgment at all.
+- **VISIBILITY** — who can see/know something, and when. Distinct from
+  who may act on it (that's the ACTION or RULE it's attached to).
+- **LIFECYCLE** — a bounded duration on an existing role/rule/object,
+  rather than an indefinite one.
+
+Before classifying, check the institution catalog in your reference
+bundle for a concept that already fits — say so in the requirement's own
+`description` if one does ("reuses the existing X role/rule/object")
+rather than treating every requirement as brand new.
+
+## agent_experience — required for every ROLE/ACTION/RULE/VISIBILITY requirement
+
+For each one, answer: who knows this, when, how, can they act on it, what
+happens if they violate it, what persists into their next decision? Fill
+in whichever of these actually apply (omit only what's genuinely
+inapplicable):
+```
+"agent_experience": {
+  "knows": ["a fact this requirement makes true for some fisher(s)"],
+  "decides": ["something a fisher must now choose, if this is agent-shaped"],
+  "may_do": ["an action this requirement newly permits"],
+  "may_not_do": ["an action this requirement newly forbids"],
+  "remembers": ["something that should persist into a fisher's later decisions"],
+  "observes": ["something a fisher can now see about shared state"]
+}
+```
+This is not decoration — a requirement that changes what happens in the
+simulation but nothing about what any fisher ever knows or experiences is
+almost never what the norm actually asked for (an enforcement mechanism
+with no in-world trace isn't really institutionalized, it's just Python).
 
 ## Critique, not just clarify
 
@@ -621,62 +675,81 @@ format below) as a real critique of the norm's own text — name the
 specific gap or contradiction plainly ("clause 2 requires X but clause 4
 implies not-X — which governs, and why wasn't this addressed?"), not a
 vague "what did you mean." You'll be given the proposer's answer in a
-follow-up message and asked to finalize your tests and checklist using
-it. Never ask for approval or code — only what the rule means.
+follow-up message and asked to finalize your plan using it. Never ask for
+approval or code — only what the rule means.
 
-## Write the failing test suite
+## Write acceptance-test SPECIFICATIONS, not code
 
-Write ONE complete pytest file (not several) covering every requirement.
-It must fail red against the current code — nothing implementing this
-round's norm exists yet, so a well-written test simply won't pass until
-someone builds it. Write however many test cases each requirement
-actually needs — never just one: at minimum the compliant path, the
-non-compliant/penalty path wherever the requirement implies a violation,
-and boundary cases the norm's own numbers imply (exactly at a threshold,
-just under it, just over it). Build the fabricated `state` realistically,
-through the shapes your reference bundle's contracts describe — exercise
-the real handler/rule/action machinery, never a bare unit test of a class
-in isolation. A structural requirement (a new rule type actually
-activated in state/config.json, a new role actually assignable) needs its
-own test too, not just the functional behavior once triggered.
+For every ROLE/ACTION/RULE/VISIBILITY requirement, write however many
+given/when/expect scenarios it actually needs to pin down — never just
+one: at minimum the compliant path, the non-compliant/penalty path
+wherever the requirement implies a violation, and boundary cases the
+norm's own numbers imply (exactly at a threshold, just under it, just
+over it). Each scenario names the requirement it belongs to, a short
+scenario id, and plain given/when/expect facts — never a fixture, an
+import, a class name, or any other Python detail; norm-engineer turns
+these into real tests against the actual code.
 
-## Output format — exactly two fenced blocks, nothing after the second one
-
-A fenced ```python block containing the complete test file, then a fenced
-```json block with this shape:
+## Output format — exactly one fenced ```json block, the last thing in your response
 
 ```json
 {
   "requirements": [
     {
-      "requirement": "...", "purpose": "...", "actor": "...", "level": 1,
-      "action_attached_to": "harvest", "action_or_decision": "...",
-      "existing_owner_or_new": "new rule type: actions/rules/harvest/example.py",
-      "inputs": "...", "outputs": "...", "state_read": "...",
-      "state_changed": ["state/config.json"], "timing_frequency": "...",
-      "participation": "...", "gate": "...", "institutional_consequence": "...",
-      "agent_visible_information": "...", "verification": ["the test function name(s) covering it"],
+      "id": "R1", "type": "ROLE", "description": "...",
+      "clarity": "CLEAR", "clarity_critique": null, "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {"knows": ["..."], "decides": [], "may_do": [], "may_not_do": [], "remembers": [], "observes": []}
+    },
+    {
+      "id": "R2", "type": "ACTION", "description": "...", "actor": "R1",
+      "judgment_required": true, "clarity": "CLEAR",
+      "clarity_critique": null, "clarity_resolution": null,
+      "agent_experience": {"knows": [], "decides": ["..."], "may_do": [], "may_not_do": [], "remembers": [], "observes": []}
+    },
+    {
+      "id": "R3", "type": "OBJECT", "description": "...", "persistent": true,
       "clarity": "CLEAR", "clarity_critique": null, "clarity_resolution": null
+    },
+    {
+      "id": "R4", "type": "RULE", "description": "...", "attached_to": "R2",
+      "deterministic": true, "clarity": "CLEAR",
+      "clarity_critique": null, "clarity_resolution": null,
+      "agent_experience": {"knows": [], "decides": [], "may_do": [], "may_not_do": ["..."], "remembers": [], "observes": []}
+    },
+    {
+      "id": "R5", "type": "VISIBILITY", "description": "...",
+      "target": "R1", "audience": "all_fishers", "clarity": "CLEAR",
+      "clarity_critique": null, "clarity_resolution": null,
+      "agent_experience": {"knows": [], "decides": [], "may_do": [], "may_not_do": [], "remembers": [], "observes": ["..."]}
+    },
+    {
+      "id": "R6", "type": "LIFECYCLE", "description": "...",
+      "duration_rounds": 5, "clarity": "CLEAR",
+      "clarity_critique": null, "clarity_resolution": null
+    }
+  ],
+  "acceptance_tests": [
+    {
+      "requirement": "R2", "scenario": "compliant_decision",
+      "given": {"...": "..."}, "when": {"...": "..."}, "expect": {"...": "..."}
     }
   ],
   "open_critiques": [
-    {"requirement": "...", "critique_question": "..."}
+    {"requirement": "R1", "critique_question": "..."}
   ]
 }
 ```
-A requirement routed to a new institutional object additionally carries
-`object_type_name`, `purpose`, `ownership`, `fields`, `operations`,
-`permissions`, `visibility`, `custom_logic`, `lifecycle`, `instances`. One
-routed to a new action additionally carries `action_name`, `level` (2/4),
-`actor`, `purpose`, `decision_or_action`, `inputs`, `output`,
-`state_changes`, `after`, `frequency`, `gate`, `enforcement`,
-`interaction`. `open_critiques` is `[]` if nothing is unresolved.
-`requirements` includes every requirement, even one you couldn't fully
-design — give it `"existing_owner_or_new": "NOT_DESIGNED_THIS_ROUND"` plus
-a `"reason"` field rather than omitting it."""
+`target`/`audience`/`actor`/`attached_to` reference another requirement's
+own `id` where they refer to one (a role, an action), or a plain concept
+name otherwise. `requirements` includes every requirement, even one you
+couldn't fully classify — give it `"type": "UNRESOLVED"` plus a `"reason"`
+field rather than omitting it. `open_critiques` is `[]` if nothing is
+unresolved. Never include any other fenced ```json block anywhere else in
+your response — the orchestrator finds the last one."""
 
 
-def _build_norm_architect_prompt(round_number, norm_text, context_bundle, resolutions=None):
+def _build_norm_architect_prompt(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
     sections = [
         f"This is round {round_number}.",
         "## norm.txt (this round's adopted Policy + Operationalization)",
@@ -684,36 +757,49 @@ def _build_norm_architect_prompt(round_number, norm_text, context_bundle, resolu
         "## Reference bundle (the only context you have — no tools, read nothing else)",
         context_bundle,
     ]
+    followups = []
     if resolutions:
-        sections.append(
+        followups.append(
             "## Answers to your open critiques from a previous pass\n\n"
             + "\n\n".join(
                 f"Q: {r['critique_question']}\nA: {r['answer']}" for r in resolutions
             )
-            + "\n\nProduce your FINAL, complete test file and requirements JSON now, "
-              "incorporating these resolutions — update each affected requirement's "
-              "clarity_resolution field and adjust your tests to actually assert the "
-              "resolved behavior where it matters. Any remaining open_critiques must be "
-              "genuinely new ones these answers didn't already cover."
+        )
+    if validator_errors:
+        followups.append(
+            "## Structural problems the harness found in your previous pass — fix these\n\n"
+            + "\n".join(f"- {e}" for e in validator_errors)
+        )
+    if followups:
+        sections.extend(followups)
+        sections.append(
+            "Produce your FINAL, complete plan now, incorporating the above — update each "
+            "affected requirement's clarity_resolution field where a critique was answered, "
+            "and fix every structural problem named above exactly. Any remaining "
+            "open_critiques must be genuinely new ones not already covered."
         )
     else:
         sections.append(
-            "Design every requirement and write your test file and requirements JSON now, "
-            "following your standing instructions."
+            "Design every requirement and write your plan now, following your standing "
+            "instructions."
         )
     return "\n\n".join(sections)
 
 
-def call_norm_architect_agent(round_number, norm_text, context_bundle, resolutions=None):
+def call_norm_architect_agent(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
     """Returns the raw response text on success, or None after exhausting
     MAX_ARCHITECT_ATTEMPTS — the caller (engine.simulate) is responsible
-    for extracting the ```python test file and ```json requirements block
-    from that text; this function only owns the completion call itself,
+    for extracting the ```json plan (requirements + acceptance_tests) from
+    that text; this function only owns the completion call itself,
     matching call_fisher_agent/call_critique_agent's own division of
     labor. `resolutions`, when given, is a list of {"critique_question",
-    "answer"} dicts from a previous pass's open_critiques, folded into a
-    second, finalizing call."""
-    user_prompt = _build_norm_architect_prompt(round_number, norm_text, context_bundle, resolutions)
+    "answer"} dicts from a previous pass's open_critiques; `validator_errors`
+    is a list of structural-problem strings from validate_norm_plan()
+    (engine/simulate.py) — either or both fold into the same second,
+    finalizing call."""
+    user_prompt = _build_norm_architect_prompt(
+        round_number, norm_text, context_bundle, resolutions, validator_errors,
+    )
     model_spec = (
         os.environ.get("NORM_ARCHITECT_MODEL")
         or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var
@@ -777,79 +863,96 @@ AUDITOR_CALL_DELAY_S = float(os.environ.get("LLM_CALL_DELAY_S", "2"))
 # 2026-09-23: norm-auditor moved to the same no-tools direct-completion
 # shape as norm-architect (see call_norm_architect_agent()'s own
 # docstring for the root cause — DeepSeek-R1 doesn't support tool calling
-# on Ollama). It never actually needed real tools either: its job is
-# reading two fixed texts (the raw norm and the round's diff) and judging
-# whether the second one actually satisfies the first — a plain
-# completion call does that exactly as well as an opencode agent with
-# read/glob/grep/bash tools did, without the "does not support tools" 400
-# and without the extra latency of a real agentic session. By request,
-# this also drops the earlier design's requirement that the auditor write
-# its OWN independent pytest suite (tests/norm_evaluation/round_N/) —
-# a direct text-level cross-reference of norm vs. code, the same
-# "Software Regulatory Compliance Auditor" framing requested, catches the
-# exact failure class that mattered (a norm-engineer that wrote
+# on Ollama). It never actually needed real tools either. Originally
+# (2026-09-23) it read the raw norm text against the round's own git diff;
+# reworked again (2026-09-24, by request) to instead read the norm text
+# against norm-architect's institutional PLAN plus a structured, harness-
+# assembled EVIDENCE package (per-requirement: what norm-finalizer
+# independently verified was built, and each acceptance test's own
+# PASS/FAIL) — "does this evidence demonstrate the norm was actually
+# instantiated?" is a sharper, more tractable question than "does this
+# diff look right?", and matches how a human regulatory auditor actually
+# works: against a compliance checklist and verified evidence, not a raw
+# code review. See _gather_norm_evidence() in engine/simulate.py for how
+# that evidence gets assembled. The under-enforcement framing and worked
+# examples below are unchanged — that's still the exact failure class
+# this whole redesign exists to catch (a norm-engineer that wrote
 # syntactically fine code and even passing tests that are themselves
 # quietly wrong — e.g. flipping a >10%-over-quota / else-$1,000 threshold
-# into a flat $5,000 fine) without needing the auditor to independently
-# reimplement test-writing on top of that.
+# into a flat $5,000 fine).
 NORM_AUDITOR_SYSTEM_PROMPT = """You are a strict Software Regulatory Compliance Auditor for a multi-agent
-fishery simulation. Your job is to cross-reference a completed code
-change against the original fishery norm document it's supposed to
-implement, and find logical gaps, omissions, or errors — including ones
-that still compile cleanly and pass their own tests. You have NO TOOLS
-and no filesystem access beyond what's in this message: you cannot read
-another file, run the tests yourself, or check anything not given to you
-here.
+fishery simulation. Your job is to cross-reference three things: the
+original fishery norm document, the institutional plan a reasoning model
+compiled from it, and a structured evidence package documenting what was
+actually verified to have been built. Your question is not "does this
+diff look right" — it's **does the evidence demonstrate the original
+norm was actually instantiated?** You have NO TOOLS and no filesystem
+access beyond what's in this message: you cannot read another file, run
+the tests yourself, or check anything not given to you here.
 
 You are auditing, not implementing: never suggest new normative content
 the norm's own text doesn't already entail, never edit anything, never
-approve code because it merely runs without crashing.
+approve a requirement because *some* evidence exists for it if that
+evidence doesn't actually establish what the norm's own text demands.
+Always reason from the raw norm text first — the plan is a reasoning
+model's own compilation of it and can itself be incomplete or
+mistranscribed; don't treat the plan as a substitute for reading the
+norm.
 
 The single most important failure class to hunt for is UNDER-ENFORCEMENT
-— code that is technically present, compiles, and even has a test that
-passes, but implements the norm's own requirement more weakly or crudely
-than its text demands. Two concrete examples of exactly this:
-- The norm requires a 48-hour cooldown period for a violation; the code
-  only sets a boolean flag (`has_violated: true`) with no timestamp or
-  duration check at all — every test asserting "the flag gets set" would
-  pass, while the actual 48-hour requirement is completely unenforced.
+— a requirement whose evidence shows a passing acceptance test, or a
+registered mechanism, but which implements the norm's own text more
+weakly or crudely than it demands. Two concrete examples of exactly this:
+- The norm requires a 48-hour cooldown period for a violation; the
+  evidence shows a rule registered and an acceptance test passing, but
+  the test (and the plan's own given/when/expect) only ever checks a
+  boolean flag (`has_violated: true`) with no timestamp or duration
+  anywhere — the actual 48-hour requirement is completely unenforced,
+  even though "a test passes" and "a rule is registered" both look fine
+  in isolation.
 - The norm says "fine a boat $5,000 if it exceeds its monthly quota by
-  more than 10%, or $1,000 if it exceeds it by 10% or less"; the code
-  applies a flat $5,000 fine regardless of the actual overage percentage,
-  or miscalculates the 10% threshold itself (off-by-one, wrong base
-  quantity, inverted comparison).
+  more than 10%, or $1,000 if it exceeds it by 10% or less"; the evidence
+  shows a passing test, but that test (or the plan's own acceptance-test
+  spec) only ever exercises one branch, or asserts a flat fine regardless
+  of the actual overage percentage.
 Look specifically for a norm clause containing a duration, a threshold, a
 rate, a count, or a conditional (if/else) split, and check whether the
-code's own conditional logic and magnitudes actually match — not just
-whether *a* consequence fires.
+plan's own acceptance tests (and their evidence) actually probe that
+distinction — not just whether *a* consequence fires. A missing or
+failed acceptance test for a requirement, or a "self-grading guardrail"
+note in the evidence (the generated test not referencing the plan's own
+literal given/expect values), is a real finding, not something to wave
+through.
 
 ## Output format
 
 Write your analysis of what you checked and what you found. Then, as the
 LAST thing in your response, on its own line:
-- If the code fully and correctly implements everything the norm
-  document requires, with no under-enforcement, output exactly:
+- If the evidence demonstrates every requirement the norm document
+  entails is fully and correctly instantiated, with no under-enforcement,
+  output exactly:
   AUDIT_PASSED
 - If you find any gap, omission, or under-enforcement, do NOT output that
   phrase — instead end with a clear, specific description of exactly
-  what rule was violated or missed, quoting both the norm's own text and
-  the code's actual (wrong) behavior, precise enough that a developer
-  could fix it from your description alone."""
+  which requirement id was violated or missed and why, quoting both the
+  norm's own text and the evidence that fails to support it, precise
+  enough that a developer could fix it from your description alone."""
 
 
-def _build_norm_auditor_prompt(round_number, norm_text, diff_text):
+def _build_norm_auditor_prompt(round_number, norm_text, plan, evidence):
     return (
-        f"This is round {round_number}. Audit norm-engineer's completed changes below.\n\n"
+        f"This is round {round_number}. Audit norm-engineer's completed round below.\n\n"
         f"## [ORIGINAL FISHERY NORM DOCUMENT] (norm.txt)\n\n{norm_text}\n\n"
-        f"## [GENERATED CODE IMPLEMENTATION] (this round's diff)\n\n"
-        f"```diff\n{diff_text}\n```\n\n"
-        f"Cross-reference the code against the norm. Did the developer miss any subtle edge "
-        f"case, exemption, or conditional calculation explicitly demanded by the norm? "
-        f"Follow your standing instructions and output format."
+        f"## [ARCHITECT'S INSTITUTIONAL PLAN]\n\n```json\n{json.dumps(plan, indent=2)}\n```\n\n"
+        f"## [EVIDENCE PACKAGE] (independently verified — see below for what's checked vs. merely claimed)\n\n"
+        f"```json\n{json.dumps(evidence, indent=2)}\n```\n\n"
+        f"Cross-reference the norm against the plan against the evidence. Does the evidence "
+        f"demonstrate the norm was actually instantiated, for every requirement, with no "
+        f"under-enforcement? Follow your standing instructions and output format."
     )
 
 
-def call_norm_auditor_agent(round_number, norm_text, diff_text):
+def call_norm_auditor_agent(round_number, norm_text, plan, evidence):
     """Returns the raw response text on success, or None after exhausting
     MAX_AUDITOR_ATTEMPTS. The caller (engine.simulate) checks the response
     for the literal AUDIT_PASSED sentinel; this function only owns the
@@ -859,8 +962,9 @@ def call_norm_auditor_agent(round_number, norm_text, diff_text):
     actual mechanism behind "never let the model that wrote the code
     approve its own work" (a NORM_AUDITOR_MODEL pointed at the same
     weights as NORM_ARCHITECT_MODEL is fine; what matters is that this
-    call never sees norm-engineer's own reasoning, only its final diff)."""
-    user_prompt = _build_norm_auditor_prompt(round_number, norm_text, diff_text)
+    call never sees norm-engineer's own reasoning, only norm-architect's
+    plan and the harness-assembled evidence)."""
+    user_prompt = _build_norm_auditor_prompt(round_number, norm_text, plan, evidence)
     model_spec = (
         os.environ.get("NORM_AUDITOR_MODEL")
         or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var

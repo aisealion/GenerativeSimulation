@@ -1,55 +1,80 @@
-"""norm-architect stopped running through opencode on 2026-09-22 — a real
-HPC run showed every invocation failing instantly with a 400 API error
-("does not support tools"), because Ollama's deepseek-r1 registry tags
-don't ship a tool-calling chat template (opencode always sends a `tools`
-field; a plain completion call never does). It's now a direct, tool-free
-litellm completion (call_norm_architect_agent() in engine/llm_agents.py)
-that returns raw text; engine.simulate.run_norm_architect() extracts a
-fenced ```python test file and a fenced ```json requirements block from
-that text and writes the test file to disk itself, since the model has no
-write tool of its own any more. These tests replace the old paired-
-opencode-session retry tests, which asserted mechanics (session
-continuation, a 5-attempt process-retry budget) that no longer exist —
-retries now live inside call_norm_architect_agent() itself, the same
-place call_fisher_agent's/call_critique_agent's own retry loops live."""
+"""norm-architect reworked from a rich, implementation-flavored requirement
+table + a raw Python test file into pure semantic compilation (2026-09-24,
+by request): it classifies each requirement into ROLE/ACTION/OBJECT/RULE/
+VISIBILITY/LIFECYCLE with an explicit agent_experience block, and writes
+acceptance-test SPECIFICATIONS (given/when/expect), never Python — it has
+no tools and no way to verify a file path or Python shape is correct, so
+asking it to name one was asking it to guess at exactly the thing it's
+least equipped to get right. norm-engineer (real repo access) now owns
+translating those specs into runnable pytest as its own first step.
+
+These tests replace the old python+json fixture pair with the new single
+```json plan (requirements + acceptance_tests + open_critiques), and add
+coverage for the new deterministic Harness Validator
+(validate_norm_plan()) — which folds into the same second, finalizing
+pass already used for critique resolution, rather than a separate retry
+loop."""
 import json
 
 import engine.simulate as simulate_module
 
 
-def _requirements_json(**overrides):
-    payload = {
-        "requirements": [{"requirement": "example", "clarity": "CLEAR"}],
-        "open_critiques": [],
+def _requirement(req_id="R1", req_type="ROLE", **overrides):
+    req = {
+        "id": req_id, "type": req_type, "description": f"{req_id} description",
+        "clarity": "CLEAR", "clarity_critique": None, "clarity_resolution": None,
     }
-    payload.update(overrides)
-    return payload
+    if req_type in simulate_module.NORM_PLAN_TYPES_REQUIRING_TESTS:
+        req["agent_experience"] = {
+            "knows": ["a fact"], "decides": [], "may_do": [], "may_not_do": [],
+            "remembers": [], "observes": [],
+        }
+    req.update(overrides)
+    return req
 
 
-def _response(code="def test_example():\n    assert False\n", report=None, open_critiques=()):
-    report = report if report is not None else _requirements_json(open_critiques=list(open_critiques))
-    return f"```python\n{code}```\n\n```json\n{json.dumps(report)}\n```\n"
+def _acceptance_test(req_id="R1", scenario="s1"):
+    return {"requirement": req_id, "scenario": scenario, "given": {"x": 1}, "when": {"y": 2}, "expect": {"z": 3}}
 
 
-def test_writes_the_test_file_and_returns_the_report_on_a_clean_response(tmp_path, monkeypatch):
+def _valid_plan(requirements=None, acceptance_tests=None, open_critiques=None):
+    if requirements is None:
+        requirements = [_requirement()]
+    if acceptance_tests is None:
+        acceptance_tests = [
+            _acceptance_test(r["id"]) for r in requirements
+            if r["type"] in simulate_module.NORM_PLAN_TYPES_REQUIRING_TESTS
+        ]
+    return {
+        "requirements": requirements,
+        "acceptance_tests": acceptance_tests,
+        "open_critiques": open_critiques or [],
+    }
+
+
+def _response(plan):
+    return f"```json\n{json.dumps(plan)}\n```\n"
+
+
+def test_writes_norm_plan_json_and_returns_it_on_a_clean_response(tmp_path, monkeypatch):
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+    plan = _valid_plan()
     calls = []
     monkeypatch.setattr(
         simulate_module, "call_norm_architect_agent",
-        lambda round_number, norm_text, context_bundle, resolutions=None: (
-            calls.append(resolutions) or _response()
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: (
+            calls.append((resolutions, validator_errors)) or _response(plan)
         ),
     )
 
-    success, report = simulate_module.run_norm_architect(3)
+    success, returned_plan = simulate_module.run_norm_architect(3)
 
     assert success is True
-    assert report["requirements"][0]["requirement"] == "example"
-    assert calls == [None]  # no second, finalizing call when there's nothing to resolve
-    written = tmp_path / "tests" / "norm_checks" / "round_3" / "test_round_3.py"
-    assert written.is_file()
-    assert "def test_example" in written.read_text()
+    assert returned_plan == plan
+    assert calls == [(None, None)]  # no second, finalizing call — the plan was clean
+    written = tmp_path / "tests" / "norm_checks" / "round_3" / "norm_plan.json"
+    assert json.loads(written.read_text()) == plan
 
 
 def test_returns_false_when_the_completion_call_itself_fails(tmp_path, monkeypatch):
@@ -57,30 +82,28 @@ def test_returns_false_when_the_completion_call_itself_fails(tmp_path, monkeypat
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
     monkeypatch.setattr(
         simulate_module, "call_norm_architect_agent",
-        lambda round_number, norm_text, context_bundle, resolutions=None: None,
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: None,
     )
 
-    success, report = simulate_module.run_norm_architect(3)
+    success, plan = simulate_module.run_norm_architect(3)
 
     assert success is False
-    assert report is None
+    assert plan is None
     assert not (tmp_path / "tests").exists()
 
 
-def test_returns_false_when_response_has_no_python_block(tmp_path, monkeypatch):
+def test_returns_false_when_response_has_no_json_block(tmp_path, monkeypatch):
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
     monkeypatch.setattr(
         simulate_module, "call_norm_architect_agent",
-        lambda round_number, norm_text, context_bundle, resolutions=None: (
-            f"```json\n{json.dumps(_requirements_json())}\n```\n"
-        ),
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: "no fenced block at all",
     )
 
-    success, report = simulate_module.run_norm_architect(3)
+    success, plan = simulate_module.run_norm_architect(3)
 
     assert success is False
-    assert report is None
+    assert plan is None
 
 
 def test_returns_false_when_response_has_no_requirements_key(tmp_path, monkeypatch):
@@ -88,50 +111,32 @@ def test_returns_false_when_response_has_no_requirements_key(tmp_path, monkeypat
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
     monkeypatch.setattr(
         simulate_module, "call_norm_architect_agent",
-        lambda round_number, norm_text, context_bundle, resolutions=None: _response(
-            report={"something_else": True},
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: (
+            _response({"something_else": True})
         ),
     )
 
-    success, report = simulate_module.run_norm_architect(3)
+    success, plan = simulate_module.run_norm_architect(3)
 
     assert success is False
-    assert report is None
-
-
-def test_returns_false_when_the_written_test_file_does_not_even_compile(tmp_path, monkeypatch):
-    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
-    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
-    monkeypatch.setattr(
-        simulate_module, "call_norm_architect_agent",
-        lambda round_number, norm_text, context_bundle, resolutions=None: _response(
-            code="def test_broken(:\n    pass\n",  # syntax error
-        ),
-    )
-
-    success, report = simulate_module.run_norm_architect(3)
-
-    assert success is False
-    assert report is None
+    assert plan is None
 
 
 def test_resolves_open_critiques_and_uses_the_finalizing_pass_output(tmp_path, monkeypatch):
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
 
-    first_response = _response(
-        code="def test_draft():\n    assert False\n",
-        open_critiques=[{"requirement": "example", "critique_question": "what governs here?"}],
-    )
-    final_response = _response(code="def test_final():\n    assert False\n")
+    draft_plan = _valid_plan(open_critiques=[{"requirement": "R1", "critique_question": "what governs here?"}])
+    final_plan = _valid_plan(requirements=[_requirement(description="R1 finalized")])
     pass_count = {"n": 0}
 
-    def _fake_call(round_number, norm_text, context_bundle, resolutions=None):
+    def _fake_call(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
         pass_count["n"] += 1
-        if resolutions is None:
-            return first_response
+        if resolutions is None and validator_errors is None:
+            return _response(draft_plan)
         assert resolutions == [{"critique_question": "what governs here?", "answer": "the later clause"}]
-        return final_response
+        assert validator_errors is None  # draft_plan is otherwise structurally valid
+        return _response(final_plan)
 
     asked = []
 
@@ -142,26 +147,23 @@ def test_resolves_open_critiques_and_uses_the_finalizing_pass_output(tmp_path, m
     monkeypatch.setattr(simulate_module, "call_norm_architect_agent", _fake_call)
     monkeypatch.setattr(simulate_module, "ask_norm_proposer", _fake_ask)
 
-    success, report = simulate_module.run_norm_architect(7)
+    success, returned_plan = simulate_module.run_norm_architect(7)
 
     assert success is True
-    assert pass_count["n"] == 2  # draft pass + finalizing pass
+    assert pass_count["n"] == 2
     assert asked == ["what governs here?"]
-    written = (tmp_path / "tests" / "norm_checks" / "round_7" / "test_round_7.py").read_text()
-    assert "def test_final" in written  # the finalizing pass's output won, not the draft
+    assert returned_plan["requirements"][0]["description"] == "R1 finalized"
 
 
 def test_caps_critique_resolution_at_the_shared_round_budget(tmp_path, monkeypatch):
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
-    many_critiques = [
-        {"requirement": f"r{i}", "critique_question": f"question {i}?"} for i in range(8)
-    ]
+    many_critiques = [{"requirement": "R1", "critique_question": f"question {i}?"} for i in range(8)]
 
-    def _fake_call(round_number, norm_text, context_bundle, resolutions=None):
-        if resolutions is None:
-            return _response(open_critiques=many_critiques)
-        return _response()
+    def _fake_call(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
+        if resolutions is None and validator_errors is None:
+            return _response(_valid_plan(open_critiques=many_critiques))
+        return _response(_valid_plan())
 
     asked = []
     monkeypatch.setattr(simulate_module, "call_norm_architect_agent", _fake_call)
@@ -174,6 +176,61 @@ def test_caps_critique_resolution_at_the_shared_round_budget(tmp_path, monkeypat
 
     assert success is True
     assert len(asked) == simulate_module.MAX_NORM_CLARIFICATIONS_PER_ROUND
+
+
+def test_harness_validator_triggers_a_second_pass_and_fixes_are_applied(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+
+    # A structurally invalid draft: an ACTION requirement missing its
+    # required agent_experience block, and no open_critiques at all — the
+    # validator, not the critique mechanism, must be what triggers the
+    # second pass here.
+    broken_requirement = {
+        "id": "R2", "type": "ACTION", "description": "...", "actor": "R1",
+        "clarity": "CLEAR", "clarity_critique": None, "clarity_resolution": None,
+        # agent_experience deliberately omitted
+    }
+    draft_plan = {
+        "requirements": [broken_requirement],
+        "acceptance_tests": [_acceptance_test("R2")],
+        "open_critiques": [],
+    }
+    fixed_plan = _valid_plan(requirements=[_requirement("R2", "ACTION")])
+    pass_count = {"n": 0}
+
+    def _fake_call(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
+        pass_count["n"] += 1
+        if pass_count["n"] == 1:
+            return _response(draft_plan)
+        assert resolutions is None
+        assert validator_errors and any("agent_experience" in e for e in validator_errors)
+        return _response(fixed_plan)
+
+    monkeypatch.setattr(simulate_module, "call_norm_architect_agent", _fake_call)
+
+    success, returned_plan = simulate_module.run_norm_architect(2)
+
+    assert success is True
+    assert pass_count["n"] == 2
+    assert returned_plan == fixed_plan
+
+
+def test_returns_false_when_plan_is_still_invalid_after_the_finalizing_pass(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+
+    always_broken = {"requirements": [{"id": "R1", "type": "NOT_A_REAL_TYPE"}], "acceptance_tests": [], "open_critiques": []}
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: _response(always_broken),
+    )
+
+    success, plan = simulate_module.run_norm_architect(4)
+
+    assert success is False
+    assert plan is None
+    assert not (tmp_path / "tests" / "norm_checks" / "round_4" / "norm_plan.json").exists()
 
 
 def test_run_norm_architect_with_retry_is_a_thin_passthrough(monkeypatch):

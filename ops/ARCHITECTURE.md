@@ -12,22 +12,37 @@ this document is the map, that directory is the reference.
 
 A common-pool-resource fishery simulation: `agent_count` fisher agents
 (LLM-driven) repeatedly harvest a shared lake, propose and vote on
-community norms, and a three-stage pipeline institutionalizes whatever
-norm wins a vote. **norm-architect** reads the norm and, before any code
-exists, writes a failing pytest suite plus a complete requirement
-checklist — this is a dual-model, test-driven-development split: a
-reasoning-specialized model designs and pins down intent in tests first,
-so the coding model that follows has a concrete, checkable target rather
-than inventing its own definition of "done." **norm-engineer** then
-implements against that checklist and those tests until they pass, so the
-next round's harvest genuinely behaves differently, and dispatches
-**norm-finalizer** (a subagent) to independently verify and record what
-was actually built. Last, **norm-auditor** — a separate model instance
-that never wrote the code — reviews the norm's raw text, the diff, and
-both test suites together, specifically hunting for logical omissions and
-under-enforcement (a requirement a test technically passes but the code
-satisfies more weakly than the norm's own text demands) before the round
-is trusted. Everything the fishers *do* each round (harvest, propose,
+community norms, and a semantic-compilation pipeline institutionalizes
+whatever norm wins a vote. **norm-architect** reads the norm and performs
+*semantic compilation only* — it classifies every atomic requirement the
+norm's text implies into ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE,
+writes an `agent_experience` block for each (what a fisher now knows,
+decides, may/may not do, remembers, observes), and writes
+given/when/expect acceptance-test *specifications* — never a file path,
+never Python. It genuinely cannot verify either: it has no tools and no
+repository access beyond one conceptual doc and the institution catalog.
+A deterministic **Harness Validator**
+(`validate_norm_plan()`, no LLM call) then checks that plan is
+structurally complete — every id unique, every reference resolved, every
+requirement that changes a fisher's experience has both an
+`agent_experience` block and at least one acceptance test — before an
+expensive engineer session ever starts. **norm-engineer** is the sole
+"repository expert": it decides file paths, translates the plan's
+acceptance-test specs into real pytest, and implements against them until
+they pass, so the next round's harvest genuinely behaves differently. It
+dispatches **norm-finalizer** (a subagent) to independently verify and
+record what was actually built. The harness then assembles a structured
+**evidence package** (`_gather_norm_evidence()`) — per requirement,
+finalizer's verified claims plus each acceptance test's own PASS/FAIL.
+Last, **norm-auditor** — a separate model instance that never wrote the
+code — reviews the norm's raw text against the architect's plan and that
+evidence package, asking one question: *does this evidence demonstrate
+the norm was actually instantiated?*, specifically hunting for
+under-enforcement (a requirement whose acceptance test technically passes
+but which itself checks something weaker than the norm's own text
+demands) before the round is trusted. Fishery agents experience only the
+in-world institution this pipeline produces — never its implementation
+machinery. Everything the fishers *do* each round (harvest, propose,
 critique, vote) is itself built on the same generic "institutional
 action" machinery norm-engineer uses to add new institutional
 behavior — there's one mechanism, not two.
@@ -72,9 +87,11 @@ flowchart TB
     end
 
     subgraph NormPipeline["The norm pipeline"]
-        ARCH["norm-architect (design + failing tests)<br/>plain litellm completion, no tools"]
-        ENG["norm-engineer (implementation)<br/>opencode agent"]
+        ARCH["norm-architect (semantic compilation)<br/>plain litellm completion, no tools"]
+        VALID["validate_norm_plan()<br/>Harness Validator, deterministic, no LLM"]
+        ENG["norm-engineer (test-writing + implementation)<br/>opencode agent"]
         FIN["norm-finalizer<br/>opencode subagent"]
+        EVID["_gather_norm_evidence()<br/>harness, deterministic, no LLM"]
         AUD["norm-auditor (audit)<br/>plain litellm completion, no tools"]
     end
 
@@ -97,15 +114,17 @@ flowchart TB
     CTX --> FLUENTS
     CTX --> EVENTS
     MAIN --> NormPipeline
-    ARCH -.failing tests first.-> HANDLERS
-    ARCH --> ENG
+    ARCH -.norm_plan.json — semantic only, no file paths.-> VALID
+    VALID -.structurally valid plan.-> ENG
     ENG --> ASPEC
     ENG --> CONF
     ENG --> RULEFILES
     ENG --> HANDLERS
     ENG --> FIN
     FIN --> ISPEC
-    AUD -.audits.-> HANDLERS
+    FIN -.requirement_evidence.-> EVID
+    EVID -.evidence package.-> AUD
+    AUD -.audits plan + evidence, never raw code.-> ISPEC
 ```
 
 ## 3. The round lifecycle
@@ -270,29 +289,39 @@ committed (safe to resume after a crash).
 sequenceDiagram
     participant Cycle as run_cycle()
     participant Arch as norm-architect<br/>(plain litellm completion, no tools)
+    participant Valid as validate_norm_plan()<br/>(Harness Validator, deterministic)
     participant Eng as norm-engineer (opencode)
     participant Checks as engine/simulate.py<br/>compile/institution/runtime/<br/>self-correction checks
     participant Fin as norm-finalizer (subagent)
+    participant Evid as _gather_norm_evidence()<br/>(harness, deterministic)
     participant Aud as norm-auditor<br/>(plain litellm completion, no tools)
     participant Git as commit_round()
 
     Cycle->>Arch: run_norm_architect_with_retry(round)
-    Note over Arch: reads norm.txt, classifies every requirement,<br/>writes a failing pytest suite to<br/>tests/norm_checks/round_N/ — no implementation code
-    Arch-->>Cycle: requirements JSON checklist (complete, verbatim)
+    Note over Arch: reads norm.txt + architecture.md only —<br/>classifies every atomic requirement into<br/>ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE,<br/>writes agent_experience + given/when/expect<br/>acceptance-test SPECS — no file paths, no Python
+    Arch->>Valid: validate_norm_plan(plan)
+    alt structurally incomplete
+        Valid-->>Arch: validator_errors folded into<br/>the same finalizing critique-resolution pass
+        Note over Arch,Valid: bounded — one extra pass, not an open retry loop
+    end
+    Valid-->>Cycle: norm_plan.json (requirements + acceptance_tests)
 
-    Cycle->>Eng: run_norm_engineer_with_retry(round, checklist + tests path)
-    Note over Eng: implements against the checklist until the<br/>pre-written suite passes — edits actions/rules/,<br/>actions/handlers/, state/config.json, state/institution.json, etc.
-    Eng->>Fin: dispatch via the task tool,<br/>forwarding the architect's checklist verbatim
+    Cycle->>Eng: run_norm_engineer_with_retry(round, norm_plan.json)
+    Note over Eng: FIRST translates each acceptance_tests entry into<br/>real pytest (test_{id}_{scenario}, asserting the plan's<br/>own frozen given/expect values literally), THEN<br/>implements — edits actions/rules/, actions/handlers/,<br/>state/config.json, state/institution.json, etc.<br/>(norm-engineer alone decides file paths — the "repository expert")
+    Eng->>Fin: dispatch via the task tool,<br/>forwarding the architect's plan + engineer's own requirement_evidence claims
     Fin->>Fin: independently re-verify every claimed<br/>owner file/test; register new catalog entries
     Fin-->>Eng: writes state/norm_specs/round_N.md
 
     Cycle->>Checks: compile / institution-drift / orphaned-rule /<br/>tests/norm_checks/round_N/ (Self-Correction Gate) / runtime checks
     alt a check fails
-        Checks-->>Eng: repair message with the specific error<br/>(a failing pre-written test includes its stack trace)
+        Checks-->>Eng: repair message with the specific error<br/>(a failing generated test includes its stack trace)
         Note over Eng,Checks: loops back — bounded by MAX_NORM_REPAIR_ATTEMPTS
     else clean
+        Cycle->>Evid: _gather_norm_evidence(round, plan)
+        Note over Evid: per requirement id: finalizer's verified claims +<br/>each acceptance test's own PASS/FAIL (via --junit-xml)<br/>+ a self-grading guardrail note
+        Evid-->>Cycle: state/norm_evidence/round_N.json
         Cycle->>Aud: run_norm_auditor(round)
-        Note over Aud: a separate model instance that never wrote the code —<br/>reads norm.txt + the round's diff directly,<br/>hunting specifically for under-enforcement
+        Note over Aud: a separate model instance that never wrote the code —<br/>reads norm.txt + the architect's plan + the evidence package,<br/>asking "does this evidence demonstrate the norm was<br/>actually instantiated?", hunting specifically for under-enforcement
         Aud-->>Cycle: response text, ending with AUDIT_PASSED<br/>iff fully compliant, else a specific critique
         alt NEEDS_REPAIR
             Cycle->>Eng: repair message with the auditor's report
@@ -309,27 +338,29 @@ single invocation instantly with a 400 API error ("does not support
 tools"), since Ollama's deepseek-r1 registry tags don't ship a
 tool-calling chat template and opencode always sends one. Neither ever
 actually needed real filesystem tools: norm-architect's whole job is
-reading a fixed text bundle and producing text, and norm-auditor's is
-cross-referencing two fixed texts (norm.txt and the round's diff, fetched
-directly by `run_norm_auditor()`'s own `_norm_round_diff_text()`) and
-judging whether the second satisfies the first. Both are now plain,
-tool-free `litellm.completion()` calls (`call_norm_architect_agent()` /
-`call_norm_auditor_agent()` in `engine/llm_agents.py`, the same shape as
-the fisher/critique calls) — each one's own retry budget lives inside
-that function, the same place those calls' retry loops live, not in a
-separate opencode subprocess/session layer. If either completion call
-fails outright, the round is discarded immediately; a norm-architect
-response with no parseable test file + requirements checklist, or a
-norm-auditor response with no `AUDIT_PASSED` sentinel, is instead handled
-by the existing content-level paths (design failure vs. NEEDS_REPAIR
-respectively) — no separate opencode-process-retry loop for either any
-more. If norm-engineer's own opencode process fails, times out, or gets
-truncated mid-task, `run_norm_engineer_with_retry()` retries — a
-separate, smaller retry budget from the repair loop above, since a
-process failure says nothing about whether the code itself is wrong. If
-nothing ever produces a compliant, verified result within budget, the
-round's changes are discarded (`discard_norm_implementation()`) and the
-simulation continues under the previous mechanics.
+reading a fixed text bundle and producing text, and norm-auditor's
+(2026-09-24) is cross-referencing three fixed texts — norm.txt, the
+architect's own `norm_plan.json`, and the harness-assembled evidence
+package — and judging whether the third actually demonstrates the norm's
+own text is satisfied. Both are plain, tool-free `litellm.completion()`
+calls (`call_norm_architect_agent()` / `call_norm_auditor_agent()` in
+`engine/llm_agents.py`, the same shape as the fisher/critique calls) —
+each one's own retry budget lives inside that function, the same place
+those calls' retry loops live, not in a separate opencode
+subprocess/session layer. If either completion call fails outright, the
+round is discarded immediately; a norm-architect response with no
+parseable, structurally valid plan (even after the Harness Validator's
+one bounded finalizing pass), or a norm-auditor response with no
+`AUDIT_PASSED` sentinel, is instead handled by the existing content-level
+paths (design failure vs. NEEDS_REPAIR respectively) — no separate
+opencode-process-retry loop for either any more. If norm-engineer's own
+opencode process fails, times out, or gets truncated mid-task,
+`run_norm_engineer_with_retry()` retries — a separate, smaller retry
+budget from the repair loop above, since a process failure says nothing
+about whether the code itself is wrong. If nothing ever produces a
+compliant, verified result within budget, the round's changes are
+discarded (`discard_norm_implementation()`) and the simulation continues
+under the previous mechanics.
 
 ## 8. How state gets updated
 
