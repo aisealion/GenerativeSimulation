@@ -6,13 +6,27 @@
     "propose": {"spec": "state/actions/propose.json", "protected": true},
     "critique": {"spec": "state/actions/critique.json", "protected": true},
     "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "discuss": {"spec": "state/actions/discuss.json", "protected": true},
+    "present_catch_limit": {"spec": "state/actions/present_catch_limit.json", "protected": false},
+    "log_catch": {"spec": "state/actions/log_catch.json", "protected": false}
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "steward": {"exclusive": true, "description": "Responsible for recording biomass and calculating catch limit.", "introduced_round": 3}
   },
   "rule_types": {},
-  "object_types": {},
+  "object_types": {
+    "base_allowance": {
+      "description": "Base allowance per active fisher, derived from equal division of monthly catch limit.",
+      "persistent": true,
+      "introduced_round": 3
+    },
+    "community_ledger": {
+      "description": "Community ledger tracking all fisher catches and steward verifications.",
+      "persistent": true,
+      "introduced_round": 3
+    }
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

@@ -1,0 +1,194 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "Steward role exists, elected by simple majority vote of active fishers for a one-year term, responsible for recording biomass and calculating catch limit.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "The steward knows the lake's biomass and calculates the monthly catch limit."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "The steward remembers the lake's biomass measurements and catch limits across months."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ACTION",
+      "description": "Steward presents monthly catch limit and lake health metrics to community, requiring a two-thirds majority vote to set reserve capacity.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Fishers know the proposed catch limit and lake health metrics."
+        ],
+        "decides": [
+          "Fishers decide whether to approve the reserve capacity through vote."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "OBJECT",
+      "description": "Base allowance per active fisher, derived from equal division of monthly catch limit.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R4",
+      "type": "ACTION",
+      "description": "Fishers log trip catches in community ledger, steward verifies logs weekly.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Fishers know their catch logging obligations and verification schedule."
+        ],
+        "decides": [],
+        "may_do": [
+          "Fishers may log their catches in the ledger."
+        ],
+        "may_not_do": [],
+        "remembers": [
+          "The steward remembers past log verifications and identifies discrepancies."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "RULE",
+      "description": "20% of excess catch over 5kg transferred to communal reserve.",
+      "attached_to": "R4",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Fishers may not avoid automatic transfer of 20% excess catch."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "RULE",
+      "description": "10% of monthly catch sum transferred to communal reserve.",
+      "attached_to": "R4",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Fishers may not avoid 10% transfer to reserve."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "ACTION",
+      "description": "Steward proposes release options when reserve exceeds capacity.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": "The steward may adapt release options based on lake conditions.",
+      "agent_experience": {
+        "knows": [
+          "Fishers know when reserve capacity is exceeded and proposed release options."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R8",
+      "type": "ACTION",
+      "description": "Community votes by supermajority to choose release action.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Fishers know the proposed release options and voting outcome."
+        ],
+        "decides": [
+          "Fishers decide which release action to implement through vote."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R9",
+      "type": "ACTION",
+      "description": "Steward enforces sanctions for overage violations, tracking through ledger.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Fishers know their compliance status and potential sanctions."
+        ],
+        "decides": [],
+        "may_do": [
+          "Fishers may return excess catch to avoid suspension."
+        ],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R10",
+      "type": "OBJECT",
+      "description": "Community ledger tracking all fisher catches and steward verifications.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": []
+}

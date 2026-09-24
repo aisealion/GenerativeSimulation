@@ -1,0 +1,22 @@
+{
+  "name": "present_catch_limit",
+  "description": "Steward presents monthly catch limit and lake health metrics to community",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": "harvest",
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "steward"
+  },
+  "execution": {
+    "handler": "present_catch_limit"
+  },
+  "prompt": {
+    "template": "You are {agent_id}. You are the steward for this round. You must present the monthly catch limit and lake health metrics to the community. \n\nThe lake currently holds {stock_kg}kg of fish. Based on this and your calculations, the proposed monthly catch limit is {catch_limit}kg. \n\nThis proposal will be voted on by the community. Your decision is to approve the proposal, which requires a two-thirds majority vote to set reserve capacity. \n\nWhat do you do with this information? You must present the proposal to community for approval."
+  }
+}
