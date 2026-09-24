@@ -15,37 +15,42 @@ A common-pool-resource fishery simulation: `agent_count` fisher agents
 community norms, and a semantic-compilation pipeline institutionalizes
 whatever norm wins a vote. **norm-architect** reads the norm and performs
 *semantic compilation only* — it classifies every atomic requirement the
-norm's text implies into ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE,
+norm's text implies into ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE and
 writes an `agent_experience` block for each (what a fisher now knows,
-decides, may/may not do, remembers, observes), and writes
-given/when/expect acceptance-test *specifications* — never a file path,
-never Python. It genuinely cannot verify either: it has no tools and no
-repository access beyond one conceptual doc and the institution catalog.
-A deterministic **Harness Validator**
+decides, may/may not do, remembers, observes) — never a file path, never
+Python, never a test scenario. It genuinely cannot verify any of those: it
+has no tools and no repository access beyond one conceptual doc and the
+institution catalog. A deterministic **Harness Validator**
 (`validate_norm_plan()`, no LLM call) then checks that plan is
 structurally complete — every id unique, every reference resolved, every
-requirement that changes a fisher's experience has both an
-`agent_experience` block and at least one acceptance test — before an
-expensive engineer session ever starts. **norm-engineer** is the sole
-"repository expert": it decides file paths, translates the plan's
-acceptance-test specs into real pytest, and implements against them until
-they pass, so the next round's harvest genuinely behaves differently. It
-dispatches **norm-finalizer** (a subagent) to independently verify and
-record what was actually built. The harness then assembles a structured
-**evidence package** (`_gather_norm_evidence()`) — per requirement,
-finalizer's verified claims plus each acceptance test's own PASS/FAIL.
-Last, **norm-auditor** — a separate model instance that never wrote the
-code — reviews the norm's raw text against the architect's plan and that
-evidence package, asking one question: *does this evidence demonstrate
-the norm was actually instantiated?*, specifically hunting for
-under-enforcement (a requirement whose acceptance test technically passes
-but which itself checks something weaker than the norm's own text
-demands) before the round is trusted. Fishery agents experience only the
-in-world institution this pipeline produces — never its implementation
-machinery. Everything the fishers *do* each round (harvest, propose,
-critique, vote) is itself built on the same generic "institutional
-action" machinery norm-engineer uses to add new institutional
-behavior — there's one mechanism, not two.
+requirement that changes a fisher's experience has an `agent_experience`
+block — before an expensive engineer session ever starts. (It originally
+also required at least one acceptance-test entry per such requirement,
+back when norm-architect itself proposed given/when/expect scenarios —
+dropped after a real run showed this discarding whole rounds outright,
+since DeepSeek-R1 didn't reliably converge on covering every flagged gap
+even across the validator's one bounded retry pass.) **norm-engineer** is
+the sole "repository expert": it decides file paths, decides what each
+requirement needs tested (from its `agent_experience` block) and writes
+real pytest for it, then implements against those tests until they pass,
+so the next round's harvest genuinely behaves differently. It dispatches
+**norm-finalizer** (a subagent) to independently verify and record what
+was actually built. The harness then assembles a structured **evidence
+package** (`_gather_norm_evidence()`) — per requirement, finalizer's
+verified claims plus each test's own PASS/FAIL. Last, **norm-auditor** —
+a separate model instance that never wrote the code — reviews the norm's
+raw text against the architect's plan and that evidence package, asking
+one question: *does this evidence demonstrate the norm was actually
+instantiated?*, specifically hunting for under-enforcement (a requirement
+whose test technically passes but which itself checks something weaker
+than the norm's own text demands) before the round is trusted — this is
+now the *only* backstop against a self-authored test that's too weak,
+since norm-engineer both picks the scenarios and writes the assertions.
+Fishery agents experience only the in-world institution this pipeline
+produces — never its implementation machinery. Everything the fishers
+*do* each round (harvest, propose, critique, vote) is itself built on the
+same generic "institutional action" machinery norm-engineer uses to add
+new institutional behavior — there's one mechanism, not two.
 
 ## 2. Component map
 
@@ -298,34 +303,34 @@ sequenceDiagram
     participant Git as commit_round()
 
     Cycle->>Arch: run_norm_architect_with_retry(round)
-    Note over Arch: reads norm.txt + architecture.md only —<br/>classifies every atomic requirement into<br/>ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE,<br/>writes agent_experience + given/when/expect<br/>acceptance-test SPECS — no file paths, no Python
+    Note over Arch: reads norm.txt + architecture.md only —<br/>classifies every atomic requirement into<br/>ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE,<br/>writes each one's agent_experience block —<br/>no file paths, no Python, no test scenarios
     Arch->>Valid: validate_norm_plan(plan)
     alt structurally incomplete
         Valid-->>Arch: validator_errors folded into<br/>the same finalizing critique-resolution pass
         Note over Arch,Valid: bounded — one extra pass, not an open retry loop
     end
-    Valid-->>Cycle: norm_plan.json (requirements + acceptance_tests)
+    Valid-->>Cycle: norm_plan.json (requirements only)
 
     Cycle->>Eng: run_norm_engineer_with_retry(round, norm_plan.json)
-    Note over Eng: FIRST translates each acceptance_tests entry into<br/>real pytest (test_{id}_{scenario}, asserting the plan's<br/>own frozen given/expect values literally), THEN<br/>implements — edits actions/rules/, actions/handlers/,<br/>state/config.json, state/institution.json, etc.<br/>(norm-engineer alone decides file paths — the "repository expert")
+    Note over Eng: FIRST decides what each requirement needs tested<br/>(from its own agent_experience block) and writes real pytest<br/>(test_{id}_{scenario}), THEN implements — edits actions/rules/,<br/>actions/handlers/, state/config.json, state/institution.json, etc.<br/>(norm-engineer alone decides file paths AND test scenarios — the "repository expert")
     Eng->>Fin: dispatch via the task tool,<br/>forwarding the architect's plan + engineer's own requirement_evidence claims
     Fin->>Fin: independently re-verify every claimed<br/>owner file/test; register new catalog entries
     Fin-->>Eng: writes state/norm_specs/round_N.md
 
     Cycle->>Checks: compile / institution-drift / orphaned-rule /<br/>tests/norm_checks/round_N/ (Self-Correction Gate) / runtime checks
     alt a check fails
-        Checks-->>Eng: repair message with the specific error<br/>(a failing generated test includes its stack trace)
-        Note over Eng,Checks: loops back — bounded by MAX_NORM_REPAIR_ATTEMPTS
+        Checks-->>Eng: repair message — states which attempt this is,<br/>the specific error found, and asks Eng to check for<br/>and self-repair OTHER similar mistakes too
+        Note over Eng,Checks: loops back in the SAME opencode session (2026-09-24) —<br/>bounded by MAX_NORM_REPAIR_ATTEMPTS
     else clean
         Cycle->>Evid: _gather_norm_evidence(round, plan)
-        Note over Evid: per requirement id: finalizer's verified claims +<br/>each acceptance test's own PASS/FAIL (via --junit-xml)<br/>+ a self-grading guardrail note
+        Note over Evid: per requirement id: finalizer's verified claims +<br/>each test's own PASS/FAIL (via --junit-xml)
         Evid-->>Cycle: state/norm_evidence/round_N.json
         Cycle->>Aud: run_norm_auditor(round)
         Note over Aud: a separate model instance that never wrote the code —<br/>reads norm.txt + the architect's plan + the evidence package,<br/>asking "does this evidence demonstrate the norm was<br/>actually instantiated?", hunting specifically for under-enforcement
         Aud-->>Cycle: response text, ending with AUDIT_PASSED<br/>iff fully compliant, else a specific critique
         alt NEEDS_REPAIR
-            Cycle->>Eng: repair message with the auditor's report
-            Note over Eng,Aud: loops back — same repair budget
+            Cycle->>Eng: repair message with the auditor's report<br/>(same attempt-number + self-repair framing as above)
+            Note over Eng,Aud: loops back in the SAME opencode session — same repair budget
         else COMPLIANT
             Cycle->>Git: stage + commit this round's changes
         end
@@ -361,6 +366,33 @@ about whether the code itself is wrong. If nothing ever produces a
 compliant, verified result within budget, the round's changes are
 discarded (`discard_norm_implementation()`) and the simulation continues
 under the previous mechanics.
+
+**norm-engineer's opencode session is now continued across a round's
+whole repair loop (2026-09-24, by request)** — every compile-error repair
+and every auditor NEEDS_REPAIR repair passes the previous call's
+discovered `session_id` back in, instead of starting fresh each time.
+This targets a confirmed real failure: round 3 of `sim/run-20260924-005713`
+needed 11 memoryless attempts to converge, and two of them failed on the
+exact same broken import in the exact same file — the model guessed a
+plausible-but-wrong module path twice independently, because the second
+attempt had no memory the first one already tried and failed with a
+*different* wrong guess. Each repair message now also states which
+attempt this is, quotes the specific error found, and explicitly asks
+norm-engineer to check for and self-repair the same class of mistake
+elsewhere in the round's own new files, not just the one instance a
+mechanical check happened to catch first.
+
+This reintroduces a version of the exact thing tried unbounded on
+2026-09-15 and reverted on 2026-09-17, when a real round's session grew
+across ~15 continued calls over ~6 hours until it became too large for
+the model to even begin responding to within opencode's own internal
+provider-header timeout. That risk isn't eliminated, only bounded:
+`MAX_NORM_REPAIR_ATTEMPTS` (10) caps how many times a round can possibly
+continue the session at all, and `run_norm_engineer_with_retry()`'s own
+process-retry pairing (unchanged, 2026-09-18) still drops a session after
+2 consecutive process-level failures on it — so a session that's
+genuinely become too large to use self-heals into a fresh one rather than
+silently consuming the round's whole repair budget.
 
 ## 8. How state gets updated
 

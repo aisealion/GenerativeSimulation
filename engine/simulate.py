@@ -540,25 +540,30 @@ def _norm_architect_context_bundle():
 
 
 VALID_NORM_PLAN_REQUIREMENT_TYPES = {"ROLE", "ACTION", "OBJECT", "RULE", "VISIBILITY", "LIFECYCLE", "UNRESOLVED"}
-# Types where a fisher's actual experience changes — every requirement of
-# one of these types needs at least one acceptance test, per
-# validate_norm_plan() below. OBJECT (pure inventory, no decision) and
-# LIFECYCLE (a duration attached to something else already tested) are
-# deliberately excluded — see architecture.md's own "inventory vs.
-# decision vs. rule" distinction.
-NORM_PLAN_TYPES_REQUIRING_TESTS = {"ROLE", "ACTION", "RULE", "VISIBILITY"}
 
 
 def validate_norm_plan(plan):
     """The deterministic Harness Validator — pure Python, no LLM call,
     sitting between norm-architect and norm-engineer. Catches structural
-    incompleteness (a missing field, a dangling reference, a requirement
-    nobody wrote a test for) before an expensive opencode session ever
-    starts, the same "cheap check first" reasoning behind every other
-    norm_implementation_*_errors() function in this file. Returns a list
-    of human-readable problem strings (empty if the plan is structurally
-    sound) — never judges whether the plan is semantically RIGHT, only
-    whether it's complete enough for norm-engineer to act on."""
+    incompleteness (a missing field, a dangling reference) before an
+    expensive opencode session ever starts, the same "cheap check first"
+    reasoning behind every other norm_implementation_*_errors() function
+    in this file. Returns a list of human-readable problem strings (empty
+    if the plan is structurally sound) — never judges whether the plan is
+    semantically RIGHT, only whether it's complete enough for
+    norm-engineer to act on.
+
+    2026-09-24: originally also required at least one acceptance_tests
+    entry per ROLE/ACTION/RULE/VISIBILITY requirement (norm-architect used
+    to propose given/when/expect scenarios). Dropped, same day, after a
+    real run showed it discarding whole rounds before norm-engineer ever
+    started — DeepSeek-R1 doesn't reliably converge on "write a test for
+    every flagged gap" even on this function's one bounded retry pass (a
+    round's second pass once left the exact same number of gaps as the
+    first, just a different subset). norm-architect no longer proposes
+    acceptance tests at all now — norm-engineer decides scenarios itself
+    from each requirement's agent_experience block and writes the tests,
+    so there's nothing here to validate the presence of any more."""
     errors = []
     requirements = plan.get("requirements")
     if not isinstance(requirements, list) or not requirements:
@@ -596,35 +601,6 @@ def validate_norm_plan(plan):
                 f"fisher actually know/decide/may-do/may-not-do/remember/observe because of this?"
             )
 
-    acceptance_tests = plan.get("acceptance_tests") or []
-    tested_requirement_ids = set()
-    for i, test in enumerate(acceptance_tests):
-        label = f"acceptance_tests[{i}]"
-        test_req = test.get("requirement")
-        if not test_req:
-            errors.append(f"{label} has no \"requirement\"")
-            continue
-        if test_req not in seen_ids:
-            errors.append(f"{label}: \"requirement\" {test_req!r} doesn't match any requirement id")
-            continue
-        tested_requirement_ids.add(test_req)
-        if not test.get("scenario"):
-            errors.append(f"{label} (requirement {test_req!r}): missing \"scenario\"")
-        for field in ("given", "when", "expect"):
-            # Presence, not truthiness — an empty {} is a legitimate "no
-            # preconditions" scenario, not a missing field.
-            if field not in test:
-                errors.append(f"{label} (requirement {test_req!r}): missing \"{field}\"")
-
-    for req in requirements:
-        req_id = req.get("id")
-        if req_id and req.get("type") in NORM_PLAN_TYPES_REQUIRING_TESTS and req_id not in tested_requirement_ids:
-            errors.append(
-                f"requirement {req_id!r} (type {req.get('type')}) has no acceptance_tests entry "
-                f"referencing it — every requirement that changes what a fisher experiences needs "
-                f"at least one given/when/expect scenario"
-            )
-
     for i, critique in enumerate(plan.get("open_critiques") or []):
         critique_req = critique.get("requirement")
         if critique_req and critique_req not in seen_ids:
@@ -653,27 +629,32 @@ def run_norm_architect(round_number):
     call_norm_architect_agent() in engine/llm_agents.py for why it stopped
     running through opencode) and writes its plan to disk itself, since
     the model has no write tool of its own any more. Returns
-    (success, plan) — plan is the parsed norm_plan json (requirements +
-    acceptance_tests) on success, None otherwise.
+    (success, plan) — plan is the parsed norm_plan json (requirements
+    only) on success, None otherwise.
 
     2026-09-24: no longer extracts or writes a Python test file at all —
-    norm-architect writes acceptance-test SPECIFICATIONS
-    (given/when/expect), and norm-engineer (which actually has repo
-    access and understands fixtures/ActionContext) translates those into
-    real pytest as its own first implementation step. See
+    norm-architect classifies requirements and writes each one's
+    agent_experience block only; norm-engineer (which actually has repo
+    access and understands fixtures/ActionContext) decides what to test
+    and writes real pytest as its own first implementation step. See
     NORM_ARCHITECT_SYSTEM_PROMPT for why, and render_engineer_kickoff()
-    for the handoff.
+    for the handoff. (Same day, second change: norm-architect originally
+    also proposed acceptance-test SPECIFICATIONS — given/when/expect — but
+    that requirement was dropped entirely after a real run showed
+    DeepSeek-R1 not reliably covering every requirement with a test even
+    across this function's one bounded retry pass, silently discarding
+    whole rounds before norm-engineer ever started.)
 
     A second, finalizing completion call happens if the first pass either
     reported open_critiques (resolved via ask_norm_proposer(), same as
     before) or if validate_norm_plan() — the deterministic Harness
     Validator, no LLM call — found structural problems (a missing
-    agent_experience block, a requirement with no acceptance test, a
-    dangling reference). Both fold into the SAME second pass, one bounded
-    extra call, not two separate retry loops. If the plan is still
-    structurally invalid after that second pass, this is a real design
-    failure, not a process hiccup: return (False, None) and let the round
-    be discarded, same contract as every other failure path here."""
+    agent_experience block, a dangling reference). Both fold into the SAME
+    second pass, one bounded extra call, not two separate retry loops. If
+    the plan is still structurally invalid after that second pass, this is
+    a real design failure, not a process hiccup: return (False, None) and
+    let the round be discarded, same contract as every other failure path
+    here."""
     norm_path = ROOT / "norm.txt"
     if not norm_path.is_file():
         print(f"Round {round_number}: norm.txt is missing — nothing for norm-architect to "
@@ -764,49 +745,51 @@ def run_norm_architect(round_number):
     plan_path.write_text(json.dumps(plan, indent=2) + "\n")
 
     print(f"Round {round_number}: norm-architect wrote {plan_path.relative_to(ROOT)} "
-          f"({len(plan['requirements'])} requirement(s), "
-          f"{len(plan.get('acceptance_tests') or [])} acceptance test(s)).")
+          f"({len(plan['requirements'])} requirement(s)).")
     return True, plan
 
 
 def render_engineer_kickoff(norm_plan, round_number):
-    """Serializes norm-architect's FULL plan — every requirement and every
-    acceptance test it wrote, not a trimmed summary — into norm-engineer's
-    kickoff message. This is the entire handoff: norm-engineer never
-    re-reads norm.txt's own reasoning path, only this plan, so nothing
-    here can be assumed "the engineer already knows from before."
+    """Serializes norm-architect's FULL plan — every requirement it
+    classified, not a trimmed summary — into norm-engineer's kickoff
+    message. This is the entire handoff: norm-engineer never re-reads
+    norm.txt's own reasoning path, only this plan, so nothing here can be
+    assumed "the engineer already knows from before."
 
-    2026-09-24: norm-architect no longer writes Python at all (see
-    run_norm_architect()) — only given/when/expect acceptance-test
-    SPECIFICATIONS. norm-engineer's job now explicitly starts with
-    translating those into a real pytest file, using the exact
-    test_{requirement_id}_{scenario} naming convention
+    2026-09-24: norm-architect no longer proposes acceptance tests at all
+    (see run_norm_architect()) — norm-engineer now owns BOTH deciding what
+    scenarios each requirement needs and writing the real pytest for them,
+    using the exact test_{requirement_id}_{scenario} naming convention
     _gather_norm_evidence() depends on to map pass/fail back to a
-    requirement — *then* implementing until that suite passes. The
-    given/when/expect values themselves are frozen at norm-architect time
-    and must be asserted against literally, not reinvented — the one
-    deliberate self-grading guardrail this handoff still has, now that
-    the same agent authors both the tests and the implementation (see
-    _gather_norm_evidence()'s literal-value grep for the other half of
-    this guardrail, and norm-auditor's own independent read of raw
-    norm.txt for the real backstop)."""
+    requirement. This replaced an earlier design where norm-architect
+    wrote given/when/expect specs for norm-engineer to translate — dropped
+    after a real run showed DeepSeek-R1 not reliably covering every
+    requirement with a test even across one bounded retry pass, silently
+    discarding whole rounds before norm-engineer ever started. Each
+    requirement's own agent_experience block is now the guide to what
+    actually needs a test — norm-auditor's own independent read of raw
+    norm.txt (never just the plan) remains the real backstop against a
+    self-authored test that's too weak."""
     tests_dir = f"tests/norm_checks/round_{round_number}/"
     test_path = f"{tests_dir}test_round_{round_number}.py"
     return (
-        f"This is round {round_number}. norm-architect has designed every requirement and "
-        f"written acceptance-test specifications (no Python — plain given/when/expect facts). "
-        f"Below is its complete plan, verbatim; treat it as the full specification, not a "
-        f"summary to re-derive from norm.txt yourself:\n\n"
+        f"This is round {round_number}. norm-architect has classified every requirement the "
+        f"norm implies, with an agent_experience block for each one that changes what a fisher "
+        f"knows/decides/may-do. Below is its complete plan, verbatim; treat it as the full "
+        f"specification, not a summary to re-derive from norm.txt yourself:\n\n"
         f"```json\n{json.dumps(norm_plan, indent=2)}\n```\n\n"
         f"Your job, in order:\n"
-        f"1. Translate every entry in \"acceptance_tests\" into a real pytest test function "
-        f"in exactly {test_path} — name each one test_{{requirement}}_{{scenario}} (e.g. "
-        f"\"requirement\": \"R2\", \"scenario\": \"compliant_decision\" becomes "
-        f"test_R2_compliant_decision) so the given/expect values you assert against are the "
-        f"literal ones in the plan above, never invented or loosened. Build the fabricated "
-        f"state realistically through the real handler/rule/action machinery, following "
-        f"docs/institution-contracts/. It must fail red first — nothing implementing this "
-        f"round's norm exists yet.\n"
+        f"1. For every ROLE/ACTION/RULE/VISIBILITY requirement, decide however many test "
+        f"scenarios it actually needs to pin down — never just one: at minimum the compliant "
+        f"path, the non-compliant/penalty path wherever the requirement implies a violation, "
+        f"and boundary cases the norm's own numbers imply (exactly at a threshold, just under "
+        f"it, just over it). Ground every scenario in that requirement's own agent_experience "
+        f"block — it tells you what actually needs verifying. Write each as a real pytest test "
+        f"function in exactly {test_path}, named test_{{requirement}}_{{scenario}} (e.g. "
+        f"requirement R2, scenario \"compliant_decision\", becomes test_R2_compliant_decision). "
+        f"Build the fabricated state realistically through the real handler/rule/action "
+        f"machinery, following docs/institution-contracts/. It must fail red first — nothing "
+        f"implementing this round's norm exists yet.\n"
         f"2. Implement every requirement, routing each by its \"type\" (ROLE/ACTION/OBJECT/"
         f"RULE/VISIBILITY/LIFECYCLE) through the matching docs/institution-recipes/ entry, "
         f"until {tests_dir} passes. Every ROLE/ACTION/RULE/VISIBILITY requirement's own "
@@ -816,7 +799,10 @@ def render_engineer_kickoff(norm_plan, round_number):
         f"Once done, dispatch norm-finalizer with this same plan forwarded verbatim. End your "
         f"response with the fenced ```json report block your instructions describe (the one "
         f"containing a \"spec_path\" key) — this is required every time, not just when "
-        f"something went wrong."
+        f"something went wrong.\n\n"
+        f"If a check finds a problem after this, you'll be re-invoked in this SAME session "
+        f"(2026-09-24) rather than a fresh one — so if you're re-invoked, you have your own "
+        f"memory of this round already; use it, don't rediagnose from nothing."
     )
 
 
@@ -858,12 +844,13 @@ def run_norm_engineer(round_number, extra_message=None, session_id=None):
     # on the first call, a repair message on every later one) — this
     # fallback only matters for a direct/test call that omits it.
     message = extra_message or (
-        f"This is round {round_number}. Read the requirements checklist norm-architect "
-        f"left you and the failing tests under tests/norm_checks/round_{round_number}/, "
-        f"then implement accordingly, following your standing instructions. End your "
-        f"response with the fenced ```json report block your instructions describe "
-        f"(the one containing a \"spec_path\" key) — this is required every time, not "
-        f"just when something went wrong."
+        f"This is round {round_number}. Read norm-architect's plan at "
+        f"tests/norm_checks/round_{round_number}/norm_plan.json, decide what each "
+        f"requirement needs tested and write real pytest for it, then implement "
+        f"accordingly, following your standing instructions. End your response with "
+        f"the fenced ```json report block your instructions describe (the one "
+        f"containing a \"spec_path\" key) — this is required every time, not just "
+        f"when something went wrong."
     )
     # --auto: (2026-09-15) — a real run's own logs showed this agent
     # hallucinating a slightly-wrong absolute path on a read/edit call (a
@@ -990,18 +977,17 @@ def _gather_norm_evidence(round_number, plan):
        same verify-don't-trust pattern
        norm_implementation_unverified_requirements_errors() already reads
        from that same file for a different purpose.
-    2. Acceptance-test evidence: runs tests/norm_checks/round_{N}/ once
-       with --junit-xml (a built-in pytest flag — no new dependency,
-       unlike a json-report plugin) and parses per-test pass/fail from
-       the XML via the stdlib's xml.etree.ElementTree, matching each
+    2. Test evidence: runs tests/norm_checks/round_{N}/ once with
+       --junit-xml (a built-in pytest flag — no new dependency, unlike a
+       json-report plugin) and parses per-test pass/fail from the XML via
+       the stdlib's xml.etree.ElementTree, matching each
        test_{id}_{scenario} function back to its requirement id.
-
-    Also runs the one structural self-grading guardrail this handoff
-    still has (see render_engineer_kickoff()'s own docstring): a grep of
-    the generated test file for each acceptance test's literal
-    given/expect values, noted as evidence either way — flagged, not
-    blocking, since norm-auditor's own independent read of raw norm.txt
-    is the real backstop.
+       norm-engineer decides the scenarios itself (norm-architect no
+       longer proposes them — see render_engineer_kickoff()'s own
+       docstring for why), so there's no literal given/expect value here
+       to grep the generated test against any more; norm-auditor's own
+       independent read of raw norm.txt is the backstop against a
+       self-authored test that's too weak.
 
     Written to state/norm_evidence/round_{N}.json and returned."""
     evidence = {req["id"]: [] for req in plan.get("requirements", []) if req.get("id")}
@@ -1018,7 +1004,7 @@ def _gather_norm_evidence(round_number, plan):
     if not test_path.is_file():
         for req_id in evidence:
             evidence[req_id].append(
-                f"no {test_path.relative_to(ROOT)} file was ever written — no acceptance tests to run"
+                f"no {test_path.relative_to(ROOT)} file was ever written — no tests to run"
             )
         evidence_dir = ROOT / "state" / "norm_evidence"
         evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -1053,24 +1039,6 @@ def _gather_norm_evidence(round_number, plan):
                     )
                 else:
                     evidence[req_id].append(f"acceptance test {test_name}: PASS")
-
-    test_source = test_path.read_text()
-    for acceptance_test in plan.get("acceptance_tests") or []:
-        req_id = acceptance_test.get("requirement")
-        if req_id not in evidence:
-            continue
-        literal_values = [
-            str(v) for section in ("given", "when", "expect")
-            for v in (acceptance_test.get(section) or {}).values()
-        ]
-        missing = [v for v in literal_values if v and str(v) not in test_source]
-        if missing:
-            evidence[req_id].append(
-                f"self-grading guardrail: the generated test for scenario "
-                f"{acceptance_test.get('scenario')!r} doesn't reference the plan's own literal "
-                f"value(s) {missing} — norm-engineer may have loosened or reinterpreted the spec "
-                f"rather than asserting it literally"
-            )
 
     evidence_dir = ROOT / "state" / "norm_evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -1892,35 +1860,40 @@ def run_norm_architect_with_retry(round_number):
     return run_norm_architect(round_number)
 
 
-def run_norm_engineer_with_retry(round_number, extra_message=None):
+def run_norm_engineer_with_retry(round_number, extra_message=None, session_id=None):
     """Retries run_norm_engineer() itself, up to
     MAX_ENGINEER_PROCESS_ATTEMPTS times, on a process-level failure —
     this is not a finding about the code, so it must not be confused with
     or consume a MAX_NORM_REPAIR_ATTEMPTS repair attempt. Returns
-    True/False — same success contract as run_norm_engineer() itself.
+    (success, session_id) — session_id is whatever this call's own last
+    attempt actually used/discovered, for the caller to thread into its
+    NEXT call (see implement_and_evaluate_norm(), which now does exactly
+    that across a round's whole repair loop, not just within one call
+    here — 2026-09-24, by request).
 
-    Attempts are paired (1&2, 3&4, 5&6, ...), by request (2026-09-18):
-    the second attempt of a pair continues the first's own opencode
-    session (--session <id>) instead of starting fresh, so it doesn't
-    have to re-read every file the first attempt already read before
-    failing; the pair after that always starts fresh again, never
-    threading a session past 2 consecutive attempts. This is a narrow,
-    bounded reintroduction of the session-continuation idea tried
-    unbounded on 2026-09-15 and reverted on 2026-09-17 after a real round
-    showed a session that keeps growing across many consecutive calls can
-    eventually become too large for the model to even respond to at all,
-    burning the whole retry budget on calls that could never succeed.
-    Capping continuation to a single pair means the largest a session can
-    ever get here is 2 attempts' worth of history, then it's discarded —
-    the specific failure mode that made unbounded continuation dangerous
-    can't reproduce at that scale."""
-    session_id = None
+    session_id, when the caller passes one in, seeds attempt 1 so it
+    continues that existing opencode session instead of starting fresh.
+    Internally, once inside this function's own process-retry loop,
+    attempts are still paired (1&2, 3&4, ...), same as before
+    (2026-09-18): the second attempt of a pair continues the first's own
+    discovered session, then the pair after that starts fresh again,
+    never threading a session past 2 consecutive PROCESS-level retries
+    within one call — this is what actually protects against the
+    unbounded-growth failure mode (tried unbounded 2026-09-15, reverted
+    2026-09-17: a session that keeps growing across many consecutive
+    calls can eventually become too large for the model to even respond
+    to at all). A session that arrives here from the outer repair loop is
+    real work product, not a runaway chain of process failures — but if
+    IT starts failing at the process level too, this function's own
+    pairing cap still kicks in and drops it after 2 tries, so a session
+    that's become too large to use can't silently consume the entire
+    process-retry budget either."""
     for attempt in range(1, MAX_ENGINEER_PROCESS_ATTEMPTS + 1):
         success, session_id = run_norm_engineer(
             round_number, extra_message=extra_message, session_id=session_id
         )
         if success:
-            return True
+            return True, session_id
         print(f"Round {round_number}: norm-engineer's own process failed, timed out, or was "
               f"truncated mid-task (attempt {attempt}/{MAX_ENGINEER_PROCESS_ATTEMPTS}) — "
               f"retrying the process itself, not spending a repair attempt on it.")
@@ -1933,17 +1906,19 @@ def run_norm_engineer_with_retry(round_number, extra_message=None):
         # chain further.
         if attempt % 2 == 0:
             session_id = None
-    return False
+    return False, session_id
 
 
 def norm_implementation_failing_tests_errors(round_number):
-    """Self-Correction Gate: runs norm-architect's pre-written suite for
-    this round and returns a stack-trace-bearing error on failure. Pure
-    Python, no LLM call — feeds the EXISTING MAX_NORM_REPAIR_ATTEMPTS loop
-    (via the same compile_errors list every other check already populates)
-    rather than a new parallel loop, so a failing test gets fed straight
-    back to norm-engineer as a repair message exactly like a compile
-    error would.
+    """Self-Correction Gate: runs this round's test suite — norm-engineer's
+    own tests (2026-09-24: norm-architect no longer proposes tests or
+    scenarios at all; norm-engineer decides what each requirement needs
+    tested, from its agent_experience block, and writes real pytest for
+    it) — and returns a stack-trace-bearing error on failure. Pure Python,
+    no LLM call — feeds the EXISTING MAX_NORM_REPAIR_ATTEMPTS loop (via the
+    same compile_errors list every other check already populates) rather
+    than a new parallel loop, so a failing test gets fed straight back to
+    norm-engineer as a repair message exactly like a compile error would.
 
     Returns [] if the round's test directory doesn't exist — that's
     norm-architect's own failure, already caught upstream by
@@ -1960,35 +1935,96 @@ def norm_implementation_failing_tests_errors(round_number):
         return []
     detail = (result.stdout.strip() + "\n" + result.stderr.strip()).strip()
     return [
-        f"tests/norm_checks/round_{round_number}/ (norm-architect's pre-written suite) is "
-        f"still failing:\n{detail}"
+        f"tests/norm_checks/round_{round_number}/ (your own test suite) is still failing:\n"
+        f"{detail}"
     ]
 
 
+def _render_engineer_repair_preamble(round_number, attempt, what_was_found):
+    """Shared preamble for both repair-message shapes below (a
+    compile/validation error, an auditor NEEDS_REPAIR finding) — added
+    2026-09-24, by request, alongside session continuation across a
+    round's whole repair loop (see implement_and_evaluate_norm()'s own
+    docstring). Three things a bare error dump didn't previously say:
+    which attempt this is, that norm-engineer now has its own memory of
+    what it already tried (so it should notice a repeated wrong guess
+    instead of making it again), and that the check which caught this
+    only reports the FIRST category of problem it finds — there may be
+    another one hiding behind it, so fixing exactly the named error and
+    stopping there isn't enough; a real round (round 3,
+    sim/run-20260924-005713) needed 11 attempts partly because each fix
+    only ever addressed the one thing just reported, never checked
+    whether the same mistake was repeated elsewhere in the same round's
+    own new files."""
+    return (
+        f"This is repair attempt {attempt} of {MAX_NORM_REPAIR_ATTEMPTS} for round "
+        f"{round_number}. You're continuing your own session from your previous attempt(s) "
+        f"on this round, so you have your own memory of what you already tried — before "
+        f"repeating a fix, check whether you already tried something similar and it didn't "
+        f"work; if so, figure out why it didn't actually take effect (a wrong guess at a "
+        f"path/name/signature, an edit that didn't get saved, a check that runs before your "
+        f"change takes effect) rather than reapplying the same fix.\n\n"
+        f"{what_was_found}\n\n"
+        f"The check that caught this only reports the FIRST category of problem it finds, in "
+        f"a fixed order (compile/syntax, then institution/rule registration, then runtime "
+        f"resolution, then your own test suite) — there may be a further problem not yet "
+        f"visible here, hidden behind this one. Fix exactly what's named above, then "
+        f"proactively re-check every OTHER file you touched this round for the same class of "
+        f"mistake (e.g. if this was a wrong import path or a missing field, grep every other "
+        f"new file you wrote for the same pattern and confirm it's correct there too, not "
+        f"just in the one file that got caught) — self-test and self-repair anything else you "
+        f"find now, don't wait for it to be reported back to you separately next attempt."
+    )
+
+
 def implement_and_evaluate_norm(round_number, winning_proposal):
-    """The per-round pipeline: design (norm-architect, writes failing
-    tests + a requirements checklist) -> implement (norm-engineer, against
-    that checklist and those tests) -> compile/runtime/self-correction
-    checks (with a bounded repair retry) -> independent audit ->
-    repair-or-stage. The main loop exists because a compile error, a
-    failing pre-written test, or an auditor NEEDS_REPAIR finding can all
-    send norm-engineer back for another attempt, sharing one
-    MAX_NORM_REPAIR_ATTEMPTS budget. Returns True iff norm-engineer's
+    """The per-round pipeline: design (norm-architect, semantic
+    compilation only — a norm_plan.json of classified requirements, each
+    with an agent_experience block, validated by the deterministic Harness
+    Validator) -> implement (norm-engineer, which decides what to test
+    from each requirement's agent_experience, writes real pytest for it,
+    then implements against it) -> compile/runtime/self-correction checks
+    (with a bounded repair retry) -> evidence gathering -> independent
+    audit -> repair-or-stage. The main loop exists because a compile
+    error, a failing test, or an auditor NEEDS_REPAIR finding can all send
+    norm-engineer back for
+    another attempt, sharing one MAX_NORM_REPAIR_ATTEMPTS budget. Returns
+    True iff norm-engineer's
     changes were staged (ready for commit_round()'s own single per-round
     commit); False means either a discard already happened, or the round
     was COMPLIANT but made no changes to stage.
 
-    Every call to any of the three agents starts a brand-new opencode
-    session — no `--session` continuation across a process retry, a
-    compile-error repair, or an auditor NEEDS_REPAIR repair. Session
-    continuation was tried here (2026-09-15) and reverted the same month:
-    a real round's session grew across ~15 continued calls over ~6 hours
-    until it became too large for the model to even begin responding to
-    within opencode's own internal provider-header timeout, exhausting the
-    entire process-retry budget on calls that could never have succeeded.
-    A fresh session every call costs some redundant re-reading of files a
-    prior attempt already read, but that cost is bounded and known, unlike
-    unbounded context growth."""
+    norm-architect and norm-auditor are always fresh completion calls (they
+    were never opencode sessions in the first place — see their own
+    docstrings). norm-engineer's opencode session, though, IS now
+    continued across every repair attempt within one round (2026-09-24, by
+    request) — session_id, discovered from whichever call actually
+    succeeded, is threaded from the kickoff call into every subsequent
+    compile-error repair and every auditor NEEDS_REPAIR repair below, so
+    norm-engineer keeps its own memory of what it already tried on THIS
+    round rather than rediagnosing from scratch every time. This directly
+    targets a real, confirmed failure mode: a real round (round 3,
+    sim/run-20260924-005713) needed 11 fresh, memoryless attempts to
+    converge, and two of them failed on the exact same broken import in
+    the exact same file — the model guessed a plausible-but-wrong module
+    path twice in a row, independently, because the second attempt had no
+    memory that the first attempt already tried and failed with a
+    different wrong guess.
+
+    This reintroduces a version of the exact thing tried unbounded on
+    2026-09-15 and reverted on 2026-09-17, after a real round's session
+    grew across ~15 continued calls over ~6 hours until it became too
+    large for the model to even begin responding to within opencode's own
+    internal provider-header timeout, exhausting the entire process-retry
+    budget on calls that could never have succeeded. The risk is real and
+    not eliminated here, only bounded and given a safety valve:
+    MAX_NORM_REPAIR_ATTEMPTS (10) caps how many times this loop can
+    possibly continue the session at all, and run_norm_engineer_with_retry()'s
+    own internal process-retry pairing (unchanged, 2026-09-18) still drops
+    a session that starts failing at the process level after 2 consecutive
+    failures on it, so a session that has genuinely become too large to
+    use can't silently consume the round's entire repair budget the way
+    the unbounded version once did."""
     architect_ok, norm_plan = run_norm_architect_with_retry(round_number)
     if not architect_ok:
         discard_norm_implementation(
@@ -1998,7 +2034,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         )
         return False
 
-    success = run_norm_engineer_with_retry(
+    success, session_id = run_norm_engineer_with_retry(
         round_number, extra_message=render_engineer_kickoff(norm_plan, round_number),
     )
     if not success:
@@ -2026,8 +2062,9 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         if not compile_errors:
             compile_errors += norm_implementation_no_code_changes_errors()
         if not compile_errors:
-            # Self-Correction Gate: norm-architect's pre-written suite must
-            # actually pass before an LLM-driven audit is even attempted —
+            # Self-Correction Gate: norm-engineer's own translated
+            # acceptance-test suite must actually pass before an
+            # LLM-driven audit is even attempted —
             # cheaper and more specific feedback than a full norm-auditor
             # round-trip for a failure this mechanical check already found.
             compile_errors += norm_implementation_failing_tests_errors(round_number)
@@ -2043,17 +2080,22 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                   f"errors — sending back for repair (attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}), "
                   f"instead of discarding on the first occurrence.")
             repair_message = (
-                f"Round {round_number}'s implementation has compile/validation errors that must "
-                f"be fixed before it can even be audited:\n\n{chr(10).join(compile_errors)}\n\n"
-                "Fix exactly these errors, then re-run your own verification step "
-                "(python3 -m py_compile on every file you touched, plus pytest tests/regression/ "
-                f"and tests/norm_checks/round_{round_number}/) yourself before finishing — don't "
-                "rely on this message alone to catch the next issue. Don't change anything else "
-                "about your implementation beyond what's needed to fix these specific errors. "
-                "End your response with the fenced ```json report block your instructions "
-                "describe."
+                _render_engineer_repair_preamble(
+                    round_number, attempt,
+                    f"Round {round_number}'s implementation has compile/validation errors that "
+                    f"must be fixed before it can even be audited:\n\n{chr(10).join(compile_errors)}",
+                )
+                + "\n\nDon't change anything else about your implementation beyond what's needed "
+                "to fix these specific errors and anything else you find via the self-check "
+                "above. Re-run your own verification step (python3 -m py_compile on every file "
+                "you touched, plus pytest tests/regression/ and "
+                f"tests/norm_checks/round_{round_number}/) yourself before finishing — don't "
+                "rely on this message alone to catch the next issue. End your response with the "
+                "fenced ```json report block your instructions describe."
             )
-            success = run_norm_engineer_with_retry(round_number, extra_message=repair_message)
+            success, session_id = run_norm_engineer_with_retry(
+                round_number, extra_message=repair_message, session_id=session_id,
+            )
             if not success:
                 discard_norm_implementation(
                     round_number,
@@ -2096,19 +2138,24 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         print(f"\nRound {round_number}: norm-auditor returned NEEDS_REPAIR — sending back to "
               f"norm-engineer (repair attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}).")
         repair_message = (
-            f"Round {round_number}'s auditor found problems — read its full report below "
-            "carefully and fix exactly what it identifies. If it's a code/implementation "
-            "problem (including an under-enforced requirement — a weaker mechanism than the "
-            "norm's own text demands), fix the implementation. If it's a genuine gap in the "
-            f"specification (an ambiguity the auditor's own tests exposed), redo that "
-            f"requirement's clarification in state/norm_specs/round_{round_number}.md (ask a "
-            "sharper question than last time), then adjust the implementation for whatever the "
-            "resolution changes. Follow your standing instructions for handling a repair "
-            "re-invocation. End your response with the fenced ```json report block your "
-            "instructions describe.\n\n"
-            f"--- Auditor's report ---\n{audit['text']}\n--- end of report ---"
+            _render_engineer_repair_preamble(
+                round_number, attempt,
+                f"Round {round_number}'s auditor found problems — read its full report below "
+                f"carefully and fix exactly what it identifies:\n\n"
+                f"--- Auditor's report ---\n{audit['text']}\n--- end of report ---",
+            )
+            + "\n\nIf it's a code/implementation problem (including an under-enforced "
+            "requirement — a weaker mechanism than the norm's own text demands), fix the "
+            "implementation. If it's a genuine gap in the specification (an ambiguity the "
+            f"auditor's own tests exposed), redo that requirement's clarification in "
+            f"state/norm_specs/round_{round_number}.md (ask a sharper question than last "
+            "time), then adjust the implementation for whatever the resolution changes. "
+            "Follow your standing instructions for handling a repair re-invocation. End your "
+            "response with the fenced ```json report block your instructions describe."
         )
-        success = run_norm_engineer_with_retry(round_number, extra_message=repair_message)
+        success, session_id = run_norm_engineer_with_retry(
+            round_number, extra_message=repair_message, session_id=session_id,
+        )
         if not success:
             discard_norm_implementation(
                 round_number,

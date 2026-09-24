@@ -10,9 +10,25 @@ def test_succeeds_on_first_attempt_no_sleep_no_extra_calls(monkeypatch):
     )
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
 
-    assert simulate_module.run_norm_engineer_with_retry(1) is True
+    assert simulate_module.run_norm_engineer_with_retry(1) == (True, "ses_1")
     assert calls == ["run"]
     assert sleeps == []
+
+
+def test_an_incoming_session_id_seeds_attempt_1(monkeypatch):
+    """2026-09-24, by request: the outer repair loop in
+    implement_and_evaluate_norm() now threads a session_id across a
+    round's whole repair loop, not just within one call here — this
+    function must actually pass a caller-supplied session_id through to
+    its first attempt rather than always starting at None."""
+    seen = []
+    monkeypatch.setattr(
+        simulate_module, "run_norm_engineer",
+        lambda round_number, extra_message=None, session_id=None: (seen.append(session_id) or (True, session_id)),
+    )
+
+    assert simulate_module.run_norm_engineer_with_retry(1, session_id="ses_prior_repair") == (True, "ses_prior_repair")
+    assert seen == ["ses_prior_repair"]
 
 
 def test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt(monkeypatch):
@@ -26,7 +42,7 @@ def test_retries_up_to_the_full_budget_with_a_delay_between_each_attempt(monkeyp
     monkeypatch.setattr(simulate_module, "run_norm_engineer", _fake_run)
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
 
-    assert simulate_module.run_norm_engineer_with_retry(1) is True
+    assert simulate_module.run_norm_engineer_with_retry(1) == (True, "ses_1")
     assert attempts["n"] == simulate_module.MAX_ENGINEER_PROCESS_ATTEMPTS
     # One sleep between each pair of attempts, never after the final
     # (successful) one.
@@ -44,7 +60,8 @@ def test_returns_false_after_exhausting_every_attempt(monkeypatch):
     monkeypatch.setattr(simulate_module, "run_norm_engineer", _always_fails)
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: sleeps.append(s))
 
-    assert simulate_module.run_norm_engineer_with_retry(1) is False
+    success, _ = simulate_module.run_norm_engineer_with_retry(1)
+    assert success is False
     assert attempts["n"] == simulate_module.MAX_ENGINEER_PROCESS_ATTEMPTS
     assert len(sleeps) == simulate_module.MAX_ENGINEER_PROCESS_ATTEMPTS - 1
 
@@ -77,7 +94,8 @@ def test_attempts_are_paired_1_2_then_3_4_then_5_alone(monkeypatch):
     monkeypatch.setattr(simulate_module, "run_norm_engineer", _fake_run)
     monkeypatch.setattr(simulate_module.time, "sleep", lambda s: None)
 
-    assert simulate_module.run_norm_engineer_with_retry(1) is False
+    success, _ = simulate_module.run_norm_engineer_with_retry(1)
+    assert success is False
     assert seen_session_ids == [
         None,             # attempt 1: fresh start
         "ses_pair_0",     # attempt 2: continues attempt 1's discovered session

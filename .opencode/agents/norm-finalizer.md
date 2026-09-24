@@ -1,5 +1,5 @@
 ---
-description: Given a completed norm-engineer round's payload (round number, norm-architect's full plan forwarded verbatim — requirements classified as ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE plus acceptance tests — and norm-engineer's own requirement_evidence claims, keyed by requirement id), independently verifies every claim actually holds up, registers any new action/role/rule_type/object_type in state/institution.json, and writes state/norm_specs/round_{N}.md in the required format. Dispatched by norm-engineer itself via the task tool once implementation is done — never invoked directly by the orchestrator.
+description: Given a completed norm-engineer round's payload (round number, norm-architect's full plan forwarded verbatim — requirements classified as ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE with an agent_experience block each, no acceptance tests (norm-engineer decides those itself) — and norm-engineer's own requirement_evidence claims, keyed by requirement id), independently verifies every claim actually holds up, registers any new action/role/rule_type/object_type in state/institution.json, and writes state/norm_specs/round_{N}.md in the required format. Dispatched by norm-engineer itself via the task tool once implementation is done — never invoked directly by the orchestrator.
 mode: subagent
 # v2 permissions: an ordered array of {action, resource, effect} — the
 # LAST matching rule wins (see https://opencode.ai/v2/docs/permissions/).
@@ -47,8 +47,9 @@ The parent's task prompt to you contains, verbatim:
 
 - The round number.
 - `norm-architect`'s full plan — every requirement (`id`, `type`,
-  `description`, `agent_experience`, and its other type-specific fields)
-  and every `acceptance_tests` entry.
+  `description`, `agent_experience`, and its other type-specific fields).
+  The plan itself proposes no test scenarios — `norm-engineer` decided
+  those and wrote the tests itself.
 - `norm-engineer`'s own `requirement_evidence` — an object keyed by
   requirement `id`, each value a short list of concrete claims about what
   it actually built ("registered role harbour_master in
@@ -69,11 +70,13 @@ For every requirement in the plan, using its `id`'s own
 - Confirm each claimed file/registration actually exists on disk or in
   `state/institution.json`/`state/config.json`, exactly as claimed —
   `grep`/`read` it yourself, never take the wording on faith.
-- Confirm that requirement's own `acceptance_tests` entries (from the
-  plan) have a matching `test_{id}_{scenario}` function in
-  `tests/norm_checks/round_{N}/test_round_{N}.py`, and that it actually
-  passes — run it (`pytest tests/norm_checks/round_{N}/ -k
-  "test_{id}_"`), don't assume it from the name alone.
+- For a `ROLE`/`ACTION`/`RULE`/`VISIBILITY` requirement, confirm at least
+  one `test_{id}_{scenario}` function exists in
+  `tests/norm_checks/round_{N}/test_round_{N}.py` and actually passes —
+  run it (`pytest tests/norm_checks/round_{N}/ -k "test_{id}_"`), don't
+  assume it from the name alone. `norm-engineer` chose the scenarios
+  itself; if none exist for a requirement that plainly needed one, that's
+  a verification failure, not something to let slide.
 - For a requirement claiming `NOT_IMPLEMENTED_THIS_ROUND`, confirm the
   claim carries a `reason` — never accept a bare "deferred."
 

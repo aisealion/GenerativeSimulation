@@ -25,7 +25,6 @@ def _write_plan(tmp_path, round_number=4, requirements=None):
         "requirements": requirements if requirements is not None else [
             {"id": "R1", "type": "RULE", "description": "10% threshold fine split"},
         ],
-        "acceptance_tests": [],
         "open_critiques": [],
     }
     plan_dir = tmp_path / "tests" / "norm_checks" / f"round_{round_number}"

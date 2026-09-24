@@ -596,11 +596,25 @@ ARCHITECT_CALL_DELAY_S = float(os.environ.get("LLM_CALL_DELAY_S", "2"))
 # correct — it has no tools — so asking it to name one was asking it to
 # guess at exactly the thing it's least equipped to get right. It now
 # classifies each requirement into one of institution.md's own concepts
-# (ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE) and writes
-# acceptance-test SPECIFICATIONS (given/when/expect), not Python —
-# norm-engineer (which has real repo access and understands
-# ActionContext/fixtures) owns both "which file" and "how to test it in
-# real pytest" now. See render_engineer_kickoff() in engine/simulate.py.
+# (ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE) with an agent_experience
+# block — norm-engineer (which has real repo access and understands
+# ActionContext/fixtures) owns "which file", "how to test it", and
+# "what to test" now. See render_engineer_kickoff() in engine/simulate.py.
+#
+# 2026-09-24 (same day, second change): norm-architect originally still
+# wrote acceptance-test SPECIFICATIONS (given/when/expect) here, with a
+# Harness Validator requiring at least one per ROLE/ACTION/RULE/VISIBILITY
+# requirement. A real run showed this discarding whole rounds before
+# norm-engineer ever started: DeepSeek-R1 reliably decomposes a norm into
+# a dozen-plus requirements but doesn't reliably write a matching test for
+# every one, even on the validator's one bounded second pass (one round's
+# second pass left the exact same number of gaps as the first, just a
+# different subset — no real convergence). Rather than loosen the
+# validator, acceptance tests were dropped from norm-architect's job
+# entirely — it was always norm-engineer doing the real test-writing
+# anyway (translating a spec it couldn't itself verify); now it also picks
+# the scenarios, using the requirement's own agent_experience block as the
+# guide to what actually needs verifying.
 NORM_ARCHITECT_SYSTEM_PROMPT = """You are the Norm Architect for a multi-agent fishery simulation. Each
 round you are given norm.txt (a Policy statement plus the community's
 Operationalization of it) and a fixed bundle of reference material. Your
@@ -678,17 +692,16 @@ vague "what did you mean." You'll be given the proposer's answer in a
 follow-up message and asked to finalize your plan using it. Never ask for
 approval or code — only what the rule means.
 
-## Write acceptance-test SPECIFICATIONS, not code
+## You do not write tests
 
-For every ROLE/ACTION/RULE/VISIBILITY requirement, write however many
-given/when/expect scenarios it actually needs to pin down — never just
-one: at minimum the compliant path, the non-compliant/penalty path
-wherever the requirement implies a violation, and boundary cases the
-norm's own numbers imply (exactly at a threshold, just under it, just
-over it). Each scenario names the requirement it belongs to, a short
-scenario id, and plain given/when/expect facts — never a fixture, an
-import, a class name, or any other Python detail; norm-engineer turns
-these into real tests against the actual code.
+Deciding what to test, and writing the tests themselves, is
+norm-engineer's job — it has the repository, the fixtures, and the actual
+code to test against; you have none of that. Your `agent_experience`
+block is what tells it *what actually needs verifying* (a fact a fisher
+now knows, a choice they now face, an action newly permitted or
+forbidden) — write that block carefully and completely and norm-engineer
+has what it needs. Do not include acceptance tests, scenarios, or
+anything given/when/expect-shaped in your output.
 
 ## Output format — exactly one fenced ```json block, the last thing in your response
 
@@ -727,12 +740,6 @@ these into real tests against the actual code.
       "id": "R6", "type": "LIFECYCLE", "description": "...",
       "duration_rounds": 5, "clarity": "CLEAR",
       "clarity_critique": null, "clarity_resolution": null
-    }
-  ],
-  "acceptance_tests": [
-    {
-      "requirement": "R2", "scenario": "compliant_decision",
-      "given": {"...": "..."}, "when": {"...": "..."}, "expect": {"...": "..."}
     }
   ],
   "open_critiques": [
@@ -789,8 +796,10 @@ def _build_norm_architect_prompt(round_number, norm_text, context_bundle, resolu
 def call_norm_architect_agent(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
     """Returns the raw response text on success, or None after exhausting
     MAX_ARCHITECT_ATTEMPTS — the caller (engine.simulate) is responsible
-    for extracting the ```json plan (requirements + acceptance_tests) from
-    that text; this function only owns the completion call itself,
+    for extracting the ```json plan (requirements only — 2026-09-24:
+    norm-architect no longer proposes acceptance tests at all;
+    norm-engineer decides scenarios and writes tests itself) from that
+    text; this function only owns the completion call itself,
     matching call_fisher_agent/call_critique_agent's own division of
     labor. `resolutions`, when given, is a list of {"critique_question",
     "answer"} dicts from a previous pass's open_critiques; `validator_errors`
@@ -868,18 +877,26 @@ AUDITOR_CALL_DELAY_S = float(os.environ.get("LLM_CALL_DELAY_S", "2"))
 # reworked again (2026-09-24, by request) to instead read the norm text
 # against norm-architect's institutional PLAN plus a structured, harness-
 # assembled EVIDENCE package (per-requirement: what norm-finalizer
-# independently verified was built, and each acceptance test's own
-# PASS/FAIL) — "does this evidence demonstrate the norm was actually
-# instantiated?" is a sharper, more tractable question than "does this
-# diff look right?", and matches how a human regulatory auditor actually
-# works: against a compliance checklist and verified evidence, not a raw
-# code review. See _gather_norm_evidence() in engine/simulate.py for how
-# that evidence gets assembled. The under-enforcement framing and worked
-# examples below are unchanged — that's still the exact failure class
-# this whole redesign exists to catch (a norm-engineer that wrote
+# independently verified was built, and each test norm-engineer itself
+# wrote's own PASS/FAIL) — "does this evidence demonstrate the norm was
+# actually instantiated?" is a sharper, more tractable question than "does
+# this diff look right?", and matches how a human regulatory auditor
+# actually works: against a compliance checklist and verified evidence,
+# not a raw code review. See _gather_norm_evidence() in engine/simulate.py
+# for how that evidence gets assembled. The under-enforcement framing and
+# worked examples below are unchanged — that's still the exact failure
+# class this whole redesign exists to catch (a norm-engineer that wrote
 # syntactically fine code and even passing tests that are themselves
 # quietly wrong — e.g. flipping a >10%-over-quota / else-$1,000 threshold
-# into a flat $5,000 fine).
+# into a flat $5,000 fine). Note (2026-09-24, same day): norm-architect no
+# longer proposes acceptance-test scenarios at all — norm-engineer decides
+# them itself — so the plan carries no given/when/expect values for the
+# evidence's own self-grading guardrail to check literal references
+# against; that guardrail was removed from _gather_norm_evidence() for the
+# same reason. The auditor's job is unchanged either way: it never had a
+# way to verify the plan's own correctness against reality regardless,
+# only to judge whether evidence + plan + norm text are mutually
+# consistent.
 NORM_AUDITOR_SYSTEM_PROMPT = """You are a strict Software Regulatory Compliance Auditor for a multi-agent
 fishery simulation. Your job is to cross-reference three things: the
 original fishery norm document, the institutional plan a reasoning model
@@ -900,29 +917,26 @@ mistranscribed; don't treat the plan as a substitute for reading the
 norm.
 
 The single most important failure class to hunt for is UNDER-ENFORCEMENT
-— a requirement whose evidence shows a passing acceptance test, or a
-registered mechanism, but which implements the norm's own text more
-weakly or crudely than it demands. Two concrete examples of exactly this:
+— a requirement whose evidence shows a passing test, or a registered
+mechanism, but which implements the norm's own text more weakly or
+crudely than it demands. Two concrete examples of exactly this:
 - The norm requires a 48-hour cooldown period for a violation; the
-  evidence shows a rule registered and an acceptance test passing, but
-  the test (and the plan's own given/when/expect) only ever checks a
-  boolean flag (`has_violated: true`) with no timestamp or duration
-  anywhere — the actual 48-hour requirement is completely unenforced,
-  even though "a test passes" and "a rule is registered" both look fine
-  in isolation.
+  evidence shows a rule registered and a test passing, but the evidence's
+  own description of what that test checks is only a boolean flag
+  (`has_violated: true`) with no timestamp or duration anywhere — the
+  actual 48-hour requirement is completely unenforced, even though "a
+  test passes" and "a rule is registered" both look fine in isolation.
 - The norm says "fine a boat $5,000 if it exceeds its monthly quota by
   more than 10%, or $1,000 if it exceeds it by 10% or less"; the evidence
-  shows a passing test, but that test (or the plan's own acceptance-test
-  spec) only ever exercises one branch, or asserts a flat fine regardless
-  of the actual overage percentage.
+  shows a passing test, but nothing in the evidence indicates more than
+  one branch was ever exercised, or the requirement's own description
+  suggests a flat fine regardless of the actual overage percentage.
 Look specifically for a norm clause containing a duration, a threshold, a
 rate, a count, or a conditional (if/else) split, and check whether the
-plan's own acceptance tests (and their evidence) actually probe that
-distinction — not just whether *a* consequence fires. A missing or
-failed acceptance test for a requirement, or a "self-grading guardrail"
-note in the evidence (the generated test not referencing the plan's own
-literal given/expect values), is a real finding, not something to wave
-through.
+evidence actually probes that distinction — not just whether *a*
+consequence fires. A requirement with no test evidence at all, or a
+`VERIFICATION_FAILED` note from norm-finalizer, is a real finding, not
+something to wave through.
 
 ## Output format
 

@@ -1,16 +1,22 @@
 """norm-architect reworked from a rich, implementation-flavored requirement
 table + a raw Python test file into pure semantic compilation (2026-09-24,
 by request): it classifies each requirement into ROLE/ACTION/OBJECT/RULE/
-VISIBILITY/LIFECYCLE with an explicit agent_experience block, and writes
-acceptance-test SPECIFICATIONS (given/when/expect), never Python — it has
-no tools and no way to verify a file path or Python shape is correct, so
+VISIBILITY/LIFECYCLE with an explicit agent_experience block — it has no
+tools and no way to verify a file path or Python shape is correct, so
 asking it to name one was asking it to guess at exactly the thing it's
-least equipped to get right. norm-engineer (real repo access) now owns
-translating those specs into runnable pytest as its own first step.
+least equipped to get right.
 
-These tests replace the old python+json fixture pair with the new single
-```json plan (requirements + acceptance_tests + open_critiques), and add
-coverage for the new deterministic Harness Validator
+2026-09-24 (same day, second change): norm-architect originally also
+wrote acceptance-test SPECIFICATIONS (given/when/expect) for norm-engineer
+to translate, with the Harness Validator requiring at least one per
+ROLE/ACTION/RULE/VISIBILITY requirement. Dropped after a real run showed
+this discarding whole rounds before norm-engineer ever started —
+DeepSeek-R1 didn't reliably converge on covering every flagged gap even
+across the validator's one bounded retry pass. norm-engineer now decides
+scenarios itself from each requirement's agent_experience block and
+writes the pytest — norm-architect's plan carries requirements only.
+
+These tests cover the new deterministic Harness Validator
 (validate_norm_plan()) — which folds into the same second, finalizing
 pass already used for critique resolution, rather than a separate retry
 loop."""
@@ -24,7 +30,7 @@ def _requirement(req_id="R1", req_type="ROLE", **overrides):
         "id": req_id, "type": req_type, "description": f"{req_id} description",
         "clarity": "CLEAR", "clarity_critique": None, "clarity_resolution": None,
     }
-    if req_type in simulate_module.NORM_PLAN_TYPES_REQUIRING_TESTS:
+    if req_type in ("ROLE", "ACTION", "RULE", "VISIBILITY"):
         req["agent_experience"] = {
             "knows": ["a fact"], "decides": [], "may_do": [], "may_not_do": [],
             "remembers": [], "observes": [],
@@ -33,21 +39,11 @@ def _requirement(req_id="R1", req_type="ROLE", **overrides):
     return req
 
 
-def _acceptance_test(req_id="R1", scenario="s1"):
-    return {"requirement": req_id, "scenario": scenario, "given": {"x": 1}, "when": {"y": 2}, "expect": {"z": 3}}
-
-
-def _valid_plan(requirements=None, acceptance_tests=None, open_critiques=None):
+def _valid_plan(requirements=None, open_critiques=None):
     if requirements is None:
         requirements = [_requirement()]
-    if acceptance_tests is None:
-        acceptance_tests = [
-            _acceptance_test(r["id"]) for r in requirements
-            if r["type"] in simulate_module.NORM_PLAN_TYPES_REQUIRING_TESTS
-        ]
     return {
         "requirements": requirements,
-        "acceptance_tests": acceptance_tests,
         "open_critiques": open_critiques or [],
     }
 
@@ -191,11 +187,7 @@ def test_harness_validator_triggers_a_second_pass_and_fixes_are_applied(tmp_path
         "clarity": "CLEAR", "clarity_critique": None, "clarity_resolution": None,
         # agent_experience deliberately omitted
     }
-    draft_plan = {
-        "requirements": [broken_requirement],
-        "acceptance_tests": [_acceptance_test("R2")],
-        "open_critiques": [],
-    }
+    draft_plan = {"requirements": [broken_requirement], "open_critiques": []}
     fixed_plan = _valid_plan(requirements=[_requirement("R2", "ACTION")])
     pass_count = {"n": 0}
 
@@ -220,7 +212,7 @@ def test_returns_false_when_plan_is_still_invalid_after_the_finalizing_pass(tmp_
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
 
-    always_broken = {"requirements": [{"id": "R1", "type": "NOT_A_REAL_TYPE"}], "acceptance_tests": [], "open_critiques": []}
+    always_broken = {"requirements": [{"id": "R1", "type": "NOT_A_REAL_TYPE"}], "open_critiques": []}
     monkeypatch.setattr(
         simulate_module, "call_norm_architect_agent",
         lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: _response(always_broken),
