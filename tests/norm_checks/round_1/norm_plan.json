@@ -1,0 +1,106 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "A rotating pot keeper among fishers who records contributions.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": false,
+      "agent_experience": {
+        "knows": [
+          "They are responsible for recording contributions."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Their duty to record until rotation."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ACTION",
+      "description": "Fisher weighs their haul.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Must weigh accurately."
+        ],
+        "decides": [
+          "Accurate weighing of their catch."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "OBJECT",
+      "description": "Communal pot holding contributions.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "Calculate 5% of total weight, rounded to nearest 0.5 kg.",
+      "attached_to": "R2",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Contribute less than calculated amount."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "VISIBILITY",
+      "description": "Council can see total contributions and identify shortfalls.",
+      "target": "communal pot",
+      "audience": "council",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "Total contributions and shortfalls."
+        ]
+      }
+    },
+    {
+      "id": "R6",
+      "type": "LIFECYCLE",
+      "description": "Revocation period of 7 or 14 days.",
+      "duration_rounds": 7,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": []
+}

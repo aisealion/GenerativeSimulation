@@ -1,6 +1,37 @@
 {
-  "agent_count": 5,
-  "altruism_ratio": 0.5,
-  "history_window_rounds": 5,
-  "rules": {}
+  "rules": {
+    "calculate_contribution": {
+      "type": "contribution_calculation",
+      "params": {
+        "percentage": 0.05,
+        "rounding_interval": 0.5
+      },
+      "active": true
+    }
+  },
+  "actions": {
+    "harvest": {"spec": "state/actions/harvest.json", "protected": true},
+    "propose": {"spec": "state/actions/propose.json", "protected": true},
+    "critique": {"spec": "state/actions/critique.json", "protected": true},
+    "vote": {"spec": "state/actions/vote.json", "protected": true},
+    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+  },
+  "roles": {
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "rotating_pot_keeper": {"exclusive": true, "description": "A rotating pot keeper among fishers who records contributions", "introduced_round": 1}
+  },
+  "object_types": {
+    "communal_pot": {
+      "description": "Communal pot holding contributions",
+      "attributes": {
+        "total_contributions": 0.0,
+        "shortfalls": 0.0,
+        "recorded_contributions": []
+      }
+    }
+  },
+  "state": {
+    "fisher": ["effort", "harvested_kg", "payoff"],
+    "community": ["stock_kg"]
+  }
 }

@@ -9,10 +9,24 @@
     "discuss": {"spec": "state/actions/discuss.json", "protected": true}
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "rotating_pot_keeper": {"exclusive": true, "description": "A rotating pot keeper among fishers who records contributions", "introduced_round": 1}
   },
-  "rule_types": {},
-  "object_types": {},
+  "rule_types": {
+    "contribution_calculation": {
+      "description": "Calculate contribution as percentage of catch (rounded to nearest specified interval)"
+    }
+  },
+  "object_types": {
+    "communal_pot": {
+      "description": "Communal pot holding contributions",
+      "attributes": {
+        "total_contributions": 0.0,
+        "shortfalls": 0.0,
+        "recorded_contributions": []
+      }
+    }
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

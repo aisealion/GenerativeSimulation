@@ -1,1 +1,12 @@
-[]
+{
+  "communal_pot": {
+    "type": "communal_pot",
+    "description": "Communal pot holding contributions",
+    "persistent": true,
+    "attributes": {
+      "total_contributions": 0.0,
+      "shortfalls": 0.0,
+      "recorded_contributions": []
+    }
+  }
+}
