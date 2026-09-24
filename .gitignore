@@ -7,3 +7,4 @@ slurm-*.err
 .venv-fishery/
 .pytest_cache/
 CLAUDE.md
+.ua/
