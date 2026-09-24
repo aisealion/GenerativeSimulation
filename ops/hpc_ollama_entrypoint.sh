@@ -383,7 +383,7 @@ fi
 "$FISHERY_VENV/bin/pip" install --quiet --upgrade pip \
   litellm==1.97.0 pydantic==2.13.4 pydantic-core==2.46.4 \
   annotated-types==0.7.0 typing-extensions==4.15.0 typing-inspection==0.4.2 \
-  anyio==4.14.0 jiter==0.15.0 python-dotenv matplotlib
+  anyio==4.14.0 jiter==0.15.0 python-dotenv matplotlib pytest
 # matplotlib (added for engine/monitoring.py's live plots, 2026-08-26) is
 # unpinned, unlike everything above it — it doesn't have the fragile
 # cross-package resolution issue that pinning exists to work around here,
@@ -393,6 +393,16 @@ fi
 # every round at import time — but the whole point of this feature is
 # watching a long unattended HPC run's progress, so it shouldn't actually
 # be left out.
+#
+# pytest (added 2026-09-24) is NOT optional the way matplotlib is —
+# engine/simulate.py's own Self-Correction Gate shells out to
+# `sys.executable -m pytest` every norm-engineer repair attempt, mid-run,
+# not just for local dev testing. Missing here meant a from-scratch
+# .venv-fishery had no pytest at all, so every repair attempt failed
+# identically on "No module named pytest" no matter what norm-engineer
+# actually fixed — confirmed burning round 1's entire
+# MAX_NORM_REPAIR_ATTEMPTS budget the day .venv-fishery was deleted and
+# recreated by this script without it.
 
 # Reproduce the exact failure point from the 2026-08-19 incident
 # (ModelResponse() construction) right here, so a real break fails loudly

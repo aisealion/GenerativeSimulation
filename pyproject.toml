@@ -28,4 +28,14 @@ dependencies = [
     "python-dotenv",
     "graphiti-core",
     "matplotlib",
+    # Not just a dev/test convenience — engine/simulate.py's own
+    # Self-Correction Gate (norm_implementation_failing_tests_errors())
+    # shells out to `sys.executable -m pytest` every norm-engineer repair
+    # attempt, mid-run. Missing here meant a from-scratch .venv-fishery
+    # (ops/hpc_ollama_entrypoint.sh) never had it, so every attempt failed
+    # identically on "No module named pytest" regardless of code
+    # correctness — confirmed 2026-09-24 burning a full
+    # MAX_NORM_REPAIR_ATTEMPTS budget on round 1 after .venv-fishery was
+    # deleted and recreated.
+    "pytest",
 ]
