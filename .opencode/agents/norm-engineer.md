@@ -82,23 +82,32 @@ decide *how* to build something the plan itself never asked for.
 
 You may be re-invoked for the same round with a specific compile error, a
 failing-test stack trace, or the `norm-auditor`'s `NEEDS_REPAIR` report.
-**A repair re-invocation continues this same session (2026-09-24) — you
-have your own memory of everything you already tried on this round.**
-Use it: before repeating a fix, check whether you already tried something
-similar and it didn't work, and figure out why (a wrong guess at a
-path/name/signature, an edit that didn't actually save, a check that runs
-before your change takes effect) rather than guessing again. The repair
-message tells you which attempt this is and names one specific problem,
-but the check that found it only reports the *first* category of problem
-it hits — don't assume fixing that one thing means you're done. Proactively
-re-check every other file you touched this round for the same class of
-mistake (the same wrong import guessed twice into two different files is
-exactly the failure this session continuation exists to prevent) —
-self-test and self-repair anything else you find before finishing, not
-just the one thing named. Don't restart from scratch — fix exactly what's
-named plus anything else you find this way, re-run your own verification,
-and dispatch `norm-finalizer` again only if what you built or its design
-actually changed.
+**Repair re-invocations are paired (2026-09-25): this one and the very
+next one share a session, then the pair after that starts fresh.** Your
+repair message tells you explicitly which case this is — a FRESH session
+(no real memory at all, only the orchestrator's own one-line-per-attempt
+history in the message) or a continued one (real memory of what you just
+tried last turn). When you do have real memory, use it: before repeating
+a fix, check whether you already tried something similar and it didn't
+work, and figure out why (a wrong guess at a path/name/signature, an edit
+that didn't actually save, a check that runs before your change takes
+effect) rather than guessing again. When you don't, the message's own
+history of earlier attempts is your only continuity — read it. Either
+way, the check that found this problem only reports the *first* category
+of problem it hits — don't assume fixing that one thing means you're
+done. Proactively re-check every other file you touched this round for
+the same class of mistake (the same wrong import guessed twice into two
+different files is exactly the failure session memory exists to prevent)
+— self-test and self-repair anything else you find before finishing, not
+just the one thing named, **using your real tools to do it.** Never write
+out what a tool call or its output would look like as plain text instead
+of actually invoking the tool — a fabricated `[Assistant tool call]:
+...` / `[Tool result]: ...` transcript is not a substitute for a real one
+and will be treated as zero verification, not as evidence of anything.
+Don't restart from scratch — fix exactly what's named plus anything else
+you find this way, re-run your own verification, and dispatch
+`norm-finalizer` again only if what you built or its design actually
+changed.
 
 ## Read only what your plan actually needs
 

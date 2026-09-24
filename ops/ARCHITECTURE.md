@@ -319,8 +319,8 @@ sequenceDiagram
 
     Cycle->>Checks: compile / institution-drift / orphaned-rule /<br/>tests/norm_checks/round_N/ (Self-Correction Gate) / runtime checks
     alt a check fails
-        Checks-->>Eng: repair message — states which attempt this is,<br/>the specific error found, and asks Eng to check for<br/>and self-repair OTHER similar mistakes too
-        Note over Eng,Checks: loops back in the SAME opencode session (2026-09-24) —<br/>bounded by MAX_NORM_REPAIR_ATTEMPTS
+        Checks-->>Eng: repair message — states which attempt this is,<br/>whether THIS attempt has real session memory, the specific<br/>error found, and asks Eng to check for and self-repair<br/>OTHER similar mistakes too
+        Note over Eng,Checks: loops back — session PAIRED (2026-09-25): 1&amp;2 share,<br/>3&amp;4 share a new one, ... — bounded by MAX_NORM_REPAIR_ATTEMPTS
     else clean
         Cycle->>Evid: _gather_norm_evidence(round, plan)
         Note over Evid: per requirement id: finalizer's verified claims +<br/>each test's own PASS/FAIL (via --junit-xml)
@@ -330,7 +330,7 @@ sequenceDiagram
         Aud-->>Cycle: response text, ending with AUDIT_PASSED<br/>iff fully compliant, else a specific critique
         alt NEEDS_REPAIR
             Cycle->>Eng: repair message with the auditor's report<br/>(same attempt-number + self-repair framing as above)
-            Note over Eng,Aud: loops back in the SAME opencode session — same repair budget
+            Note over Eng,Aud: loops back — same session pairing, same repair budget
         else COMPLIANT
             Cycle->>Git: stage + commit this round's changes
         end
@@ -367,32 +367,50 @@ compliant, verified result within budget, the round's changes are
 discarded (`discard_norm_implementation()`) and the simulation continues
 under the previous mechanics.
 
-**norm-engineer's opencode session is now continued across a round's
-whole repair loop (2026-09-24, by request)** — every compile-error repair
-and every auditor NEEDS_REPAIR repair passes the previous call's
-discovered `session_id` back in, instead of starting fresh each time.
-This targets a confirmed real failure: round 3 of `sim/run-20260924-005713`
-needed 11 memoryless attempts to converge, and two of them failed on the
-exact same broken import in the exact same file — the model guessed a
-plausible-but-wrong module path twice independently, because the second
-attempt had no memory the first one already tried and failed with a
-*different* wrong guess. Each repair message now also states which
-attempt this is, quotes the specific error found, and explicitly asks
-norm-engineer to check for and self-repair the same class of mistake
-elsewhere in the round's own new files, not just the one instance a
-mechanical check happened to catch first.
+**norm-engineer's opencode session is continued in PAIRS across a round's
+repair loop (2026-09-25)** — repair attempt 1 & 2 share one session, 3 & 4
+share a new one, 5 & 6 a newer one still, and so on; never more than 2
+consecutive repair attempts in the same session. This landed in two
+steps. First (2026-09-24, by request), the session was continued across
+the round's *entire* repair loop, unbounded within
+`MAX_NORM_REPAIR_ATTEMPTS`. This targeted a confirmed real failure: round
+3 of `sim/run-20260924-005713` needed 11 memoryless attempts to converge,
+and two of them failed on the exact same broken import in the exact same
+file — the model guessed a plausible-but-wrong module path twice
+independently, because the second attempt had no memory the first one
+already tried and failed with a *different* wrong guess.
 
-This reintroduces a version of the exact thing tried unbounded on
-2026-09-15 and reverted on 2026-09-17, when a real round's session grew
-across ~15 continued calls over ~6 hours until it became too large for
-the model to even begin responding to within opencode's own internal
-provider-header timeout. That risk isn't eliminated, only bounded:
-`MAX_NORM_REPAIR_ATTEMPTS` (10) caps how many times a round can possibly
-continue the session at all, and `run_norm_engineer_with_retry()`'s own
-process-retry pairing (unchanged, 2026-09-18) still drops a session after
-2 consecutive process-level failures on it — so a session that's
-genuinely become too large to use self-heals into a fresh one rather than
-silently consuming the round's whole repair budget.
+Then (2026-09-25, by request), narrowed from the whole loop down to
+pairs, after round 1 of `sim/run-20260925-080825` showed the whole-loop
+version *degrading* partway through — not the unbounded-growth crash
+described below, but something subtler: attempts 0-3 did real,
+shrinking-but-genuine tool work; attempt 4 dropped to a single real tool
+call; attempts 5-10 made **zero** real tool calls and instead wrote
+fabricated `[Assistant tool call]: ...` / `[Tool result]: ...` text into
+their own response — a hallucinated verification, not a real one — while
+still self-reporting full success. Pairing at 2 keeps a session alive
+long enough to avoid repeating an already-failed guess (the original
+problem) while staying well under where this degradation actually
+started. A pair boundary (attempt 3, 5, 7, ...) starts genuinely fresh —
+no session memory at all — so each repair message's own `repair_history`
+(an orchestrator-recorded, one-line-per-attempt log, not the model's own
+claims) carries continuity across that boundary instead of session
+memory. Each repair message also states which attempt this is, whether
+*this specific* attempt has real session memory or not, quotes the
+specific error found, and explicitly asks norm-engineer to use its real
+tools and check for/self-repair the same class of mistake elsewhere in
+the round's own new files, not just the one instance a mechanical check
+happened to catch first.
+
+The original, whole-loop version reintroduced something close to what
+was tried unbounded on 2026-09-15 and reverted on 2026-09-17, when a real
+round's session grew across ~15 continued calls over ~6 hours until it
+became too large for the model to even begin responding to within
+opencode's own internal provider-header timeout. Pairing keeps that risk
+far smaller by construction (2 consecutive attempts, not up to 10), and
+`run_norm_engineer_with_retry()`'s own process-retry pairing (unchanged,
+2026-09-18) still drops a session after 2 consecutive process-level
+failures on it — a second, independent safety valve.
 
 ## 8. How state gets updated
 
