@@ -1,0 +1,22 @@
+{
+  "name": "estimate_biomass",
+  "description": "Community gathers to estimate lake's biomass (B) via joint sampling",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": "harvest",
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "estimate_biomass"
+  },
+  "prompt": {
+    "template": "The community needs to estimate the current lake biomass (B). You are contributing to a joint sampling effort. The lake currently holds about {stock_kg:.0f}kg of fish.\n\nThe whole community needs to agree on a shared biomass estimate for this round. As a fisher, you can participate in joint sampling to contribute to the collective estimate. Participate in the community's estimation effort.\n\nRespond with ONLY this JSON object, nothing else:\n{\"decision\": \"<yes/no>\", \"reasoning\": \"<in character>\"}\n"
+  }
+}

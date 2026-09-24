@@ -1,0 +1,22 @@
+{
+  "name": "transfer_penalty",
+  "description": "Excess catch returned and 50% penalty transferred to community fund by verifier",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": "sample_biomass",
+    "before": null
+  },
+  "participation": {
+    "policy": "verifier_only"
+  },
+  "roles": {
+    "actor_role": "R2"
+  },
+  "execution": {
+    "handler": "transfer_penalty"
+  },
+  "prompt": {
+    "template": "As the verifier, you must transfer any excess catch penalty to the community fund.\n\nThe lake currently holds about {stock_kg:.0f}kg of biomass.\n\nRespond with ONLY this JSON object, nothing else:\n{\"penalty_amount\": <number>, \"excess_catch_returned\": <boolean>, \"reasoning\": \"<in character>\"}\n"
+  }
+}

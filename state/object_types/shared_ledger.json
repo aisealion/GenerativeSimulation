@@ -1,0 +1,5 @@
+{
+  "name": "shared_ledger",
+  "description": "Shared ledger for recording biomass estimates, violations, and penalties. Persistent across rounds.",
+  "persistent": true
+}

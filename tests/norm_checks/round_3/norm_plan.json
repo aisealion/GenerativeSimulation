@@ -1,0 +1,185 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ACTION",
+      "description": "Community gathers to estimate lake's biomass (B) via joint sampling at round start. Reuses existing 'propose' action for collective estimation.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Current biomass estimate (B)"
+        ],
+        "decides": [
+          "Contribute to joint sampling"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ROLE",
+      "description": "Verifier for the round, chosen by simple majority vote with alphabetic tie-breaker. Role is exclusive and rotates each round.",
+      "exclusive": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Identity of current verifier"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Verifier performs random sample within 24 hours of round end and records remaining biomass in ledger. Reuses existing 'vote' action for recording results.",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Remaining biomass after sampling"
+        ],
+        "decides": [
+          "Perform random sampling"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "Fisher's baseline allowance is 10% of B. Deterministic calculation.",
+      "attached_to": "R1",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "ACTION",
+      "description": "Excess catch returned and 50% penalty transferred to community fund by verifier. Reuses existing 'vote' action for transferring funds.",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Excess catch returned and penalty applied"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "RULE",
+      "description": "If lake's remaining biomass is below 10% of B, apply 0.95 multiplier to next round's allowance.",
+      "attached_to": "R3",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Violation flag set and multiplier applied"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "RULE",
+      "description": "Consecutive violations compound multiplier (0.95^n). Deterministic calculation.",
+      "attached_to": "R6",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Consecutive violation and compounded multiplier"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R8",
+      "type": "LIFECYCLE",
+      "description": "Allowance multiplier resets to 1 when lake's retention reaches at least 10%.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R9",
+      "type": "ACTION",
+      "description": "Any fisher may report a violation by entering incident in ledger. Reuses existing 'propose' action for reporting.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Option to report violation"
+        ],
+        "decides": [
+          "Report a violation"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R10",
+      "type": "OBJECT",
+      "description": "Shared ledger for recording biomass estimates, violations, and penalties. Persistent across rounds.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": []
+}

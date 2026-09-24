@@ -1,0 +1,22 @@
+{
+  "name": "report_violation",
+  "description": "Any fisher may report a violation by entering incident in ledger",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": "harvest",
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "report_violation"
+  },
+  "prompt": {
+    "template": "You may report a violation by entering incident in the shared ledger.\n\nThe lake currently holds about {stock_kg:.0f}kg of biomass.\n\nRecord the violation in the ledger.\n\nRespond with ONLY this JSON object, nothing else:\n{\"violation_details\": \"<description>\", \"reasoning\": \"<in character>\"}\n"
+  }
+}

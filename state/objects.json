@@ -1,1 +1,6 @@
-[]
+[
+  {
+    "id": "shared_ledger_0",
+    "type": "shared_ledger"
+  }
+]

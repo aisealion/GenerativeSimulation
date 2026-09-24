@@ -1,0 +1,22 @@
+{
+  "name": "sample_biomass",
+  "description": "Verifier performs random sample within 24 hours of round end and records remaining biomass",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": "harvest",
+    "before": null
+  },
+  "participation": {
+    "policy": "verifier_only"
+  },
+  "roles": {
+    "actor_role": "R2"
+  },
+  "execution": {
+    "handler": "sample_biomass"
+  },
+  "prompt": {
+    "template": "You are the verifier for this round. Please perform a random sample of the lake biomass and record the results in the shared ledger.\n\nThe lake currently holds about {stock_kg:.0f}kg of biomass.\n\nRecord the remaining biomass in the ledger.\n\nRespond with ONLY this JSON object, nothing else:\n{\"sample_kg\": <number>, \"reasoning\": \"<in character>\"}\n"
+  }
+}
