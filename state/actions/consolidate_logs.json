@@ -1,0 +1,11 @@
+{
+    "name": "consolidate_logs",
+    "actor": "ledger_keeper",
+    "description": "Ledger Keeper consolidates logs within 24 hours and uploads the summary.",
+    "requires_judgment": true,
+    "fields": [],
+    "rules": [
+        "fish_trip_limit",
+        "trip_wait_interval"
+    ]
+}

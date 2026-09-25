@@ -1,20 +1,55 @@
 {
-  "version": 1,
-  "updated_at_round": null,
-  "actions": {
-    "harvest": {"spec": "state/actions/harvest.json", "protected": true},
-    "propose": {"spec": "state/actions/propose.json", "protected": true},
-    "critique": {"spec": "state/actions/critique.json", "protected": true},
-    "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
-  },
-  "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
-  },
-  "rule_types": {},
-  "object_types": {},
-  "state": {
-    "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg"]
-  }
+    "version": 1,
+    "updated_at_round": 2,
+    "actions": {
+        "harvest": {"spec": "state/actions/harvest.json", "protected": true},
+        "propose": {"spec": "state/actions/propose.json", "protected": true},
+        "critique": {"spec": "state/actions/critique.json", "protected": true},
+        "vote": {"spec": "state/actions/vote.json", "protected": true},
+        "discuss": {"spec": "state/actions/discuss.json", "protected": true},
+        "consolidate_logs": {
+            "spec": "state/actions/consolidate_logs.json", 
+            "protected": false
+        },
+        "enforce_compliance": {
+            "spec": "state/actions/enforce_compliance.json", 
+            "protected": false
+        }
+    },
+    "roles": {
+        "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+        "ledger_keeper": {
+            "exclusive": true, 
+            "description": "Ledger Keeper exists as a role elected weekly by simple majority vote.", 
+            "introduced_round": 2
+        },
+        "community_elder": {
+            "exclusive": false, 
+            "description": "Community Elders role exists to review ledger and enforce compliance.", 
+            "introduced_round": 2
+        }
+    },
+    "rule_types": {
+        "fish_trip_limit": {
+            "description": "No fisher may take more than 5% of the lake's stock per trip.",
+            "introduced_round": 2
+        },
+        "trip_wait_interval": {
+            "description": "At least one day between fishing trips.",
+            "introduced_round": 2
+        }
+    },
+    "object_types": {
+        "community_fund": {
+            "description": "Community fund for deposited fines.",
+            "introduced_round": 2
+        }
+    },
+    "state": {
+        "fisher": ["effort", "harvested_kg", "payoff"],
+        "community": ["stock_kg"],
+        "ledger": ["entries"],
+        "ledger_keeper": ["term_start_round", "term_end_round"],
+        "community_fund": ["balance", "fines_collected"]
+    }
 }

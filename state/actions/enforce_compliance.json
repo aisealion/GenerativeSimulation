@@ -1,0 +1,11 @@
+{
+    "name": "enforce_compliance",
+    "actor": "community_elder",
+    "description": "Elders review the ledger and enforce compliance.",
+    "requires_judgment": true,
+    "fields": [],
+    "rules": [
+        "fish_trip_limit",
+        "trip_wait_interval"
+    ]
+}

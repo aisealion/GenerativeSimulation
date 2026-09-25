@@ -1,0 +1,178 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "Ledger Keeper exists as a role elected weekly by simple majority vote.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "The current Ledger Keeper is known to all fishers."
+        ],
+        "decides": [],
+        "may_do": [
+          "Consolidate logs and notify elders of violations."
+        ],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ROLE",
+      "description": "Community Elders role exists to review ledger and enforce compliance.",
+      "clarity": "UNCLEAR",
+      "clarity_critique": "The selection process for Elders is not specified beyond their existence.",
+      "clarity_resolution": null,
+      "exclusive": false,
+      "agent_experience": {
+        "knows": [
+          "Elders' identities and decisions are known."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "Elders' enforcement actions are visible."
+        ]
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Ledger Keeper consolidates logs within 24 hours and uploads the summary.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "When to consolidate and upload logs."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "No fisher may take more than 5% of the lake's stock per trip.",
+      "attached_to": "R3",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The 5% limit is known."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Take more than 5% per trip."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "RULE",
+      "description": "At least one day between fishing trips.",
+      "attached_to": "R3",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The required wait period is known."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Fish without waiting one day between trips."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "ACTION",
+      "description": "Elders review the ledger and enforce compliance.",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "How to enforce compliance based on ledger review."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "OBJECT",
+      "description": "Community fund for deposited fines.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R8",
+      "type": "VISIBILITY",
+      "description": "All fishers can see the ledger after upload.",
+      "target": "R3",
+      "audience": "all_fishers",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "The ledger entries are visible."
+        ]
+      }
+    },
+    {
+      "id": "R9",
+      "type": "LIFECYCLE",
+      "description": "Ledger Keeper role rotates weekly.",
+      "duration_rounds": 1,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": [
+    {
+      "requirement": "R2",
+      "critique_question": "The selection process for Elders is not specified. How are they chosen or rotated?"
+    },
+    {
+      "requirement": "R1",
+      "critique_question": "Consequences for Ledger Keeper failing to perform duties are not specified."
+    }
+  ]
+}
