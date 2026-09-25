@@ -118,8 +118,47 @@ def test_returns_false_when_response_has_no_requirements_key(tmp_path, monkeypat
     assert plan is None
 
 
-def test_resolves_open_critiques_and_uses_the_finalizing_pass_output(tmp_path, monkeypatch):
+def test_open_critiques_are_ignored_by_default(tmp_path, monkeypatch):
+    """Default behavior (NORM_ARCHITECT_CRITIQUES_ENABLED = False, 2026-09-25):
+    an otherwise-valid first-pass plan with open_critiques is accepted
+    as-is — no ask_norm_proposer() call, no second completion call, the
+    critiques just sit unresolved in the plan exactly as the first pass
+    wrote them."""
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    assert simulate_module.NORM_ARCHITECT_CRITIQUES_ENABLED is False
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+
+    plan = _valid_plan(open_critiques=[{"requirement": "R1", "critique_question": "what governs here?"}])
+    calls = []
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: (
+            calls.append((resolutions, validator_errors)) or _response(plan)
+        ),
+    )
+
+    def _unexpected_ask(round_number, question):
+        raise AssertionError("ask_norm_proposer() must never be called while critiques are disabled")
+
+    monkeypatch.setattr(simulate_module, "ask_norm_proposer", _unexpected_ask)
+
+    success, returned_plan = simulate_module.run_norm_architect(1)
+
+    assert success is True
+    assert calls == [(None, None)]  # only the first pass — no finalizing call
+    assert returned_plan == plan
+    assert returned_plan["open_critiques"] == plan["open_critiques"]  # left untouched
+
+
+def test_resolves_open_critiques_and_uses_the_finalizing_pass_output(tmp_path, monkeypatch):
+    """Critique resolution is disabled by default (NORM_ARCHITECT_CRITIQUES_ENABLED = False,
+    2026-09-25 — see that flag's own comment) after a real round showed the
+    finalizing pass it triggers causing net regressions, not just
+    refinements. This test re-enables it via the flag to confirm the
+    mechanism itself still works correctly, pending a better-designed
+    version to replace it."""
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    monkeypatch.setattr(simulate_module, "NORM_ARCHITECT_CRITIQUES_ENABLED", True)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
 
     draft_plan = _valid_plan(open_critiques=[{"requirement": "R1", "critique_question": "what governs here?"}])
@@ -152,7 +191,11 @@ def test_resolves_open_critiques_and_uses_the_finalizing_pass_output(tmp_path, m
 
 
 def test_caps_critique_resolution_at_the_shared_round_budget(tmp_path, monkeypatch):
+    """Also requires re-enabling NORM_ARCHITECT_CRITIQUES_ENABLED — see
+    test_resolves_open_critiques_and_uses_the_finalizing_pass_output's own
+    docstring."""
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    monkeypatch.setattr(simulate_module, "NORM_ARCHITECT_CRITIQUES_ENABLED", True)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
     many_critiques = [{"requirement": "R1", "critique_question": f"question {i}?"} for i in range(8)]
 

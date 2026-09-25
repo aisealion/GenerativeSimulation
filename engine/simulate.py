@@ -623,6 +623,24 @@ def _extract_fenced_block(text, lang):
 
 MAX_NORM_CLARIFICATIONS_PER_ROUND = 5
 
+# 2026-09-25: disabled, by request, pending a better-designed version —
+# norm-architect's critique-resolution finalizing pass was found causing
+# net regressions, not just refinements: a real round
+# (sim/run-20260925-113432) had a fully valid 15-requirement first pass,
+# then its finalizing pass (triggered by 2 open_critiques, both correctly
+# answered by ask_norm_proposer()) re-derived the whole plan from scratch
+# rather than making a targeted edit — dropping to 11 requirements, one of
+# them a brand-new RULE missing its required agent_experience block, and
+# restating both critiques nearly verbatim despite being told explicitly
+# not to. The Harness Validator's OWN finalizing pass (structural errors,
+# no critique/proposer round-trip involved) is unaffected by this flag and
+# still runs — this only stops open_critiques from ever triggering a
+# second call. norm-architect's plan and prompt are unchanged: it can
+# still raise open_critiques, they're just never resolved or acted on
+# while this is False — accepted as-is, same as any other field in a
+# first-pass plan that happens to be structurally valid.
+NORM_ARCHITECT_CRITIQUES_ENABLED = False
+
 
 def run_norm_architect(round_number):
     """Runs norm-architect as a direct, tool-free litellm completion (see
@@ -645,16 +663,17 @@ def run_norm_architect(round_number):
     across this function's one bounded retry pass, silently discarding
     whole rounds before norm-engineer ever started.)
 
-    A second, finalizing completion call happens if the first pass either
-    reported open_critiques (resolved via ask_norm_proposer(), same as
-    before) or if validate_norm_plan() — the deterministic Harness
-    Validator, no LLM call — found structural problems (a missing
-    agent_experience block, a dangling reference). Both fold into the SAME
-    second pass, one bounded extra call, not two separate retry loops. If
-    the plan is still structurally invalid after that second pass, this is
-    a real design failure, not a process hiccup: return (False, None) and
-    let the round be discarded, same contract as every other failure path
-    here."""
+    A second, finalizing completion call happens if validate_norm_plan()
+    — the deterministic Harness Validator, no LLM call — found structural
+    problems (a missing agent_experience block, a dangling reference), or
+    (only while NORM_ARCHITECT_CRITIQUES_ENABLED is True — disabled as of
+    2026-09-25, see that flag's own comment) if the first pass reported
+    open_critiques, resolved via ask_norm_proposer(). Both fold into the
+    SAME second pass, one bounded extra call, not two separate retry
+    loops. If the plan is still structurally invalid after that second
+    pass, this is a real design failure, not a process hiccup: return
+    (False, None) and let the round be discarded, same contract as every
+    other failure path here."""
     norm_path = ROOT / "norm.txt"
     if not norm_path.is_file():
         print(f"Round {round_number}: norm.txt is missing — nothing for norm-architect to "
@@ -683,15 +702,24 @@ def run_norm_architect(round_number):
     open_critiques = plan.get("open_critiques") or []
     validator_errors = validate_norm_plan(plan)
 
-    if open_critiques or validator_errors:
+    if open_critiques and not NORM_ARCHITECT_CRITIQUES_ENABLED:
+        print(f"Round {round_number}: norm-architect raised {len(open_critiques)} open "
+              f"critique(s), but critique resolution is disabled "
+              f"(NORM_ARCHITECT_CRITIQUES_ENABLED=False) — proceeding with the first pass's "
+              f"own best-effort reading, critiques left unresolved in the plan as-is.")
+        open_critiques_to_resolve = []
+    else:
+        open_critiques_to_resolve = open_critiques
+
+    if open_critiques_to_resolve or validator_errors:
         resolutions = []
-        budget = min(len(open_critiques), MAX_NORM_CLARIFICATIONS_PER_ROUND)
-        if budget < len(open_critiques):
-            print(f"Round {round_number}: norm-architect raised {len(open_critiques)} open "
-                  f"critiques but the round's shared clarification budget only allows "
+        budget = min(len(open_critiques_to_resolve), MAX_NORM_CLARIFICATIONS_PER_ROUND)
+        if budget < len(open_critiques_to_resolve):
+            print(f"Round {round_number}: norm-architect raised {len(open_critiques_to_resolve)} "
+                  f"open critiques but the round's shared clarification budget only allows "
                   f"{budget} — resolving the first {budget}, the rest stay unresolved "
                   f"(reflected as-is in the plan this round proceeds with).")
-        for critique in open_critiques[:budget]:
+        for critique in open_critiques_to_resolve[:budget]:
             question = critique.get("critique_question")
             if not question:
                 continue

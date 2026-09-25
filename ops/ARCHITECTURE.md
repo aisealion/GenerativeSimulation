@@ -306,8 +306,8 @@ sequenceDiagram
     Note over Arch: reads norm.txt + architecture.md only —<br/>classifies every atomic requirement into<br/>ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE,<br/>writes each one's agent_experience block —<br/>no file paths, no Python, no test scenarios
     Arch->>Valid: validate_norm_plan(plan)
     alt structurally incomplete
-        Valid-->>Arch: validator_errors folded into<br/>the same finalizing critique-resolution pass
-        Note over Arch,Valid: bounded — one extra pass, not an open retry loop
+        Valid-->>Arch: validator_errors sent back for one<br/>bounded finalizing pass
+        Note over Arch,Valid: bounded — one extra pass, not an open retry loop.<br/>Architect can still raise open_critiques in its plan, but<br/>critique-RESOLUTION (asking the proposer, a second pass on<br/>that alone) is disabled as of 2026-09-25 — see<br/>NORM_ARCHITECT_CRITIQUES_ENABLED in engine/simulate.py
     end
     Valid-->>Cycle: norm_plan.json (requirements only)
 
