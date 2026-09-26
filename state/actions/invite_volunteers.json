@@ -1,0 +1,32 @@
+{
+  "name": "invite_volunteers",
+  "description": "Elder invites volunteers and allocates second trip permits.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "decide_second_trips"
+  },
+  "participation": {
+    "who": "ROLE:elder",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "invite_volunteers"
+  },
+  "prompt": {
+    "template": "You are the Elder inviting volunteers for second trips. There are {permits_available} permits available. Based on community needs, should you invite volunteers? Answer 'yes' or 'no'.",
+    "fields": {
+      "permits_available": {
+        "type": "INTEGER",
+        "source": "fact",
+        "location": "community.permits_available"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "volunteers_invited": {
+          "value": "permits_available"
+        }
+      }
+    }
+  }
+}

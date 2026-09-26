@@ -1,0 +1,32 @@
+{
+  "name": "vote_penalties",
+  "description": "Community votes on penalties for violations.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "convene_meeting"
+  },
+  "participation": {
+    "who": "ROLE:fisher",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "vote_penalties"
+  },
+  "prompt": {
+    "template": "You are a fisher voting on penalties. The penalty options are: {penalty_options}. Vote for the penalty you think is appropriate.",
+    "fields": {
+      "penalty_options": {
+        "type": "LIST",
+        "source": "fact",
+        "location": "community.available_penalty_options"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "vote_cast": {
+          "value": "penalty_options"
+        }
+      }
+    }
+  }
+}

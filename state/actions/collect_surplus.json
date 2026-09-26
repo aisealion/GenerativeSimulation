@@ -1,0 +1,40 @@
+{
+  "name": "collect_surplus",
+  "description": "Elder collects and weighs Surplus Returned after each round.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "return_excess_catch"
+  },
+  "participation": {
+    "who": "ROLE:elder",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "collect_surplus"
+  },
+  "prompt": {
+    "template": "You are the Elder who collects and weighs Surplus Returned. The total surplus returned by all fishers is {total_surplus} kg. How much do you collect and weigh?",
+    "fields": {
+      "total_surplus": {
+        "type": "FLOAT",
+        "source": "fact",
+        "location": "community.total_surplus_returned"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "total_weighed": {
+          "value": "total_surplus"
+        }
+      }
+    }
+  },
+  "rules": [
+    {
+      "type": "calculate_remaining_stock",
+      "params": {
+        "standard_volume_area": 1000.0
+      }
+    }
+  ]
+}

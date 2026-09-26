@@ -1,0 +1,35 @@
+{
+  "type_name": "reserve_balance",
+  "description": "Reserve Balance pool of fish held in trust.",
+  "ownership": {
+    "type": "COMMUNITY"
+  },
+  "fields": {
+    "balance": {
+      "type": "FLOAT",
+      "default": 0.0,
+      "description": "Current balance in the reserve fund"
+    }
+  },
+  "operations": [
+    "read",
+    "deposit",
+    "withdraw"
+  ],
+  "permissions": {
+    "read": {
+      "who": "ALL"
+    },
+    "deposit": {
+      "who": "ROLE:elder"
+    },
+    "withdraw": {
+      "who": "ROLE:elder"
+    }
+  },
+  "visibility": {
+    "balance": {
+      "who": "ALL"
+    }
+  }
+}

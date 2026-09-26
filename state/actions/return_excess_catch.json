@@ -1,0 +1,37 @@
+{
+  "name": "return_excess_catch",
+  "description": "Fisher returns excess catch to the lake if over 0.75 kg.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "harvest"
+  },
+  "participation": {
+    "who": "ROLE:fisher",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "return_excess_catch"
+  },
+  "prompt": {
+    "template": "You are a fisher returning excess catch to the lake. You have caught {catch_weight} kg. The limit is 0.75 kg. How much do you return to the lake? You must return at least 0 kg and at most the total catch weight.",
+    "fields": {
+      "catch_weight": {
+        "type": "FLOAT",
+        "source": "fact",
+        "location": "fisher.harvested_kg"
+      },
+      "excess_amount": {
+        "type": "FLOAT",
+        "source": "response",
+        "required": true
+      }
+    },
+    "outputs": {
+      "fields": {
+        "excess_returned": {
+          "value": "excess_amount"
+        }
+      }
+    }
+  }
+}

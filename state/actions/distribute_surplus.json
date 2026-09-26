@@ -1,0 +1,32 @@
+{
+  "name": "distribute_surplus",
+  "description": "Elder calculates each fisher's deficit and distributes surplus.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "invite_volunteers"
+  },
+  "participation": {
+    "who": "ROLE:elder",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "distribute_surplus"
+  },
+  "prompt": {
+    "template": "You are the Elder calculating deficits and distributing surplus. The surplus available is {surplus_available} kg. How would you distribute it among the fishers?",
+    "fields": {
+      "surplus_available": {
+        "type": "FLOAT",
+        "source": "fact",
+        "location": "community.surplus_balance"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "surplus_distributed": {
+          "value": "surplus_available"
+        }
+      }
+    }
+  }
+}

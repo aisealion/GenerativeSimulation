@@ -1,0 +1,32 @@
+{
+  "name": "decide_second_trips",
+  "description": "Elder decides whether to authorize second trips based on stock.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "collect_surplus"
+  },
+  "participation": {
+    "who": "ROLE:elder",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "decide_second_trips"
+  },
+  "prompt": {
+    "template": "You are the Elder deciding if second trips are authorized. The remaining lake stock safety threshold is {threshold_met}. Should you authorize second trips? Answer 'yes' or 'no'.",
+    "fields": {
+      "threshold_met": {
+        "type": "BOOLEAN",
+        "source": "fact",
+        "location": "community.stock_safety_threshold_met"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "second_trips_authorized": {
+          "value": "threshold_met"
+        }
+      }
+    }
+  }
+}

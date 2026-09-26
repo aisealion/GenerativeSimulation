@@ -1,0 +1,32 @@
+{
+  "name": "collect_penalties",
+  "description": "Elder collects monetary penalties and updates communal pot.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "order_contribution"
+  },
+  "participation": {
+    "who": "ROLE:elder",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "collect_penalties"
+  },
+  "prompt": {
+    "template": "You are the Elder collecting penalties. You collected {penalty_amount} kg of penalties. How much do you update the communal pot with?",
+    "fields": {
+      "penalty_amount": {
+        "type": "FLOAT",
+        "source": "fact",
+        "location": "community.penalty_collected"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "pot_updated": {
+          "value": "penalty_amount"
+        }
+      }
+    }
+  }
+}

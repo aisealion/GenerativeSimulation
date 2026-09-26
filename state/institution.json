@@ -2,19 +2,54 @@
   "version": 1,
   "updated_at_round": null,
   "actions": {
-    "harvest": {"spec": "state/actions/harvest.json", "protected": true},
-    "propose": {"spec": "state/actions/propose.json", "protected": true},
-    "critique": {"spec": "state/actions/critique.json", "protected": true},
-    "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "harvest": {"spec": "state/actions/harvest.json", "protected": true, "description": "Fisher harvests from the lake"},
+    "propose": {"spec": "state/actions/propose.json", "protected": true, "description": "Fisher proposes changes to fishery regulations"},
+    "critique": {"spec": "state/actions/critique.json", "protected": true, "description": "Fisher critiques proposed regulations"},
+    "vote": {"spec": "state/actions/vote.json", "protected": true, "description": "Fisher votes on proposed regulations"},
+    "discuss": {"spec": "state/actions/discuss.json", "protected": true, "description": "Fisher discusses fishery regulations"},
+    "return_excess_catch": {"spec": "state/actions/return_excess_catch.json", "protected": false, "description": "Fisher returns excess catch to the lake if over 0.75 kg."},
+    "collect_surplus": {"spec": "state/actions/collect_surplus.json", "protected": false, "description": "Elder collects and weighs Surplus Returned after each round."},
+    "decide_second_trips": {"spec": "state/actions/decide_second_trips.json", "protected": false, "description": "Elder decides whether to authorize second trips based on stock."},
+    "invite_volunteers": {"spec": "state/actions/invite_volunteers.json", "protected": false, "description": "Elder invites volunteers and allocates second trip permits."},
+    "distribute_surplus": {"spec": "state/actions/distribute_surplus.json", "protected": false, "description": "Elder calculates each fisher's deficit and distributes surplus."},
+    "draw_from_reserve": {"spec": "state/actions/draw_from_reserve.json", "protected": false, "description": "Elder draws from Reserve Balance if surplus is insufficient."},
+    "order_contribution": {"spec": "state/actions/order_contribution.json", "protected": false, "description": "Elder orders surplus catchers to donate or provide extra labor."},
+    "collect_penalties": {"spec": "state/actions/collect_penalties.json", "protected": false, "description": "Elder collects monetary penalties and updates communal pot."},
+    "vote_disbursements": {"spec": "state/actions/vote_disbursements.json", "protected": false, "description": "Council votes on communal pot disbursements."},
+    "convene_meeting": {"spec": "state/actions/convene_meeting.json", "protected": false, "description": "Elder convenes meeting and community votes on penalties for violations."},
+    "vote_penalties": {"spec": "state/actions/vote_penalties.json", "protected": false, "description": "Council votes on penalties for violations."}
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "elder": {"exclusive": true, "description": "most senior fisher elected by unanimous vote daily", "introduced_round": 3},
+    "scribe": {"exclusive": true, "description": "chosen by simple majority vote of active fishers each season", "introduced_round": 3},
+    "council": {"exclusive": false, "description": "community decision making body", "introduced_round": 3}
   },
-  "rule_types": {},
-  "object_types": {},
-  "state": {
-    "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg"]
+  "rule_types": {
+    "calculate_remaining_stock": {
+      "description": "Calculate Remaining Lake Stock: (total catch weight) / (standard volume-area)",
+      "owner": "actions/rules/collect_surplus/calculate_remaining_stock.py"
+    },
+    "quorum_rule": {
+      "description": "Quorum for council decisions requires all active fishers, elder, and scribe present.",
+      "owner": "actions/rules/vote_disbursements/quorum_rule.py"
+    }
+  },
+  "object_types": {
+    "net_scale": {
+      "description": "Calibrated net-scale for catch measurement; shared among fishers, displays weight immediately after setting the net.",
+      "owner": "state/object_types/net_scale.json"
+    },
+    "ledger": {
+      "description": "Ledger recording all fishery activities and distributions.",
+      "owner": "state/object_types/ledger.json"
+    },
+    "reserve_balance": {
+      "description": "Reserve Balance pool of fish held in trust.",
+      "owner": "state/object_types/reserve_balance.json"
+    }
+  },
+  "visibility": {
+    "ledger": "all_fishers"
   }
 }

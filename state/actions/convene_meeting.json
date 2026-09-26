@@ -1,0 +1,32 @@
+{
+  "name": "convene_meeting",
+  "description": "Elder convenes meeting and community votes on penalties for violations.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "order_contribution"
+  },
+  "participation": {
+    "who": "ROLE:elder",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "convene_meeting"
+  },
+  "prompt": {
+    "template": "You are the Elder convening a meeting for penalties. The available penalty options are {penalty_options}. Which penalty would you select for community voting?",
+    "fields": {
+      "penalty_options": {
+        "type": "LIST",
+        "source": "fact",
+        "location": "community.available_penalty_options"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "penalty_selected": {
+          "value": "penalty_options"
+        }
+      }
+    }
+  }
+}

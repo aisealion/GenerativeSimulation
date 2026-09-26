@@ -1,0 +1,63 @@
+{
+  "type_name": "ledger",
+  "description": "Ledger recording all fishery activities and distributions.",
+  "ownership": {
+    "type": "COMMUNITY"
+  },
+  "fields": {
+    "transactions": {
+      "type": "LIST",
+      "default": [],
+      "description": "List of all transactions and activities"
+    },
+    "total_surplus_returned": {
+      "type": "FLOAT",
+      "default": 0.0,
+      "description": "Total surplus returned by fishers"
+    },
+    "surplus_balance": {
+      "type": "FLOAT",
+      "default": 0.0,
+      "description": "Current surplus balance"
+    },
+    "reserve_balance": {
+      "type": "FLOAT",
+      "default": 0.0,
+      "description": "Reserve balance pool"
+    }
+  },
+  "operations": [
+    "read",
+    "append",
+    "deposit",
+    "withdraw"
+  ],
+  "permissions": {
+    "read": {
+      "who": "ALL"
+    },
+    "append": {
+      "who": "ROLE:elder"
+    },
+    "deposit": {
+      "who": "ROLE:elder"
+    },
+    "withdraw": {
+      "who": "ROLE:elder"
+    }
+  },
+  "visibility": {
+    "transactions": {
+      "who": "ALL"
+    },
+    "total_surplus_returned": {
+      "who": "ALL"
+    },
+    "surplus_balance": {
+      "who": "ALL"
+    },
+    "reserve_balance": {
+      "who": "ALL"
+    }
+  }
+}

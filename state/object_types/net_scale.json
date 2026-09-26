@@ -1,0 +1,27 @@
+{
+  "type_name": "net_scale",
+  "description": "Calibrated net-scale for catch measurement; shared among fishers, displays weight immediately after setting the net.",
+  "ownership": {
+    "type": "COMMUNITY"
+  },
+  "fields": {
+    "weight_kg": {
+      "type": "FLOAT",
+      "default": 0.0,
+      "description": "Weight of catch measured by the net scale"
+    }
+  },
+  "operations": [
+    "read"
+  ],
+  "permissions": {
+    "read": {
+      "who": "ALL"
+    }
+  },
+  "visibility": {
+    "weight_kg": {
+      "who": "ALL"
+    }
+  }
+}

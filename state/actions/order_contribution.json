@@ -1,0 +1,32 @@
+{
+  "name": "order_contribution",
+  "description": "Elder orders surplus catchers to donate or provide extra labor.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "draw_from_reserve"
+  },
+  "participation": {
+    "who": "ROLE:elder",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "order_contribution"
+  },
+  "prompt": {
+    "template": "You are the Elder ordering surplus catchers to contribute. You need {contribution_needed} kg of extra contribution. How much do you ask for?",
+    "fields": {
+      "contribution_needed": {
+        "type": "FLOAT",
+        "source": "fact",
+        "location": "community.contribution_needed"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "contribution_ordered": {
+          "value": "contribution_needed"
+        }
+      }
+    }
+  }
+}

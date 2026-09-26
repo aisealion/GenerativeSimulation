@@ -1,0 +1,352 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "OBJECT",
+      "description": "Calibrated net-scale for catch measurement; shared among fishers, displays weight immediately after setting the net.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The weight of their catch immediately after setting the net"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ACTION",
+      "description": "Fisher returns excess catch to the lake if over 0.75 kg.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Whether their catch exceeds the limit"
+        ],
+        "decides": [
+          "How much excess to return"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Elder collects and weighs Surplus Returned after each round.",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Total surplus returned by all fishers"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "Calculate Remaining Lake Stock: (total catch weight) / (standard volume-area)",
+      "attached_to": "R3",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Whether remaining stock meets the safety threshold"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "ACTION",
+      "description": "Elder decides whether to authorize second trips based on stock.",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Whether they're eligible for a second trip"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "ACTION",
+      "description": "Elder invites volunteers and allocates second trip permits.",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "How many permits are available"
+        ],
+        "decides": [
+          "Whether to volunteer for a second trip"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "VISIBILITY",
+      "description": "All fishers can inspect the ledger.",
+      "target": "community",
+      "audience": "all_fishers",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "The contents of the communal ledger"
+        ]
+      }
+    },
+    {
+      "id": "R8",
+      "type": "OBJECT",
+      "description": "Ledger recording all fishery activities and distributions.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R9",
+      "type": "ACTION",
+      "description": "Elder calculates each fisher's deficit and distributes surplus.",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "How much surplus is available"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R10",
+      "type": "ACTION",
+      "description": "Elder draws from Reserve Balance if surplus is insufficient.",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Whether the reserve balance will be used"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R11",
+      "type": "ACTION",
+      "description": "Elder orders surplus catchers to donate or provide extra labor.",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "How much they need to contribute"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R12",
+      "type": "OBJECT",
+      "description": "Reserve Balance pool of fish held in trust.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R13",
+      "type": "ACTION",
+      "description": "Elder collects monetary penalties and updates communal pot.",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "How much was collected"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R14",
+      "type": "ACTION",
+      "description": "Council votes on communal pot disbursements.",
+      "actor": "council",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "How the pot will be used"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R15",
+      "type": "ACTION",
+      "description": "Elder convenes meeting and community votes on penalties for violations.",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The penalty options"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R16",
+      "type": "ROLE",
+      "description": "Elder role, most senior fisher elected by unanimous vote daily.",
+      "exclusive": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Who the current elder is"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R17",
+      "type": "ROLE",
+      "description": "Scribe role, chosen by simple majority vote of active fishers each season.",
+      "exclusive": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Who the current scribe is"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R18",
+      "type": "RULE",
+      "description": "Quorum for council decisions requires all active fishers, elder, and scribe present.",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Whether quorum is met"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R19",
+      "type": "LIFECYCLE",
+      "description": "Elder role may rotate annually.",
+      "duration_rounds": 1,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": []
+}

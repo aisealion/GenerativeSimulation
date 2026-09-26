@@ -1,0 +1,32 @@
+{
+  "name": "draw_from_reserve",
+  "description": "Elder draws from Reserve Balance if surplus is insufficient.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "distribute_surplus"
+  },
+  "participation": {
+    "who": "ROLE:elder",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "draw_from_reserve"
+  },
+  "prompt": {
+    "template": "You are the Elder drawing from Reserve Balance. The reserve balance is {reserve_balance} kg. Should you draw funds from the reserve? Answer 'yes' or 'no'.",
+    "fields": {
+      "reserve_balance": {
+        "type": "FLOAT",
+        "source": "fact",
+        "location": "community.reserve_balance"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "reserve_drawn": {
+          "value": "reserve_balance"
+        }
+      }
+    }
+  }
+}

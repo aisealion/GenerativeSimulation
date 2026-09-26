@@ -1,0 +1,32 @@
+{
+  "name": "vote_disbursements",
+  "description": "Council votes on communal pot disbursements.",
+  "scheduling": {
+    "gate": "after_action",
+    "after": "collect_penalties"
+  },
+  "participation": {
+    "who": "ROLE:council",
+    "policy": "ALL"
+  },
+  "execution": {
+    "handler": "vote_disbursements"
+  },
+  "prompt": {
+    "template": "You are a council member voting on communal pot disbursements. The proposed use for the pot is {pot_use}. Vote 'approve' or 'reject'.",
+    "fields": {
+      "pot_use": {
+        "type": "STRING",
+        "source": "fact",
+        "location": "community.pot_disbursement_proposal"
+      }
+    },
+    "outputs": {
+      "fields": {
+        "vote_approved": {
+          "value": "pot_use"
+        }
+      }
+    }
+  }
+}
