@@ -1,0 +1,116 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "Verifier pair exists to weigh catches and enforce rules.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": false,
+      "agent_experience": {
+        "knows": [
+          "They must present catch to verifiers."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ACTION",
+      "description": "Fisher presents catch to verifiers.",
+      "actor": "R1",
+      "judgment_required": false,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Catch will be weighed and checked."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "OBJECT",
+      "description": "Shared logbook for recording trips and violations.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "If catch exceeds 10 kg, record and handle excess.",
+      "attached_to": "R2",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Excess handling options."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "RULE",
+      "description": "Repeat violation within 30 days results in ban.",
+      "attached_to": "R4",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Potential for one-trip ban."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "LIFECYCLE",
+      "description": "Ban lasts until fisher completes one banned trip.",
+      "duration_rounds": 1,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R7",
+      "type": "LIFECYCLE",
+      "description": "Policy re-evaluation after two months.",
+      "duration_rounds": 8,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": [
+    {
+      "requirement": "R5",
+      "critique_question": "How does the 30-day violation window interact with the one-trip ban duration?"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "type_name": "logbook",
+  "description": "Shared logbook for recording trips and violations",
+  "ownership": "COMMUNAL",
+  "fields": {
+    "trip_id": {"type": "string", "default": ""},
+    "fisher_id": {"type": "string", "default": ""},
+    "catch_kg": {"type": "number", "default": 0.0},
+    "violations": {"type": "array", "items": {"type": "string"}, "default": []},
+    "round": {"type": "number", "default": 0}
+  },
+  "operations": ["record_trip", "read"],
+  "permissions": {
+    "WRITE": {"who": "ROLE:verifier"},
+    "READ": {"who": "ALL"}
+  },
+  "visibility": {
+    "trip_id": {"who": "ALL"},
+    "fisher_id": {"who": "ALL"},
+    "catch_kg": {"who": "ALL"},
+    "violations": {"who": "ALL"},
+    "round": {"who": "ALL"}
+  },
+  "custom_handler": null,
+  "introduced_round": 1
+}

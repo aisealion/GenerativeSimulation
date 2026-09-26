@@ -1,0 +1,22 @@
+{
+  "name": "present_catch",
+  "description": "fisher presents catch to verifiers for weighing/checking",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "verifier"
+  },
+  "roles": {
+    "actor_role": "verifier"
+  },
+  "execution": {
+    "handler": "present_catch"
+  },
+  "prompt": {
+    "template": "The fisher has caught {harvested_kg:.1f}kg of fish.\n\nThe catch must now be weighed and checked against rules. Please record the actual weight and document any violations.\n\nRespond with ONLY this JSON object, nothing else:\n{\"actual_weight_kg\": <number>, \"violations\": [<string>], \"note\": \"<optional explanation>\"}\n"
+  }
+}

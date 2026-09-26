@@ -1,20 +1,39 @@
 {
   "version": 1,
-  "updated_at_round": null,
+  "updated_at_round": 1,
   "actions": {
     "harvest": {"spec": "state/actions/harvest.json", "protected": true},
     "propose": {"spec": "state/actions/propose.json", "protected": true},
     "critique": {"spec": "state/actions/critique.json", "protected": true},
     "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "discuss": {"spec": "state/actions/discuss.json", "protected": true},
+    "present_catch": {"spec": "state/actions/present_catch.json", "protected": false}
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "verifier": {"exclusive": true, "description": "weighs catches and enforces rules", "introduced_round": 1}
   },
-  "rule_types": {},
-  "object_types": {},
+  "rule_types": {
+    "present_catch/catch_threshold": "actions/rules/present_catch/catch_threshold.py",
+    "present_catch/repeat_violation": "actions/rules/present_catch/repeat_violation.py",
+    "present_catch/weight_and_check": "actions/rules/present_catch/weight_and_check.py"
+  },
+  "object_types": {
+    "logbook": "state/object_types/logbook.json"
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg"]
+    "community": ["stock_kg"],
+    "verifier": ["catch_weighted_kg", "violations_count"]
+  },
+  "lifecycles": {
+    "ban": {
+      "duration_rounds": 1,
+      "description": "Ban lasts until fisher completes one banned trip"
+    },
+    "policy_evaluation": {
+      "duration_rounds": 8,
+      "description": "Policy re-evaluation after two months"
+    }
   }
 }

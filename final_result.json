@@ -1,0 +1,21 @@
+{
+  "spec_path": "state/norm_specs/round_1.md",
+  "requirements_built": ["R1", "R2", "R3", "R4", "R5", "R6", "R7"],
+  "files_touched": [
+    "state/institution.json",
+    "state/actions/present_catch.json",
+    "actions/handlers/present_catch.py",
+    "state/object_types/logbook.json",
+    "state/objects.json",
+    "prompts/role_directives/verifier.md",
+    "actions/rules/present_catch/catch_threshold.py",
+    "actions/rules/present_catch/repeat_violation.py",
+    "actions/rules/present_catch/weight_and_check.py",
+    "state/config.json"
+  ],
+  "regression_pass": true,
+  "norm_check_tests_pass": true,
+  "denied_permission_needed": false,
+  "ran_out_of_budget": false,
+  "finalization_failed": false
+}

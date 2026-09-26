@@ -2,5 +2,10 @@
   "agent_count": 5,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "rules": {}
+  "rules": {
+    "present_catch": [
+      "catch_threshold",
+      "repeat_violation"
+    ]
+  }
 }
