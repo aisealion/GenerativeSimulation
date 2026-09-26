@@ -4,10 +4,15 @@ from engine.llm_agents import render_action
 
 
 def test_render_action_reads_the_owning_spec_own_template():
+    # Extra fields the template no longer references (2026-09-26: harvest's
+    # own dynamic stock/trend wording was dropped in favor of a short,
+    # fixed instruction — the persona template's own group-norm/notices
+    # sections carry that context now) are harmlessly ignored by
+    # .format(**fields), so passing them here still exercises that this
+    # resolves harvest's OWN spec template, not a fallback.
     text = render_action("harvest", stock_kg=280, carrying_capacity_kg=300, constraints_line="", stock_trend="x")
-    assert "280kg" in text
-    assert "300kg" in text
-    assert text.startswith("It's time to go out on the lake.")
+    assert text.startswith("Based on both your observations and the community policy")
+    assert '"effort"' in text
 
 
 def test_render_action_finds_a_sub_template_owned_by_a_different_specs_templates_dict():

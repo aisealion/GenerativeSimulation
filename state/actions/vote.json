@@ -17,6 +17,6 @@
     "handler": "vote"
   },
   "prompt": {
-    "template": "The community has {num_proposals} proposed rules for how the lake gets fished going forward. Vote for the one you'd rather live under.\n\n{proposals_block}\n\nRespond with ONLY this JSON object, nothing else:\n{{\"vote\": <the number of your chosen proposal>, \"reasoning\": \"<why, in character>\"}}\n"
+    "template": "Based on your personal strategy and the current state of the lake, vote for which proposed policy you think should become the new shared policy.\n\nThe community has {num_proposals} proposed rules for how the lake gets fished going forward:\n\n{proposals_block}\n\n{my_proposal_line}\n\nRespond with ONLY this JSON object, nothing else:\n{{\"vote\": <the number of your chosen proposal>, \"reasoning\": \"<why, in character>\"}}\n"
   }
 }

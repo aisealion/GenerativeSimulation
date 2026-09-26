@@ -187,6 +187,49 @@ def test_vote_tallies_and_sets_adopted_norm(monkeypatch):
     assert memory[0]["event_type"] == "vote_outcome"
 
 
+def test_vote_tells_each_agent_which_numbered_proposal_is_their_own(monkeypatch):
+    """2026-09-26, by request: every voter gets the same proposals_block,
+    but each needs to know which numbered entry in it is their own —
+    build_fields must vary per agent_id, not return one shared dict."""
+    seen_fields = {}
+
+    def _fake_call(agent_id, round_number, action_name, **fields):
+        seen_fields[agent_id] = fields
+        return {"vote": "1"}
+
+    monkeypatch.setattr(llm_agents_module, "call_fisher_agent", _fake_call)
+
+    state = _state_with_proposals(PROPOSALS)
+    ctx = ActionContext.build({"name": "vote"}, state, state["round_number"])
+    vote_handler.run(ctx)
+
+    # PROPOSALS is agent_0 first, agent_1 second — proposals_block numbers
+    # them 1 and 2 in that same order.
+    assert seen_fields["agent_0"]["my_proposal_line"] == "Proposal 1 is the one you submitted."
+    assert seen_fields["agent_1"]["my_proposal_line"] == "Proposal 2 is the one you submitted."
+    # proposals_block/num_proposals themselves are still shared, identical
+    # for every voter — only my_proposal_line varies.
+    assert seen_fields["agent_0"]["proposals_block"] == seen_fields["agent_1"]["proposals_block"]
+
+
+def test_vote_tells_an_agent_who_didnt_propose_that_they_have_no_own_entry(monkeypatch):
+    seen_fields = {}
+
+    def _fake_call(agent_id, round_number, action_name, **fields):
+        seen_fields[agent_id] = fields
+        return {"vote": "1"}
+
+    monkeypatch.setattr(llm_agents_module, "call_fisher_agent", _fake_call)
+
+    # Only agent_0 has a valid proposal — agent_1 didn't submit one.
+    state = _state_with_proposals({"agent_0": PROPOSALS["agent_0"]})
+    ctx = ActionContext.build({"name": "vote"}, state, state["round_number"])
+    vote_handler.run(ctx)
+
+    assert seen_fields["agent_0"]["my_proposal_line"] == "Proposal 1 is the one you submitted."
+    assert seen_fields["agent_1"]["my_proposal_line"] == "(You didn't submit a proposal this round.)"
+
+
 def test_discuss_still_raises_not_implemented():
     with pytest.raises(NotImplementedError):
         discuss_handler.run(None)

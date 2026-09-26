@@ -41,13 +41,32 @@ def run(ctx):
         f"{i}. Policy: {proposal['policy']}\n   In practice: {proposal['operationalization']}"
         for i, (_proposer_id, proposal) in enumerate(proposals, start=1)
     )
-    fields = {"num_proposals": len(proposals), "proposals_block": proposals_block}
+    # Per-agent, not a single shared dict (2026-09-26, by request): each
+    # voter needs to be told which numbered proposal is their own, so
+    # build_fields must vary by agent_id rather than returning the same
+    # fields object to everyone.
+    proposal_number_by_agent = {
+        proposer_id: i for i, (proposer_id, _proposal) in enumerate(proposals, start=1)
+    }
+
+    def build_fields(agent_id):
+        own_number = proposal_number_by_agent.get(agent_id)
+        my_proposal_line = (
+            f"Proposal {own_number} is the one you submitted."
+            if own_number is not None
+            else "(You didn't submit a proposal this round.)"
+        )
+        return {
+            "num_proposals": len(proposals),
+            "proposals_block": proposals_block,
+            "my_proposal_line": my_proposal_line,
+        }
 
     def build_record(agent_id, response):
         choice = int(str(response["vote"]).strip())
         return {"vote": choice, "reasoning": response.get("reasoning", "")}
 
-    votes = per_agent_decision(ctx, lambda agent_id: fields, build_record)
+    votes = per_agent_decision(ctx, build_fields, build_record)
 
     tally = {i: 0 for i in range(1, len(proposals) + 1)}
     for record in votes.values():
