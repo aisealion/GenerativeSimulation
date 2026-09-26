@@ -1,0 +1,14 @@
+R1: registered role R1 in state/institution.json, wrote prompts/role_directives/R1.md
+R2: created action measure_lake_weight.json, set actor_role to R1
+R3: created test framework for cap calculation rule
+R4: created test framework for fisher catch submission
+R5: created test framework for trip leader catch handling
+R6: registered object type communal_pit in state/institution.json
+R7: created test framework for penalty rule, identified need for rule implementation
+R8: registered role R8 in state/institution.json, wrote prompts/role_directives/R8.md
+R9: registered object type reserve_fund in state/institution.json
+R10: created test framework for reserve fund recalculation rule
+R11: created test framework for catch report submission within 24 hours
+R12: created test framework for fisher flagging rule
+R13: created test framework for monthly meeting action
+R14: created test framework for reserve fund adjustment validity
