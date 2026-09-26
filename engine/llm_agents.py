@@ -76,7 +76,7 @@ def render_persona(agent_id, round_number, action_name):
     role_directives = render_role_directives(agent_id, fluents, round_number)
     persona_template = (ROOT / "prompts" / "persona_template.md").read_text()
     daily_status = f"This is round {round_number}."
-    survival_status = render_survival_status(agent_id, runtime)
+    group_norm = render_group_norm()
     history = render_history(
         agent_id, round_number, runtime, agents, config.get("history_window_rounds", 5)
     )
@@ -88,7 +88,8 @@ def render_persona(agent_id, round_number, action_name):
         personality_traits=agent["personality_traits"],
         role_directives=role_directives,
         daily_status=daily_status,
-        survival_status=survival_status,
+        consumption_kg=CONSUMPTION_KG,
+        group_norm=group_norm,
         history=history,
         notices=notices,
         relevant_memories=relevant_memories,
@@ -133,21 +134,18 @@ def render_role_directives(agent_id, fluents, round_number):
     return " ".join(texts)
 
 
-def render_survival_status(agent_id, runtime):
-    """Fishing isn't just for profit — every fisher owes a fixed cost just
-    to feed themselves each trip, tracked as a running balance that goes
-    back to round 0, not reset each round. Ties directly to the mechanic in
-    actions/handlers/harvest.py: apply_consumption()/is_dead() decide the
-    same balance this renders. Deliberately repeated on every action's prompt,
-    not just harvest's, matching how Gupta et al.'s CPRAgent restates this
-    same survival framing in every one of its own prompt templates
-    (strategy/punishment/norm-update/vote), not only the harvest one."""
-    balance = runtime.get("payoff", {}).get(agent_id, 0.0)
-    return (
-        f"Fishing isn't just for profit — you need roughly {CONSUMPTION_KG:.0f}kg a trip just to "
-        f"keep yourself fed. Your running reserves stand at {balance:.1f}kg right now; if that "
-        f"ever drops below zero, you won't be able to keep fishing."
-    )
+def render_group_norm():
+    """The community's currently-adopted policy, read straight from
+    norm.txt (Policy + Operationalization, written by run_cycle() the
+    first time a proposal wins a vote — see engine/simulate.py). Returns a
+    placeholder before any norm has ever been adopted (norm.txt doesn't
+    exist yet in round 0/early rounds), rather than raising — a fisher
+    with no community policy yet is a real, expected state, not an
+    error."""
+    norm_path = ROOT / "norm.txt"
+    if not norm_path.is_file():
+        return "(no community policy has been adopted yet)"
+    return norm_path.read_text().strip()
 
 
 def render_notices(agent_id, round_number, fluents, events=()):
