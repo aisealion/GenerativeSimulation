@@ -1,0 +1,13 @@
+Policy: Each fisher may take no more than 10% of the lake’s current weight per trip, with a minimum of 1.5 kg for sustenance, and must return any excess to the communal pit, paying a 5 % penalty of the excess to the reserve fund, which is 25 % of the lake weight and managed by the Community Council.
+
+Operationalization: 1. At the start of each day, all fishers gather to elect the trip leader by simple majority vote (open or brief secret ballot). The election result and elected leader are recorded in the communal log.
+2. The elected trip leader measures the lake weight immediately after election and records it in the communal log.
+3. The trip leader calculates the 10 % cap: cap = max(0.10 × lake weight, 1.5 kg).
+4. Each fisher writes down their intended catch and submits it to the trip leader.
+5. After the trip, each fisher records their actual catch in the communal log.
+6. The trip leader (or designated record‑keeper) tallies all catches. If any fisher’s actual catch exceeds the cap, the excess fish are returned to the communal pit and the fisher pays a penalty equal to 5 % of the excess weight to the reserve fund.
+7. The communal pit is managed by the Fishing Committee with a Pit Steward elected by unanimous vote. The steward records the weight of excess fish returned each trip and keeps the pit clean.
+8. The reserve fund is set at 25 % of the current lake weight and is recalculated each month at the beginning of the month. It is held and managed by the Community Council, which approves withdrawals only in emergencies or with unanimous agreement.
+9. All catch reports must be submitted within 24 hours of the trip to maintain transparency.
+10. A fisher is flagged as consistently exceeding the cap if they exceed it in at least 3 of the last 5 trips or in 2 consecutive trips. Flagged fishers must reduce future catches and participate in a council discussion.
+11. Monthly meetings review lake weight, reserve health, and catch trends. The council may adjust the 10 % cap up or down with a simple majority vote if the lake weight has dropped more than 5 % or the reserve is low, or raise it if the lake stock is healthy. All changes are documented in the meeting minutes.
