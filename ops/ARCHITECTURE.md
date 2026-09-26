@@ -318,17 +318,17 @@ sequenceDiagram
     Cycle->>Checks: compile / institution-drift / orphaned-rule /<br/>tests/norm_checks/round_N/ (Self-Correction Gate) / runtime checks
     alt a check fails
         Checks-->>Eng: repair message — states which attempt this is,<br/>whether THIS attempt has real session memory, the specific<br/>error found, and asks Eng to check for and self-repair<br/>OTHER similar mistakes too
-        Note over Eng,Checks: loops back — session PAIRED (2026-09-25): 1&amp;2 share,<br/>3&amp;4 share a new one, ... — bounded by MAX_NORM_REPAIR_ATTEMPTS
+        Note over Eng,Checks: loops back — session PAIRED (2026-09-25): 1&amp;2 share,<br/>3&amp;4 share a new one, ... — bounded by its OWN budget,<br/>MAX_NORM_COMPILE_REPAIR_ATTEMPTS (2026-09-27, split from audit-repair)
     else clean
         Cycle->>Evid: _gather_norm_evidence(round, plan)
-        Note over Evid: per requirement id: finalizer's verified claims +<br/>each test's own PASS/FAIL (via --junit-xml)
+        Note over Evid: per requirement id: norm-engineer's own finalization step's<br/>verified claims + each test's own PASS/FAIL (via --junit-xml)
         Evid-->>Cycle: state/norm_evidence/round_N.json
         Cycle->>Aud: run_norm_auditor(round)
         Note over Aud: a separate model instance that never wrote the code —<br/>reads norm.txt + the architect's plan + the evidence package,<br/>asking "does this evidence demonstrate the norm was<br/>actually instantiated?", hunting specifically for under-enforcement
         Aud-->>Cycle: response text, ending with AUDIT_PASSED<br/>iff fully compliant, else a specific critique
         alt NEEDS_REPAIR
             Cycle->>Eng: repair message with the auditor's report<br/>(same attempt-number + self-repair framing as above)
-            Note over Eng,Aud: loops back — same session pairing, same repair budget
+            Note over Eng,Aud: loops back — same session pairing, its OWN budget<br/>(MAX_NORM_AUDIT_REPAIR_ATTEMPTS, smaller than the compile-repair one)
         else COMPLIANT
             Cycle->>Git: stage + commit this round's changes
         end
@@ -370,8 +370,9 @@ repair loop (2026-09-25)** — repair attempt 1 & 2 share one session, 3 & 4
 share a new one, 5 & 6 a newer one still, and so on; never more than 2
 consecutive repair attempts in the same session. This landed in two
 steps. First (2026-09-24, by request), the session was continued across
-the round's *entire* repair loop, unbounded within
-`MAX_NORM_REPAIR_ATTEMPTS`. This targeted a confirmed real failure: round
+the round's *entire* repair loop, unbounded within the round's shared
+repair budget (since split into two — see below). This targeted a
+confirmed real failure: round
 3 of `sim/run-20260924-005713` needed 11 memoryless attempts to converge,
 and two of them failed on the exact same broken import in the exact same
 file — the model guessed a plausible-but-wrong module path twice
@@ -409,6 +410,26 @@ far smaller by construction (2 consecutive attempts, not up to 10), and
 `run_norm_engineer_with_retry()`'s own process-retry pairing (unchanged,
 2026-09-18) still drops a session after 2 consecutive process-level
 failures on it — a second, independent safety valve.
+
+**Compile-repair and audit-repair draw from separate budgets
+(2026-09-27)** — `MAX_NORM_COMPILE_REPAIR_ATTEMPTS` (10) for compile/
+institution/orphaned-rule/missing-spec/failing-test findings,
+`MAX_NORM_AUDIT_REPAIR_ATTEMPTS` (5, smaller) for a norm-auditor
+NEEDS_REPAIR finding — no longer one shared pool. Two real rounds
+(`sim/run-20260926-204555`) showed why the shared pool was a problem: both
+needed several compile-fixes (9-14 requirements each) before ever reaching
+a clean pass, leaving almost no budget for the genuinely different, harder
+work of satisfying the auditor's semantic precision demands. One of them
+converged fast when it got the chance — 6 flagged requirements down to 1,
+then a different 1, across its only 3 audit cycles — but ran out of the
+*shared* budget one iteration short of finishing, because 9 of its 11
+total repair calls had already gone to compile-fixing. Splitting the
+budgets means a round that struggles with compilation doesn't starve
+audit-refinement of its own fair chance, and vice versa. Session pairing
+(above) is unaffected — it still counts every repair call, of either kind,
+against one combined running total for pairing purposes only, since
+pairing exists to bound session lifetime regardless of which kind of
+repair is happening.
 
 ## 8. How state gets updated
 

@@ -4,7 +4,8 @@ norm-auditor split (2026-09-21):
 1. The Self-Correction Gate (norm_implementation_failing_tests_errors()) —
    a pure-Python, no-LLM-call check that runs norm-architect's pre-written
    tests/norm_checks/round_{N}/ suite and feeds any failure's stack trace
-   into the existing MAX_NORM_REPAIR_ATTEMPTS repair loop.
+   into the existing compile-repair loop (its own separate budget,
+   MAX_NORM_COMPILE_REPAIR_ATTEMPTS, as of 2026-09-27).
 2. The NORM_ENGINEER_CODE_PATHS fix to norm_implementation_no_code_changes_errors() —
    norm-architect writes tests/norm_checks/round_{N}/ BEFORE norm-engineer
    ever runs, so that directory is already dirty by the time this check

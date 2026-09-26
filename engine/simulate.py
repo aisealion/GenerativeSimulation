@@ -1822,22 +1822,44 @@ def stage_norm_implementation(round_number):
     return True
 
 
-# Bounds real repair attempts (an IMPLEMENTATION_ERROR/SPEC_GAP finding, or
-# a compile error) — a judgment about the code. Raised 2 -> 4 -> 10
-# (2026-09-14) after a real round exhausted its budget on a genuine, well-
-# evidenced code bug (a rule referencing an institutional object instance
-# that was never declared) that survived one repair attempt because the
-# model's own fix addressed a different, superficially-similar problem
-# (an institution.json catalog path) instead of the actual missing
-# instance. Distinct from the process-attempt budget defined below, which
-# is about retrying an identical thing after a session-level glitch, not
-# about giving a real fix more chances. Real cost, named explicitly: each
-# unit here is a full implement-again + re-evaluate cycle (an opencode
-# subprocess each), not a cheap retry — 10 is a genuinely large worst-case
-# budget for one persistently-broken round, accepted deliberately for now
-# to see how many real attempts a model actually needs against a clearly-
-# quoted error before this number should be revisited downward instead.
-MAX_NORM_REPAIR_ATTEMPTS = 10
+# Bounds real repair attempts for a COMPILE-class problem (a compile
+# error, an institution-registration/orphaned-rule/missing-spec/no-code-
+# changes finding, or a failing test) — a judgment about whether the code
+# is even structurally right. Raised 2 -> 4 -> 10 (2026-09-14) after a
+# real round exhausted its budget on a genuine, well-evidenced code bug (a
+# rule referencing an institutional object instance that was never
+# declared) that survived one repair attempt because the model's own fix
+# addressed a different, superficially-similar problem (an
+# institution.json catalog path) instead of the actual missing instance.
+# Distinct from the process-attempt budget defined below, which is about
+# retrying an identical thing after a session-level glitch, not about
+# giving a real fix more chances. Real cost, named explicitly: each unit
+# here is a full implement-again + re-evaluate cycle (an opencode
+# subprocess each), not a cheap retry.
+#
+# 2026-09-27: split into its own budget, separate from
+# MAX_NORM_AUDIT_REPAIR_ATTEMPTS below (they used to share one pool,
+# MAX_NORM_REPAIR_ATTEMPTS). Real rounds showed why that was a problem: a
+# round needing several compile-fixes (structurally right code takes real
+# iteration) left almost nothing for the genuinely different, harder work
+# of satisfying norm-auditor's semantic precision demands ("returns *some*
+# surplus" vs. "returns *exactly* the amount over the threshold") — one
+# round went 6 flagged requirements -> 1 -> 1 different one across its
+# only 3 audit cycles (real, fast convergence) but ran out of the shared
+# budget one iteration short of finishing, because 9 of its 11 total calls
+# had already gone to compile-fixing. Splitting the budgets means a round
+# that struggles with compilation doesn't starve the audit-refinement
+# work of its own fair chance, and vice versa.
+MAX_NORM_COMPILE_REPAIR_ATTEMPTS = 10
+
+# Bounds real repair attempts specifically for a norm-auditor NEEDS_REPAIR
+# finding — a judgment about whether the evidence demonstrates the norm
+# was actually, precisely instantiated, not just whether the code runs.
+# Kept smaller than the compile budget: a real round's audit critiques
+# converged fast when they converged at all (6 flagged requirements -> 1
+# -> a different 1, in back-to-back cycles) — this is meant to give that
+# convergence room to finish, not to fund an open-ended back-and-forth.
+MAX_NORM_AUDIT_REPAIR_ATTEMPTS = 5
 # norm-auditor no longer has its own process-retry budget here (2026-09-23)
 # — since it stopped running through opencode (see call_norm_auditor_agent()
 # in engine/llm_agents.py for why), its own bounded retry loop
@@ -1897,7 +1919,9 @@ def run_norm_engineer_with_retry(round_number, extra_message=None, session_id=No
     """Retries run_norm_engineer() itself, up to
     MAX_ENGINEER_PROCESS_ATTEMPTS times, on a process-level failure —
     this is not a finding about the code, so it must not be confused with
-    or consume a MAX_NORM_REPAIR_ATTEMPTS repair attempt. Returns
+    or consume a compile-repair or audit-repair attempt (their own
+    separate budgets, MAX_NORM_COMPILE_REPAIR_ATTEMPTS/
+    MAX_NORM_AUDIT_REPAIR_ATTEMPTS). Returns
     (success, session_id) — session_id is whatever this call's own last
     attempt actually used/discovered, for the caller to thread into its
     NEXT call (see implement_and_evaluate_norm(), which now does exactly
@@ -1948,7 +1972,7 @@ def norm_implementation_failing_tests_errors(round_number):
     scenarios at all; norm-engineer decides what each requirement needs
     tested, from its agent_experience block, and writes real pytest for
     it) — and returns a stack-trace-bearing error on failure. Pure Python,
-    no LLM call — feeds the EXISTING MAX_NORM_REPAIR_ATTEMPTS loop (via the
+    no LLM call — feeds the EXISTING compile-repair loop (via the
     same compile_errors list every other check already populates) rather
     than a new parallel loop, so a failing test gets fed straight back to
     norm-engineer as a repair message exactly like a compile error would.
@@ -1973,14 +1997,18 @@ def norm_implementation_failing_tests_errors(round_number):
     ]
 
 
-def _render_engineer_repair_preamble(round_number, attempt, what_was_found, session_is_fresh, repair_history):
+def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_attempts, what_was_found, session_is_fresh, repair_history):
     """Shared preamble for both repair-message shapes below (a
-    compile/validation error, an auditor NEEDS_REPAIR finding). Says which
-    attempt this is, whether THIS specific attempt has real session memory
-    or not, and a compact orchestrator-recorded history of every earlier
-    attempt this round either way — plus that the check which caught this
-    only reports the FIRST category of problem it finds, so fixing exactly
-    the named error and stopping there isn't enough.
+    compile/validation error, an auditor NEEDS_REPAIR finding — `repair_kind`
+    is `"compile"` or `"audit"`, each with its OWN attempt count and budget
+    since 2026-09-27, see MAX_NORM_COMPILE_REPAIR_ATTEMPTS/
+    MAX_NORM_AUDIT_REPAIR_ATTEMPTS's own comments for why). Says which kind
+    of repair this is and which attempt against ITS OWN budget, whether
+    THIS specific attempt has real session memory or not, and a compact
+    orchestrator-recorded history of every earlier attempt this round
+    either way — plus that the check which caught this only reports the
+    FIRST category of problem it finds, so fixing exactly the named error
+    and stopping there isn't enough.
 
     2026-09-25: session continuation across the whole repair loop
     (2026-09-24) was narrowed to paired attempts (1&2 share a session,
@@ -2019,15 +2047,25 @@ def _render_engineer_repair_preamble(round_number, attempt, what_was_found, sess
         ("Previous attempts on this round, in order:\n" + "\n".join(repair_history) + "\n\n")
         if repair_history else ""
     )
+    kind_label = "compile/structural" if repair_kind == "compile" else "audit"
+    order_note = (
+        "The check that caught this only reports the FIRST category of problem it finds, in "
+        "a fixed order (compile/syntax, then institution/rule registration, then runtime "
+        "resolution, then your own test suite) — there may be a further problem not yet "
+        "visible here, hidden behind this one. "
+        if repair_kind == "compile" else
+        "norm-auditor's own report above may not be the only requirement under-enforced — it "
+        "found this one specifically, but a fix narrow enough to satisfy only the named "
+        "requirement, without checking whether the same weak-evidence pattern exists elsewhere "
+        "in this round's own tests, tends to just surface a different requirement next audit "
+        "cycle instead of actually finishing. "
+    )
     return (
-        f"This is repair attempt {attempt} of {MAX_NORM_REPAIR_ATTEMPTS} for round "
+        f"This is {kind_label} repair attempt {attempt} of {max_attempts} for round "
         f"{round_number}. {session_note}\n\n"
         f"{history_block}"
         f"{what_was_found}\n\n"
-        f"The check that caught this only reports the FIRST category of problem it finds, in "
-        f"a fixed order (compile/syntax, then institution/rule registration, then runtime "
-        f"resolution, then your own test suite) — there may be a further problem not yet "
-        f"visible here, hidden behind this one. Fix exactly what's named above, then "
+        f"{order_note}Fix exactly what's named above, then "
         f"proactively re-check every OTHER file you touched this round for the same class of "
         f"mistake (e.g. if this was a wrong import path or a missing field, grep every other "
         f"new file you wrote for the same pattern and confirm it's correct there too, not "
@@ -2048,20 +2086,33 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     (with a bounded repair retry) -> evidence gathering -> independent
     audit -> repair-or-stage. The main loop exists because a compile
     error, a failing test, or an auditor NEEDS_REPAIR finding can all send
-    norm-engineer back for
-    another attempt, sharing one MAX_NORM_REPAIR_ATTEMPTS budget. Returns
-    True iff norm-engineer's
-    changes were staged (ready for commit_round()'s own single per-round
-    commit); False means either a discard already happened, or the round
-    was COMPLIANT but made no changes to stage.
+    norm-engineer back for another attempt.
+
+    2026-09-27: compile-class repairs and audit-class repairs now draw
+    from SEPARATE budgets (MAX_NORM_COMPILE_REPAIR_ATTEMPTS,
+    MAX_NORM_AUDIT_REPAIR_ATTEMPTS — see their own comments), not one
+    shared MAX_NORM_REPAIR_ATTEMPTS pool. Two real rounds
+    (sim/run-20260926-204555) showed why the shared pool was a problem: a
+    round needing several compile-fixes left almost no budget for the
+    genuinely different, harder work of satisfying norm-auditor's semantic
+    precision demands — one round converged 6 flagged requirements -> 1 ->
+    a different 1 across its only 3 audit cycles (real, fast progress) but
+    ran out of the shared budget one iteration short, because 9 of its 11
+    total calls had already gone to compile-fixing. Returns True iff
+    norm-engineer's changes were staged (ready for commit_round()'s own
+    single per-round commit); False means either a discard already
+    happened, or the round was COMPLIANT but made no changes to stage.
 
     norm-architect and norm-auditor are always fresh completion calls (they
     were never opencode sessions in the first place — see their own
     docstrings). norm-engineer's kickoff call is always a fresh session
-    too. Its repair attempts below, though, are PAIRED (2026-09-25):
-    repair attempt 1 & 2 share one session, 3 & 4 share a new one, 5 & 6 a
-    newer one still, and so on — never more than 2 consecutive repair
-    attempts in the same session. This landed in two steps:
+    too. Its repair attempts below, though, are PAIRED (2026-09-25) across
+    a single combined attempt count spanning BOTH repair kinds (not
+    per-kind — the pairing exists to bound session lifetime regardless of
+    what kind of repair is happening): repair call 1 & 2 share one
+    session, 3 & 4 share a new one, 5 & 6 a newer one still, and so on —
+    never more than 2 consecutive repair calls in the same session. This
+    landed in two steps:
 
     First (2026-09-24, by request): the session was continued across the
     round's ENTIRE repair loop, unbounded within MAX_NORM_REPAIR_ATTEMPTS.
@@ -2123,9 +2174,16 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     # one, ...) — see this function's own docstring. repair_history is a
     # plain orchestrator-recorded log (one line per attempt), independent
     # of session memory, that carries continuity across a pair boundary.
+    # compile_attempt/audit_attempt are each checked against their OWN
+    # budget (2026-09-27); total_attempt only drives session pairing,
+    # which is deliberately kind-agnostic — see docstring above.
     repair_session_id = None
     repair_history = []
-    for attempt in range(1, MAX_NORM_REPAIR_ATTEMPTS + 2):
+    total_attempt = 0
+    compile_attempt = 0
+    audit_attempt = 0
+    while True:
+        total_attempt += 1
         # Protected-path violations are a hard, non-retryable discard —
         # a boundary violation, not a bug to repair.
         protected_violations = norm_implementation_protected_path_violations()
@@ -2153,16 +2211,18 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             if runtime_error:
                 compile_errors = [runtime_error]
         if compile_errors:
-            if attempt > MAX_NORM_REPAIR_ATTEMPTS:
+            compile_attempt += 1
+            if compile_attempt > MAX_NORM_COMPILE_REPAIR_ATTEMPTS:
                 discard_norm_implementation(round_number, compile_errors)
                 return False
             print(f"\nRound {round_number}: norm-engineer's changes have compile/validation "
-                  f"errors — sending back for repair (attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}), "
-                  f"instead of discarding on the first occurrence.")
-            session_is_fresh = attempt % 2 == 1
+                  f"errors — sending back for repair (compile-repair attempt "
+                  f"{compile_attempt}/{MAX_NORM_COMPILE_REPAIR_ATTEMPTS}), instead of discarding "
+                  f"on the first occurrence.")
+            session_is_fresh = total_attempt % 2 == 1
             repair_message = (
                 _render_engineer_repair_preamble(
-                    round_number, attempt,
+                    round_number, "compile", compile_attempt, MAX_NORM_COMPILE_REPAIR_ATTEMPTS,
                     f"Round {round_number}'s implementation has compile/validation errors that "
                     f"must be fixed before it can even be audited:\n\n{chr(10).join(compile_errors)}",
                     session_is_fresh, repair_history,
@@ -2176,7 +2236,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 "fenced ```json report block your instructions describe."
             )
             repair_history.append(
-                f"attempt {attempt}: compile/validation error — {compile_errors[0].splitlines()[0][:200]}"
+                f"attempt {total_attempt} (compile): {compile_errors[0].splitlines()[0][:200]}"
             )
             success, discovered_session_id = run_norm_engineer_with_retry(
                 round_number, extra_message=repair_message,
@@ -2214,20 +2274,22 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
 
         # The auditor's own free-text report is handed back verbatim as
         # the repair prompt — no structured verdict list to re-parse.
-        if attempt > MAX_NORM_REPAIR_ATTEMPTS:
+        audit_attempt += 1
+        if audit_attempt > MAX_NORM_AUDIT_REPAIR_ATTEMPTS:
             discard_norm_implementation(
                 round_number,
-                [f"norm-auditor returned NEEDS_REPAIR after {MAX_NORM_REPAIR_ATTEMPTS} repair "
-                 f"attempt(s). Auditor's final report:\n\n{audit['text']}"],
+                [f"norm-auditor returned NEEDS_REPAIR after {MAX_NORM_AUDIT_REPAIR_ATTEMPTS} "
+                 f"audit-repair attempt(s). Auditor's final report:\n\n{audit['text']}"],
             )
             return False
 
         print(f"\nRound {round_number}: norm-auditor returned NEEDS_REPAIR — sending back to "
-              f"norm-engineer (repair attempt {attempt}/{MAX_NORM_REPAIR_ATTEMPTS}).")
-        session_is_fresh = attempt % 2 == 1
+              f"norm-engineer (audit-repair attempt "
+              f"{audit_attempt}/{MAX_NORM_AUDIT_REPAIR_ATTEMPTS}).")
+        session_is_fresh = total_attempt % 2 == 1
         repair_message = (
             _render_engineer_repair_preamble(
-                round_number, attempt,
+                round_number, "audit", audit_attempt, MAX_NORM_AUDIT_REPAIR_ATTEMPTS,
                 f"Round {round_number}'s auditor found problems — read its full report below "
                 f"carefully and fix exactly what it identifies:\n\n"
                 f"--- Auditor's report ---\n{audit['text']}\n--- end of report ---",
@@ -2243,7 +2305,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             "response with the fenced ```json report block your instructions describe."
         )
         repair_history.append(
-            f"attempt {attempt}: norm-auditor NEEDS_REPAIR — {audit['text'].splitlines()[0][:200]}"
+            f"attempt {total_attempt} (audit): {audit['text'].splitlines()[0][:200]}"
         )
         success, discovered_session_id = run_norm_engineer_with_retry(
             round_number, extra_message=repair_message,
@@ -2258,8 +2320,6 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                  f"ops/logs/model_calls.jsonl"],
             )
             return False
-
-    return False  # unreachable — the loop above always returns first
 
 
 ROUND_ARTIFACT_PATHS = [
