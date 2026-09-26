@@ -71,8 +71,9 @@ def test_audit_repair_exhausts_its_own_smaller_budget_after_compile_passes_immed
     assert len(discards) == 1
     assert str(simulate_module.MAX_NORM_AUDIT_REPAIR_ATTEMPTS) in discards[0][1][0]
     assert "audit-repair attempt(s)" in discards[0][1][0]
-    # kickoff + MAX_NORM_AUDIT_REPAIR_ATTEMPTS repairs — never the (larger)
-    # compile budget's worth of calls, since compile never failed once.
+    # kickoff + MAX_NORM_AUDIT_REPAIR_ATTEMPTS repairs — tracked against
+    # its own separate counter regardless of what MAX_NORM_COMPILE_REPAIR_
+    # ATTEMPTS happens to be, since compile never failed once here.
     assert engineer_calls["n"] == 1 + simulate_module.MAX_NORM_AUDIT_REPAIR_ATTEMPTS
 
 

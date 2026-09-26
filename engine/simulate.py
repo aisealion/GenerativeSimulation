@@ -1855,11 +1855,16 @@ MAX_NORM_COMPILE_REPAIR_ATTEMPTS = 10
 # Bounds real repair attempts specifically for a norm-auditor NEEDS_REPAIR
 # finding — a judgment about whether the evidence demonstrates the norm
 # was actually, precisely instantiated, not just whether the code runs.
-# Kept smaller than the compile budget: a real round's audit critiques
-# converged fast when they converged at all (6 flagged requirements -> 1
-# -> a different 1, in back-to-back cycles) — this is meant to give that
-# convergence room to finish, not to fund an open-ended back-and-forth.
-MAX_NORM_AUDIT_REPAIR_ATTEMPTS = 5
+# Raised 5 -> 10 (2026-09-27, by request) to match
+# MAX_NORM_COMPILE_REPAIR_ATTEMPTS — 5 was set right after the split
+# specifically because a real round's audit critiques converged fast when
+# they converged at all (6 flagged requirements -> 1 -> a different 1, in
+# back-to-back cycles), but that's not a guarantee every round converges
+# that quickly; a round bouncing between several distinct under-enforced
+# requirements (like round 2 of sim/run-20260926-204555 did) genuinely
+# needs more than a couple of cycles to clear all of them, not just the
+# first one found.
+MAX_NORM_AUDIT_REPAIR_ATTEMPTS = 10
 # norm-auditor no longer has its own process-retry budget here (2026-09-23)
 # — since it stopped running through opencode (see call_norm_auditor_agent()
 # in engine/llm_agents.py for why), its own bounded retry loop

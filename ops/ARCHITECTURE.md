@@ -328,7 +328,7 @@ sequenceDiagram
         Aud-->>Cycle: response text, ending with AUDIT_PASSED<br/>iff fully compliant, else a specific critique
         alt NEEDS_REPAIR
             Cycle->>Eng: repair message with the auditor's report<br/>(same attempt-number + self-repair framing as above)
-            Note over Eng,Aud: loops back — same session pairing, its OWN budget<br/>(MAX_NORM_AUDIT_REPAIR_ATTEMPTS, smaller than the compile-repair one)
+            Note over Eng,Aud: loops back — same session pairing, its OWN<br/>separate budget (MAX_NORM_AUDIT_REPAIR_ATTEMPTS)
         else COMPLIANT
             Cycle->>Git: stage + commit this round's changes
         end
@@ -414,18 +414,22 @@ failures on it — a second, independent safety valve.
 **Compile-repair and audit-repair draw from separate budgets
 (2026-09-27)** — `MAX_NORM_COMPILE_REPAIR_ATTEMPTS` (10) for compile/
 institution/orphaned-rule/missing-spec/failing-test findings,
-`MAX_NORM_AUDIT_REPAIR_ATTEMPTS` (5, smaller) for a norm-auditor
-NEEDS_REPAIR finding — no longer one shared pool. Two real rounds
-(`sim/run-20260926-204555`) showed why the shared pool was a problem: both
-needed several compile-fixes (9-14 requirements each) before ever reaching
-a clean pass, leaving almost no budget for the genuinely different, harder
-work of satisfying the auditor's semantic precision demands. One of them
-converged fast when it got the chance — 6 flagged requirements down to 1,
-then a different 1, across its only 3 audit cycles — but ran out of the
-*shared* budget one iteration short of finishing, because 9 of its 11
-total repair calls had already gone to compile-fixing. Splitting the
-budgets means a round that struggles with compilation doesn't starve
-audit-refinement of its own fair chance, and vice versa. Session pairing
+`MAX_NORM_AUDIT_REPAIR_ATTEMPTS` (10, same size — raised from an initial 5
+the same day, once a second real round showed 5 wasn't always enough: a
+round bouncing between several distinct under-enforced requirements
+genuinely needs more than a couple of cycles to clear all of them, not
+just the first one found) for a norm-auditor NEEDS_REPAIR finding — no
+longer one shared pool. Two real rounds (`sim/run-20260926-204555`) showed
+why the shared pool was a problem in the first place: both needed several
+compile-fixes (9-14 requirements each) before ever reaching a clean pass,
+leaving almost no budget for the genuinely different, harder work of
+satisfying the auditor's semantic precision demands. One of them converged
+fast when it got the chance — 6 flagged requirements down to 1, then a
+different 1, across its only 3 audit cycles — but ran out of the *shared*
+budget one iteration short of finishing, because 9 of its 11 total repair
+calls had already gone to compile-fixing. Splitting the budgets means a
+round that struggles with compilation doesn't starve audit-refinement of
+its own fair chance, and vice versa. Session pairing
 (above) is unaffected — it still counts every repair call, of either kind,
 against one combined running total for pairing purposes only, since
 pairing exists to bound session lifetime regardless of which kind of
