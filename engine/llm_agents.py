@@ -874,8 +874,9 @@ AUDITOR_CALL_DELAY_S = float(os.environ.get("LLM_CALL_DELAY_S", "2"))
 # (2026-09-23) it read the raw norm text against the round's own git diff;
 # reworked again (2026-09-24, by request) to instead read the norm text
 # against norm-architect's institutional PLAN plus a structured, harness-
-# assembled EVIDENCE package (per-requirement: what norm-finalizer
-# independently verified was built, and each test norm-engineer itself
+# assembled EVIDENCE package (per-requirement: what norm-engineer's own
+# finalization step verified was built — 2026-09-26: no more separate
+# norm-finalizer subagent for this — and each test norm-engineer itself
 # wrote's own PASS/FAIL) — "does this evidence demonstrate the norm was
 # actually instantiated?" is a sharper, more tractable question than "does
 # this diff look right?", and matches how a human regulatory auditor
@@ -933,8 +934,8 @@ Look specifically for a norm clause containing a duration, a threshold, a
 rate, a count, or a conditional (if/else) split, and check whether the
 evidence actually probes that distinction — not just whether *a*
 consequence fires. A requirement with no test evidence at all, or a
-`VERIFICATION_FAILED` note from norm-finalizer, is a real finding, not
-something to wave through.
+`VERIFICATION_FAILED` note from norm-engineer's own finalization step, is
+a real finding, not something to wave through.
 
 ## Output format
 

@@ -44,9 +44,11 @@ norm exists yet) until `norm-engineer` makes it pass.
 A requirement's tests passing is necessary, not sufficient, for the round
 to be judged compliant. After a clean round, the harness assembles a
 structured evidence package (`_gather_norm_evidence()`,
-`state/norm_evidence/round_N.json`) — per requirement,
-`norm-finalizer`'s independently verified claims plus each test's own
-PASS/FAIL. `norm-auditor` (a plain, tool-free completion call, not a
+`state/norm_evidence/round_N.json`) — per requirement, `norm-engineer`'s
+own finalization step (2026-09-26: no more separate norm-finalizer
+subagent — see `docs/institution-contracts/finalization-contract.md`)
+verified claims plus each test's own PASS/FAIL. `norm-auditor` (a plain,
+tool-free completion call, not a
 separate test-writing agent) then reviews norm.txt against
 `norm_plan.json` and that evidence package together, specifically to
 catch under-enforcement a passing test couldn't have caught on its own (a

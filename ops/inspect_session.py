@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Shows what an opencode-driven norm pipeline agent (norm-engineer or its
-norm-finalizer subagent) actually did in a session — every tool call
+"""Shows what an opencode-driven norm pipeline agent (norm-engineer, the
+only one left as of 2026-09-26 — no more separate norm-finalizer subagent)
+actually did in a session — every tool call
 (codegraph_explore queries, files read, files edited), not just the final
 summary text that ops/logs/model_calls.jsonl captures. Our own logging
 only sees stdout; this reads opencode's own session store for the real

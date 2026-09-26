@@ -121,20 +121,25 @@ instead of writing another one.
 
 ## How a norm gets verified before it's committed
 
-`norm-architect` writes a formal requirement checklist and a failing
-pytest suite (`tests/norm_checks/round_{N}/`) *before* any implementation
-code exists — classifying each requirement's clarity and resolving
-anything ambiguous, incomplete, or internally contradictory via a short,
-pointed dialogue with the fisher who proposed the rule. `norm-engineer`
-then implements against that checklist and those tests, with no access to
-edit them, until they pass — dispatching `norm-finalizer` (which
-independently re-verifies everything claimed) to write the frozen spec to
-`state/norm_specs/round_{N}.md` once implementation is done. Only once
-code exists does `norm-auditor` — a separate model instance that never
-wrote the code — cross-reference the raw norm.txt text directly against
-the round's actual diff, hunting specifically for under-enforcement (code
-that's technically present, and even passes `tests/norm_checks/`, but
-implements a requirement more weakly than the norm's own text demands).
-See `NORM_AUDITOR_SYSTEM_PROMPT` in `engine/llm_agents.py` for its full
-standing instructions, and CLAUDE.md for why this is a separate agent
+`norm-architect` performs semantic compilation only — classifying every
+atomic requirement the norm's text implies (ROLE/ACTION/OBJECT/RULE/
+VISIBILITY/LIFECYCLE) with an `agent_experience` block each, no file
+paths, no Python, no test scenarios — before any implementation code
+exists. `norm-engineer` then decides what each requirement needs tested,
+writes real pytest for it (`tests/norm_checks/round_{N}/`), and implements
+against those tests until they pass. Once implementation is done,
+`norm-engineer` finalizes the round itself (2026-09-26: no more separate
+norm-finalizer subagent hop) — re-verifying its own claims against disk,
+registering new catalog entries, and writing the frozen spec to
+`state/norm_specs/round_{N}.md`, per
+`docs/institution-contracts/finalization-contract.md`. Only once code
+exists does `norm-auditor` — a separate model instance that never wrote
+the code — cross-reference the raw norm.txt text against the architect's
+plan and a structured evidence package (`_gather_norm_evidence()`),
+hunting specifically for under-enforcement (code that's technically
+present, and even passes `tests/norm_checks/`, but implements a
+requirement more weakly than the norm's own text demands). See
+`NORM_AUDITOR_SYSTEM_PROMPT` in `engine/llm_agents.py` for its full
+standing instructions, and `ops/ARCHITECTURE.md` section 7 for why this is
+a separate agent
 rather than another self-check inside norm-engineer.

@@ -39,13 +39,14 @@
   yours added) are permanently off-limits (`architecture.md`).
 - **`state/object_types/{type}.json`**, **`state/objects.json`** — see
   `object-contract.md`.
-- **`state/norm_specs/round_{N}.md`** — written by `norm-finalizer`, not
-  you directly, after every requirement is actually implemented — you
-  dispatch it with your full classification; it verifies and writes.
-  Must land at exactly this path, under `state/` — two real rounds wrote
-  to `norm_specs/round_{N}.md` at the repo root instead (dropping the
-  `state/` prefix), which the orchestrator's check can't find, discarding
-  otherwise-real work over a path typo.
+- **`state/norm_specs/round_{N}.md`** — written by you, as a distinct
+  finalization step (`finalization-contract.md`) after every requirement
+  is actually implemented — re-verify your own claims against disk first,
+  don't just transcribe what you meant to build. Must land at exactly this
+  path, under `state/` — two real rounds wrote to `norm_specs/round_{N}.md`
+  at the repo root instead (dropping the `state/` prefix), which the
+  orchestrator's check can't find, discarding otherwise-real work over a
+  path typo.
 - **`tests/norm_checks/round_{N}/`** — **not yours** — `norm-architect`'s
   exclusive surface, written before you ever run (naming convention in
   its own README). You read every test there before writing any code, but

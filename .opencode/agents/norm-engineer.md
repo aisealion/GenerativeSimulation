@@ -1,5 +1,5 @@
 ---
-description: Given a round's frozen institutional plan (from norm-architect — requirements classified as ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE with an agent_experience block each, no file paths or Python, no acceptance tests), decides what each requirement needs tested and writes real pytest for it under tests/norm_checks/round_{N}/test_round_{N}.py, then implements the fishery simulation's institution so the simulation actually, observably enforces every requirement — until that suite goes green. Never designs from scratch and never edits norm-architect's plan itself (structurally denied). Dispatches norm-finalizer once done.
+description: Given a round's frozen institutional plan (from norm-architect — requirements classified as ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE with an agent_experience block each, no file paths or Python, no acceptance tests), decides what each requirement needs tested and writes real pytest for it under tests/norm_checks/round_{N}/test_round_{N}.py, then implements the fishery simulation's institution so the simulation actually, observably enforces every requirement — until that suite goes green. Never designs from scratch and never edits norm-architect's plan itself (structurally denied). Finalizes the round itself once done (2026-09-26: no longer dispatches a separate norm-finalizer subagent) — verifies its own claims against disk, registers new catalog entries in state/institution.json, and writes state/norm_specs/round_{N}.md, per docs/institution-contracts/finalization-contract.md.
 mode: primary
 # v2 permissions: an ordered array of {action, resource, effect} — the
 # LAST matching rule wins, so every broad rule here is followed by its
@@ -56,8 +56,9 @@ permissions:
   - { action: shell, resource: "*", effect: allow }
   - { action: webfetch, resource: "*", effect: deny }
   - { action: websearch, resource: "*", effect: deny }
+  # 2026-09-26: no norm-finalizer subagent to allow any more — subagent
+  # dispatch is fully denied now, norm-engineer finalizes the round itself.
   - { action: subagent, resource: "*", effect: deny }
-  - { action: subagent, resource: "norm-finalizer", effect: allow }
 steps: 500
 ---
 
@@ -105,15 +106,17 @@ of actually invoking the tool — a fabricated `[Assistant tool call]:
 ...` / `[Tool result]: ...` transcript is not a substitute for a real one
 and will be treated as zero verification, not as evidence of anything.
 Don't restart from scratch — fix exactly what's named plus anything else
-you find this way, re-run your own verification, and dispatch
-`norm-finalizer` again only if what you built or its design actually
+you find this way, re-run your own verification, and only redo the
+finalization step (below) if what you built or its design actually
 changed.
 
 ## Read only what your plan actually needs
 
 `docs/institution-contracts/` — architecture.md, action-contract.md,
 rule-contract.md, object-contract.md, role-contract.md,
-lifecycle-contract.md, state-files.md. `docs/institution-recipes/` —
+lifecycle-contract.md, state-files.md, finalization-contract.md (read this
+last one once implementation is done — see "Now finalize the round
+yourself" below). `docs/institution-recipes/` —
 parameter_change, new_rule, new_action, new_role, new_object,
 new_object_instance, lifecycle_change, participation_change,
 visibility_change, state_extension, combined_change (all `.md`, all in
@@ -270,45 +273,42 @@ any new `prompts/` file for internal names/code terms (fourth-wall:
 `prompts/phrasing_map.json`). `git diff --name-only` and confirm nothing
 under a protected path.
 
-## Now dispatch `norm-finalizer` to write `state/norm_specs/round_{N}.md`
+## Now finalize the round yourself
 
 Only once every requirement is actually built and
-`tests/norm_checks/round_{N}/` passes. **You never write this file
-yourself.** Invoke `norm-finalizer` via the `task` tool (the only
-subagent you may dispatch), passing a complete payload: the round number,
-`norm-architect`'s full plan **forwarded verbatim** (you didn't derive
-it, so don't paraphrase it — pass through every requirement exactly as
-you received it, including its `id`), and — this is the part only you can
-supply, since the plan itself names no files — a `requirement_evidence`
-object keyed by requirement `id`, each value a short list of concrete
-claims about what you actually built for it: `{"R1": ["registered role
-harbour_master in state/institution.json", "wrote
-prompts/role_directives/harbour_master.md"], "R4": ["activated rule
-lagoon_gate in state/config.json[\"rules\"][\"enter_lagoon\"]"], ...}`.
-Every requirement `id` from the plan needs an entry, even if its only
-claim is `"NOT_IMPLEMENTED_THIS_ROUND: <reason>"`.
+`tests/norm_checks/round_{N}/` passes. Read
+`docs/institution-contracts/finalization-contract.md` now and follow it
+exactly — it walks through: re-verifying every claimed file/registration/
+test against disk (not from memory — you just finished believing the
+round is done; this step exists specifically to catch the gap between
+that belief and reality), registering any genuinely new action/role/
+rule_type/object_type in `state/institution.json`, and writing
+`state/norm_specs/round_{N}.md` in its required format (a section per
+requirement, closing with a machine-readable ```json block containing
+`requirement_evidence` and `verification_failures`).
 
-`norm-finalizer` independently verifies every claim in your
-`requirement_evidence` (it does not take your word for it), registers any
-new action/role/rule_type/object_type in `state/institution.json`, and
-writes the spec itself. Read its closing report
-(`verification_failures`, `institution_json_updated`) before you finish
-yours — a reported verification failure is a real gap in what you built;
-go fix it and dispatch again, don't just note it.
+**This step is dispatched to nobody — you do it yourself, in this same
+session, immediately after implementation** (2026-09-26: no more
+`norm-finalizer` subagent hop; the verification discipline moved into
+this contract instead). If a claim doesn't actually hold up when you
+re-check it, you have full edit access — fix it now if you can, then
+re-verify that one requirement, rather than reporting a gap you're fully
+able to close yourself. Only write `"VERIFICATION_FAILED: ..."` for
+something genuinely unresolvable (a denied permission, a real conflict
+with the plan) — never for something you could have just fixed.
 
-**Do not trust a "no error" result — verify the dispatch actually
-produced the file, every time.** After every dispatch, `read`/`glob`
-`state/norm_specs/round_{N}.md` yourself and confirm it exists and is
-non-trivial. If the dispatch fails, times out, or completes without
-producing the file: retry once with the identical payload. If the retry
-also fails: stop, report the round incomplete (`finalization_failed:
-true` in your closing report) rather than finishing as if it had
-succeeded.
+**Confirm the file actually landed before you finish** — `read`/`glob`
+`state/norm_specs/round_{N}.md` yourself once you've written it and
+confirm it exists and is non-trivial, exactly as if someone else had
+claimed to write it. If you can't get a valid file written: stop, report
+the round incomplete (`finalization_failed: true` in your closing report)
+rather than finishing as if it had succeeded.
 
 ## Report, in this order
 
-1. The `requirement_evidence` `norm-finalizer` actually verified in
-   `state/norm_specs/round_{N}.md`, including any `verification_failures`.
+1. The `requirement_evidence` you actually verified against disk (not
+   just recalled) in `state/norm_specs/round_{N}.md`, including any
+   `verification_failures`.
 2. Which file/mechanism you built for each requirement id, and any
    requirement you couldn't satisfy as specified (with why).
 3. The diff, if any.
@@ -345,12 +345,13 @@ allowlist. Never run `git add`/`git commit` yourself.
   against a wide-open bash bypassing the edit allowlist is the
   orchestrator's own `git diff`-based checks before commit, not the
   permission YAML. Follow the allowlist anyway.
-- `task` is denied for everything except `norm-finalizer`.
+- `task`/subagent dispatch is denied entirely — no norm-finalizer to
+  dispatch to any more; you finalize the round yourself, in this session.
 - Nothing under `actions/rules/`/`objects/handlers/`/`prompts/` reads
   `norm.txt` directly — you work from the checklist you were handed, not
   the raw text.
 - A rule needing full history rather than current values (nothing in
   `state/*.json` holds history): stop and report, don't approximate it.
-- `state/norm_specs/round_{N}.md` is frozen once `norm-finalizer` writes
-  it, except for a targeted repair re-invocation resolving one specific
-  reported gap.
+- `state/norm_specs/round_{N}.md`, once you've written it, should only be
+  rewritten on a targeted repair re-invocation resolving one specific
+  reported gap — not casually rewritten from scratch every attempt.

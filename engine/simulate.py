@@ -824,10 +824,11 @@ def render_engineer_kickoff(norm_plan, round_number):
         f"\"agent_experience\" block is a real requirement, not decoration — a fisher must "
         f"actually come to know/decide/may-do/remember/observe what it says, not just have it "
         f"computed in Python.\n\n"
-        f"Once done, dispatch norm-finalizer with this same plan forwarded verbatim. End your "
-        f"response with the fenced ```json report block your instructions describe (the one "
-        f"containing a \"spec_path\" key) — this is required every time, not just when "
-        f"something went wrong.\n\n"
+        f"Once done, finalize the round yourself, following "
+        f"docs/institution-contracts/finalization-contract.md exactly. End your response with "
+        f"the fenced ```json report block your instructions describe (the one containing a "
+        f"\"spec_path\" key) — this is required every time, not just when something went "
+        f"wrong.\n\n"
         f"If a check finds a problem after this, you'll be re-invoked — the first repair "
         f"continues THIS session (2026-09-25: repairs are paired, 2 at a time, before a fresh "
         f"one starts), so if you're re-invoked once, you have your own memory of this round "
@@ -1000,13 +1001,14 @@ def _gather_norm_evidence(round_number, plan):
     look right?". Composed from two independently-verified sources,
     reusing existing machinery rather than reinventing either:
 
-    1. Structural evidence: norm-finalizer's own requirement_evidence
+    1. Structural evidence: norm-engineer's own requirement_evidence
        claims from state/norm_specs/round_{N}.md's trailing json block —
-       norm-finalizer already independently verifies these itself (see
-       its own "Verify, don't transcribe" step) before writing them, the
-       same verify-don't-trust pattern
-       norm_implementation_unverified_requirements_errors() already reads
-       from that same file for a different purpose.
+       norm-engineer already verifies these itself against disk (see
+       docs/institution-contracts/finalization-contract.md's own "Verify,
+       don't transcribe" step, 2026-09-26: no more separate norm-finalizer
+       subagent for this) before writing them, the same verify-don't-trust
+       pattern norm_implementation_unverified_requirements_errors()
+       already reads from that same file for a different purpose.
     2. Test evidence: runs tests/norm_checks/round_{N}/ once with
        --junit-xml (a built-in pytest flag — no new dependency, unlike a
        json-report plugin) and parses per-test pass/fail from the XML via
@@ -1594,16 +1596,17 @@ def norm_implementation_missing_spec_errors(round_number):
 
 
 def norm_implementation_unverified_requirements_errors(round_number):
-    """norm-finalizer already independently re-checks every claimed `owner`
-    file/test before writing state/norm_specs/round_{N}.md, and records
-    what it actually found (not what norm-engineer merely claimed)
-    in that same file's own trailing json block, as
+    """norm-engineer's own finalization step (2026-09-26:
+    docs/institution-contracts/finalization-contract.md, no more separate
+    norm-finalizer subagent) already re-checks every claimed `owner`
+    file/test against disk before writing state/norm_specs/round_{N}.md,
+    and records what it actually found (not just what it believed while
+    implementing) in that same file's own trailing json block, as
     "verification_failures" — but until this check, nothing in the
     orchestrator ever read that field. A round could finish finalization
     with real, named verification failures and still proceed to
-    audit/commit as if everything were confirmed, since the
-    finalizer's own separate closing report (the one containing this same
-    list) only ever reaches norm-engineer's own session, never the
+    audit/commit as if everything were confirmed, since that same list
+    otherwise only ever reaches norm-engineer's own session, never the
     orchestrator. Added 2026-09-15, found while auditing the self-check
     family for exactly this kind of already-computed-but-unused signal."""
     spec_path = ROOT / "state" / "norm_specs" / f"round_{round_number}.md"
@@ -1616,7 +1619,7 @@ def norm_implementation_unverified_requirements_errors(round_number):
     if not failures:
         return []
     return [
-        f"norm-finalizer's own verification of state/norm_specs/round_{round_number}.md "
+        f"norm-engineer's own finalization step for state/norm_specs/round_{round_number}.md "
         "found requirement(s) whose claimed owner file or test did not actually hold up:\n"
         + "\n".join(f"- {failure}" for failure in failures)
     ]
@@ -2368,7 +2371,7 @@ def clean_pycache_dirs():
     ones from being written in the first place — this is defense-in-depth
     for whatever's already on disk (a resumed checkout, a local dev run
     without that env var set) and for one real, practical reason: the
-    norm-architect/norm-engineer/norm-auditor/norm-finalizer agents' own `read`/
+    norm-architect/norm-engineer/norm-auditor agents' own `read`/
     `glob` tools kept surfacing these (harmless bytecode, not source) as
     if they were real files to inspect, needing five depth-specific
     permission.read denies apiece just to route around them. Actually

@@ -52,7 +52,10 @@ def test_passing_and_failing_tests_are_recorded_per_requirement(tmp_path, monkey
     assert any("FAIL" in e and "flat fine applied" in e for e in evidence["R2"])
 
 
-def test_norm_finalizer_requirement_evidence_is_merged_in(tmp_path, monkeypatch):
+def test_norm_specs_requirement_evidence_is_merged_in(tmp_path, monkeypatch):
+    # state/norm_specs/round_N.md is written by norm-engineer's own
+    # finalization step now (2026-09-26, no more separate norm-finalizer
+    # subagent) — the file format and this merge logic are unchanged.
     monkeypatch.setattr("engine.simulate.ROOT", tmp_path)
     specs_dir = tmp_path / "state" / "norm_specs"
     specs_dir.mkdir(parents=True)

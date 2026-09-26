@@ -33,11 +33,14 @@ even across the validator's one bounded retry pass.) **norm-engineer** is
 the sole "repository expert": it decides file paths, decides what each
 requirement needs tested (from its `agent_experience` block) and writes
 real pytest for it, then implements against those tests until they pass,
-so the next round's harvest genuinely behaves differently. It dispatches
-**norm-finalizer** (a subagent) to independently verify and record what
-was actually built. The harness then assembles a structured **evidence
-package** (`_gather_norm_evidence()`) — per requirement, finalizer's
-verified claims plus each test's own PASS/FAIL. Last, **norm-auditor** —
+so the next round's harvest genuinely behaves differently. It then
+finalizes the round itself (2026-09-26: no more separate norm-finalizer
+subagent hop — the same agent, following
+`docs/institution-contracts/finalization-contract.md`, re-verifies its
+own claims against disk, registers new catalog entries, and writes the
+frozen spec). The harness then assembles a structured **evidence
+package** (`_gather_norm_evidence()`) — per requirement, that verified
+claim plus each test's own PASS/FAIL. Last, **norm-auditor** —
 a separate model instance that never wrote the code — reviews the norm's
 raw text against the architect's plan and that evidence package, asking
 one question: *does this evidence demonstrate the norm was actually
@@ -94,8 +97,7 @@ flowchart TB
     subgraph NormPipeline["The norm pipeline"]
         ARCH["norm-architect (semantic compilation)<br/>plain litellm completion, no tools"]
         VALID["validate_norm_plan()<br/>Harness Validator, deterministic, no LLM"]
-        ENG["norm-engineer (test-writing + implementation)<br/>opencode agent"]
-        FIN["norm-finalizer<br/>opencode subagent"]
+        ENG["norm-engineer (test-writing + implementation<br/>+ finalization)<br/>opencode agent"]
         EVID["_gather_norm_evidence()<br/>harness, deterministic, no LLM"]
         AUD["norm-auditor (audit)<br/>plain litellm completion, no tools"]
     end
@@ -125,9 +127,8 @@ flowchart TB
     ENG --> CONF
     ENG --> RULEFILES
     ENG --> HANDLERS
-    ENG --> FIN
-    FIN --> ISPEC
-    FIN -.requirement_evidence.-> EVID
+    ENG --> ISPEC
+    ENG -.requirement_evidence.-> EVID
     EVID -.evidence package.-> AUD
     AUD -.audits plan + evidence, never raw code.-> ISPEC
 ```
@@ -162,7 +163,7 @@ sequenceDiagram
     Cycle->>Cycle: run every configured rule's after_round()
     alt a norm was adopted this round (vote's own result)
         Cycle->>Cycle: implement_and_evaluate_norm(round_number, winning_proposal)
-        Note over Cycle: this is the norm-architect / norm-engineer / norm-finalizer / norm-auditor flow — section 7
+        Note over Cycle: this is the norm-architect / norm-engineer / norm-auditor flow — section 7
     end
     Cycle->>State: update_plots(), commit_round()
     Cycle-->>Main: True (continue) / False (lake collapsed)
@@ -297,7 +298,6 @@ sequenceDiagram
     participant Valid as validate_norm_plan()<br/>(Harness Validator, deterministic)
     participant Eng as norm-engineer (opencode)
     participant Checks as engine/simulate.py<br/>compile/institution/runtime/<br/>self-correction checks
-    participant Fin as norm-finalizer (subagent)
     participant Evid as _gather_norm_evidence()<br/>(harness, deterministic)
     participant Aud as norm-auditor<br/>(plain litellm completion, no tools)
     participant Git as commit_round()
@@ -313,9 +313,7 @@ sequenceDiagram
 
     Cycle->>Eng: run_norm_engineer_with_retry(round, norm_plan.json)
     Note over Eng: FIRST decides what each requirement needs tested<br/>(from its own agent_experience block) and writes real pytest<br/>(test_{id}_{scenario}), THEN implements — edits actions/rules/,<br/>actions/handlers/, state/config.json, state/institution.json, etc.<br/>(norm-engineer alone decides file paths AND test scenarios — the "repository expert")
-    Eng->>Fin: dispatch via the task tool,<br/>forwarding the architect's plan + engineer's own requirement_evidence claims
-    Fin->>Fin: independently re-verify every claimed<br/>owner file/test; register new catalog entries
-    Fin-->>Eng: writes state/norm_specs/round_N.md
+    Eng->>Eng: finalizes the round itself (2026-09-26, no more<br/>norm-finalizer subagent hop) — re-verifies every claimed<br/>owner file/test against disk, registers new catalog entries,<br/>writes state/norm_specs/round_N.md, per<br/>docs/institution-contracts/finalization-contract.md
 
     Cycle->>Checks: compile / institution-drift / orphaned-rule /<br/>tests/norm_checks/round_N/ (Self-Correction Gate) / runtime checks
     alt a check fails
@@ -464,7 +462,9 @@ having to know how either of those work.
   point of view, with the Level 1-4 cost ladder.
 - `docs/institution-contracts/action-contract.md` /
   `rule-contract.md` / `object-contract.md` / `role-contract.md` /
-  `lifecycle-contract.md` — exact field-level contracts for each.
+  `lifecycle-contract.md` / `finalization-contract.md` — exact field-level
+  contracts for each, plus the round-finalization procedure norm-engineer
+  now follows itself.
 - `docs/institution-recipes/` — step-by-step checklists for each kind of
   change, including a worked example composing several of them for one
   norm.
@@ -473,6 +473,6 @@ having to know how either of those work.
   actual standing instructions (both are plain completion calls, not
   opencode agents, so neither has a `.opencode/agents/*.md` file of its
   own).
-- `.opencode/agents/norm-engineer.md` / `norm-finalizer.md` — the actual
-  instructions given to the two remaining opencode agents in section 7's
-  pipeline.
+- `.opencode/agents/norm-engineer.md` — the actual instructions given to
+  the one remaining opencode agent in section 7's pipeline (2026-09-26:
+  no more separate norm-finalizer subagent).
