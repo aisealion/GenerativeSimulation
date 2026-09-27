@@ -1,0 +1,26 @@
+{
+  "name": "record_catch",
+  "description": "each fisher records total catch on the shared ledger and signs it",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "generic_agent_decision",
+    "prompt": {
+      "fields": ["harvested_kg", "signature"],
+      "template": "You must record your catch total and sign the ledger.\n\nRecord your catch total and sign the ledger.\n\nRespond with ONLY this JSON object, nothing else:\n{\"harvested_kg\": <your catch total>, \"signature\": \"<your signature>\"}\n"
+    },
+    "outputs": {
+      "fields": ["harvested_kg", "signature"]
+    }
+  }
+}

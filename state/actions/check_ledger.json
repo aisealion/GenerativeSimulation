@@ -1,0 +1,26 @@
+{
+  "name": "check_ledger",
+  "description": "Distributor checks the ledger for entries over 2 units",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "any_pool_distributor"
+  },
+  "roles": {
+    "actor_role": "pool distributor"
+  },
+  "execution": {
+    "handler": "generic_agent_decision",
+    "prompt": {
+      "fields": ["check_results"],
+      "template": "You must check the ledger for entries over 2 units.\n\nCheck for entries over 2 units and report your findings.\n\nRespond with ONLY this JSON object, nothing else:\n{\"check_results\": \"<your findings about overage entries>\"}\n"
+    },
+    "outputs": {
+      "fields": ["check_results"]
+    }
+  }
+}

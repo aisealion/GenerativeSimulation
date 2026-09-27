@@ -2,5 +2,15 @@
   "agent_count": 5,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "rules": {}
+  "rules": {
+    "check_ledger": [
+      {
+        "type": "fine_enforcement",
+        "params": {
+          "fine_per_unit": 0.5,
+          "limit": 2.0
+        }
+      }
+    ]
+  }
 }

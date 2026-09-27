@@ -1,0 +1,217 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ACTION",
+      "description": "Each fisher records total catch on the shared ledger and signs it.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must record their catch and sign the ledger."
+        ],
+        "decides": [
+          "What catch total to report."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Their responsibility to report and sign daily."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ROLE",
+      "description": "Designated pool distributor (selected by rotating alphabetical order of last names)",
+      "exclusive": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Who the current distributor is and how they were chosen."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Distributor checks the ledger for entries over 2 units.",
+      "actor": "pool distributor",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their duty to monitor catch limits."
+        ],
+        "decides": [
+          "How to identify and handle overage entries."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Their role in enforcing catch limits."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "Excess units are added to the pool, with a 0.5-unit fine per excess unit.",
+      "attached_to": "R3",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Exceeding catch limit without penalty."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "ACTION",
+      "description": "Distributor collects pool contributions and calculates total pool.",
+      "actor": "pool distributor",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their role in managing the communal pool."
+        ],
+        "decides": [
+          "How to aggregate and calculate pool totals."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Their responsibility in pool management."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "ACTION",
+      "description": "Distributor identifies fishers with personal consumption <1 unit and calculates shortfalls.",
+      "actor": "pool distributor",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their role in identifying needy fishers."
+        ],
+        "decides": [
+          "How to assess and calculate shortfalls fairly."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Their responsibility in redistribution."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "ACTION",
+      "description": "Distributor redistributes the pool equally among shortfallers.",
+      "actor": "pool distributor",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their role in ensuring fair redistribution."
+        ],
+        "decides": [
+          "How to distribute the pool fairly among those in need."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Their responsibility in fair distribution."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R8",
+      "type": "ACTION",
+      "description": "Fisher, distributor, and second fisher sign the ledger entry.",
+      "actor": "fisher, pool distributor, second fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their role in verifying the ledger's accuracy."
+        ],
+        "decides": [
+          "How to select the second signatory if necessary."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Their responsibility in signing off on records."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R9",
+      "type": "RULE",
+      "description": "Unpaid fine results in personal consumption forfeiture.",
+      "attached_to": "R4",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Avoiding payment without losing consumption."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R10",
+      "type": "OBJECT",
+      "description": "Shared ledger for catch recording (reuses the existing shared ledger object)",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": []
+}

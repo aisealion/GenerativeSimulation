@@ -1,0 +1,26 @@
+{
+  "name": "redistribute_pool",
+  "description": "Distributor redistributes the pool equally among shortfallers",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "any_pool_distributor"
+  },
+  "roles": {
+    "actor_role": "pool distributor"
+  },
+  "execution": {
+    "handler": "generic_agent_decision",
+    "prompt": {
+      "fields": ["distribution_plan"],
+      "template": "You must redistribute the pool equally among shortfallers.\n\nRedistribute pool fairly among shortfallers.\n\nRespond with ONLY this JSON object, nothing else:\n{\"distribution_plan\": \"<plan for fair distribution>\"}\n"
+    },
+    "outputs": {
+      "fields": ["distribution_plan"]
+    }
+  }
+}

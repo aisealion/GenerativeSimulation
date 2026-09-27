@@ -1,0 +1,9 @@
+{
+    "name": "excess_unit_fine",
+    "description": "Applies 0.5-unit fine per excess unit beyond limit",
+    "type": "excess_unit_fine", 
+    "params": {
+        "fine_rate_per_unit": 0.5
+    },
+    "activated": true
+}

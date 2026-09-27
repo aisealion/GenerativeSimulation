@@ -1,1 +1,24 @@
-[]
+{
+  "name": "shared ledger",
+  "description": "Shared ledger for catch recording",
+  "persistent": true,
+  "type": "ledger",
+  "introduced_round": 1,
+  "schema": {
+    "entries": [
+      {
+        "type": "object",
+        "properties": {
+          "fisher_id": {"type": "string"},
+          "catch_kg": {"type": "number"},
+          "timestamp": {"type": "string"},
+          "signatures": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        },
+        "required": ["fisher_id", "catch_kg", "timestamp"]
+      }
+    ]
+  }
+}

@@ -1,20 +1,74 @@
 {
-  "version": 1,
-  "updated_at_round": null,
+  "version": 2,
+  "updated_at_round": 1,
   "actions": {
-    "harvest": {"spec": "state/actions/harvest.json", "protected": true},
-    "propose": {"spec": "state/actions/propose.json", "protected": true},
-    "critique": {"spec": "state/actions/critique.json", "protected": true},
-    "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "harvest": {
+      "spec": "state/actions/harvest.json",
+      "protected": true
+    },
+    "propose": {
+      "spec": "state/actions/propose.json",
+      "protected": true
+    },
+    "critique": {
+      "spec": "state/actions/critique.json",
+      "protected": true
+    },
+    "vote": {
+      "spec": "state/actions/vote.json",
+      "protected": true
+    },
+    "discuss": {
+      "spec": "state/actions/discuss.json",
+      "protected": true
+    },
+    "record_catch": {
+      "spec": "state/actions/record_catch.json",
+      "protected": false
+    },
+    "check_ledger": {
+      "spec": "state/actions/check_ledger.json",
+      "protected": false
+    },
+    "collect_pool": {
+      "spec": "state/actions/collect_pool.json",
+      "protected": false
+    },
+    "redistribute_pool": {
+      "spec": "state/actions/redistribute_pool.json",
+      "protected": false
+    },
+    "identify_shortfalls": {
+      "spec": "state/actions/identify_shortfalls.json",
+      "protected": false
+    },
+    "sign_ledger_entry": {
+      "spec": "state/actions/sign_ledger_entry.json",
+      "protected": false
+    }
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {
+      "exclusive": false,
+      "description": "eligibility to act as a fisher",
+      "introduced_round": 0
+    },
+    "pool distributor": {
+      "exclusive": true,
+      "description": "Designated pool distributor (selected by rotating alphabetical order of last names)",
+      "introduced_round": 1
+    }
   },
   "rule_types": {},
   "object_types": {},
   "state": {
-    "fisher": ["effort", "harvested_kg", "payoff"],
-    "community": ["stock_kg"]
+    "fisher": [
+      "effort",
+      "harvested_kg",
+      "payoff"
+    ],
+    "community": [
+      "stock_kg"
+    ]
   }
 }

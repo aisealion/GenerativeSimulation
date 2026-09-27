@@ -1,0 +1,26 @@
+{
+  "name": "identify_shortfalls",
+  "description": "Distributor identifies fishers with personal consumption <1 unit and calculates shortfalls",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "any_pool_distributor"
+  },
+  "roles": {
+    "actor_role": "pool distributor"
+  },
+  "execution": {
+    "handler": "generic_agent_decision",
+    "prompt": {
+      "fields": ["shortfall_analysis"],
+      "template": "You must identify fishers with personal consumption <1 unit and calculate shortfalls.\n\nAnalyze fishers and determine shortfalls.\n\nRespond with ONLY this JSON object, nothing else:\n{\"shortfall_analysis\": \"<analysis of shortfall fishers>\"}\n"
+    },
+    "outputs": {
+      "fields": ["shortfall_analysis"]
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "R1": [
+    "acceptance test test_R1_compliant_record_catch: PASS",
+    "acceptance test test_R1_noncompliant_record_catch: PASS"
+  ],
+  "R2": [
+    "acceptance test test_R2_compliant_distributor_selection: PASS"
+  ],
+  "R3": [
+    "acceptance test test_R3_compliant_ledger_check: PASS",
+    "acceptance test test_R3_noncompliant_ledger_check: PASS"
+  ],
+  "R4": [
+    "acceptance test test_R4_fine_enforcement: PASS",
+    "acceptance test test_R4_fine_calculation: PASS"
+  ],
+  "R5": [
+    "acceptance test test_R5_compliant_pool_collection: PASS"
+  ],
+  "R6": [
+    "acceptance test test_R6_compliant_shortfall_identification: PASS"
+  ],
+  "R7": [
+    "acceptance test test_R7_compliant_pool_redistribution: PASS"
+  ],
+  "R8": [
+    "acceptance test test_R8_compliant_ledger_signing: PASS"
+  ],
+  "R9": [
+    "acceptance test test_R9_fine_consequence: PASS"
+  ],
+  "R10": [
+    "acceptance test test_R10_shared_ledger_reuse: PASS"
+  ]
+}

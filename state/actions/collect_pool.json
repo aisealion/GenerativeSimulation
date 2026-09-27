@@ -1,0 +1,26 @@
+{
+  "name": "collect_pool",
+  "description": "Distributor collects pool contributions and calculates total pool",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "any_pool_distributor"
+  },
+  "roles": {
+    "actor_role": "pool distributor"
+  },
+  "execution": {
+    "handler": "generic_agent_decision",
+    "prompt": {
+      "fields": ["pool_total", "contribution_details"],
+      "template": "You must collect pool contributions and calculate the total pool.\n\nCollect contributions and calculate the pool total.\n\nRespond with ONLY this JSON object, nothing else:\n{\"pool_total\": <total pool amount>, \"contribution_details\": \"<details about contributions>\"}\n"
+    },
+    "outputs": {
+      "fields": ["pool_total", "contribution_details"]
+    }
+  }
+}

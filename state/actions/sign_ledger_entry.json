@@ -1,0 +1,26 @@
+{
+  "name": "sign_ledger_entry",
+  "description": "Fisher, distributor, and second fisher sign the ledger entry",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "any_fisher"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "generic_agent_decision",
+    "prompt": {
+      "fields": ["signatures"],
+      "template": "You must sign the ledger entry with your signature.\n\nSign the ledger entry.\n\nRespond with ONLY this JSON object, nothing else:\n{\"signatures\": \"<your signature>\"}\n"
+    },
+    "outputs": {
+      "fields": ["signatures"]
+    }
+  }
+}
