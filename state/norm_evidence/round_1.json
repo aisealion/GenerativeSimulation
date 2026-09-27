@@ -1,0 +1,29 @@
+{
+  "R1": [
+    "acceptance test test_R1_compliant_action: PASS"
+  ],
+  "R2": [
+    "acceptance test test_R2_compliant_action: PASS",
+    "acceptance test test_R2_exceeding_limit: PASS"
+  ],
+  "R3": [
+    "acceptance test test_R3_verification_decision: PASS"
+  ],
+  "R4": [
+    "acceptance test test_R4_penalized_fisher: PASS",
+    "acceptance test test_R4_threshold_check: PASS",
+    "acceptance test test_R4_non_penalized_fisher: PASS"
+  ],
+  "R5": [
+    "acceptance test test_R5_monthly_reset: PASS",
+    "acceptance test test_R5_fisher_violation_tracking: PASS"
+  ],
+  "R6": [
+    "acceptance test test_R6_enforcement_penalty: PASS",
+    "acceptance test test_R6_exact_three_violations: PASS",
+    "acceptance test test_R6_enforcement_no_penalty: PASS"
+  ],
+  "R7": [
+    "acceptance test test_R7_public_access: PASS"
+  ]
+}

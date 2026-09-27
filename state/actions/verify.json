@@ -1,0 +1,22 @@
+{
+  "name": "verify",
+  "description": "The council randomly re-weighs a fisher's haul at the weigh-station and compares it to the logbook weight.",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "community_steward"
+  },
+  "execution": {
+    "handler": "verify"
+  },
+  "prompt": {
+    "template": "You are the Community Steward. Verify a fisher's haul by comparing the weights recorded in the logbook against the actual weight measured at the weigh-station. Determine if the discrepancy exceeds 5%.\n\nRespond with ONLY this JSON object, nothing else:\n{\"discrepancy_exceeds_5_percent\": true/false, \"reasoning\": \"<one or two sentences with your justification>\"}\n"
+  }
+}

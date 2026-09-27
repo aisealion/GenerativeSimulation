@@ -1,0 +1,12 @@
+{
+  "name": "Community Steward",
+  "description": "A steward within the council maintains the communal log, reviews log entries, monitors net fullness, enforces release of excess fish, and maintains the central weigh-station.",
+  "exclusive": true,
+  "rules": [],
+  "permissions": {
+    "review_log_entries": true,
+    "monitor_nets": true,
+    "enforce_release": true,
+    "maintain_weigh_station": true
+  }
+}

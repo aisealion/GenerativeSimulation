@@ -1,6 +1,24 @@
 {
-  "agent_count": 5,
-  "altruism_ratio": 0.5,
-  "history_window_rounds": 5,
-  "rules": {}
+  "version": 1,
+  "updated_at_round": 1,
+  "rules": {
+    "harvest": [
+      {
+        "type": "net_capacity",
+        "params": {
+          "maximum_catch_kg": 2.0
+        }
+      },
+      {
+        "type": "enforcement_penalty",
+        "params": {}
+      },
+      {
+        "type": "discrepancy_penalty", 
+        "params": {
+          "discrepancy_threshold_percent": 5.0
+        }
+      }
+    ]
+  }
 }

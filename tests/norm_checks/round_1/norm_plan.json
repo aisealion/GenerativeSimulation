@@ -1,0 +1,144 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "Community Steward - A steward within the council maintains the communal log, reviews log entries, monitors net fullness, enforces release of excess fish, and maintains the central weigh-station.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "The Community Steward is responsible for maintaining catch records."
+        ],
+        "decides": [],
+        "may_do": [
+          "Review log entries, monitor nets, enforce release of excess fish."
+        ],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "RULE",
+      "description": "Net Capacity - A net is considered full when it holds two units (1 kg total). Any further fish caught must be released.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Catch more than two units (1 kg) without releasing excess."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Verification - The council randomly re-weighs a fisher's haul at the weigh-station and compares it to the logbook weight.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Determine if the weight discrepancy exceeds 5%."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "Penalty for Discrepancy - A weight discrepancy over 5% triggers a review; the fisher must give an extra unit to the community pool.",
+      "attached_to": "R3",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Fail to give an extra unit after a discrepancy."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "RULE",
+      "description": "Monthly Violation Count - The council resets all monthly violation counts on the first day of each new month.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Violation counts reset monthly."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "RULE",
+      "description": "Enforcement - A fisher exceeding the two-unit limit more than twice in a month must immediately give an extra unit to the community pool.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Exceed the two-unit limit more than twice without penalty."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "VISIBILITY",
+      "description": "Public Log Access - All fishers can observe others' log entries and violations.",
+      "target": "R1",
+      "audience": "all_fishers",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "Others' log entries and violations are visible."
+        ]
+      }
+    }
+  ],
+  "open_critiques": [
+    {
+      "requirement": "R5",
+      "critique_question": "The Monthly Violation Count clause states that the council resets all monthly violation counts on the first day of each new month. However, it is unclear whether fishers are responsible for tracking their own violations or if the council tracks them centrally. This ambiguity could lead to inconsistent enforcement."
+    }
+  ]
+}
