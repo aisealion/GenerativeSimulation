@@ -1,0 +1,201 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ACTION",
+      "description": "Record total_catch_kg for the fisher.",
+      "actor": "council",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The total catch recorded by the fisher."
+        ],
+        "decides": [
+          "Whether to accept or contest the recorded catch."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Previous catches for comparison."
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "RULE",
+      "description": "Set personal_consumption_kg = min(total_catch_kg, 1).",
+      "attached_to": "R1",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their personal consumption limit."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Consume more than 1 kg without sharing surplus."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Add personal_consumption_kg to fisher.payoff and update fisher.personal_consumption_kg.",
+      "attached_to": "R2",
+      "judgment_required": false,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their updated payoff and consumption kg."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "Compute surplus_kg = max(0, total_catch_kg - 1).",
+      "attached_to": "R2",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The surplus kg to be shared."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "RULE",
+      "description": "Count living villagers n = community.population.length.",
+      "attached_to": "R4",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The number of living villagers."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "RULE",
+      "description": "Compute share_kg = surplus_kg / n.",
+      "attached_to": "R5",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The share kg each villager receives."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "ACTION",
+      "description": "Add share_kg to each villager's payoff and set v.surplus_share_kg += share_kg.",
+      "attached_to": "R6",
+      "judgment_required": false,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their received surplus share."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R8",
+      "type": "ACTION",
+      "description": "Reduce community.stock_kg by total_catch_kg.",
+      "attached_to": "R7",
+      "judgment_required": false,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The updated community stock."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R9",
+      "type": "ROLE",
+      "description": "Council role to enforce norm compliance.",
+      "exclusive": false,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "The council's authority and responsibilities."
+        ],
+        "decides": [
+          "Remedies for violations."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    }
+  ],
+  "open_critiques": [
+    {
+      "requirement": "R1",
+      "critique_question": "How does the council decide which remedy (return of excess, fine, suspension) to apply for violations?"
+    },
+    {
+      "requirement": "R9",
+      "critique_question": "What specific powers and limitations does the council have in enforcing remedies?"
+    }
+  ]
+}

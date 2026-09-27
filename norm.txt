@@ -1,0 +1,3 @@
+Policy: Each villager keeps up to 1 kg of fish per trip; any excess is divided equally among all living villagers, including the fisher. Violations are remedied by the council, who may require return of excess, fine, or suspension.
+
+Operationalization: 1. Record total_catch_kg for the fisher. 2. Set personal_consumption_kg = min(total_catch_kg,1) and add to fisher.payoff and fisher.personal_consumption_kg. 3. Compute surplus_kg = max(0,total_catch_kg-1). 4. Count living villagers n = community.population.length. 5. Share_kg = surplus_kg / n. 6. For each villager v in community.population, add share_kg to v.payoff and set v.surplus_share_kg += share_kg. 7. Reduce community.stock_kg by total_catch_kg.

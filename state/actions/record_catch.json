@@ -1,0 +1,16 @@
+{
+  "name": "record_catch",
+  "description": "Record total_catch_kg for the fisher",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": "fisher"},
+  "prompt": {
+    "fields": ["harvested_kg"],
+    "template": "Record your total catch in kg.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"total_catch_kg\": <your catch total in kg>}}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision",
+    "outputs": {"fields": ["total_catch_kg"]}
+  }
+}

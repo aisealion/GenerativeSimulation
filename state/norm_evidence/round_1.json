@@ -1,0 +1,54 @@
+{
+  "R1": [
+    "acceptance test test_R1_compliant_decision: PASS",
+    "acceptance test test_R1_non_compliant_path: PASS",
+    "acceptance test test_R1_boundary_cases: PASS"
+  ],
+  "R2": [
+    "acceptance test test_R2_compliant_decision: PASS",
+    "acceptance test test_R2_non_compliant_path: PASS",
+    "acceptance test test_R2_boundary_cases: PASS"
+  ],
+  "R3": [
+    "acceptance test test_R3_compliant_decision: PASS",
+    "acceptance test test_R3_non_compliant_path: PASS",
+    "acceptance test test_R3_boundary_cases: PASS"
+  ],
+  "R4": [
+    "acceptance test test_R4_compliant_decision: PASS",
+    "acceptance test test_R4_non_compliant_path: PASS",
+    "acceptance test test_R4_boundary_cases: PASS"
+  ],
+  "R5": [
+    "acceptance test test_R5_compliant_decision: PASS",
+    "acceptance test test_R5_non_compliant_path: PASS",
+    "acceptance test test_R5_boundary_cases: PASS"
+  ],
+  "R6": [
+    "acceptance test test_R6_compliant_decision: PASS",
+    "acceptance test test_R6_non_compliant_path: PASS",
+    "acceptance test test_R6_boundary_cases: PASS"
+  ],
+  "R7": [
+    "acceptance test test_R7_compliant_decision: PASS",
+    "acceptance test test_R7_non_compliant_path: PASS",
+    "acceptance test test_R7_boundary_cases: PASS"
+  ],
+  "R8": [
+    "acceptance test test_R8_compliant_decision: PASS",
+    "acceptance test test_R8_non_compliant_path: PASS",
+    "acceptance test test_R8_boundary_cases: PASS"
+  ],
+  "R9": [
+    "acceptance test test_R9_compliant_decision: PASS",
+    "acceptance test test_R9_non_compliant_path: PASS",
+    "acceptance test test_R9_boundary_cases: PASS",
+    "acceptance test test_R9_enforcement_mechanisms_return_of_excess: PASS",
+    "acceptance test test_R9_enforcement_mechanisms_fine: PASS",
+    "acceptance test test_R9_enforcement_mechanisms_suspension: PASS",
+    "acceptance test test_R9_enforcement_decision_making_logic: PASS",
+    "acceptance test test_R9_enforcement_mechanisms_comprehensive: PASS",
+    "acceptance test test_R9_enforcement_integration: PASS",
+    "acceptance test test_R9_enforcement_mechanisms_comprehensive: PASS"
+  ]
+}
