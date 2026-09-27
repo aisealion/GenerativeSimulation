@@ -3,5 +3,6 @@
   "propose": "true",
   "critique": "true",
   "vote": "true",
-  "discuss": "false"
+  "discuss": "false",
+  "record_catch": "true"
 }
