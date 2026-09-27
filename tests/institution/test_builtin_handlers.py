@@ -122,6 +122,32 @@ def test_action_runtime_run_action_via_the_generic_builtin(monkeypatch):
     assert state["runtime"]["rounds"] == [record]
 
 
+def test_prompt_fields_as_a_bare_list_instead_of_a_dict_fails_loudly(monkeypatch):
+    """2026-09-27: a real round wrote prompt.fields as a plain list of
+    field-name strings (["harvested_kg"]) instead of the dict shape
+    {field_name: {"from": ...}} build_fields() actually requires —
+    resolve_participants()/render_action() both passed their own checks,
+    but this crashed the entire live simulation the first time the action
+    was actually scheduled to run, since nothing exercised
+    generic_agent_decision() itself before commit. This test documents
+    the exact failure so engine/simulate.py's own
+    norm_implementation_runtime_errors() smoke test (which now calls
+    generic_agent_decision() for every such action before a round can be
+    committed) has something concrete backing its own error message."""
+    monkeypatch.setattr(llm_agents_module, "call_fisher_agent",
+                         lambda agent_id, round_number, action_name, **f: {"harvested_kg": 3.0})
+    spec = {
+        "name": "record_catch",
+        "execution": {"handler": "generic_agent_decision"},
+        "prompt": {"fields": ["harvested_kg"]},  # wrong shape — should be a dict
+    }
+    state = _state()
+    ctx = ActionContext.build(spec, state, state["round_number"])
+
+    with pytest.raises(AttributeError):
+        generic_agent_decision(ctx)
+
+
 def test_unresolvable_handler_raises_a_clear_error():
     state = _state()
     spec = {"name": "nonexistent", "execution": {"handler": "does_not_exist"}}
