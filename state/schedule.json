@@ -3,5 +3,11 @@
   "propose": "true",
   "critique": "true",
   "vote": "true",
-  "discuss": "false"
+  "discuss": "false",
+  "record_catch": "true",
+  "check_ledger": "true",
+  "collect_pool": "true",
+  "redistribute_pool": "true",
+  "identify_shortfalls": "true",
+  "sign_ledger_entry": "true"
 }

@@ -1,0 +1,1 @@
+{"rules": {"check_ledger": [{"type": "fine_enforcement", "params": {"fine_per_unit": 0.5, "limit": 2.0}}]}}
