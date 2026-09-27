@@ -1216,11 +1216,21 @@ def norm_implementation_runtime_errors():
     # harvest's) — so a type that's never wired into config still gets
     # exercised, no matter which action it's meant to attach to. Also
     # structurally validates every new state/actions/*.json spec (its
-    # execution.handler must resolve) and every state/object_types/*.json
-    # type (its optional custom_handler, if any, must resolve). Run in a
-    # fresh subprocess since this happens mid-round, before
-    # reload_project_modules() would next pick up whatever this round just
-    # changed on disk.
+    # execution.handler must resolve, and — 2026-09-27, after a live run
+    # crashed the whole process on round 2 trying to actually run a
+    # round-1-committed action — a generic_agent_decision action must have
+    # a prompt template render_action() can actually find, via the exact
+    # same lookup production uses, not just a schema guess). A real round
+    # put "prompt" under "execution" instead of as a top-level sibling key
+    # in all six new actions it created; every existing check (compile,
+    # institution registration, handler resolution) passed cleanly since
+    # none of them ever call render_action() — only the live round 2
+    # invocation did, with an uncaught FileNotFoundError that killed the
+    # entire simulation process, not just that one round. Also validates
+    # every state/object_types/*.json type (its optional custom_handler,
+    # if any, must resolve). Run in a fresh subprocess since this happens
+    # mid-round, before reload_project_modules() would next pick up
+    # whatever this round just changed on disk.
     script = (
         "import sys, json, os\n"
         "sys.path.insert(0, '.')\n"
@@ -1292,6 +1302,20 @@ def norm_implementation_runtime_errors():
         "        if stem not in institution.get('actions', {}):\n"
         "            raise ValueError(f'state/actions/{json_file} exists but has no state/institution.json entry')\n"
         "        resolve_handler(spec['execution']['handler'])\n"
+        "        if spec['execution']['handler'] == 'generic_agent_decision':\n"
+        "            prompt_fields = spec.get('prompt', {}).get('fields', [])\n"
+        "            dummy_fields = {field: 'placeholder' for field in prompt_fields}\n"
+        "            try:\n"
+        "                llm_agents_module.render_action(stem, **dummy_fields)\n"
+        "            except Exception as render_exc:\n"
+        "                raise ValueError(\n"
+        "                    f\"generic_agent_decision's own render_action({stem!r}) call failed \"\n"
+        "                    f\"— {type(render_exc).__name__}: {render_exc}. Common causes: 'prompt' \"\n"
+        "                    f\"nested under 'execution' instead of a TOP-LEVEL key in \"\n"
+        "                    f\"state/actions/{json_file} (a sibling of 'execution'), or a literal \"\n"
+        "                    f\"JSON example in the template with unescaped {{ }} braces (must be \"\n"
+        "                    f\"{{{{ }}}} for str.format() to leave them alone)\"\n"
+        "                ) from None\n"
         "    except Exception as exc:\n"
         "        errors.append(f'state/actions/{json_file}: {type(exc).__name__}: {exc}')\n"
         "\n"
@@ -1331,7 +1355,8 @@ def norm_implementation_runtime_errors():
         return (
             "Institution runtime check (active config + every registered rule type, for "
             "every action's own actions/rules/ directory + every new state/actions/*.json "
-            "spec's execution.handler + every state/object_types/*.json type's "
+            "spec's execution.handler + a resolvable prompt template for every "
+            "generic_agent_decision action + every state/object_types/*.json type's "
             f"custom_handler, if any):\n{detail}"
         )
     return None
