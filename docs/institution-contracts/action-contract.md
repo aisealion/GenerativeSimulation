@@ -43,6 +43,7 @@ Level 2 doesn't support: `def run(ctx) -> round_record`.
 
 `ctx` is an `engine.institution.context.ActionContext`:
 
+- `.spec` — this action's own ActionSpec dict.
 - `.state` — the full round-state dict.
 - `.round_number`
 - `.participants` — already resolved per the spec's `participation`
@@ -60,6 +61,15 @@ Level 2 doesn't support: `def run(ctx) -> round_record`.
   `after_action(...)` around the handler call generically — this is what
   makes every action, not just harvest, a real place for a rule to
   attach.
+
+**This is `ctx`'s complete public surface — no other attribute or method
+exists.** Before writing any `ctx.<name>` not on this list, confirm the
+name is real: run `codegraph_codegraph_explore "ActionContext"` (or read
+`engine/institution/context.py` directly) rather than inferring a
+plausible name. Two names that do not exist and must never be written:
+`ctx.action_spec` (the real attribute is `ctx.spec`) and
+`ctx.get_participating_agents(...)` (participants are already resolved
+for you — a plain list, `ctx.participants`).
 
 Optionally exposes `memory_writes(state, round_record)`, same contract as
 before.

@@ -155,9 +155,13 @@ Exactly: `bash`, `edit`, `glob`, `grep`, `read`, `skill`,
 wastes a step and gets rejected.
 
 Use `codegraph_codegraph_explore` to search for an existing analogous
-pattern before writing something new. If a tool call returns nothing,
-stale, or fails, don't fix it yourself — note it and fall back to
-Read/Grep.
+pattern before writing something new, and specifically before writing any
+`ctx.<name>` usage in a Level 4 handler:
+`codegraph_codegraph_explore("ActionContext")` (or the name of whatever
+class/function you're about to call) returns its real, current source
+plus every real caller — confirm a name is real there first, never from a
+plausible-sounding guess. If a tool call returns nothing, stale, or
+fails, don't fix it yourself — note it and fall back to Read/Grep.
 
 ## Understand the current institution first
 
