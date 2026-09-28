@@ -2124,6 +2124,23 @@ def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_att
         if repair_history else ""
     )
     kind_label = "compile/structural" if repair_kind == "compile" else "audit"
+    first_steps = (
+        "Before changing anything: run `git diff` (or `git status --porcelain` for just the "
+        "file list) to see exactly what you actually changed last attempt — this is more "
+        "reliable than recalling it from memory or the one-line history above. The error above "
+        "names a specific file, rule, or spec (a traceback names a file and line; an 'unknown "
+        "rule type'/'doesn't exist' message names the missing thing directly) — open THAT file "
+        "and read it in full, then trace anything it depends on (e.g. if state/config.json "
+        "references a rule type, read that rule class's own type_name; if state/institution.json "
+        "declares an object/action, confirm the file it points to actually exists at that exact "
+        "path). Diagnose from what's actually on disk right now, not from re-deriving the whole "
+        "directory tree with ls/find the way a first attempt would. "
+        if repair_kind == "compile" else
+        "Before changing anything: read the specific test(s) and requirement(s) norm-auditor "
+        "named above in full — not a summary of them — and re-read that requirement's own text "
+        "in norm.txt directly, since the gap is by definition something the test's own pass/fail "
+        "result didn't capture. "
+    )
     order_note = (
         "The check that caught this only reports the FIRST category of problem it finds, in "
         "a fixed order (compile/syntax, then institution/rule registration, then runtime "
@@ -2141,6 +2158,7 @@ def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_att
         f"{round_number}. {session_note}\n\n"
         f"{history_block}"
         f"{what_was_found}\n\n"
+        f"{first_steps}\n\n"
         f"{order_note}Fix exactly what's named above, then "
         f"proactively re-check every OTHER file you touched this round for the same class of "
         f"mistake (e.g. if this was a wrong import path or a missing field, grep every other "
