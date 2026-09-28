@@ -1,0 +1,21 @@
+{
+  "name": "donate",
+  "description": "Villagers may make voluntary donations to the council.",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "donate"
+  },
+  "prompt": {
+    "template": "Based on both your observations and the community policy, decide whether to make a donation to the council. If you choose to donate, specify the amount to be donated, otherwise you'll make no donation.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"donate_amount_kg\": <number>, \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}

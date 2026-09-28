@@ -1,0 +1,21 @@
+{
+  "name": "record_catch",
+  "description": "Villagers record their total catch on the dock ledger.",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "record_catch"
+  },
+  "prompt": {
+    "template": "Based on both your observations and the community policy, record the exact amount of fish you caught today on the dock ledger. Your exact catch amount must be recorded for the community's records.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"catch_amount_kg\": <number>, \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}
