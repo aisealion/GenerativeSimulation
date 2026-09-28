@@ -1214,23 +1214,32 @@ def norm_implementation_runtime_errors():
     # then once per registered rule type standalone with generic params,
     # for EVERY action's own actions/rules/{action}/ directory (not just
     # harvest's) — so a type that's never wired into config still gets
-    # exercised, no matter which action it's meant to attach to. Also
-    # structurally validates every new state/actions/*.json spec (its
-    # execution.handler must resolve, and — 2026-09-27, after a live run
-    # crashed the whole process on round 2 trying to actually run a
-    # round-1-committed action — a generic_agent_decision action must have
-    # a prompt template render_action() can actually find, via the exact
-    # same lookup production uses, not just a schema guess). A real round
-    # put "prompt" under "execution" instead of as a top-level sibling key
-    # in all six new actions it created; every existing check (compile,
-    # institution registration, handler resolution) passed cleanly since
-    # none of them ever call render_action() — only the live round 2
-    # invocation did, with an uncaught FileNotFoundError that killed the
-    # entire simulation process, not just that one round. Also validates
-    # every state/object_types/*.json type (its optional custom_handler,
-    # if any, must resolve). Run in a fresh subprocess since this happens
-    # mid-round, before reload_project_modules() would next pick up
-    # whatever this round just changed on disk.
+    # exercised, no matter which action it's meant to attach to.
+    #
+    # Also structurally validates every new state/actions/*.json spec —
+    # its execution.handler must resolve, AND (2026-09-27, after three
+    # separate real rounds each crashed the whole live simulation process,
+    # not just one round, the first time a round-1-committed action was
+    # ever actually run) that resolved handler is genuinely CALLED against
+    # a real, minimal ActionContext, plus — if the spec has a top-level
+    # "prompt" key — render_action() is called too, via the exact same
+    # lookups production uses, not just a schema guess. resolve_handler()
+    # alone only confirms a callable exists; it was never enough. Three
+    # distinct, real failure classes this actually catches: (1) "prompt"
+    # nested under "execution" instead of a top-level sibling key, so
+    # render_action() never finds it; (2) a literal JSON example inside
+    # the template with unescaped {} braces, which str.format() tries to
+    # parse as substitution fields; (3) a custom actions/handlers/{name}.py
+    # calling an ActionContext attribute/method that doesn't exist (a real
+    # round wrote ctx.action_spec and ctx.get_participating_agents(...) —
+    # the real names are ctx.spec and the already-resolved
+    # ctx.participants). Every one of these passed compile/institution/
+    # handler-resolution checks cleanly; only actually invoking the code
+    # live ever caught them. Also validates every state/object_types/*.json
+    # type (its optional custom_handler, if any, must resolve). Run in a
+    # fresh subprocess since this happens mid-round, before
+    # reload_project_modules() would next pick up whatever this round just
+    # changed on disk.
     script = (
         "import sys, json, os\n"
         "sys.path.insert(0, '.')\n"
@@ -1238,7 +1247,6 @@ def norm_implementation_runtime_errors():
         "from engine.institution.context import ActionContext\n"
         "from engine.institution.runtime import resolve_handler\n"
         "from engine.institution.rules import discover_rule_types\n"
-        "import engine.institution.builtin_handlers as builtin_handlers_module\n"
         "import actions.handlers.harvest as harvest_handler\n"
         "\n"
         "def _fake_call_fisher_agent(agent_id, round_number, action_name, **fields):\n"
@@ -1302,45 +1310,58 @@ def norm_implementation_runtime_errors():
         "            )\n"
         "        if stem not in institution.get('actions', {}):\n"
         "            raise ValueError(f'state/actions/{json_file} exists but has no state/institution.json entry')\n"
-        "        resolve_handler(spec['execution']['handler'])\n"
-        "        if spec['execution']['handler'] == 'generic_agent_decision':\n"
+        "        handler_fn = resolve_handler(spec['execution']['handler'])\n"
+        "        if 'prompt' in spec:\n"
         "            prompt_fields = spec.get('prompt', {}).get('fields', [])\n"
         "            dummy_fields = {field: 'placeholder' for field in prompt_fields}\n"
         "            try:\n"
         "                llm_agents_module.render_action(stem, **dummy_fields)\n"
         "            except Exception as render_exc:\n"
         "                raise ValueError(\n"
-        "                    f\"generic_agent_decision's own render_action({stem!r}) call failed \"\n"
+        "                    f\"render_action({stem!r}) call failed \"\n"
         "                    f\"— {type(render_exc).__name__}: {render_exc}. Common causes: 'prompt' \"\n"
         "                    f\"nested under 'execution' instead of a TOP-LEVEL key in \"\n"
         "                    f\"state/actions/{json_file} (a sibling of 'execution'), or a literal \"\n"
         "                    f\"JSON example in the template with unescaped {{ }} braces (must be \"\n"
         "                    f\"{{{{ }}}} for str.format() to leave them alone)\"\n"
         "                ) from None\n"
-        "            ga_fluents = []\n"
-        "            ga_participation = spec.get('participation', {'policy': 'all_alive_fishers'})\n"
-        "            if ga_participation.get('policy') == 'role_holders':\n"
-        "                from roles.roles import assign_role\n"
-        "                assign_role(ga_participation['role'], 'agent_0', ga_fluents, 1)\n"
-        "            ga_state = {\n"
-        "                'config': {}, 'fluents': ga_fluents,\n"
-        "                'runtime': {'stock_kg': 200.0, 'rounds': [], 'objects': {}, 'payoff': {}},\n"
-        "                'agents': {'agent_0': {'name': 'Smoke0', 'personality_traits': ''}},\n"
-        "                'object_types': {}, 'objects': [], 'round_number': 1,\n"
-        "            }\n"
-        "            try:\n"
-        "                ga_ctx = ActionContext.build(spec, ga_state, 1)\n"
-        "                builtin_handlers_module.generic_agent_decision(ga_ctx)\n"
-        "            except Exception as ga_exc:\n"
-        "                raise ValueError(\n"
-        "                    f\"generic_agent_decision actually running {stem!r} failed — \"\n"
-        "                    f\"{type(ga_exc).__name__}: {ga_exc}. 'prompt.fields' must be a DICT \"\n"
-        "                    f\"of {{field_name: {{'literal': ...}} | {{'from': 'state', 'path': ...}} \"\n"
-        "                    f\"| {{'from': 'object', 'object_id': ..., 'field': ...}}}} entries — \"\n"
-        "                    f\"never a bare list of field-name strings. 'outputs.fields' (if \"\n"
-        "                    f\"present) must likewise be a DICT {{response_key: record_key}}, not \"\n"
-        "                    f\"a bare list — omit it entirely to copy the response verbatim.\"\n"
-        "                ) from None\n"
+        "        # Actually invoke the resolved handler (builtin or a custom\n"
+        "        # actions/handlers/{name}.py) against a real, minimal\n"
+        "        # ActionContext — not just resolve_handler()'s own check that\n"
+        "        # the callable exists. A real round's custom handler called\n"
+        "        # ctx.action_spec and ctx.get_participating_agents(...), neither\n"
+        "        # of which exist on ActionContext (the real names are ctx.spec\n"
+        "        # and the already-resolved ctx.participants) — resolve_handler()\n"
+        "        # alone can never catch a hallucinated API surface like that,\n"
+        "        # only actually calling the handler can.\n"
+        "        smoke_fluents = []\n"
+        "        smoke_participation = spec.get('participation', {'policy': 'all_alive_fishers'})\n"
+        "        if smoke_participation.get('policy') == 'role_holders':\n"
+        "            from roles.roles import assign_role\n"
+        "            assign_role(smoke_participation['role'], 'agent_0', smoke_fluents, 1)\n"
+        "        handler_smoke_state = {\n"
+        "            'config': {}, 'fluents': smoke_fluents,\n"
+        "            'runtime': {'stock_kg': 200.0, 'rounds': [], 'objects': {}, 'payoff': {}},\n"
+        "            'agents': {'agent_0': {'name': 'Smoke0', 'personality_traits': ''}},\n"
+        "            'object_types': {}, 'objects': [], 'round_number': 1,\n"
+        "        }\n"
+        "        try:\n"
+        "            handler_ctx = ActionContext.build(spec, handler_smoke_state, 1)\n"
+        "            handler_fn(handler_ctx)\n"
+        "        except Exception as handler_exc:\n"
+        "            raise ValueError(\n"
+        "                f\"actually running {spec['execution']['handler']!r} for {stem!r} failed — \"\n"
+        "                f\"{type(handler_exc).__name__}: {handler_exc}. If this is a custom \"\n"
+        "                f\"actions/handlers/{stem}.py, check it only uses ActionContext's real \"\n"
+        "                f\"attributes (.spec, .state, .round_number, .participants, .agents, \"\n"
+        "                f\".events, .objects, .rules) — never invented ones like .action_spec or \"\n"
+        "                f\".get_participating_agents(...). If this is generic_agent_decision, \"\n"
+        "                f\"'prompt.fields' must be a DICT of {{field_name: {{'literal': ...}} | \"\n"
+        "                f\"{{'from': 'state', 'path': ...}} | {{'from': 'object', 'object_id': ..., \"\n"
+        "                f\"'field': ...}}}} entries — never a bare list of field-name strings; \"\n"
+        "                f\"'outputs.fields' (if present) must likewise be a DICT \"\n"
+        "                f\"{{response_key: record_key}}, not a bare list.\"\n"
+        "            ) from None\n"
         "    except Exception as exc:\n"
         "        errors.append(f'state/actions/{json_file}: {type(exc).__name__}: {exc}')\n"
         "\n"
@@ -1380,9 +1401,9 @@ def norm_implementation_runtime_errors():
         return (
             "Institution runtime check (active config + every registered rule type, for "
             "every action's own actions/rules/ directory + every new state/actions/*.json "
-            "spec's execution.handler + a resolvable prompt template for every "
-            "generic_agent_decision action + every state/object_types/*.json type's "
-            f"custom_handler, if any):\n{detail}"
+            "spec's execution.handler actually invoked against a real ActionContext, plus a "
+            "resolvable prompt template wherever the spec declares one + every "
+            f"state/object_types/*.json type's custom_handler, if any):\n{detail}"
         )
     return None
 
