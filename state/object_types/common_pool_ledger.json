@@ -1,0 +1,9 @@
+{
+  "type_name": "common_pool_ledger",
+  "description": "A ledger for tracking common pool fish resources",
+  "fields": {
+    "balance_kg": 0,
+    "total_catches_kg": 0,
+    "last_updated": 0
+  }
+}

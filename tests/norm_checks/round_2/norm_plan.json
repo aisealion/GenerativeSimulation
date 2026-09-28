@@ -1,0 +1,260 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "The recorder is appointed by the village council to weigh fish and audit ledgers.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "They are responsible for weighing fish catches and maintaining records."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ROLE",
+      "description": "The fish keeper is appointed by the village council to manage communal resources and enforce rules.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "They are responsible for managing surplus fish and enforcing penalties."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "The recorder checks the hand-scale weekly and audits the ledger.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Whether to audit the ledger and check the scale."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "OBJECT",
+      "description": "The shared ledger records fish catches next to each fisher's name.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R5",
+      "type": "OBJECT",
+      "description": "The common pool ledger tracks surplus fish from violations.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R6",
+      "type": "OBJECT",
+      "description": "The communal granary stores surplus fish.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R7",
+      "type": "RULE",
+      "description": "A fisher may catch no more than 1.5 kg of fish per day.",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Catch more than 1.5 kg of fish per day."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R8",
+      "type": "ACTION",
+      "description": "The fisher may return surplus fish to the lake or hand it over to the fish keeper.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Whether to return surplus fish or hand it over."
+        ],
+        "may_do": [
+          "Return surplus fish or hand it over."
+        ],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R9",
+      "type": "ACTION",
+      "description": "The fish keeper and council review discrepancies and impose penalties.",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "What penalty to impose for a discrepancy."
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R10",
+      "type": "OBJECT",
+      "description": "The fish keeper's ledger tracks infractions.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R11",
+      "type": "ACTION",
+      "description": "A fisher may appeal a penalty by submitting a request to the fish keeper.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Whether to appeal a penalty."
+        ],
+        "may_do": [
+          "Submit an appeal request."
+        ],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R12",
+      "type": "RULE",
+      "description": "A temporary ban lasts seven days.",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Fish during the ban period."
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R13",
+      "type": "VISIBILITY",
+      "description": "The shared ledger is visible to all fishers.",
+      "target": "R4",
+      "audience": "all_fishers",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "The shared ledger is accessible in the council office."
+        ]
+      }
+    },
+    {
+      "id": "R14",
+      "type": "VISIBILITY",
+      "description": "The common pool ledger is visible to all fishers.",
+      "target": "R5",
+      "audience": "all_fishers",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "The common pool ledger is accessible in the council office."
+        ]
+      }
+    },
+    {
+      "id": "R15",
+      "type": "ROLE",
+      "description": "The village council appoints the recorder and fish keeper.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "They are responsible for appointments."
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    }
+  ],
+  "open_critiques": []
+}

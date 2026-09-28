@@ -1,0 +1,5 @@
+{
+  "type": "shared_ledger",
+  "description": "A shared_ledger for the fishery system",
+  "fields": {}
+}

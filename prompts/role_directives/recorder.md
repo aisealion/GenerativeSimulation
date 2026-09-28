@@ -1,0 +1,1 @@
+As the recorder, you are appointed by the village council to weigh fish and audit ledgers. Your role is crucial in maintaining transparency and fairness in the village's fishing practices. Please ensure that all catch reports are accurate and that ledger records are maintained properly.

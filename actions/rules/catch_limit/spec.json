@@ -1,0 +1,9 @@
+{
+  "name": "catch_limit",
+  "type": "catch_limit",
+  "description": "Enforces daily catch limit for fishers",
+  "deterministic": true,
+  "params": {
+    "limit_kg_per_day": 1.5
+  }
+}

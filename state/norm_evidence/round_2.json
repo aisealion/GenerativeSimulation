@@ -1,0 +1,47 @@
+{
+  "R1": [
+    "acceptance test test_R1_role_exists: PASS"
+  ],
+  "R2": [
+    "acceptance test test_R2_role_exists: PASS"
+  ],
+  "R3": [
+    "acceptance test test_R3_recorder_audit_action: PASS"
+  ],
+  "R4": [
+    "acceptance test test_R4_shared_ledger_exists: PASS"
+  ],
+  "R5": [
+    "acceptance test test_R5_common_pool_ledger_exists: PASS"
+  ],
+  "R6": [
+    "acceptance test test_R6_communal_granary_exists: PASS"
+  ],
+  "R7": [
+    "acceptance test test_R7_daily_catch_limit_rule: PASS"
+  ],
+  "R8": [
+    "acceptance test test_R8_fisher_surplus_return_action: PASS"
+  ],
+  "R9": [
+    "acceptance test test_R9_fish_keeper_review_discrepancies: PASS"
+  ],
+  "R10": [
+    "acceptance test test_R10_fish_keeper_ledger_exists: PASS"
+  ],
+  "R11": [
+    "acceptance test test_R11_fisher_appeal_action: PASS"
+  ],
+  "R12": [
+    "acceptance test test_R12_temporary_ban_rule: PASS"
+  ],
+  "R13": [
+    "acceptance test test_R13_shared_ledger_visibility: PASS"
+  ],
+  "R14": [
+    "acceptance test test_R14_common_pool_ledger_visibility: PASS"
+  ],
+  "R15": [
+    "acceptance test test_R15_village_council_role: PASS"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "type_name": "communal_granary",
+  "description": "A communal granary for storing fish resources",
+  "fields": {
+    "balance_kg": 0,
+    "total_stored_kg": 0,
+    "last_updated": 0
+  }
+}

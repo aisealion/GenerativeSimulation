@@ -9,10 +9,30 @@
     "discuss": {"spec": "state/actions/discuss.json", "protected": true}
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "recorder": {"exclusive": true, "description": "appointed by the village council to weigh fish and audit ledgers.", "introduced_round": 2},
+    "fish_keeper": {"exclusive": true, "description": "appointed by the village council to manage communal resources and enforce rules.", "introduced_round": 2},
+    "village_council": {"exclusive": true, "description": "appoints the recorder and fish keeper.", "introduced_round": 2}
   },
-  "rule_types": {},
-  "object_types": {},
+  "rule_types": {
+    "catch_limit": {
+      "spec": "actions/rules/catch_limit/spec.json"
+    }
+  },
+  "object_types": {
+    "shared_ledger": {
+      "spec": "state/objects/shared_ledger.json"
+    },
+    "common_pool_ledger": {
+      "spec": "state/objects/common_pool_ledger.json"
+    },
+    "communal_granary": {
+      "spec": "state/objects/communal_granary.json"
+    },
+    "fish_keeper_ledger": {
+      "spec": "state/objects/fish_keeper_ledger.json"
+    }
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

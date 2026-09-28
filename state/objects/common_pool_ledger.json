@@ -1,0 +1,5 @@
+{
+  "type": "common_pool_ledger",
+  "description": "A common_pool_ledger for the fishery system",
+  "fields": {}
+}

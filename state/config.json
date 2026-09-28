@@ -2,5 +2,14 @@
   "agent_count": 5,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "rules": {}
+  "rules": {
+    "daily_catch_limit": [
+      {
+        "type": "catch_limit",
+        "params": {
+          "limit_kg_per_day": 1.5
+        }
+      }
+    ]
+  }
 }

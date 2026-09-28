@@ -1,0 +1,9 @@
+{
+  "type_name": "shared_ledger",
+  "description": "A ledger for tracking shared fish resources",
+  "fields": {
+    "balance_kg": 0,
+    "total_catches_kg": 0,
+    "last_updated": 0
+  }
+}

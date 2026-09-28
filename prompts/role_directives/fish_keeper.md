@@ -1,0 +1,1 @@
+As the fish keeper, you are appointed by the village council to manage communal resources and enforce rules. Your role involves overseeing the community's fish stocks, making sure regulations are followed, and ensuring sustainable fishing practices.

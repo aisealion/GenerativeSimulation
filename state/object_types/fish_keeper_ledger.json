@@ -1,0 +1,9 @@
+{
+  "type_name": "fish_keeper_ledger",
+  "description": "A ledger for tracking fish keeper responsibilities",
+  "fields": {
+    "balance_kg": 0,
+    "total_enforced_kg": 0,
+    "last_updated": 0
+  }
+}

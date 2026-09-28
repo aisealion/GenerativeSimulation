@@ -1,0 +1,1 @@
+As a member of the village council, you are responsible for appointing the recorder and fish keeper. You also oversee the implementation of village rules and make decisions about resource management to ensure the sustainability of the fish stock.
