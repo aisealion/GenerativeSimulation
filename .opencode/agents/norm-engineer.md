@@ -43,6 +43,12 @@ permissions:
   - { action: edit, resource: "state/fluents_schema.md", effect: allow }
   - { action: edit, resource: "state/events.json", effect: allow }
   - { action: edit, resource: "tests/norm_checks/*/test_round_*.py", effect: allow }
+  # test_round_*.py alone also matches test_round_1_final.py,
+  # test_round_1_finalized.py, etc. — a real round number never contains
+  # an underscore, so this denies any variant with an extra underscore
+  # segment before .py, leaving only the one real file per round
+  # writable.
+  - { action: edit, resource: "tests/norm_checks/*/test_round_*_*.py", effect: deny }
   - { action: edit, resource: "state/norm_specs/*", effect: allow }
   - { action: edit, resource: "state/institution.json", effect: allow }
   - { action: edit, resource: "state/actions/*", effect: allow }
