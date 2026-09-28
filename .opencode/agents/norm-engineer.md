@@ -25,6 +25,13 @@ permissions:
   - { action: read, resource: ".git/*", effect: deny }
   - { action: read, resource: ".codegraph/*", effect: deny }
   - { action: read, resource: "*__pycache__/*", effect: deny }
+  # The SLURM job's own captured stdout/stderr (ops/run_simulation.slurm's
+  # --output/--error) — everything already worth keeping from it is
+  # persisted separately under ops/logs/*.jsonl; the raw job log itself is
+  # operational output about the run, not institutional content to design
+  # from.
+  - { action: read, resource: "slurm-*.out", effect: deny }
+  - { action: read, resource: "slurm-*.err", effect: deny }
   - { action: edit, resource: "*", effect: deny }
   - { action: edit, resource: "actions/rules/*", effect: allow }
   - { action: edit, resource: "objects/handlers/*", effect: allow }

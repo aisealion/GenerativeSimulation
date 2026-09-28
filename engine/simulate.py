@@ -14,7 +14,7 @@ from pathlib import Path
 
 from engine.call_log import log_call
 from engine.clarify_norm import ask_norm_proposer
-from engine.llm_agents import call_norm_architect_agent, call_norm_auditor_agent
+from engine.llm_agents import call_norm_architect_agent, call_norm_auditor_agent, NORM_AUDITOR_LOG_PATH
 from engine.institution.runtime import ActionRuntime
 from engine.institution.scheduler import compile_schedule
 from engine.institution.history import diff_institution
@@ -977,7 +977,7 @@ def run_norm_engineer(round_number, extra_message=None, session_id=None):
         ),
     )
 
-    print(final_text)
+    print(f"norm-engineer response: {len(final_text)} chars — full text in {NORM_ENGINEER_LOG_PATH}")
     if result.returncode != 0:
         print(f"Round {round_number}: norm-engineer exited with code {result.returncode} — "
               f"treating this round's norm implementation as failed, not crashing the run.",
@@ -1124,7 +1124,7 @@ def run_norm_auditor(round_number):
         return None
 
     verdict = extract_audit_result(raw_text)
-    print(raw_text)
+    print(f"norm-auditor response: {len(raw_text)} chars — full text in {NORM_AUDITOR_LOG_PATH}")
     return {"result": verdict, "text": raw_text}
 
 
