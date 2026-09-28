@@ -997,6 +997,16 @@ def call_norm_auditor_agent(round_number, norm_text, plan, evidence):
                     {"role": "system", "content": NORM_AUDITOR_SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
+                # NORM_AUDITOR_MODEL reuses norm-architect's own Ollama model
+                # variant (see ops/hpc_ollama_entrypoint.sh), whose Modelfile
+                # sets num_predict=32768 for the architect's own much larger
+                # structured-plan output — a real round showed a degenerate
+                # repetition loop run all the way to that shared ceiling on
+                # an auditor call (166KB, 291 repeated paragraphs, 1200s),
+                # for a task whose real responses have never exceeded ~2KB.
+                # This overrides just that one request's own cap, independent
+                # of whatever the shared Modelfile default is.
+                max_tokens=4096,
                 timeout=1800,
                 **completion_kwargs,
             )
