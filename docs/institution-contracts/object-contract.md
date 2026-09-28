@@ -42,6 +42,17 @@ fresh every time — never cache a holder on the object.
 
 ## Object instance (`state/objects.json`)
 
+**One single file, a JSON array of every instance's declaration —
+never one file per instance.** This is the opposite layout from object
+*types* just above (`state/object_types/{type}.json`, one file per
+type): every instance you declare is a new entry appended to this same
+one array, in this same one file. There is no `state/objects/` directory
+and no `state/objects/{id}.json` — writing either does nothing, since
+`engine.simulate.load_objects()` only ever reads `state/objects.json`
+itself; a rule referencing an instance declared anywhere else will fail
+with `KeyError: no institutional object with id ...` the moment it
+actually runs.
+
 A **declaration only** — `id`, `type`, optional `lifecycle`. **Never a
 field value.**
 

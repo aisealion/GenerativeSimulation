@@ -11,7 +11,7 @@ existing type to reuse parametrically.
 |---|---|
 | **Required** | `state/object_types/{type}.json` — `type_name`, `description`, `ownership`, `fields` (with defaults), `operations`, `permissions`, `visibility`. |
 | **Required** | `state/institution.json` `object_types` catalog entry: `{name: {"description", "owner": "state/object_types/{type}.json"}}`. |
-| **Required** | `state/objects.json` instance declaration for each instance the design calls for: `{"id": ..., "type": ...}` — **never a field value**. |
+| **Required** | `state/objects.json` instance declaration for each instance the design calls for: `{"id": ..., "type": ...}` — **never a field value**. **One file, a JSON array of every instance — append your entry to it. Never `state/objects/{id}.json`; nothing reads a file at that path.** |
 | **Conditional** | `objects/handlers/{type}.py` (`run(ctx, object_id, operation, by_agent_id=None, **kwargs)`) only if the five generic operations (deposit/withdraw/set/append/read) genuinely can't express the needed behavior — most objects need none. |
 | **Conditional** | `lifecycle` on the instance if the norm implies a bounded duration — see `lifecycle_change.md`. |
 | **Forbidden** | Seeding a field value in `state/objects.json` or `state/runtime.json` — defaults apply automatically on first touch. |
