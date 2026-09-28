@@ -39,7 +39,11 @@ automatically.
 ## Level 4 — a custom handler
 
 Write `actions/handlers/{name}.py` the moment the action needs anything
-Level 2 doesn't support: `def run(ctx) -> round_record`.
+Level 2 doesn't support: `def run(ctx: ActionContext) -> dict:` (import
+`ActionContext` from `engine.institution.context` — the annotation is
+required, not optional: it's what lets pyright/the `lsp` tool check your
+own `ctx.<name>` usage against the real class instead of accepting
+anything).
 
 `ctx` is an `engine.institution.context.ActionContext`:
 

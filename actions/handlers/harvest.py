@@ -16,6 +16,7 @@
 
 from roles.roles import set_fact, end_fact
 from engine.institution.agent_loop import per_agent_decision
+from engine.institution.context import ActionContext
 from engine.physics import (
     catch_from_effort,
     apply_regrowth,
@@ -26,7 +27,7 @@ from engine.physics import (
 )
 
 
-def run(ctx):
+def run(ctx: ActionContext) -> dict:
     state = ctx.state
     runtime = state["runtime"]
     fluents = state["fluents"]

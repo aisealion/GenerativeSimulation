@@ -34,8 +34,10 @@
 # engine.institution.events), so it reaches render_notices()/memory for
 # exactly the round it happened and never lingers.
 
+from typing import Any, Optional
+
 from roles.roles import current_holder
-from engine.institution.events import Event, Visibility
+from engine.institution.events import Event, EventEmitter, Visibility
 from engine.institution.registry import discover_handlers
 
 OPERATION_PERMISSION = {
@@ -52,7 +54,15 @@ class ObjectPermissionError(Exception):
 
 
 class ObjectRuntime:
-    def __init__(self, object_types, declarations, runtime_objects, fluents, round_number, events):
+    def __init__(
+        self,
+        object_types: dict[str, dict],
+        declarations: list,
+        runtime_objects: dict,
+        fluents: list,
+        round_number: int,
+        events: EventEmitter,
+    ) -> None:
         self.object_types = object_types  # {type_name: ObjectSpec dict}
         self.declarations = declarations  # state["objects"] list — {"id", "type", "lifecycle"?}
         self.runtime_objects = runtime_objects  # state["runtime"]["objects"] — {id: {"fields": {...}}}
@@ -60,16 +70,16 @@ class ObjectRuntime:
         self.round_number = round_number
         self.events = events  # an engine.institution.events.EventEmitter
 
-    def _declaration(self, object_id):
+    def _declaration(self, object_id: str) -> dict:
         for decl in self.declarations:
             if decl["id"] == object_id:
                 return decl
         raise KeyError(f"no institutional object with id {object_id!r}")
 
-    def _spec(self, declaration):
+    def _spec(self, declaration: dict) -> dict:
         return self.object_types[declaration["type"]]
 
-    def _fields(self, object_id, spec):
+    def _fields(self, object_id: str, spec: dict) -> dict:
         """The mutable field dict for this object, lazily seeded from the
         type's own declared defaults on first touch — never pre-populated
         by a norm-engineer edit to state/objects.json itself."""
@@ -79,7 +89,9 @@ class ObjectRuntime:
             fields.setdefault(field_name, field_spec.get("default"))
         return fields
 
-    def _check_permission(self, object_id, spec, permission_key, agent_id):
+    def _check_permission(
+        self, object_id: str, spec: dict, permission_key: str, agent_id: Optional[str],
+    ) -> None:
         rule = spec.get("permissions", {}).get(permission_key, {"who": "ALL"})
         who = rule.get("who", "ALL")
         if who == "ALL":
@@ -97,13 +109,22 @@ class ObjectRuntime:
             return
         raise ValueError(f"unrecognized permission rule {who!r}")
 
-    def deposit(self, object_id, field, amount, by_agent_id=None, narration=None):
+    def deposit(
+        self, object_id: str, field: str, amount: float, by_agent_id: Optional[str] = None,
+        narration: Optional[str] = None,
+    ) -> Any:
         return self._add(object_id, field, amount, "deposit", by_agent_id, narration)
 
-    def withdraw(self, object_id, field, amount, by_agent_id=None, narration=None):
+    def withdraw(
+        self, object_id: str, field: str, amount: float, by_agent_id: Optional[str] = None,
+        narration: Optional[str] = None,
+    ) -> Any:
         return self._add(object_id, field, -amount, "withdraw", by_agent_id, narration)
 
-    def _add(self, object_id, field, delta, operation, by_agent_id, narration):
+    def _add(
+        self, object_id: str, field: str, delta: float, operation: str,
+        by_agent_id: Optional[str], narration: Optional[str],
+    ) -> Any:
         declaration = self._declaration(object_id)
         spec = self._spec(declaration)
         self._check_permission(object_id, spec, OPERATION_PERMISSION[operation], by_agent_id)
@@ -112,7 +133,10 @@ class ObjectRuntime:
         self._announce(object_id, spec, narration)
         return fields[field]
 
-    def set(self, object_id, field, value, by_agent_id=None, narration=None):
+    def set(
+        self, object_id: str, field: str, value: Any, by_agent_id: Optional[str] = None,
+        narration: Optional[str] = None,
+    ) -> Any:
         declaration = self._declaration(object_id)
         spec = self._spec(declaration)
         self._check_permission(object_id, spec, OPERATION_PERMISSION["set"], by_agent_id)
@@ -121,7 +145,10 @@ class ObjectRuntime:
         self._announce(object_id, spec, narration)
         return fields[field]
 
-    def append(self, object_id, field, value, by_agent_id=None, narration=None):
+    def append(
+        self, object_id: str, field: str, value: Any, by_agent_id: Optional[str] = None,
+        narration: Optional[str] = None,
+    ) -> Any:
         declaration = self._declaration(object_id)
         spec = self._spec(declaration)
         self._check_permission(object_id, spec, OPERATION_PERMISSION["append"], by_agent_id)
@@ -130,7 +157,7 @@ class ObjectRuntime:
         self._announce(object_id, spec, narration)
         return fields[field]
 
-    def read(self, object_id, field, viewer_agent_id=None):
+    def read(self, object_id: str, field: str, viewer_agent_id: Optional[str] = None) -> Any:
         """Returns None if `field` isn't visible to `viewer_agent_id` per
         the object type's own `visibility` rules — never raises, since a
         field simply not being visible to a particular viewer is a normal
@@ -152,7 +179,9 @@ class ObjectRuntime:
             return fields.get(field) if holder == viewer_agent_id else None
         raise ValueError(f"unrecognized visibility rule {who!r}")
 
-    def custom(self, object_id, operation, by_agent_id=None, **kwargs):
+    def custom(
+        self, object_id: str, operation: str, by_agent_id: Optional[str] = None, **kwargs: Any,
+    ) -> Any:
         """Dispatches to `objects/handlers/{custom_handler}.py`'s `run`
         function for a type that declares one — the Level-3 escape hatch
         for behavior the five generic operations above can't express. The
@@ -171,7 +200,7 @@ class ObjectRuntime:
             raise ValueError(f"no objects/handlers/{handler_name}.py exposing run(ctx)")
         return handler(self, object_id, operation, by_agent_id=by_agent_id, **kwargs)
 
-    def _announce(self, object_id, spec, narration):
+    def _announce(self, object_id: str, spec: dict, narration: Optional[str]) -> None:
         if narration is None:
             return
         event_type = spec.get("memory_policy", {}).get("on_mutate_event_type", "object_mutated")

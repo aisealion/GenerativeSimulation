@@ -6,12 +6,15 @@
 # round-record bookkeeping every handler used to have to do for itself.
 
 import importlib
+from typing import Callable, cast
 
 from engine.institution import builtin_handlers
-from engine.institution.context import ActionContext
+from engine.institution.context import ActionContext, ActionSpec, RoundState
+
+HandlerFn = Callable[[ActionContext], dict]
 
 
-def resolve_handler(handler_name):
+def resolve_handler(handler_name: str) -> HandlerFn:
     """A builtin (an attribute of engine.institution.builtin_handlers)
     takes precedence by name; otherwise `handler_name` is a filename stem
     under actions/handlers/. Raises immediately, with a clear message, if
@@ -20,7 +23,12 @@ def resolve_handler(handler_name):
     unknown rule type."""
     builtin = getattr(builtin_handlers, handler_name, None)
     if callable(builtin):
-        return builtin
+        # callable() narrows to a generic "(...) -> object" — it can't see
+        # the real (ctx: ActionContext) -> dict signature every builtin/
+        # custom handler actually has; the runtime smoke test in
+        # engine/simulate.py is what actually proves that contract, not
+        # this static check.
+        return cast(HandlerFn, builtin)
     try:
         module = importlib.import_module(f"actions.handlers.{handler_name}")
     except ModuleNotFoundError as exc:
@@ -31,10 +39,10 @@ def resolve_handler(handler_name):
     handler = getattr(module, "run", None)
     if not callable(handler):
         raise ValueError(f"actions/handlers/{handler_name}.py has no callable run(ctx) function")
-    return handler
+    return cast(HandlerFn, handler)
 
 
-def resolve_memory_writes(handler_name):
+def resolve_memory_writes(handler_name: str) -> Callable[[RoundState, dict], list]:
     """A handler module's optional `memory_writes(state, round_record)`
     function, or a no-op if it has none — mirrors resolve_handler()'s
     builtin-first lookup (a builtin like generic_agent_decision never
@@ -52,7 +60,7 @@ def resolve_memory_writes(handler_name):
 
 class ActionRuntime:
     @staticmethod
-    def run_action(spec, state, round_number):
+    def run_action(spec: ActionSpec, state: RoundState, round_number: int) -> dict:
         """Builds the ActionContext, dispatches to the resolved handler,
         and appends the result to state["runtime"]["rounds"] — a handler
         returns the round_record's own content; "round"/"action" are

@@ -53,13 +53,15 @@ class EventEmitter:
     fact with a duration, so there's nothing for set_fact()/end_fact() to
     do here."""
 
-    def __init__(self, events, fluents, round_number, participants=()):
+    def __init__(
+        self, events: list, fluents: list, round_number: int, participants: "list[str] | tuple" = (),
+    ) -> None:
         self._events = events
         self._fluents = fluents
         self._round_number = round_number
         self._participants = participants
 
-    def emit(self, event):
+    def emit(self, event: Event) -> None:
         self._events.append({
             "event_type": event.event_type,
             "text": event.text,
@@ -68,7 +70,7 @@ class EventEmitter:
             "visible_to": self._resolve_visible_to(event),
         })
 
-    def _resolve_visible_to(self, event):
+    def _resolve_visible_to(self, event: Event) -> list[str] | None:
         if event.visibility == Visibility.GLOBAL:
             return None
         if event.visibility == Visibility.AGENT:
@@ -86,7 +88,7 @@ class EventEmitter:
         raise ValueError(f"unknown visibility {event.visibility!r}")
 
 
-def visible_events(events, agent_id, round_number):
+def visible_events(events: list, agent_id: str, round_number: int) -> list:
     """Every event from exactly this round visible to `agent_id` — unlike
     roles.roles.visible_facts(), there's no "currently open" case to
     consider, since every event is a point occurrence: it's relevant for
@@ -100,7 +102,7 @@ def visible_events(events, agent_id, round_number):
     ]
 
 
-def event_memory_specs(events, round_number):
+def event_memory_specs(events: list, round_number: int) -> list[dict]:
     """Memory-episode specs for every event from exactly this round —
     mirrors roles.roles.fact_memory_events()'s own {event_type, text,
     agent_id, group_id} shape. A GLOBAL event (visible_to=None) becomes

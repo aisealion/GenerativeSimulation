@@ -19,12 +19,13 @@
 # prescribe an answer.
 
 from engine.institution.agent_loop import default_ineligible_record
+from engine.institution.context import ActionContext
 from engine.llm_agents import call_critique_agent, call_fisher_agent
 
 MAX_CRITIQUE_EXCHANGES = 10
 
 
-def run(ctx):
+def run(ctx: ActionContext) -> dict:
     state = ctx.state
     runtime = state["runtime"]
     round_number = ctx.round_number

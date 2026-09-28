@@ -9,9 +9,10 @@
 # has real effect, even though none exists today.
 
 from engine.institution.agent_loop import per_agent_decision
+from engine.institution.context import ActionContext
 
 
-def run(ctx):
+def run(ctx: ActionContext) -> dict:
     state = ctx.state
     runtime, agents = state["runtime"], state["agents"]
     agent_ids = ctx.participants

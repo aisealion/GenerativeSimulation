@@ -38,4 +38,9 @@ dependencies = [
     # MAX_NORM_REPAIR_ATTEMPTS budget on round 1 after .venv-fishery was
     # deleted and recreated.
     "pytest",
+    # Same reasoning as pytest above: norm-engineer runs `pyright` itself
+    # as a self-check (see .opencode/agents/norm-engineer.md), from the
+    # same environment this project's own tooling runs in — it needs to
+    # be a real project dependency, not a separate dev-only install.
+    "pyright",
 ]

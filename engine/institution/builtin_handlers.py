@@ -17,30 +17,33 @@
 # vote}.py use — so this zero-code path and every hand-written handler
 # get identical rule/eligibility semantics from one place.
 
+from typing import Any, Optional
+
 from engine.institution.agent_loop import per_agent_decision
+from engine.institution.context import ActionContext
 
 
-def generic_agent_decision(ctx):
+def generic_agent_decision(ctx: ActionContext) -> dict:
     spec = ctx.spec
     outputs = spec.get("outputs", {})
     per_agent_key = outputs.get("per_agent_key", "agents")
     field_map = outputs.get("fields")  # optional {response_key: record_key}; None copies every key
     prompt_fields_spec = spec.get("prompt", {}).get("fields", {})
 
-    def build_fields(agent_id):
+    def build_fields(agent_id: str) -> dict:
         return {
             field_name: _resolve_field(field_spec, ctx, agent_id)
             for field_name, field_spec in prompt_fields_spec.items()
         }
 
-    def build_record(agent_id, response):
+    def build_record(agent_id: str, response: dict) -> dict:
         return _map_response(response, field_map)
 
     records = per_agent_decision(ctx, build_fields, build_record)
     return {"round": ctx.round_number, "action": spec["name"], per_agent_key: records}
 
 
-def _resolve_field(field_spec, ctx, agent_id):
+def _resolve_field(field_spec: dict, ctx: ActionContext, agent_id: str) -> Any:
     if "literal" in field_spec:
         return field_spec["literal"]
     source = field_spec.get("from")
@@ -51,14 +54,14 @@ def _resolve_field(field_spec, ctx, agent_id):
     raise ValueError(f"unrecognized prompt field spec {field_spec!r}")
 
 
-def _dotted_get(root, path):
+def _dotted_get(root: Any, path: str) -> Any:
     value = root
     for part in path.split("."):
         value = value[part]
     return value
 
 
-def _map_response(response, field_map):
+def _map_response(response: dict, field_map: Optional[dict]) -> dict:
     if field_map is None:
         return dict(response)
     return {record_key: response.get(response_key) for response_key, record_key in field_map.items()}

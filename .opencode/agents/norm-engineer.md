@@ -149,7 +149,7 @@ one in this pipeline who decides which file, which Python shape.
 ## Your actual tools
 
 Exactly: `bash`, `edit`, `glob`, `grep`, `read`, `skill`,
-`codegraph_codegraph_explore`, `todowrite`, `write`. No `ls`,
+`codegraph_codegraph_explore`, `lsp`, `todowrite`, `write`. No `ls`,
 `print_tree`, `search`, or `exec` — a directory listing goes through
 `bash` (`bash: ls -R`, `bash: find .`). Calling a tool that doesn't exist
 wastes a step and gets rejected.
@@ -162,6 +162,16 @@ class/function you're about to call) returns its real, current source
 plus every real caller — confirm a name is real there first, never from a
 plausible-sounding guess. If a tool call returns nothing, stale, or
 fails, don't fix it yourself — note it and fall back to Read/Grep.
+
+`lsp` (pyright, Python only) is a second, independent way to confirm the
+same kind of thing — real type information straight from the language
+server, not a symbol graph. Use its `hover`/`goToDefinition` operations
+on a class/function you're about to call a member of, the same moment
+you'd reach for `codegraph_codegraph_explore` — the two overlap
+deliberately, so a gap in one doesn't leave you with nothing. Every
+handler's own `ctx` parameter is typed (`ctx: ActionContext`) specifically
+so this and pyright's own diagnostics can check it for real, not just by
+name.
 
 ## Understand the current institution first
 
@@ -245,6 +255,13 @@ this file.
 ## Verify actual behavior, not file existence
 
 - `python3 -m py_compile` every file you touched.
+- `pyright` every file you touched — treat any `reportAttributeAccessIssue`
+  or `reportArgumentType` on your own new code as a real bug to fix before
+  finishing, the same trust level as `py_compile`. This only catches
+  something on a file whose parameters are actually typed (`ctx:
+  ActionContext`, not bare `ctx`) — an untyped signature checks clean no
+  matter what's inside it, so don't take a clean pyright run on an
+  unannotated function as any kind of pass.
 - `pytest tests/norm_checks/round_{N}/ -q` — this is your actual pass/fail
   bar. Don't stop until it's green, or until you can report exactly why a
   specific test can't be satisfied (a genuine conflict with the frozen

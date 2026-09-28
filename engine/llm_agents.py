@@ -340,7 +340,7 @@ def _resolve_completion_kwargs(model_spec):
     )
 
 
-def call_fisher_agent(agent_id, round_number, action_name, **fields):
+def call_fisher_agent(agent_id, round_number, action_name, **fields) -> dict:
     prompt = render_persona(agent_id, round_number, action_name) + "\n\n" + render_action(action_name, **fields)
     model_spec = os.environ.get("FISHER_MODEL", DEFAULT_FISHER_MODEL)
     completion_kwargs = _resolve_completion_kwargs(model_spec)
@@ -469,7 +469,7 @@ def _critique_context():
     )
 
 
-def call_critique_agent(policy, operationalization, history, round_number=None, proposer_id=None):
+def call_critique_agent(policy, operationalization, history, round_number=None, proposer_id=None) -> dict:
     """Reviews one proposal for missing institutional specification before
     it goes to a vote — a fixed, neutral role, deliberately with no fisher
     persona/personality/history rendering, so it brings nothing to the

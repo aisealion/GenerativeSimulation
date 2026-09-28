@@ -383,7 +383,17 @@ fi
 "$FISHERY_VENV/bin/pip" install --quiet --upgrade pip \
   litellm==1.97.0 pydantic==2.13.4 pydantic-core==2.46.4 \
   annotated-types==0.7.0 typing-extensions==4.15.0 typing-inspection==0.4.2 \
-  anyio==4.14.0 jiter==0.15.0 python-dotenv matplotlib pytest
+  anyio==4.14.0 jiter==0.15.0 python-dotenv matplotlib pytest pyright
+
+# opencode.jsonc's lsp.pyright entry launches "pyright-langserver" by bare
+# name — resolvable only via PATH, unlike every $FISHERY_VENV/bin/python3
+# invocation elsewhere in this script (those always use the full path and
+# never need this). engine/simulate.py's own opencode subprocess calls
+# inherit this script's environment unmodified, so this needs to happen
+# once, here, before engine.simulate ever runs — same reason
+# $HOME/.opencode/bin and $HOME/.local/bin are prepended to PATH above for
+# opencode/codegraph themselves.
+export PATH="$FISHERY_VENV/bin:$PATH"
 # matplotlib (added for engine/monitoring.py's live plots, 2026-08-26) is
 # unpinned, unlike everything above it — it doesn't have the fragile
 # cross-package resolution issue that pinning exists to work around here,

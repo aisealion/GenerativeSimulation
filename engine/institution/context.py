@@ -5,10 +5,18 @@
 # interface — engine.institution.runtime.ActionRuntime is the only thing
 # that constructs one.
 
+from typing import Any
+
 from engine.physics import alive_agent_ids
 from engine.institution.events import EventEmitter
 from engine.institution.objects import ObjectRuntime
 from engine.institution.rules import RuleSet
+
+# Loosely-shaped, JSON-derived dicts — not modeled field-by-field (shapes
+# vary a lot per action/state file). These aliases exist so a signature can
+# still name what it means without pretending the shape is exhaustive.
+ActionSpec = dict[str, Any]
+RoundState = dict[str, Any]
 
 
 class AgentCaller:
@@ -16,16 +24,16 @@ class AgentCaller:
     for this action, so a handler never needs to import or know about
     persona/prompt rendering itself."""
 
-    def __init__(self, action_name, round_number):
+    def __init__(self, action_name: str, round_number: int) -> None:
         self.action_name = action_name
         self.round_number = round_number
 
-    def call(self, agent_id, **fields):
+    def call(self, agent_id: str, **fields: Any) -> dict:
         from engine.llm_agents import call_fisher_agent
         return call_fisher_agent(agent_id, self.round_number, self.action_name, **fields)
 
 
-def resolve_participants(spec, state):
+def resolve_participants(spec: ActionSpec, state: RoundState) -> list[str]:
     """The participants for this round, per ActionSpec["participation"].
     Default ("all_alive_fishers") is byte-identical to today's
     alive_agent_ids() — every existing action's real behavior."""
@@ -63,7 +71,9 @@ class ActionContext:
     which is the whole point: a rule attaches the same way to any action,
     not just harvest."""
 
-    def __init__(self, spec, state, round_number, participants):
+    def __init__(
+        self, spec: ActionSpec, state: RoundState, round_number: int, participants: list[str],
+    ) -> None:
         self.spec = spec
         self.state = state
         self.round_number = round_number
@@ -78,16 +88,16 @@ class ActionContext:
             state["fluents"], round_number, self.events,
         )
         self.rules = RuleSet.for_action(state["config"], spec["name"], round_number)
-        self._scratch = {}
+        self._scratch: dict[str, dict] = {}
 
-    def rule_state(self, key):
+    def rule_state(self, key: str) -> dict:
         """Cross-round-persistent state for the rule with this key — a
         reserve balance, a ban countdown. Backed by runtime["rules"][key],
         saved to state/runtime.json like everything else the simulation
         writes — never pre-seeded by the norm-engineer directly."""
         return self.state["runtime"].setdefault("rules", {}).setdefault(key, {})
 
-    def round_scratch(self, key):
+    def round_scratch(self, key: str) -> dict:
         """This-round-only state for the rule with this key (a running
         per-action tally, say) — lives only on this ActionContext
         instance, never persisted. A fresh ActionContext is built for
@@ -96,6 +106,6 @@ class ActionContext:
         return self._scratch.setdefault(key, {})
 
     @classmethod
-    def build(cls, spec, state, round_number):
+    def build(cls, spec: ActionSpec, state: RoundState, round_number: int) -> "ActionContext":
         participants = resolve_participants(spec, state)
         return cls(spec, state, round_number, participants)

@@ -1,4 +1,5 @@
 from engine.institution.agent_loop import per_agent_decision
+from engine.institution.context import ActionContext
 from engine.physics import alive_agent_ids
 
 
@@ -34,7 +35,7 @@ def proposals_for_round(state):
     ]
 
 
-def run(ctx):
+def run(ctx: ActionContext) -> dict:
     state = ctx.state
     proposals = proposals_for_round(state)
     proposals_block = "\n\n".join(

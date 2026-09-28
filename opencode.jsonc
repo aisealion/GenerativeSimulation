@@ -122,5 +122,30 @@
         "disabled": false
       }
     }
+  },
+  // Flat map, unlike mcp.servers above — confirmed against opencode's own
+  // LSP docs, not carried over from the mcp v1->v2 nesting migration.
+  // "basic", not "strict": the rest of this codebase is untyped outside
+  // engine/institution/ + actions/handlers/, and strict mode would bury
+  // reportAttributeAccessIssue (the one check this exists for, already
+  // on by default under "basic") under missing-annotation noise on files
+  // nobody is trying to type.
+  "lsp": {
+    "pyright": {
+      "command": [
+        "pyright-langserver",
+        "--stdio"
+      ],
+      "extensions": [
+        ".py"
+      ],
+      "initialization": {
+        "python": {
+          "analysis": {
+            "typeCheckingMode": "basic"
+          }
+        }
+      }
+    }
   }
 }

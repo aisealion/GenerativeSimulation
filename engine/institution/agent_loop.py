@@ -7,11 +7,22 @@
 # reason RuleSet itself is one class every action's handler shares
 # instead of five almost-identical rewrites.
 
-def default_ineligible_record(ctx, agent_id):
+from typing import Callable, Optional
+
+from engine.institution.context import ActionContext
+
+
+def default_ineligible_record(ctx: ActionContext, agent_id: str) -> dict:
     return {"participated": False, "note": ctx.rules.ineligibility_note(ctx, agent_id)}
 
 
-def per_agent_decision(ctx, build_fields, build_record, ineligible_record=None, after_settle=None):
+def per_agent_decision(
+    ctx: ActionContext,
+    build_fields: Callable[[str], dict],
+    build_record: Callable[[str, dict], dict],
+    ineligible_record: Optional[Callable[[str], dict]] = None,
+    after_settle: Optional[Callable[[str, dict], None]] = None,
+) -> dict:
     """For each of ctx.participants, in order:
 
     - If the agent is ineligible this round (ctx.rules.is_eligible() is

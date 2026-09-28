@@ -17,11 +17,21 @@
 # had — a pre-built shape would let a round tune parameters on an
 # already-correct implementation instead of writing one from scratch.
 
+# Annotations are evaluated lazily (PEP 563) so `ActionContext` below can
+# be used as a real type without importing engine.institution.context at
+# module level — that module itself imports RuleSet from here, so an
+# eager import would be circular.
+from __future__ import annotations
+
 import importlib
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional
 
 from engine.institution.lifecycle import is_active, tick
 from engine.institution.registry import discover_subclasses
+
+if TYPE_CHECKING:
+    from engine.institution.context import ActionContext
 
 
 class Rule:
@@ -32,34 +42,34 @@ class Rule:
     a fresh instance is built every round — use ctx.rule_state(self.key)
     for anything that must survive across rounds)."""
 
-    type_name: str = None  # set by every subclass; unique within its own action's rule directory
+    type_name: Optional[str] = None  # set by every subclass; unique within its own action's rule directory
 
-    def __init__(self, key, params):
+    def __init__(self, key: str, params: dict) -> None:
         self.key = key
         self.params = params
 
     # --- round-level: fires once per round, independent of any one action ---
 
-    def before_round(self, state, round_number):
+    def before_round(self, state: dict, round_number: int) -> None:
         """Once per round, before ANY action in this round's schedule has
         run. `state` is the full round-state dict (no single ActionContext
         exists yet at this point — nothing has been resolved to one
         action's participants)."""
         return None
 
-    def after_round(self, state, round_number):
+    def after_round(self, state: dict, round_number: int) -> None:
         """Once per round, after EVERY action in this round's schedule has
         already run."""
         return None
 
     # --- action-level: fires once per round for this rule's own action ---
 
-    def before_action(self, ctx):
+    def before_action(self, ctx: ActionContext) -> None:
         """Once, before this action's own participants are processed this
         round. `ctx` is the action's ActionContext."""
         return None
 
-    def after_action(self, ctx, round_record):
+    def after_action(self, ctx: ActionContext, round_record: dict) -> None:
         """Once, after this action's round_record has been fully built —
         may mutate `round_record` and/or `ctx.state` directly (a stock
         override, a tally adjustment, a community-wide consequence). This
@@ -71,18 +81,18 @@ class Rule:
     # these explicitly inside its own per-agent loop (every handler in
     # this project does, including the generic Level-2 path) ---
 
-    def is_eligible(self, ctx, agent_id):
+    def is_eligible(self, ctx: ActionContext, agent_id: str) -> bool:
         """False skips this agent's LLM call entirely this round (a live
         ban). Called at most once per agent per round."""
         return True
 
-    def describe(self, ctx, agent_id):
+    def describe(self, ctx: ActionContext, agent_id: str) -> Optional[str]:
         """One already-in-world-phrased sentence describing whatever this
         rule currently has to say to this agent, or None. Every active
         rule's non-None output is joined into one constraints line."""
         return None
 
-    def after_agent(self, ctx, agent_id, record_entry):
+    def after_agent(self, ctx: ActionContext, agent_id: str, record_entry: dict) -> Optional[dict]:
         """Once per participating agent, right after their own
         record_entry dict has been built from their response — return a
         dict of fields to merge onto it (e.g. {"harvested_kg": 12.0,
@@ -97,7 +107,7 @@ class Rule:
         `engine.llm_agents._harvest_shortfall_clause()` already uses."""
         return None
 
-    def on_agent_settled(self, ctx, agent_id, record_entry):
+    def on_agent_settled(self, ctx: ActionContext, agent_id: str, record_entry: dict) -> None:
         """Once per agent, after EVERY rule's after_agent() has already
         applied its patch — `record_entry` here is the fully-settled
         final state, not the intermediate view after_agent() sees mid-chain.
@@ -118,10 +128,10 @@ class RuleSet:
     cached, so a norm-engineer's mid-run edit to a rule file takes
     effect immediately."""
 
-    rules: list
+    rules: list[Rule]
 
     @classmethod
-    def for_action(cls, config, action_name, round_number=None):
+    def for_action(cls, config: dict, action_name: str, round_number: Optional[int] = None) -> "RuleSet":
         """`round_number=None` (the default) validates every entry —
         type resolves, key is unique — and includes all of them,
         active or not; passing a real `round_number` additionally filters
@@ -150,7 +160,7 @@ class RuleSet:
             rules.append(rule_cls(key=key, params=spec))
         return cls(rules)
 
-    def is_eligible(self, ctx, agent_id):
+    def is_eligible(self, ctx: ActionContext, agent_id: str) -> bool:
         """AND across every active rule — one veto is enough to skip the
         LLM call. Every rule's is_eligible() still runs regardless (a ban
         countdown must always tick), only the combined boolean result
@@ -161,16 +171,16 @@ class RuleSet:
                 eligible = False
         return eligible
 
-    def describe_constraints(self, ctx, agent_id):
+    def describe_constraints(self, ctx: ActionContext, agent_id: str) -> str:
         lines = (rule.describe(ctx, agent_id) for rule in self.rules)
         return " ".join(line for line in lines if line)
 
-    def ineligibility_note(self, ctx, agent_id):
+    def ineligibility_note(self, ctx: ActionContext, agent_id: str) -> str:
         return self.describe_constraints(ctx, agent_id) or (
             "Something about the community's current rules held you back this round."
         )
 
-    def apply_after_agent(self, ctx, agent_id, record_entry):
+    def apply_after_agent(self, ctx: ActionContext, agent_id: str, record_entry: dict) -> dict:
         """Runs every rule's after_agent() in order, merging each
         returned patch onto record_entry in place — a "note" value
         concatenates onto any existing one (so two contributing rules
@@ -187,7 +197,7 @@ class RuleSet:
                     record_entry[field_name] = value
         return record_entry
 
-    def settle_agent(self, ctx, agent_id, record_entry):
+    def settle_agent(self, ctx: ActionContext, agent_id: str, record_entry: dict) -> None:
         """Call once, right after apply_after_agent() — runs every rule's
         on_agent_settled() with the now-fully-patched record_entry.
         Kept as its own explicit call (not folded into apply_after_agent()
@@ -198,16 +208,16 @@ class RuleSet:
         for rule in self.rules:
             rule.on_agent_settled(ctx, agent_id, record_entry)
 
-    def before_action(self, ctx):
+    def before_action(self, ctx: ActionContext) -> None:
         for rule in self.rules:
             rule.before_action(ctx)
 
-    def after_action(self, ctx, round_record):
+    def after_action(self, ctx: ActionContext, round_record: dict) -> None:
         for rule in self.rules:
             rule.after_action(ctx, round_record)
 
 
-def discover_rule_types(action_name):
+def discover_rule_types(action_name: str) -> dict[str, type[Rule]]:
     """Every Rule subclass under actions/rules/{action_name}/, keyed by
     type_name — {} if that action has no rules directory at all yet (a
     brand-new action nobody has attached a rule to), never an error."""
@@ -218,7 +228,7 @@ def discover_rule_types(action_name):
     return discover_subclasses(package, Rule, "type_name")
 
 
-def all_configured_rules(config, round_number=None):
+def all_configured_rules(config: dict, round_number: Optional[int] = None) -> list[Rule]:
     """Every Rule instance across every action in
     state["config"]["rules"], flattened — what engine/simulate.py's
     run_cycle() calls before_round()/after_round() on, since those two
@@ -230,7 +240,7 @@ def all_configured_rules(config, round_number=None):
     return rules
 
 
-def tick_rule_lifecycles(config, fluents, round_number):
+def tick_rule_lifecycles(config: dict, fluents: list, round_number: int) -> None:
     """Call once per round, before the schedule runs — closes any rule's
     `rule_active` fluent (see state/fluents_schema.md) the exact round its
     own "lifecycle" (a state["config"]["rules"][action][i]["lifecycle"]
