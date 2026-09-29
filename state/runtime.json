@@ -1,6 +1,6 @@
 {
-  "round": 1,
-  "stock_kg": 261.3585,
+  "round": 2,
+  "stock_kg": 216.92572350417538,
   "rounds": [
     {
       "agents": {
@@ -427,15 +427,95 @@
       "winning_proposer": "agent_0",
       "round": 1,
       "action": "vote"
+    },
+    {
+      "agents": {
+        "agent_0": {
+          "effort": 1.0,
+          "harvested_kg": 13.067925,
+          "reasoning": "I will fish exactly one unit today, the maximum allowed, to meet my daily need while leaving the rest of the lake for the community and future generations.",
+          "note": null,
+          "participated": true
+        },
+        "agent_1": {
+          "effort": 1.0,
+          "harvested_kg": 13.067925,
+          "reasoning": "I need the one unit I require to survive, and the policy caps me at that amount, so I\u2019ll fish at full effort to reach the quota and avoid fines.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.5,
+          "harvested_kg": 6.5339625,
+          "reasoning": "I need one unit for my family, so I\u2019ll fish just enough to meet that quota and stay within the policy without risking a fine.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 0.9,
+          "harvested_kg": 11.7611325,
+          "reasoning": "I need at least 1 unit to feed my family, so I\u2019ll fish with a high but cautious effort, aiming to hit the quota without exceeding it and avoiding fines.",
+          "note": null,
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 1.0,
+          "harvested_kg": 13.067925,
+          "reasoning": "I\u2019ll aim for one unit today to meet my daily need while staying within the community quota so I avoid fines and extra service.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_before": 261.3585,
+      "stock_kg_after_harvest": 203.85962999999998,
+      "stock_kg_after_regrowth": 216.92572350417538,
+      "round": 2,
+      "action": "harvest"
+    },
+    {
+      "proposals": {
+        "agent_0": {
+          "policy": "Each villager may take at most one (1) unit of fish per day. Any fish caught beyond that must be released back into the lake. Excess fish must be returned to the communal bin, fined one fish unit per excess, and the fisher must perform one day of community service. The quota may be tightened to 0.8 units for two weeks if the lake biomass falls below 200kg, to allow recovery.",
+          "operationalization": "Fisher records date, net, fish taken (\u22641), weight in bin, and statement of release on a daily sheet signed by fisher and witness. The bin is sealed, weighed, and recorded daily. The weekly council meeting reviews logs, compares weights, collects fines, and records community service. Audits may double fines and add service if non-compliance is found.",
+          "reasoning": "By keeping the quota strict and adding a recovery period when the lake is low, we ensure the lake\u2019s fish stock stays healthy for us and future generations. The clear logs and audits hold everyone accountable, preventing hidden overfishing. Community service reinforces respect for the lake and the village.",
+          "participated": true
+        },
+        "agent_1": {
+          "policy": "Each fisher may fish no more than one unit of fish per day; any excess must be deposited in the communal bin, and a fine of one fish unit per excess unit must be paid plus one day of community service per excess unit.  Additionally, the community will impose a daily total catch quota of 10\u202f% of the lake\u2019s current stock, so that the sum of all fish removed from the lake cannot exceed that amount.",
+          "operationalization": "Every fisher records the date, net used, number of fish taken, and weight of fish captured on a paper sheet signed by the fisher and a witness.  All fish are placed in the communal bin, which is sealed for a 24\u2011hour period and weighed daily.  The weekly council meeting reviews the logs, compares them with the bin\u2019s weight, collects any fines, and updates the lake stock estimate.  The daily total quota is announced each morning; if the sum of all catches would exceed the quota, fishers must return the excess to the bin and pay the appropriate fine.  Random audits may double fines and add an extra day of service for non\u2011compliance.",
+          "reasoning": "I propose this because I see that the lake is being overfished\u2014my own haul of 8\u202fkg far exceeds the one\u2011unit limit, and the community\u2019s total haul is too large for the lake\u2019s size.  By limiting each fisher to one unit and setting a 10\u202f% daily quota, we protect the lake\u2019s stock and ensure everyone has enough to survive.  The fines and community service make the rule enforceable and encourage us to work together to maintain the resource.  As a fisher who depends on this lake, I want to keep it healthy for future generations and for my own livelihood. ",
+          "participated": true
+        },
+        "agent_2": {
+          "policy": "Each fisher may keep up to 1 unit of fish per day for personal consumption. Any catch beyond 1 unit must be deposited into the communal bin and cannot be retained. The bin will be weighed daily and logged; any excess fish caught beyond the quota will be fined 1 fish unit per excess unit, and the fisher must perform community service equal to the excess units. Any fish taken beyond 2 units per day is prohibited unless the community votes otherwise. Excess fish in the bin will be redistributed equally to those who have not reached 1 unit that day.",
+          "operationalization": "Daily, fishers record date, net used, fish taken, weight, and statement of release on a log sheet signed by fisher and witness. Fish are deposited in the sealed communal bin, which is weighed at midnight and recorded in the shared ledger. Every Sunday at 7pm, Elder Tane reviews logs, compares bin weight to logs, imposes fines, and records community service hours. Random audits may be conducted; failure to provide evidence doubles the fine and adds an extra day of service. All findings are entered in the ledger for transparency.",
+          "reasoning": "This keeps the lake sustainable, ensures fairness, protects my family's need, deters overfishing, and holds each fisher accountable. Redistributing excess supports those who catch less, and fines discourage non-compliance. The audit system maintains trust and discourages cheating, keeping payoffs positive.",
+          "participated": true
+        },
+        "agent_3": {
+          "policy": "Each villager may take only one fishing trip per day and may not exceed a catch of 1.5 units of fish. If a trip yields more than 1.5 units, the excess must be returned to the lake for community use.",
+          "operationalization": "Every fisher records the date, net used, fish taken (\u22641.5 units), weight in the communal bin, and releases excess. A witness signs. The bin is sealed for 24 hours and weighed daily, with weight logged. Excess caught is fined one fish unit per excess unit and requires one day of community service, verified by Elder Tane at the Sunday meeting. Random audits enforce compliance.",
+          "reasoning": "This limits over\u2011fishing while allowing us to gather enough to feed our families. It keeps the lake healthy, reduces conflict, and ensures everyone is held accountable, which protects my family's livelihood.",
+          "participated": true
+        },
+        "agent_4": {
+          "policy": "Each fisher may keep up to 1.5 units of fish per day; any fish beyond that must be released and is subject to fines.",
+          "operationalization": "Fisher records actual catch on a daily sheet, signs it and has a witness sign. The bin is weighed daily; if the total weight exceeds the sum of logged 1.5 units per fisher, the excess is fined one fish unit per excess unit and an additional community\u2011service day is added. Audits verify releases and bin seals, with double fines and extra service for non\u2011compliance.",
+          "reasoning": "I usually bring in 8\u202fkg, far beyond the 1\u202funit limit. Allowing 1.5 units lets me keep a larger portion of my catch, reducing fines and boosting my income while still releasing the majority to maintain the lake\u2019s health. It aligns with community rules but gives me immediate gains and keeps the lake sustainable.",
+          "participated": true
+        }
+      },
+      "round": 2,
+      "action": "propose"
     }
   ],
   "objects": {},
   "payoff": {
-    "agent_0": 6.5,
-    "agent_1": 6.5,
-    "agent_2": 8.0,
-    "agent_3": 14.0,
-    "agent_4": 6.5
+    "agent_0": 18.567925000000002,
+    "agent_1": 18.567925000000002,
+    "agent_2": 13.533962500000001,
+    "agent_3": 24.761132500000002,
+    "agent_4": 18.567925000000002
   },
   "dead_agents": []
 }
