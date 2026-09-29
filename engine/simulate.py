@@ -14,7 +14,12 @@ from pathlib import Path
 
 from engine.call_log import log_call
 from engine.clarify_norm import ask_norm_proposer
-from engine.llm_agents import call_norm_architect_agent, call_norm_auditor_agent, NORM_AUDITOR_LOG_PATH
+from engine.llm_agents import (
+    call_norm_architect_agent,
+    call_norm_architect_clarification_agent,
+    call_norm_auditor_agent,
+    NORM_AUDITOR_LOG_PATH,
+)
 from engine.institution.runtime import ActionRuntime
 from engine.institution.scheduler import compile_schedule
 from engine.institution.history import diff_institution
@@ -621,25 +626,106 @@ def _extract_fenced_block(text, lang):
     return matches[-1].strip() if matches else None
 
 
+def _apply_clarification_patch(plan, patch_text, note):
+    """Parses and validates one scoped clarification-patch response (see
+    NORM_ARCHITECT_CLARIFICATION_SYSTEM_PROMPT in engine/llm_agents.py for
+    the contract), and — only if it's structurally sound — merges it into
+    `plan`, returning (merged_plan, None). Returns (None, reason) on any
+    validation failure, so the caller can fall back to `plan` exactly as
+    it already stood and move on to the next thing, the same resilience
+    posture the ask_norm_proposer() call already has around it.
+
+    The actual guarantee this closes (see NORM_ARCHITECT_CRITIQUES_ENABLED's
+    own history below): the merge only ever takes an object from the
+    patch's own "requirements" list if its id is in the patch's own
+    "affected_requirements" — every other id, no matter what the model
+    claims or includes, is copied verbatim from the plan exactly as it
+    was passed in, in its own original order. A model re-deriving or
+    silently editing something it didn't declare as affected has no way
+    to make that change land; the harness decides what changed, not the
+    model's own account of itself.
+
+    `note` is a plain description of what triggered this patch (the
+    critique's own question+answer, or the structural errors being fixed)
+    — folded into plan["clarifications"] on success, purely for
+    after-the-fact traceability of what was clarified and what wasn't
+    touched, never read back by anything in this pipeline."""
+    patch_raw = _extract_fenced_block(patch_text, "json")
+    try:
+        patch = json.loads(patch_raw) if patch_raw else None
+    except json.JSONDecodeError:
+        return None, "clarification response had no parseable ```json block"
+    if not isinstance(patch, dict):
+        return None, "clarification response's json block wasn't an object"
+
+    affected = patch.get("affected_requirements")
+    unchanged = patch.get("unchanged_requirements")
+    new_requirements = patch.get("requirements")
+    if not isinstance(affected, list) or not isinstance(unchanged, list) or not isinstance(new_requirements, list):
+        return None, (
+            "clarification response is missing affected_requirements/"
+            "unchanged_requirements/requirements as lists"
+        )
+
+    original_ids = {req.get("id") for req in plan.get("requirements", []) if req.get("id")}
+    affected_ids = set(affected)
+    unchanged_ids = set(unchanged)
+
+    overlap = affected_ids & unchanged_ids
+    if overlap:
+        return None, f"affected_requirements and unchanged_requirements overlap: {sorted(overlap)}"
+
+    if (affected_ids | unchanged_ids) != original_ids:
+        missing = original_ids - (affected_ids | unchanged_ids)
+        extra = (affected_ids | unchanged_ids) - original_ids
+        return None, (
+            f"affected_requirements + unchanged_requirements don't account for exactly the "
+            f"plan's own requirement ids — missing {sorted(missing)}, unexpected {sorted(extra)}"
+        )
+
+    new_by_id = {req.get("id"): req for req in new_requirements if req.get("id")}
+    if set(new_by_id) != affected_ids:
+        return None, (
+            f"\"requirements\" in the patch don't match affected_requirements exactly — "
+            f"patch has {sorted(new_by_id)}, affected_requirements says {sorted(affected_ids)}"
+        )
+
+    merged_requirements = [
+        new_by_id[req["id"]] if req.get("id") in affected_ids else req
+        for req in plan.get("requirements", [])
+    ]
+    merged_plan = {**plan, "requirements": merged_requirements}
+    merged_plan["clarifications"] = list(plan.get("clarifications") or [])
+    merged_plan["clarifications"].append({
+        "clarification_for": patch.get("clarification_for"),
+        "affected_requirements": sorted(affected_ids),
+        "unchanged_requirements": sorted(unchanged_ids),
+        "note": note,
+    })
+    return merged_plan, None
+
+
 MAX_NORM_CLARIFICATIONS_PER_ROUND = 5
 
-# 2026-09-25: disabled, by request, pending a better-designed version —
-# norm-architect's critique-resolution finalizing pass was found causing
-# net regressions, not just refinements: a real round
-# (sim/run-20260925-113432) had a fully valid 15-requirement first pass,
-# then its finalizing pass (triggered by 2 open_critiques, both correctly
-# answered by ask_norm_proposer()) re-derived the whole plan from scratch
-# rather than making a targeted edit — dropping to 11 requirements, one of
-# them a brand-new RULE missing its required agent_experience block, and
-# restating both critiques nearly verbatim despite being told explicitly
-# not to. The Harness Validator's OWN finalizing pass (structural errors,
-# no critique/proposer round-trip involved) is unaffected by this flag and
-# still runs — this only stops open_critiques from ever triggering a
-# second call. norm-architect's plan and prompt are unchanged: it can
-# still raise open_critiques, they're just never resolved or acted on
-# while this is False — accepted as-is, same as any other field in a
-# first-pass plan that happens to be structurally valid.
-NORM_ARCHITECT_CRITIQUES_ENABLED = False
+# 2026-09-29: re-enabled with a redesigned, structurally-scoped mechanism —
+# see _apply_clarification_patch() above. Originally disabled 2026-09-25
+# after a real round (sim/run-20260925-113432) showed the finalizing pass
+# re-deriving its whole 15-requirement plan from scratch instead of a
+# targeted edit — dropping to 11 requirements, one missing its required
+# agent_experience block, and restating both critiques nearly verbatim
+# despite being told explicitly not to. That failure mode is now
+# structurally impossible rather than just asked against: a clarification
+# call never sees "produce your final plan" — only "return the
+# requirement(s) that change" — and the harness itself, not the model's
+# own compliance, guarantees every other requirement is copied verbatim
+# from the already-validated plan it was given. A later round
+# (sim/run-20260928-234129, round 1) showed the live cost of leaving this
+# off: norm-architect's own open_critiques flagged one requirement
+# (proportional surplus redistribution) as ambiguous, that ambiguity was
+# never resolved, and norm-engineer spent its entire 10-attempt
+# audit-repair budget unable to satisfy an auditor checking a requirement
+# nobody had ever actually pinned down.
+NORM_ARCHITECT_CRITIQUES_ENABLED = True
 
 
 def run_norm_architect(round_number):
@@ -663,17 +749,19 @@ def run_norm_architect(round_number):
     across this function's one bounded retry pass, silently discarding
     whole rounds before norm-engineer ever started.)
 
-    A second, finalizing completion call happens if validate_norm_plan()
-    — the deterministic Harness Validator, no LLM call — found structural
-    problems (a missing agent_experience block, a dangling reference), or
-    (only while NORM_ARCHITECT_CRITIQUES_ENABLED is True — disabled as of
-    2026-09-25, see that flag's own comment) if the first pass reported
-    open_critiques, resolved via ask_norm_proposer(). Both fold into the
-    SAME second pass, one bounded extra call, not two separate retry
-    loops. If the plan is still structurally invalid after that second
-    pass, this is a real design failure, not a process hiccup: return
-    (False, None) and let the round be discarded, same contract as every
-    other failure path here."""
+    Further completion calls happen after the first pass, each a scoped
+    clarification patch (see _apply_clarification_patch()), never a
+    regeneration of the whole plan: one per open_critique (while
+    NORM_ARCHITECT_CRITIQUES_ENABLED, its own default — the critique's
+    requirement.critique_question is put to the round's winning proposer
+    via ask_norm_proposer(), then norm-architect is asked to patch only
+    what that answer actually bears on), plus one combined call at the
+    end if validate_norm_plan() — the deterministic Harness Validator, no
+    LLM call — still finds structural problems (a missing
+    agent_experience block, a dangling reference). If the plan is still
+    structurally invalid after all of that, this is a real design
+    failure, not a process hiccup: return (False, None) and let the round
+    be discarded, same contract as every other failure path here."""
     norm_path = ROOT / "norm.txt"
     if not norm_path.is_file():
         print(f"Round {round_number}: norm.txt is missing — nothing for norm-architect to "
@@ -700,7 +788,6 @@ def run_norm_architect(round_number):
         return False, None
 
     open_critiques = plan.get("open_critiques") or []
-    validator_errors = validate_norm_plan(plan)
 
     if open_critiques and not NORM_ARCHITECT_CRITIQUES_ENABLED:
         print(f"Round {round_number}: norm-architect raised {len(open_critiques)} open "
@@ -711,59 +798,84 @@ def run_norm_architect(round_number):
     else:
         open_critiques_to_resolve = open_critiques
 
-    if open_critiques_to_resolve or validator_errors:
-        resolutions = []
-        budget = min(len(open_critiques_to_resolve), MAX_NORM_CLARIFICATIONS_PER_ROUND)
-        if budget < len(open_critiques_to_resolve):
-            print(f"Round {round_number}: norm-architect raised {len(open_critiques_to_resolve)} "
-                  f"open critiques but the round's shared clarification budget only allows "
-                  f"{budget} — resolving the first {budget}, the rest stay unresolved "
-                  f"(reflected as-is in the plan this round proceeds with).")
-        for critique in open_critiques_to_resolve[:budget]:
-            question = critique.get("critique_question")
-            if not question:
-                continue
-            try:
-                answer = ask_norm_proposer(round_number, question)
-            except RuntimeError as exc:
-                print(f"Round {round_number}: couldn't resolve a norm-architect critique "
-                      f"({exc}) — proceeding with the first pass's own best-effort reading.",
-                      file=sys.stderr)
-                continue
-            resolutions.append({
-                "critique_question": question,
-                "answer": answer.get("answer", answer),
-            })
+    budget = min(len(open_critiques_to_resolve), MAX_NORM_CLARIFICATIONS_PER_ROUND)
+    if budget < len(open_critiques_to_resolve):
+        print(f"Round {round_number}: norm-architect raised {len(open_critiques_to_resolve)} "
+              f"open critiques but the round's shared clarification budget only allows "
+              f"{budget} — resolving the first {budget}, the rest stay unresolved "
+              f"(reflected as-is in the plan this round proceeds with).")
 
-        if validator_errors:
-            print(f"Round {round_number}: the harness found {len(validator_errors)} structural "
-                  f"problem(s) in norm-architect's plan — asking it to fix them.")
-        if resolutions:
-            print(f"Round {round_number}: resolved {len(resolutions)} norm-architect "
-                  f"critique(s) — asking it to finalize.")
+    # Each critique gets its own scoped round-trip — ask the proposer,
+    # then ask norm-architect for a patch touching only what that one
+    # answer actually bears on — rather than batching every critique's
+    # answer into one shared "finalize everything" call, so a mistake on
+    # one critique's patch can never spill into another's.
+    for critique in open_critiques_to_resolve[:budget]:
+        requirement_id = critique.get("requirement")
+        question = critique.get("critique_question")
+        if not question:
+            continue
+        try:
+            answer = ask_norm_proposer(round_number, question)
+        except RuntimeError as exc:
+            print(f"Round {round_number}: couldn't resolve a norm-architect critique on "
+                  f"{requirement_id!r} ({exc}) — leaving it as the first pass wrote it.",
+                  file=sys.stderr)
+            continue
 
-        if resolutions or validator_errors:
-            final_text = call_norm_architect_agent(
-                round_number, norm_text, context_bundle,
-                resolutions=resolutions or None, validator_errors=validator_errors or None,
+        trigger_text = (
+            f"## Answer to your open critique on {requirement_id}\n\n"
+            f"Q: {question}\nA: {answer.get('answer', answer)}"
+        )
+        patch_text = call_norm_architect_clarification_agent(
+            round_number, norm_text, context_bundle, plan, trigger_text,
+        )
+        if patch_text is None:
+            print(f"Round {round_number}: norm-architect's clarification call for "
+                  f"{requirement_id!r} failed — leaving it as the first pass wrote it.",
+                  file=sys.stderr)
+            continue
+
+        merged_plan, reason = _apply_clarification_patch(
+            plan, patch_text, note=f"critique on {requirement_id}: {question}",
+        )
+        if merged_plan is None:
+            print(f"Round {round_number}: norm-architect's clarification patch for "
+                  f"{requirement_id!r} was rejected ({reason}) — leaving it as the first "
+                  f"pass wrote it.", file=sys.stderr)
+            continue
+        plan = merged_plan
+        print(f"Round {round_number}: applied a scoped clarification patch for "
+              f"{requirement_id!r}.")
+
+    validator_errors = validate_norm_plan(plan)
+    if validator_errors:
+        print(f"Round {round_number}: the harness found {len(validator_errors)} structural "
+              f"problem(s) in norm-architect's plan — asking it to fix them.")
+        trigger_text = (
+            "## Structural problems the harness found in your plan — fix these\n\n"
+            + "\n".join(f"- {e}" for e in validator_errors)
+        )
+        patch_text = call_norm_architect_clarification_agent(
+            round_number, norm_text, context_bundle, plan, trigger_text,
+        )
+        if patch_text is None:
+            print(f"Round {round_number}: norm-architect's structural-fix clarification call "
+                  f"failed — plan stays as it was.", file=sys.stderr)
+        else:
+            merged_plan, reason = _apply_clarification_patch(
+                plan, patch_text, note=f"structural fixes: {'; '.join(validator_errors)}",
             )
-            if final_text is not None:
-                final_plan_raw = _extract_fenced_block(final_text, "json")
-                try:
-                    final_plan = json.loads(final_plan_raw) if final_plan_raw else None
-                except json.JSONDecodeError:
-                    final_plan = None
-                if final_plan is not None and "requirements" in final_plan:
-                    plan = final_plan
-                    validator_errors = validate_norm_plan(plan)
-                else:
-                    print(f"Round {round_number}: norm-architect's finalizing pass didn't "
-                          f"produce a parseable plan — keeping the first pass's own output.",
-                          file=sys.stderr)
+            if merged_plan is None:
+                print(f"Round {round_number}: norm-architect's structural-fix patch was "
+                      f"rejected ({reason}) — plan stays as it was.", file=sys.stderr)
+            else:
+                plan = merged_plan
+                validator_errors = validate_norm_plan(plan)
 
     if validator_errors:
         print(f"Round {round_number}: norm-architect's plan is still structurally invalid after "
-              f"its finalizing pass — treating this round's design as failed:\n"
+              f"clarification — treating this round's design as failed:\n"
               + "\n".join(f"  - {e}" for e in validator_errors), file=sys.stderr)
         return False, None
 

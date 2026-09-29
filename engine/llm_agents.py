@@ -754,6 +754,145 @@ unresolved. Never include any other fenced ```json block anywhere else in
 your response — the orchestrator finds the last one."""
 
 
+NORM_ARCHITECT_CLARIFICATION_SYSTEM_PROMPT = """You are the Norm Architect, continuing work on a plan you already
+produced for this round. You are shown that full plan below for context
+only — your job now is narrow: apply exactly one thing (an answered
+critique, or a set of structural problems the harness found) and return
+ONLY the requirement(s) that actually need to change as a direct result.
+
+Never regenerate the whole plan. Every requirement not listed in your own
+"affected_requirements" must stay untouched — the harness enforces this
+mechanically regardless of what you write, so an unlisted "improvement"
+is simply discarded, never applied. If resolving the one thing you were
+given genuinely changes a second requirement too (not just the one it
+was originally about), include that second one in "affected_requirements"
+as well and explain why in its own updated content — but never touch a
+requirement the trigger below doesn't actually bear on.
+
+Each requirement object in your output uses the exact same shape as the
+main plan (id/type/description/clarity/clarity_critique/clarity_resolution
+plus whichever type-specific fields — exclusive/actor/judgment_required/
+persistent/attached_to/deterministic/target/audience/duration_rounds —
+and an agent_experience block for ROLE/ACTION/RULE/VISIBILITY, exactly as
+your own standing instructions already describe). If this is answering a
+critique, clear it: set clarity to CLEAR and fill in clarity_resolution
+with what the proposer's answer actually settled — never leave
+clarity_critique/clarity_resolution stale once you've resolved it.
+
+## Output format — exactly one fenced ```json block, the last thing in your response
+
+```json
+{
+  "clarification_for": "R7",
+  "affected_requirements": ["R7"],
+  "unchanged_requirements": ["R1", "R2", "R3", "R4", "R5", "R6"],
+  "requirements": [
+    {"id": "R7", "type": "RULE", "description": "...", "clarity": "CLEAR",
+     "clarity_critique": "...", "clarity_resolution": "...",
+     "attached_to": "R2", "deterministic": true,
+     "agent_experience": {"knows": [], "decides": [], "may_do": [], "may_not_do": ["..."], "remembers": [], "observes": []}}
+  ]
+}
+```
+"unchanged_requirements" must list every OTHER requirement id from the
+plan you were shown — together with "affected_requirements" it must
+account for every single id, none dropped, none invented. "clarification_for"
+names the requirement id the original critique was about, if this is a
+critique response; omit it for a structural-fix response. Never include
+any other fenced ```json block anywhere else in your response."""
+
+
+def _build_norm_architect_clarification_prompt(round_number, norm_text, context_bundle, plan, trigger_text):
+    return "\n\n".join([
+        f"This is round {round_number}.",
+        "## norm.txt (this round's adopted Policy + Operationalization)",
+        norm_text,
+        "## Reference bundle",
+        context_bundle,
+        "## Your current plan for this round (for context only — do not restate it)",
+        "```json\n" + json.dumps(plan.get("requirements", []), indent=2) + "\n```",
+        trigger_text,
+        "Return ONLY the patch described in your standing instructions — the requirement(s) "
+        "that actually change, never the whole plan.",
+    ])
+
+
+def call_norm_architect_clarification_agent(round_number, norm_text, context_bundle, plan, trigger_text):
+    """One scoped patch call — see NORM_ARCHITECT_CLARIFICATION_SYSTEM_PROMPT
+    for the contract this owns. Mirrors call_norm_architect_agent()'s own
+    retry/model/logging structure exactly; kept as its own function (not a
+    mode switch bolted onto that one) matching this file's existing
+    one-function-per-call-shape convention (call_fisher_agent/
+    call_critique_agent/call_norm_auditor_agent are all separate too).
+    `trigger_text` is a fully-formatted section — either "## Answer to
+    your open critique" + one Q/A pair, or "## Structural problems the
+    harness found" + a list — built by the caller (engine.simulate), same
+    division of labor call_norm_architect_agent() already has for
+    resolutions/validator_errors. `max_tokens` is capped deliberately: a
+    scoped patch is at most a handful of requirement objects, and an
+    uncapped reasoning-model call already caused one real 20-minute,
+    291-times-repeated response elsewhere in this pipeline (norm-auditor,
+    2026-09-28) — bounded here from the start rather than after a repeat."""
+    user_prompt = _build_norm_architect_clarification_prompt(
+        round_number, norm_text, context_bundle, plan, trigger_text,
+    )
+    model_spec = (
+        os.environ.get("NORM_ARCHITECT_MODEL")
+        or os.environ.get("NORM_IMPLEMENTER_MODEL")  # transition fallback, pre-split env var
+        or os.environ.get("OPENCODE_MODEL")
+        or DEFAULT_FISHER_MODEL
+    )
+    completion_kwargs = _resolve_completion_kwargs(model_spec)
+
+    last_error = None
+    for attempt in range(1, MAX_ARCHITECT_ATTEMPTS + 1):
+        start = time.monotonic()
+        raw_text = ""
+        error = None
+        try:
+            response = litellm.completion(
+                messages=[
+                    {"role": "system", "content": NORM_ARCHITECT_CLARIFICATION_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                timeout=1800,
+                max_tokens=8192,
+                **completion_kwargs,
+            )
+            raw_text = response.choices[0].message.content or ""
+        except Exception as exc:
+            error = str(exc)
+        duration_s = time.monotonic() - start
+
+        log_call(
+            also_log_to=NORM_ARCHITECT_LOG_PATH,
+            call="norm_architect_clarification",
+            agent_id=None,
+            round=round_number,
+            action=None,
+            model=model_spec,
+            attempt=attempt,
+            duration_s=round(duration_s, 3),
+            returncode=0 if error is None else 1,
+            prompt=user_prompt,
+            raw_response=raw_text,
+            parsed_response=None,
+            error=error if error else (None if raw_text.strip() else "empty response"),
+        )
+
+        if not error and raw_text.strip():
+            return raw_text
+        last_error = error or "empty response"
+        print(f"  [norm-architect-clarification round {round_number} attempt {attempt}/{MAX_ARCHITECT_ATTEMPTS} "
+              f"failed: {last_error} — retrying]")
+        if attempt < MAX_ARCHITECT_ATTEMPTS:
+            time.sleep(ARCHITECT_CALL_DELAY_S)
+
+    print(f"Round {round_number}: norm-architect-clarification call failed after "
+          f"{MAX_ARCHITECT_ATTEMPTS} attempts: {last_error}", file=sys.stderr)
+    return None
+
+
 def _build_norm_architect_prompt(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
     sections = [
         f"This is round {round_number}.",

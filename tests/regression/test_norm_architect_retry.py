@@ -118,140 +118,178 @@ def test_returns_false_when_response_has_no_requirements_key(tmp_path, monkeypat
     assert plan is None
 
 
-def test_open_critiques_are_ignored_by_default(tmp_path, monkeypatch):
-    """Default behavior (NORM_ARCHITECT_CRITIQUES_ENABLED = False, 2026-09-25):
-    an otherwise-valid first-pass plan with open_critiques is accepted
-    as-is — no ask_norm_proposer() call, no second completion call, the
-    critiques just sit unresolved in the plan exactly as the first pass
-    wrote them."""
+def test_open_critiques_are_ignored_when_explicitly_disabled(tmp_path, monkeypatch):
+    """NORM_ARCHITECT_CRITIQUES_ENABLED defaults to True (2026-09-29, the
+    scoped-patch redesign) — this confirms the escape hatch still fully
+    works when explicitly turned off: no ask_norm_proposer() call, no
+    clarification call, the critiques just sit unresolved in the plan
+    exactly as the first pass wrote them."""
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
-    assert simulate_module.NORM_ARCHITECT_CRITIQUES_ENABLED is False
+    monkeypatch.setattr(simulate_module, "NORM_ARCHITECT_CRITIQUES_ENABLED", False)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
 
     plan = _valid_plan(open_critiques=[{"requirement": "R1", "critique_question": "what governs here?"}])
-    calls = []
     monkeypatch.setattr(
         simulate_module, "call_norm_architect_agent",
-        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: (
-            calls.append((resolutions, validator_errors)) or _response(plan)
-        ),
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: _response(plan),
     )
 
     def _unexpected_ask(round_number, question):
         raise AssertionError("ask_norm_proposer() must never be called while critiques are disabled")
 
+    def _unexpected_clarify(*args, **kwargs):
+        raise AssertionError("clarification call must never happen while critiques are disabled")
+
     monkeypatch.setattr(simulate_module, "ask_norm_proposer", _unexpected_ask)
+    monkeypatch.setattr(simulate_module, "call_norm_architect_clarification_agent", _unexpected_clarify)
 
     success, returned_plan = simulate_module.run_norm_architect(1)
 
     assert success is True
-    assert calls == [(None, None)]  # only the first pass — no finalizing call
-    assert returned_plan == plan
     assert returned_plan["open_critiques"] == plan["open_critiques"]  # left untouched
+    assert "clarifications" not in returned_plan
 
 
-def test_resolves_open_critiques_and_uses_the_finalizing_pass_output(tmp_path, monkeypatch):
-    """Critique resolution is disabled by default (NORM_ARCHITECT_CRITIQUES_ENABLED = False,
-    2026-09-25 — see that flag's own comment) after a real round showed the
-    finalizing pass it triggers causing net regressions, not just
-    refinements. This test re-enables it via the flag to confirm the
-    mechanism itself still works correctly, pending a better-designed
-    version to replace it."""
+def test_resolves_a_single_open_critique_with_a_scoped_patch(tmp_path, monkeypatch):
+    """2026-09-29 redesign: critiques are enabled by default now, but the
+    finalizing call is scoped to a patch, never "produce your final plan"
+    — the exact failure mode that got this disabled on 2026-09-25 (a real
+    round's finalizing pass re-deriving its whole plan from scratch,
+    dropping requirements and restating critiques verbatim)."""
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
-    monkeypatch.setattr(simulate_module, "NORM_ARCHITECT_CRITIQUES_ENABLED", True)
+    assert simulate_module.NORM_ARCHITECT_CRITIQUES_ENABLED is True  # the new default
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
 
-    draft_plan = _valid_plan(open_critiques=[{"requirement": "R1", "critique_question": "what governs here?"}])
-    final_plan = _valid_plan(requirements=[_requirement(description="R1 finalized")])
-    pass_count = {"n": 0}
-
-    def _fake_call(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
-        pass_count["n"] += 1
-        if resolutions is None and validator_errors is None:
-            return _response(draft_plan)
-        assert resolutions == [{"critique_question": "what governs here?", "answer": "the later clause"}]
-        assert validator_errors is None  # draft_plan is otherwise structurally valid
-        return _response(final_plan)
+    r2 = _requirement("R2", "ROLE")
+    draft_plan = _valid_plan(
+        requirements=[_requirement("R1", "RULE"), r2],
+        open_critiques=[{"requirement": "R1", "critique_question": "what governs here?"}],
+    )
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: _response(draft_plan),
+    )
 
     asked = []
+    monkeypatch.setattr(
+        simulate_module, "ask_norm_proposer",
+        lambda round_number, question: (asked.append(question) or {"answer": "the later clause"}),
+    )
 
-    def _fake_ask(round_number, question):
-        asked.append(question)
-        return {"answer": "the later clause", "reasoning": "..."}
+    patched_r1 = _requirement("R1", "RULE", description="R1 clarified", clarity_resolution="the later clause")
+    clarify_calls = []
 
-    monkeypatch.setattr(simulate_module, "call_norm_architect_agent", _fake_call)
-    monkeypatch.setattr(simulate_module, "ask_norm_proposer", _fake_ask)
+    def _fake_clarify(round_number, norm_text, context_bundle, plan, trigger_text):
+        clarify_calls.append((plan, trigger_text))
+        return _response({
+            "clarification_for": "R1",
+            "affected_requirements": ["R1"],
+            "unchanged_requirements": ["R2"],
+            "requirements": [patched_r1],
+        })
+
+    monkeypatch.setattr(simulate_module, "call_norm_architect_clarification_agent", _fake_clarify)
 
     success, returned_plan = simulate_module.run_norm_architect(7)
 
     assert success is True
-    assert pass_count["n"] == 2
     assert asked == ["what governs here?"]
-    assert returned_plan["requirements"][0]["description"] == "R1 finalized"
+    assert len(clarify_calls) == 1
+    assert "what governs here?" in clarify_calls[0][1]
+    assert "the later clause" in clarify_calls[0][1]
+
+    by_id = {r["id"]: r for r in returned_plan["requirements"]}
+    assert by_id["R1"]["description"] == "R1 clarified"
+    # `r2` came back through a real JSON round-trip (call_norm_architect_agent's
+    # mocked response is a JSON string, parsed fresh inside run_norm_architect),
+    # so object identity can't survive that hop — content equality is the real
+    # guarantee here; _apply_clarification_patch()'s own unit tests below check
+    # actual object identity directly, where there's no serialization in between.
+    assert by_id["R2"] == r2  # untouched
+    assert returned_plan["clarifications"] == [{
+        "clarification_for": "R1", "affected_requirements": ["R1"],
+        "unchanged_requirements": ["R2"], "note": "critique on R1: what governs here?",
+    }]
 
 
 def test_caps_critique_resolution_at_the_shared_round_budget(tmp_path, monkeypatch):
-    """Also requires re-enabling NORM_ARCHITECT_CRITIQUES_ENABLED — see
-    test_resolves_open_critiques_and_uses_the_finalizing_pass_output's own
-    docstring."""
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
-    monkeypatch.setattr(simulate_module, "NORM_ARCHITECT_CRITIQUES_ENABLED", True)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
     many_critiques = [{"requirement": "R1", "critique_question": f"question {i}?"} for i in range(8)]
+    draft_plan = _valid_plan(open_critiques=many_critiques)
 
-    def _fake_call(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
-        if resolutions is None and validator_errors is None:
-            return _response(_valid_plan(open_critiques=many_critiques))
-        return _response(_valid_plan())
-
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: _response(draft_plan),
+    )
     asked = []
-    monkeypatch.setattr(simulate_module, "call_norm_architect_agent", _fake_call)
     monkeypatch.setattr(
         simulate_module, "ask_norm_proposer",
         lambda round_number, question: (asked.append(question) or {"answer": "ok"}),
     )
 
+    clarify_call_count = {"n": 0}
+
+    def _fake_clarify(round_number, norm_text, context_bundle, plan, trigger_text):
+        clarify_call_count["n"] += 1
+        return _response({
+            "affected_requirements": ["R1"], "unchanged_requirements": [],
+            "requirements": [_requirement("R1")],
+        })
+
+    monkeypatch.setattr(simulate_module, "call_norm_architect_clarification_agent", _fake_clarify)
+
     success, _ = simulate_module.run_norm_architect(1)
 
     assert success is True
     assert len(asked) == simulate_module.MAX_NORM_CLARIFICATIONS_PER_ROUND
+    assert clarify_call_count["n"] == simulate_module.MAX_NORM_CLARIFICATIONS_PER_ROUND
 
 
-def test_harness_validator_triggers_a_second_pass_and_fixes_are_applied(tmp_path, monkeypatch):
+def test_harness_validator_triggers_a_clarification_patch_and_fixes_are_applied(tmp_path, monkeypatch):
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
 
     # A structurally invalid draft: an ACTION requirement missing its
     # required agent_experience block, and no open_critiques at all — the
-    # validator, not the critique mechanism, must be what triggers the
-    # second pass here.
+    # validator, not the critique mechanism, must be what triggers this.
     broken_requirement = {
         "id": "R2", "type": "ACTION", "description": "...", "actor": "R1",
         "clarity": "CLEAR", "clarity_critique": None, "clarity_resolution": None,
         # agent_experience deliberately omitted
     }
-    draft_plan = {"requirements": [broken_requirement], "open_critiques": []}
-    fixed_plan = _valid_plan(requirements=[_requirement("R2", "ACTION")])
-    pass_count = {"n": 0}
+    r1 = _requirement("R1", "ROLE")
+    draft_plan = {"requirements": [r1, broken_requirement], "open_critiques": []}
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: _response(draft_plan),
+    )
 
-    def _fake_call(round_number, norm_text, context_bundle, resolutions=None, validator_errors=None):
-        pass_count["n"] += 1
-        if pass_count["n"] == 1:
-            return _response(draft_plan)
-        assert resolutions is None
-        assert validator_errors and any("agent_experience" in e for e in validator_errors)
-        return _response(fixed_plan)
+    fixed_r2 = _requirement("R2", "ACTION", actor="R1")
+    clarify_calls = []
 
-    monkeypatch.setattr(simulate_module, "call_norm_architect_agent", _fake_call)
+    def _fake_clarify(round_number, norm_text, context_bundle, plan, trigger_text):
+        clarify_calls.append(trigger_text)
+        return _response({
+            "affected_requirements": ["R2"], "unchanged_requirements": ["R1"],
+            "requirements": [fixed_r2],
+        })
+
+    monkeypatch.setattr(simulate_module, "call_norm_architect_clarification_agent", _fake_clarify)
 
     success, returned_plan = simulate_module.run_norm_architect(2)
 
     assert success is True
-    assert pass_count["n"] == 2
-    assert returned_plan == fixed_plan
+    assert len(clarify_calls) == 1
+    assert "agent_experience" in clarify_calls[0]
+    by_id = {r["id"]: r for r in returned_plan["requirements"]}
+    assert by_id["R1"] == r1  # untouched (content equality — see the identical
+    # note on the sibling test above re: the JSON round-trip through the
+    # mocked first-pass response breaking real object identity here)
+    assert by_id["R2"]["agent_experience"]  # now present, structurally valid
 
 
-def test_returns_false_when_plan_is_still_invalid_after_the_finalizing_pass(tmp_path, monkeypatch):
+def test_returns_false_when_plan_is_still_invalid_after_clarification(tmp_path, monkeypatch):
     monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
     (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
 
@@ -260,12 +298,94 @@ def test_returns_false_when_plan_is_still_invalid_after_the_finalizing_pass(tmp_
         simulate_module, "call_norm_architect_agent",
         lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: _response(always_broken),
     )
+    # The clarification call itself fails outright — plan stays broken.
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_clarification_agent",
+        lambda round_number, norm_text, context_bundle, plan, trigger_text: None,
+    )
 
     success, plan = simulate_module.run_norm_architect(4)
 
     assert success is False
     assert plan is None
     assert not (tmp_path / "tests" / "norm_checks" / "round_4" / "norm_plan.json").exists()
+
+
+def test_apply_clarification_patch_rejects_a_patch_that_drops_an_id():
+    plan = _valid_plan(requirements=[_requirement("R1"), _requirement("R2", "ROLE")])
+    patch_text = _response({
+        "affected_requirements": ["R1"],
+        "unchanged_requirements": [],  # R2 missing entirely
+        "requirements": [_requirement("R1", description="patched")],
+    })
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test")
+    assert merged is None
+    assert "R2" in reason
+
+
+def test_apply_clarification_patch_rejects_a_patch_that_invents_an_id():
+    plan = _valid_plan(requirements=[_requirement("R1")])
+    patch_text = _response({
+        "affected_requirements": ["R1"],
+        "unchanged_requirements": ["R99"],  # doesn't exist in the plan
+        "requirements": [_requirement("R1", description="patched")],
+    })
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test")
+    assert merged is None
+    assert "R99" in reason
+
+
+def test_apply_clarification_patch_rejects_overlapping_affected_and_unchanged_sets():
+    plan = _valid_plan(requirements=[_requirement("R1"), _requirement("R2", "ROLE")])
+    patch_text = _response({
+        "affected_requirements": ["R1"],
+        "unchanged_requirements": ["R1", "R2"],  # R1 claimed both ways
+        "requirements": [_requirement("R1", description="patched")],
+    })
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test")
+    assert merged is None
+    assert "R1" in reason
+
+
+def test_apply_clarification_patch_rejects_an_edit_to_an_id_not_declared_affected():
+    """The exact 2026-09-25 regression this redesign closes: a patch
+    editing something it didn't declare as affected is rejected wholesale
+    — a real, honest patch or nothing, never a partial one the harness
+    has to guess about."""
+    plan = _valid_plan(requirements=[_requirement("R1"), _requirement("R2", "ROLE", description="original")])
+    patch_text = _response({
+        "affected_requirements": ["R1"],
+        "unchanged_requirements": ["R2"],
+        "requirements": [
+            _requirement("R1", description="patched"),
+            _requirement("R2", "ROLE", description="sneakily rewritten too"),
+        ],
+    })
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test")
+    assert merged is None
+
+
+def test_apply_clarification_patch_merges_cleanly_on_a_well_formed_patch():
+    r2 = _requirement("R2", "ROLE")
+    plan = _valid_plan(requirements=[_requirement("R1"), r2])
+    patched_r1 = _requirement("R1", description="patched")
+    patch_text = _response({
+        "clarification_for": "R1",
+        "affected_requirements": ["R1"],
+        "unchanged_requirements": ["R2"],
+        "requirements": [patched_r1],
+    })
+
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test note")
+
+    assert reason is None
+    by_id = {r["id"]: r for r in merged["requirements"]}
+    assert by_id["R1"]["description"] == "patched"
+    assert by_id["R2"] is r2
+    assert merged["clarifications"] == [{
+        "clarification_for": "R1", "affected_requirements": ["R1"],
+        "unchanged_requirements": ["R2"], "note": "test note",
+    }]
 
 
 def test_run_norm_architect_with_retry_is_a_thin_passthrough(monkeypatch):
