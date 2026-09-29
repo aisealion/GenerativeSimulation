@@ -268,13 +268,22 @@ this file.
 ## Verify actual behavior, not file existence
 
 - `python3 -m py_compile` every file you touched.
-- `pyright` every file you touched — treat any `reportAttributeAccessIssue`
-  or `reportArgumentType` on your own new code as a real bug to fix before
-  finishing, the same trust level as `py_compile`. This only catches
-  something on a file whose parameters are actually typed (`ctx:
-  ActionContext`, not bare `ctx`) — an untyped signature checks clean no
-  matter what's inside it, so don't take a clean pyright run on an
-  unannotated function as any kind of pass.
+- `pyright` every file you touched — run the actual command,
+  `pyright path/to/file.py`, and read its real output (a list of
+  diagnostics, or literally "0 errors, 0 warnings, 0 informations").
+  `python -c "import pyright"` (or checking `pyright.__version__`) only
+  confirms the package is installed — it type-checks nothing and proves
+  nothing about your code; a round that did this and treated it as a
+  passing check shipped a live `TypeError` this way. Treat any
+  `reportAttributeAccessIssue`/`reportCallIssue`/`reportArgumentType` on
+  your own new code as a real bug, the same trust level as `py_compile`.
+  This checks a real `ctx: ActionContext` usage even inside a `Rule`
+  method you leave unannotated (`def on_agent_settled(self, ctx, ...)`)
+  — pyright infers `ctx`'s type from the base class method you're
+  overriding, since `Rule`/`ActionContext` are already typed — so this
+  is real signal on a rule/handler override regardless of whether you
+  added your own annotation. It only checks nothing on a genuinely new
+  function/method that isn't overriding anything typed at all.
 - `pytest tests/norm_checks/round_{N}/ -q` — this is your actual pass/fail
   bar. Don't stop until it's green, or until you can report exactly why a
   specific test can't be satisfied (a genuine conflict with the frozen
