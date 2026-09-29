@@ -2062,6 +2062,22 @@ MAX_NORM_COMPILE_REPAIR_ATTEMPTS = 10
 # needs more than a couple of cycles to clear all of them, not just the
 # first one found.
 MAX_NORM_AUDIT_REPAIR_ATTEMPTS = 10
+
+# Neither budget above has ever detected a STUCK repair, only a LONG one —
+# a real round's compile-repair loop hit the exact same error, verbatim,
+# on 5 straight attempts (an unregistered rule type) before finally
+# changing; a separate round's audit-repair loop got the same substantive
+# complaint about one requirement (worded differently by DeepSeek-R1 each
+# time, but always about the same gap) across all 10 of its attempts and
+# was discarded having never moved past it. Both burned most or all of
+# their budget without ever being told "this isn't working, try something
+# actually different." Compile and audit each get their OWN streak,
+# tracked independently — same reasoning as the budget split itself: a
+# genuine switch from one problem class to the other (e.g. finally
+# clearing a compile error and reaching audit) is real progress, so it
+# shouldn't reset or share a counter with the other kind.
+MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS = 3
+
 # norm-auditor no longer has its own process-retry budget here (2026-09-23)
 # — since it stopped running through opencode (see call_norm_auditor_agent()
 # in engine/llm_agents.py for why), its own bounded retry loop
@@ -2197,6 +2213,65 @@ def norm_implementation_failing_tests_errors(round_number):
         f"tests/norm_checks/round_{round_number}/ (your own test suite) is still failing:\n"
         f"{detail}"
     ]
+
+
+def _read_norm_evidence(round_number):
+    """Reads back state/norm_evidence/round_{N}.json — _gather_norm_evidence()
+    (called from inside run_norm_auditor(), which already ran by the time
+    any caller here needs this) already wrote it fresh for this exact
+    audit verdict; this just reads it rather than recomputing it (which
+    would mean re-running pytest a second time for no reason). Returns {}
+    if it's missing or unreadable — callers treat that as "nothing to
+    report", never an error."""
+    evidence_path = ROOT / "state" / "norm_evidence" / f"round_{round_number}.json"
+    try:
+        return json.loads(evidence_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _render_requirement_status_block(evidence):
+    """Classifies each requirement id in `evidence` (see _read_norm_evidence()
+    above) into satisfied / no-evidence / unresolved, and renders a short
+    block naming each — folded into the audit-repair message so
+    norm-engineer is told what to leave alone (satisfied), what's a
+    missing-test gap rather than a code problem (no evidence — the exact
+    distinction a real round blurred, rewriting working code because its
+    own evidence for a different, untested requirement came back empty),
+    and what's still actually open, instead of re-deriving all of this
+    itself from scratch on every attempt. Returns "" if there's nothing
+    to say (no evidence at all, e.g. before the very first audit)."""
+    satisfied, no_evidence, unresolved = [], [], []
+    for req_id, claims in evidence.items():
+        if not claims:
+            no_evidence.append(req_id)
+        elif all("file was ever written" in claim for claim in claims):
+            no_evidence.append(req_id)
+        elif any("FAIL" in claim or "ERROR" in claim for claim in claims):
+            unresolved.append(req_id)
+        else:
+            satisfied.append(req_id)
+
+    lines = []
+    if satisfied:
+        lines.append(
+            f"Satisfied — preserve these, do not touch their implementation or tests: "
+            f"{', '.join(sorted(satisfied))}"
+        )
+    if no_evidence:
+        lines.append(
+            f"No test evidence at all — this is a missing or broken test, not necessarily a "
+            f"broken implementation; write or fix the test rather than assuming the code is "
+            f"wrong: {', '.join(sorted(no_evidence))}"
+        )
+    if unresolved:
+        lines.append(f"Still failing or unproven: {', '.join(sorted(unresolved))}")
+    if not lines:
+        return ""
+    return (
+        "## Current requirement status (from the harness's own evidence, not a guess)\n\n"
+        + "\n".join(lines)
+    )
 
 
 def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_attempts, what_was_found, session_is_fresh, repair_history):
@@ -2402,6 +2477,14 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     total_attempt = 0
     compile_attempt = 0
     audit_attempt = 0
+    # See MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS's own comment — a signature
+    # of "what's still wrong" per repair kind, compared attempt to attempt;
+    # an unchanged signature increments its own streak, a changed one
+    # resets it to 0.
+    last_compile_signature = None
+    compile_no_progress_streak = 0
+    last_audit_signature = None
+    audit_no_progress_streak = 0
     while True:
         total_attempt += 1
         # Protected-path violations are a hard, non-retryable discard —
@@ -2435,6 +2518,22 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             if compile_attempt > MAX_NORM_COMPILE_REPAIR_ATTEMPTS:
                 discard_norm_implementation(round_number, compile_errors)
                 return False
+
+            compile_signature = tuple(compile_errors)
+            if compile_signature == last_compile_signature:
+                compile_no_progress_streak += 1
+            else:
+                compile_no_progress_streak = 0
+                last_compile_signature = compile_signature
+            if compile_no_progress_streak >= MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS:
+                discard_norm_implementation(
+                    round_number,
+                    [f"no progress across {compile_no_progress_streak + 1} consecutive "
+                     f"compile-repair attempts — the exact same error recurred unchanged "
+                     f"every time:\n\n{compile_errors[0]}"],
+                )
+                return False
+
             print(f"\nRound {round_number}: norm-engineer's changes have compile/validation "
                   f"errors — sending back for repair (compile-repair attempt "
                   f"{compile_attempt}/{MAX_NORM_COMPILE_REPAIR_ATTEMPTS}), instead of discarding "
@@ -2503,16 +2602,47 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             )
             return False
 
+        # DeepSeek-R1 paraphrases its own report differently every attempt
+        # even when it's the same underlying complaint (confirmed on a real
+        # round — R7 stayed the requirement in question across all 10
+        # attempts, worded differently each time) — comparing raw text
+        # would never detect that as "no progress". Which requirement ids
+        # keep coming up is a stable, mechanical proxy for the same
+        # unresolved gap instead.
+        audit_signature = frozenset(re.findall(r"\bR\d+\b", audit["text"]))
+        if audit_signature and audit_signature == last_audit_signature:
+            audit_no_progress_streak += 1
+        else:
+            audit_no_progress_streak = 0
+            last_audit_signature = audit_signature
+        if audit_no_progress_streak >= MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS:
+            discard_norm_implementation(
+                round_number,
+                [f"no progress across {audit_no_progress_streak + 1} consecutive audit-repair "
+                 f"attempts — norm-auditor kept flagging the same requirement(s) "
+                 f"({', '.join(sorted(audit_signature))}) unresolved every time. Auditor's "
+                 f"final report:\n\n{audit['text']}"],
+            )
+            return False
+
         print(f"\nRound {round_number}: norm-auditor returned NEEDS_REPAIR — sending back to "
               f"norm-engineer (audit-repair attempt "
               f"{audit_attempt}/{MAX_NORM_AUDIT_REPAIR_ATTEMPTS}).")
         session_is_fresh = total_attempt % 2 == 1
+        requirement_status_block = _render_requirement_status_block(
+            _read_norm_evidence(round_number)
+        )
+        what_was_found = (
+            f"Round {round_number}'s auditor found problems — read its full report below "
+            f"carefully and fix exactly what it identifies:\n\n"
+            f"--- Auditor's report ---\n{audit['text']}\n--- end of report ---"
+        )
+        if requirement_status_block:
+            what_was_found += f"\n\n{requirement_status_block}"
         repair_message = (
             _render_engineer_repair_preamble(
                 round_number, "audit", audit_attempt, MAX_NORM_AUDIT_REPAIR_ATTEMPTS,
-                f"Round {round_number}'s auditor found problems — read its full report below "
-                f"carefully and fix exactly what it identifies:\n\n"
-                f"--- Auditor's report ---\n{audit['text']}\n--- end of report ---",
+                what_was_found,
                 session_is_fresh, repair_history,
             )
             + "\n\nIf it's a code/implementation problem (including an under-enforced "
