@@ -1,0 +1,6 @@
+{
+  "type_name": "council_decisions",
+  "description": "Council decisions regarding fishery management, verification of entries, and redistribution of surplus.",
+  "persistent": true,
+  "ownership": "COMMUNAL"
+}

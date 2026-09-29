@@ -1,0 +1,12 @@
+{
+  "name": "weigh_catch",
+  "execution": {
+    "handler": "actions/rules/harvest/weigh_catch/handler.py"
+  },
+  "prompt": {
+    "template": "You have just finished fishing. Please weigh your total catch. \n\nThe weight you enter will be used to calculate your contribution and kept amount. Make sure to weigh accurately.",
+    "parameters": {
+      "catch_weight_kg": "float"
+    }
+  }
+}

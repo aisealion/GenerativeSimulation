@@ -1,0 +1,5 @@
+{
+  "execution": {
+    "handler": "actions/rules/harvest/catch_limit/handler.py"
+  }
+}

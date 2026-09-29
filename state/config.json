@@ -7,6 +7,10 @@
       {
         "type": "excess_return",
         "params": {}
+      },
+      {
+        "type": "catch_limit",
+        "params": {}
       }
     ]
   },

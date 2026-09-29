@@ -1,0 +1,13 @@
+{
+  "name": "verify_weight",
+  "execution": {
+    "handler": "actions/rules/harvest/verify_weight/handler.py"
+  },
+  "prompt": {
+    "template": "You are a council member reviewing a ledger entry. Please verify the weight recorded by the dockkeeper. \n\nCheck that the weight matches the recorded fish return and approve or reject the entry based on accuracy. Make sure to note any discrepancies.",
+    "parameters": {
+      "weight_verified": "bool",
+      "notes": "string"
+    }
+  }
+}

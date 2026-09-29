@@ -1,18 +1,43 @@
 {
   "version": 1,
-  "updated_at_round": null,
+  "updated_at_round": 3,
   "actions": {
     "harvest": {"spec": "state/actions/harvest.json", "protected": true},
     "propose": {"spec": "state/actions/propose.json", "protected": true},
     "critique": {"spec": "state/actions/critique.json", "protected": true},
     "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "discuss": {"spec": "state/actions/discuss.json", "protected": true},
+    "record_weight_return": {"spec": "state/actions/record_weight_return.json", "protected": false, "actor": "dockkeeper"},
+    "weigh_catch": {"spec": "state/actions/weigh_catch.json", "protected": false, "actor": "fisher"},
+    "record_catch_ledger": {"spec": "state/actions/record_catch_ledger.json", "protected": false, "actor": "fisher"},
+    "record_catch": {"spec": "state/actions/record_catch.json", "protected": false},
+    "donate": {"spec": "state/actions/donate.json", "protected": false},
+    "verify_weight": {"spec": "state/actions/verify_weight.json", "protected": false, "actor": "council_member"},
+    "vote_redistribution": {"spec": "state/actions/vote_redistribution.json", "protected": false, "actor": "council_member"}
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "dockkeeper": {"exclusive": true, "description": "The dockkeeper oversees the communal reserve bucket and records transactions.", "introduced_round": 3},
+    "council_member": {"exclusive": true, "description": "A rotating council of five elected villagers verifies ledgers, redistributes surplus, and authorizes reserve use.", "introduced_round": 3}
   },
   "rule_types": {},
-  "object_types": {},
+  "object_types": {
+    "communal_reserve": {
+      "description": "The communal reserve bucket holds 10% of each catch.",
+      "persistent": true,
+      "ownership": "COMMUNAL"
+    },
+    "dock_ledger": {
+      "description": "The dock ledger records all fishing catch transactions including weights, contributions to reserve, and amounts kept by fishers.",
+      "persistent": true,
+      "ownership": "COMMUNAL"
+    },
+    "council_decisions": {
+      "description": "Council decisions regarding fishery management, verification of entries, and redistribution of surplus.",
+      "persistent": true,
+      "ownership": "COMMUNAL"
+    }
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

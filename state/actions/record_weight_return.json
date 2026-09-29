@@ -1,0 +1,12 @@
+{
+  "name": "record_weight_return",
+  "execution": {
+    "handler": "actions/rules/harvest/record_weight_return/handler.py"
+  },
+  "prompt": {
+    "template": "As the dockkeeper, you need to record the exact weight of fish returned to the lake. Please enter the weight you observed in kilograms. \n\nThe weight should be the precise amount that was returned that day, and it must be recorded exactly as you observed it.",
+    "parameters": {
+      "weight_returned_kg": "float"
+    }
+  }
+}

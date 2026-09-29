@@ -1,0 +1,14 @@
+{
+  "name": "record_catch_ledger",
+  "execution": {
+    "handler": "actions/rules/harvest/record_catch_ledger/handler.py"
+  },
+  "prompt": {
+    "template": "You have caught fish and need to record it on the dock ledger. \n\nPlease enter the following information:\n- Total catch weight\n- Amount contributed to reserve (10% of catch)\n- Amount you will keep\n\nMake sure all your entries are accurate and complete.",
+    "parameters": {
+      "total_catch_kg": "float",
+      "reserve_contribution_kg": "float", 
+      "kept_amount_kg": "float"
+    }
+  }
+}

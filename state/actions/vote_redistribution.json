@@ -1,0 +1,13 @@
+{
+  "name": "vote_redistribution",
+  "execution": {
+    "handler": "actions/rules/harvest/vote_redistribution/handler.py"
+  },
+  "prompt": {
+    "template": "As a council member, you are voting on how to distribute the surplus catch.\n\nPlease indicate your vote on the proposed redistribution plan. Consider the needs of the community and the sustainability of the fishery when making your decision.",
+    "parameters": {
+      "vote_decision": "bool",
+      "rationale": "string"
+    }
+  }
+}

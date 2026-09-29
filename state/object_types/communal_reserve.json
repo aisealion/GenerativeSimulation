@@ -1,0 +1,6 @@
+{
+  "type_name": "communal_reserve",
+  "description": "The communal reserve bucket holds 10% of each catch.",
+  "persistent": true,
+  "ownership": "COMMUNAL"
+}

@@ -1,0 +1,6 @@
+{
+  "type_name": "dock_ledger",
+  "description": "The dock ledger records all fishing catch transactions including weights, contributions to reserve, and amounts kept by fishers.",
+  "persistent": true,
+  "ownership": "COMMUNAL"
+}
