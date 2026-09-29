@@ -1888,6 +1888,20 @@ def discard_norm_implementation(round_number, errors):
         error="\n\n".join(errors),
     )
 
+    # git clean -fd only removes UNTRACKED files — a new file norm-engineer
+    # staged itself with its own `git add` (against its own standing
+    # instruction never to, but never technically blocked, since permission
+    # gives it unrestricted shell) is no longer untracked once staged, so
+    # clean alone would silently leave it behind, surviving this "discard"
+    # intact and then getting swept into the next real commit regardless.
+    # Unstaging first removes that gap — `git reset -- <paths>` tolerates a
+    # path that was never staged or never existed in HEAD, unlike checkout
+    # below, so this always runs unconditionally.
+    subprocess.run(
+        ["git", "reset", "--"] + NORM_ROUND_TRACKED_PATHS,
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    )
+
     # `git checkout -- <paths>` fails atomically (reverts nothing at all) if
     # even one pathspec doesn't exist in HEAD yet — so only pass it paths
     # that actually exist there. `git clean -fd` already handles a
