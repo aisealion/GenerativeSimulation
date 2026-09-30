@@ -28,7 +28,35 @@ class AgentCaller:
         self.action_name = action_name
         self.round_number = round_number
 
-    def call(self, agent_id: str, **fields: Any) -> dict:
+    def call(self, agent_id: str, /, **fields: Any) -> dict:
+        # agent_id is positional-only (the trailing `/`) specifically so a
+        # collision below is reachable at all: a plain `def call(self,
+        # agent_id, **fields)` makes Python itself raise "call() got
+        # multiple values for argument 'agent_id'" at the CALL SITE,
+        # before this function body ever runs, the instant fields also
+        # has an 'agent_id' key (exactly what per_agent_decision()'s own
+        # `ctx.agents.call(agent_id, **build_fields(agent_id))` does) --
+        # positional-only routes that key into **fields instead, so the
+        # check below can actually catch it and explain why.
+        if "agent_id" in fields:
+            # A real round's prompt.fields declared a field named
+            # "agent_id" on every single one of 9 new actions, all
+            # failing identically with a bare "call() got multiple
+            # values for argument 'agent_id'" TypeError -- an opaque
+            # signature collision that gave no hint at the real,
+            # single-line fix. The acting agent's own identity is
+            # already in every prompt via render_persona() (see
+            # call_fisher_agent()) -- prompt.fields is for
+            # action-specific data, never the caller's own id.
+            raise ValueError(
+                "prompt.fields (or a custom handler's own ctx.agents.call(...) "
+                "kwargs) must not declare a field named 'agent_id' -- the acting "
+                "agent's own identity is already in every prompt via "
+                "render_persona(), never a template field. Remove 'agent_id' "
+                "from this action's state/actions/*.json prompt.fields (and "
+                "from outputs.fields, if present) -- no {agent_id} substitution "
+                "is needed or available in the template."
+            )
         from engine.llm_agents import call_fisher_agent
         return call_fisher_agent(agent_id, self.round_number, self.action_name, **fields)
 

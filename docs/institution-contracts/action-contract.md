@@ -29,7 +29,12 @@ requirement with no further institutional effect this round. Declare
 `prompt.fields` (each entry `{"from": "state", "path":
 "runtime.stock_kg"}` / `{"from": "object", "object_id": ..., "field":
 ...}` / `{"literal": ...}`) and optionally `outputs.fields` to rename
-specific response keys (omit it to copy the response verbatim). Read
+specific response keys (omit it to copy the response verbatim). **Never
+name a field `agent_id`** — the acting agent's own identity is already in
+every prompt via `render_persona()`, never a template field; declaring
+one collides with `ctx.agents.call(agent_id, **fields)`'s own positional
+`agent_id` argument and fails with `TypeError: call() got multiple
+values for argument 'agent_id'`. Read
 `engine/institution/builtin_handlers.py` in full before using this — it's
 deliberately small and does **not** support a role grant, an
 institutional fact, custom eligibility, or reading another participant's
@@ -53,7 +58,9 @@ anything).
 - `.participants` — already resolved per the spec's `participation`
   policy.
 - `.agents.call(agent_id, **fields)` — calls the fisher agent under this
-  action's own name.
+  action's own name. `fields` must never contain an `agent_id` key (see
+  the Level 2 note above — this applies here too, for a custom handler's
+  own direct call).
 - `.events.emit(...)` — narrates an institutional occurrence (see
   `object-contract.md`).
 - `.objects` — an `ObjectRuntime` (see `object-contract.md`).

@@ -49,3 +49,16 @@ def test_a_handler_calling_a_nonexistent_attribute_fails_loudly():
 
     with pytest.raises(AttributeError):
         _buggy_handler(_ctx())
+
+
+def test_agent_id_as_a_prompt_field_name_fails_with_a_clear_message_not_a_bare_typeerror():
+    # A real round's prompt.fields declared a field named "agent_id" on
+    # every one of 9 new actions -- all failed identically with a bare
+    # "call() got multiple values for argument 'agent_id'" TypeError
+    # (fields is splatted as **kwargs alongside the positional agent_id
+    # already on AgentCaller.call()), giving no hint at the actual,
+    # one-line fix. This asserts the collision is now caught explicitly,
+    # with a message that names the real cause.
+    ctx = _ctx()
+    with pytest.raises(ValueError, match="agent_id"):
+        ctx.agents.call("agent_0", agent_id="agent_0", reasoning="...")
