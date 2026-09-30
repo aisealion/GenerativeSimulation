@@ -1,6 +1,6 @@
 {
-  "round": 1,
-  "stock_kg": 252.234,
+  "round": 2,
+  "stock_kg": 234.08300330785664,
   "rounds": [
     {
       "agents": {
@@ -439,15 +439,95 @@
       "winning_proposer": "agent_2",
       "round": 1,
       "action": "vote"
+    },
+    {
+      "agents": {
+        "agent_0": {
+          "effort": 0.1,
+          "harvested_kg": 1.2611700000000001,
+          "reasoning": "I\u2019ll stick to my quota and keep my catch small so the lake can replenish for everyone.",
+          "note": null,
+          "participated": true
+        },
+        "agent_1": {
+          "effort": 1.0,
+          "harvested_kg": 12.6117,
+          "reasoning": "I will use the full 2 net casts to fish; it keeps me compliant with the policy, satisfies my quota, and lets me contribute surplus to the community.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.2,
+          "harvested_kg": 2.5223400000000002,
+          "reasoning": "I need to feed my family of four, so 2\u202fkg of fish is enough. I'll set effort to 0.2 to catch about 2.4\u202fkg, giving a small surplus for the community.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 0.9,
+          "harvested_kg": 11.350530000000001,
+          "reasoning": "I need to supply my household with enough fish but stay within the 0.5\u202fkg per person quota, so I\u2019ll push the boat as hard as I can without overfishing.",
+          "note": null,
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 0.15,
+          "harvested_kg": 1.8917549999999999,
+          "reasoning": "I\u2019ll aim to catch just enough to hit my quota and keep the rest to the community, so I don\u2019t risk a surplus or sanctions and keep my effort low.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_before": 252.234,
+      "stock_kg_after_harvest": 222.596505,
+      "stock_kg_after_regrowth": 234.08300330785664,
+      "round": 2,
+      "action": "harvest"
+    },
+    {
+      "proposals": {
+        "agent_0": {
+          "policy": "Each fisher may take up to 0.5\u202fkg per villager per day as their personal quota and no more than 1.5\u202fkg per trip. Any fish beyond that limit must be reported and deposited in the communal surplus pool. The surplus pool is distributed each day in two stages: first, it is used to bring all villagers up to their quota; second, any remaining fish are divided equally among all villagers, regardless of their catch. If a fisher misreports or is caught taking more than the limit, the excess fish are returned to the pool and a community sanction is imposed.",
+          "operationalization": "At the end of each trip, the fisher records total weight, signs, and submits it to the village head. The Lake Watch verifies compliance, and the Fish Steward stores surplus fish in the marked pit. Each morning the ledger shows net catches; the surplus is first allocated to lower catchers to reach quota, then the remaining surplus is split equally among all villagers. Sanctions include community fines or temporary loss of fishing rights.",
+          "reasoning": "This rule keeps the lake healthy for future generations by limiting individual take per trip. The equal share of remaining surplus rewards everyone for complying and discourages overfishing. It promotes fairness, community trust, and long\u2011term sustainability of our shared resource.",
+          "participated": true
+        },
+        "agent_1": {
+          "policy": "All villagers must limit their daily catch to 1.5\u202fkg. Any weight beyond that must be deposited into the communal surplus pool and the fisher\u2019s quota for the next day will be reduced by 25%.",
+          "operationalization": "Fisher records total weight after each trip; the village head verifies and logs surplus. If a fisher exceeds the 1.5\u202fkg limit on two consecutive days, the village head issues a temporary quota reduction for the next day.",
+          "reasoning": "I caught 8\u202fkg last round, far above the 0.5\u202fkg per villager quota. By tightening the limit and penalizing repeated over\u2011catching, we preserve the lake and promote fairness.",
+          "participated": true
+        },
+        "agent_2": {
+          "policy": "Each villager may only fish enough to satisfy their family's daily need (1\u202fkg per person). Any catch beyond that must be deposited in the communal pool for redistribution.",
+          "operationalization": "After each trip the fisher records the total weight, signs the ledger, and leaves it with the village head. Surplus beyond quota is added to the communal pit managed by the Fish Steward. The pool is first allocated to those with a shortfall to bring them to quota; any remaining surplus is divided equally among the lower catchers. Those who met or exceeded quota receive nothing from the pool. The Lake Watch verifies compliance nightly and the village head spot\u2011checks records.",
+          "reasoning": "Limiting each catch to a family\u2011need quota protects the lake from over\u2011harvest, guarantees every family has enough food, and creates a fair redistribution system for those who cannot catch enough. This keeps the community stable and reduces the chance of punishment for over\u2011fishing.",
+          "participated": true
+        },
+        "agent_3": {
+          "policy": "Increase the daily quota to 0.7\u202fkg per person for families with 4 or more registered members. Families with fewer than 4 members keep the current 0.5\u202fkg per person quota.",
+          "operationalization": "After each trip, fishers weigh their catch and sign the ledger as usual. The ledger records the actual weight and the family size. For families with 4+ members, the allowable quota is calculated as 0.7\u202fkg \u00d7 household size; for smaller families it remains 0.5\u202fkg \u00d7 household size. Any weight beyond the applicable quota is added to the communal surplus pool. The Lake Watch and village head review the ledger daily, and the Fish Steward manages the surplus pool as before. Lower catchers are still prioritized to reach their quota from the surplus pool, while those meeting or exceeding their higher quota receive no surplus.",
+          "reasoning": "My family has 4 members, so the current 0.5\u202fkg per person quota leaves us short of the food we need. By allowing 0.7\u202fkg per person for families that large, we can keep more fish for our own consumption without breaching the communal rules. The change preserves the structure of the system, keeps enforcement simple, and ensures that families with higher needs are better supported, which ultimately strengthens the whole community\u2019s survival prospects.",
+          "participated": true
+        },
+        "agent_4": {
+          "policy": "Each villager may take up to 0.5\u202fkg of fish per person per day as their quota. Any catch beyond the quota is first deposited into the communal surplus pool. The fisher may keep up to 0.2\u202fkg of the excess per trip as an incentive for efficient fishing, and the remainder of the excess is added to the surplus pool for redistribution.",
+          "operationalization": "After each trip the fisher records total weight on the communal ledger, noting any excess beyond quota. The fisher keeps the first 0.2\u202fkg of excess in hand, signs the ledger, and deposits the rest of the excess into the marked landing pit. The Fish Steward collects the surplus and the village head allocates it first to lower catchers to reach their quotas, then divides remaining surplus equally among the remaining lower catchers. Fishers who kept excess receive no additional share from the pool.",
+          "reasoning": "Beti consistently brings in high catch, so allowing him to keep a small part of his excess increases his personal gain without harming the lake. This rule encourages efficient fishing and rewards those who catch more, while still protecting lower catchers through the existing redistribution scheme.",
+          "participated": true
+        }
+      },
+      "round": 2,
+      "action": "propose"
     }
   ],
   "objects": {},
   "payoff": {
-    "agent_0": 14.0,
-    "agent_1": 6.5,
-    "agent_2": 11.0,
-    "agent_3": 12.5,
-    "agent_4": 8.0
+    "agent_0": 14.26117,
+    "agent_1": 18.1117,
+    "agent_2": 12.52234,
+    "agent_3": 22.85053,
+    "agent_4": 8.891755
   },
   "dead_agents": []
 }
