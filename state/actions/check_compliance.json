@@ -1,0 +1,22 @@
+{
+  "name": "check_compliance",
+  "description": "Lake guard checks daily logbook entries for limit compliance",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "lake_guard"
+  },
+  "roles": {
+    "actor_role": "lake_guard"
+  },
+  "execution": {
+    "handler": "check_compliance"
+  },
+  "prompt": {
+    "template": "You are the lake guard checking daily entries for compliance.\n\nReview the ledger entries for fishers today. Identify any violations or excess catches that need correction.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"violations\": [<list_of_agent_ids>], \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}

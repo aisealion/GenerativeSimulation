@@ -1,0 +1,41 @@
+{
+  "R1": [
+    "acceptance test test_R1_record_catch: PASS"
+  ],
+  "R2": [
+    "acceptance test test_R2_sign_logbook: PASS"
+  ],
+  "R3": [
+    "acceptance test test_R3_lake_guard_role: PASS"
+  ],
+  "R4": [
+    "acceptance test test_R4_guard_selection_process: PASS"
+  ],
+  "R5": [
+    "acceptance test test_R5_guard_compliance_check: PASS"
+  ],
+  "R6": [
+    "acceptance test test_R6_shared_ledger_object: PASS"
+  ],
+  "R7": [
+    "acceptance test test_R7_weekly_tally: PASS"
+  ],
+  "R8": [
+    "acceptance test test_R8_service_assignment: PASS"
+  ],
+  "R9": [
+    "acceptance test test_R9_random_draw_for_ties: PASS"
+  ],
+  "R10": [
+    "acceptance test test_R10_confiscation_process: PASS"
+  ],
+  "R11": [
+    "acceptance test test_R11_fishing_rights_sanction: PASS"
+  ],
+  "R12": [
+    "acceptance test test_R12_publish_schedule: PASS"
+  ],
+  "R13": [
+    "acceptance test test_R13_sign_pledge: PASS"
+  ]
+}

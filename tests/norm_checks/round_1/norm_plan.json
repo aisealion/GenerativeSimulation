@@ -1,0 +1,291 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ACTION",
+      "description": "Villagers record fish caught in a shared ledger each fishing day.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "The number of fish caught must be recorded."
+        ],
+        "decides": [
+          "Whether to record the catch accurately."
+        ],
+        "may_do": [
+          "Record their daily catch."
+        ],
+        "remembers": [
+          "Their own catch count for compliance."
+        ],
+        "observes": [
+          "Shared ledger entries."
+        ]
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ACTION",
+      "description": "Villagers sign the logbook each fishing day.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "They must sign after recording."
+        ],
+        "decides": [
+          "Whether to sign the logbook."
+        ],
+        "may_do": [
+          "Sign the logbook."
+        ],
+        "remembers": [
+          "Their signature for future reference."
+        ],
+        "observes": [
+          "Logbook signatures of others."
+        ]
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ROLE",
+      "description": "Lake guard role exists, chosen by rotating draw from volunteers.",
+      "exclusive": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Guard role and its duties."
+        ],
+        "may_do": [
+          "Volunteer for the guard role."
+        ],
+        "remembers": [
+          "Previous guards to ensure rotation."
+        ]
+      }
+    },
+    {
+      "id": "R4",
+      "type": "ACTION",
+      "description": "Lake guard is chosen by rotating draw from volunteers.",
+      "actor": "community",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Selection process for the guard."
+        ],
+        "decides": [
+          "Who becomes the next guard."
+        ],
+        "may_do": [
+          "Participate in selecting the guard."
+        ]
+      }
+    },
+    {
+      "id": "R5",
+      "type": "ACTION",
+      "description": "Lake guard checks daily logbook entries for limit compliance.",
+      "actor": "lake_guard",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Their duty to verify catches."
+        ],
+        "decides": [
+          "Whether a villager exceeded limits."
+        ],
+        "may_do": [
+          "Inspect logbook entries."
+        ],
+        "observes": [
+          "Compliance status of each entry."
+        ]
+      }
+    },
+    {
+      "id": "R6",
+      "type": "OBJECT",
+      "description": "Shared ledger for recording fish catches.",
+      "persistent": true,
+      "clarity": "CLEAR"
+    },
+    {
+      "id": "R7",
+      "type": "RULE",
+      "description": "Ledger is tallied weekly to find the fisher with the lowest catch.",
+      "attached_to": "R8",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Their catch is tallied weekly.",
+          "Lowest catch leads to service."
+        ],
+        "decides": [
+          "How to report catches to avoid being the lowest."
+        ],
+        "may_do": [
+          "Review their own catch totals."
+        ],
+        "remembers": [
+          "Past weeks' totals and service assignments."
+        ],
+        "observes": [
+          "Who is assigned community service."
+        ]
+      }
+    },
+    {
+      "id": "R8",
+      "type": "ACTION",
+      "description": "Community identifies and assigns community service to the fisher with the lowest weekly catch.",
+      "actor": "community",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Lowest catch determines service."
+        ],
+        "decides": [
+          "Who performs community service."
+        ],
+        "may_do": [
+          "Assign or be assigned service duties."
+        ]
+      }
+    },
+    {
+      "id": "R9",
+      "type": "ACTION",
+      "description": "Tied fishers undergo random draw to determine who serves.",
+      "actor": "community",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Random draw process in ties."
+        ],
+        "decides": [
+          "Outcome of the random draw."
+        ],
+        "may_do": [
+          "Participate in or conduct the draw."
+        ]
+      }
+    },
+    {
+      "id": "R10",
+      "type": "ACTION",
+      "description": "Guard confiscates excess fish if not returned at meeting.",
+      "actor": "lake_guard",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Consequences of non-compliance."
+        ],
+        "decides": [
+          "Whether to confiscate fish."
+        ],
+        "may_do": [
+          "Confiscate excess catches."
+        ]
+      }
+    },
+    {
+      "id": "R11",
+      "type": "RULE",
+      "description": "Fisher loses fishing rights for one week if they fail to return excess.",
+      "attached_to": "R10",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Consequences of keeping excess fish.",
+          "Sanctions are enforced weekly."
+        ],
+        "decides": [
+          "Whether to return excess fish promptly."
+        ],
+        "may_do": [
+          "Return fish to avoid losing rights."
+        ],
+        "remembers": [
+          "Past sanctions and their impact."
+        ],
+        "observes": [
+          "Other fishers' loss of rights."
+        ]
+      }
+    },
+    {
+      "id": "R12",
+      "type": "ACTION",
+      "description": "Community publishes guard schedule and enforcement protocol monthly.",
+      "actor": "community",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Availability of published schedules."
+        ],
+        "decides": [
+          "What to publish."
+        ],
+        "may_do": [
+          "Publish the schedule and protocol."
+        ]
+      }
+    },
+    {
+      "id": "R13",
+      "type": "ACTION",
+      "description": "All fishers sign a pledge to abstain from fishing first two weeks of March.",
+      "actor": "fisher",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "agent_experience": {
+        "knows": [
+          "Pledge requirements."
+        ],
+        "decides": [
+          "Whether to sign the pledge."
+        ],
+        "may_do": [
+          "Sign the pledge."
+        ]
+      }
+    }
+  ],
+  "open_critiques": [],
+  "clarifications": [
+    {
+      "clarification_for": null,
+      "affected_requirements": [
+        "R11",
+        "R7"
+      ],
+      "unchanged_requirements": [
+        "R1",
+        "R10",
+        "R12",
+        "R13",
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "R6",
+        "R8",
+        "R9"
+      ],
+      "note": "structural fixes: requirement 'R7': type RULE needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R11': type RULE needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R7': \"attached_to\" is 'R6', which is a OBJECT requirement, not an ACTION \u2014 a RULE's \"attached_to\" must name the action it governs"
+    }
+  ]
+}

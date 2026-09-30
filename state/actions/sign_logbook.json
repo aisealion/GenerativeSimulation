@@ -1,0 +1,21 @@
+{
+  "name": "sign_logbook",
+  "description": "fishers sign the logbook",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "sign_logbook"
+  },
+  "prompt": {
+    "template": "You must sign the logbook after recording your catch.\n\nSign the logbook to show your compliance to the community rules.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"signed\": true, \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}

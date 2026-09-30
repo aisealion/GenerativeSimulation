@@ -1,0 +1,22 @@
+{
+  "type_name": "shared_ledger",
+  "description": "Shared ledger for recording fish catches",
+  "ownership": "COMMUNAL",
+  "fields": {
+    "daily_catch_records": {"type": "list", "default": []},
+    "weekly_summary": {"type": "object", "default": {}},
+    "service_assignments": {"type": "object", "default": {}}
+  },
+  "operations": ["record_catch", "read_summary", "assign_service"],
+  "permissions": {
+    "READ": {"who": "ALL"},
+    "WRITE": {"who": "ROLE:lake_guard"}
+  },
+  "visibility": {
+    "daily_catch_records": {"who": "ALL"},
+    "weekly_summary": {"who": "ALL"},
+    "service_assignments": {"who": "ALL"}
+  },
+  "custom_handler": null,
+  "introduced_round": 1
+}

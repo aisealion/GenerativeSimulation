@@ -1,0 +1,21 @@
+{
+  "name": "choose_guard",
+  "description": "Community chooses the lake guard by rotating draw from volunteers",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "community"
+  },
+  "execution": {
+    "handler": "choose_guard"
+  },
+  "prompt": {
+    "template": "You are part of the community that selects the next lake guard.\n\nVolunteers will be drawn from the list of those who have volunteered for the role. Based on the volunteer list, choose the next guard.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"selected_guard\": \"<agent_id>\", \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}

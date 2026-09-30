@@ -1,0 +1,21 @@
+{
+  "name": "register_catch",
+  "description": "fishers record their daily catch",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "register_catch"
+  },
+  "prompt": {
+    "template": "You have caught fish today. Please record your catch in the ledger.\n\nYou can record 0 or more fish in the ledger.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"catch_count\": <number>, \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}
