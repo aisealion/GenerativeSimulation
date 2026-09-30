@@ -99,3 +99,62 @@ def test_open_critique_referencing_unknown_requirement_is_flagged():
 def test_open_critique_missing_question_is_flagged():
     errors = validate_norm_plan(_plan(open_critiques=[{"requirement": "R1"}]))
     assert any("critique_question" in e for e in errors)
+
+
+def _action(req_id="R2", actor=None, **overrides):
+    req = {
+        "id": req_id, "type": "ACTION", "description": "an action", "actor": actor,
+        "agent_experience": {"knows": [], "decides": ["x"], "may_do": [], "may_not_do": [], "remembers": [], "observes": []},
+    }
+    req.update(overrides)
+    return req
+
+
+def test_actor_pointing_at_a_non_role_requirement_is_flagged():
+    # The exact real defect (round 3, sim/run-20260930-224347): an
+    # ACTION's "actor" pointed at R7 (a RULE requirement) instead of R10
+    # (the actual Lake Keeper ROLE) -- presumably a copy/paste slip
+    # during decomposition, undetected until a human read the plan by
+    # hand. Nothing upstream of validate_norm_plan() catches a
+    # requirement-id reference pointing at the wrong TYPE of requirement.
+    rule = {
+        "id": "R7", "type": "RULE", "description": "a deterministic rule", "attached_to": "R2",
+        "agent_experience": {"knows": [], "decides": [], "may_do": [], "may_not_do": ["x"], "remembers": [], "observes": []},
+    }
+    role = _role("R10")
+    action = _action("R6", actor="R7")  # should be "R10"
+    errors = validate_norm_plan(_plan(requirements=[role, rule, action]))
+    assert any("R6" in e and "actor" in e and "R7" in e and "ROLE" in e for e in errors)
+
+
+def test_actor_pointing_at_the_correct_role_is_not_flagged():
+    role = _role("R10")
+    action = _action("R6", actor="R10")
+    errors = validate_norm_plan(_plan(requirements=[role, action]))
+    assert not any("actor" in e for e in errors)
+
+
+def test_actor_naming_a_plain_concept_not_a_requirement_id_is_not_flagged():
+    action = _action("R2", actor="any_fisher")
+    errors = validate_norm_plan(_plan(requirements=[action]))
+    assert not any("actor" in e for e in errors)
+
+
+def test_rule_attached_to_a_non_action_requirement_is_flagged():
+    role = _role("R1")
+    rule = {
+        "id": "R4", "type": "RULE", "description": "a rule", "attached_to": "R1",  # should name an ACTION
+        "agent_experience": {"knows": [], "decides": [], "may_do": [], "may_not_do": ["x"], "remembers": [], "observes": []},
+    }
+    errors = validate_norm_plan(_plan(requirements=[role, rule]))
+    assert any("R4" in e and "attached_to" in e and "R1" in e and "ACTION" in e for e in errors)
+
+
+def test_rule_attached_to_the_correct_action_is_not_flagged():
+    action = _action("R2", actor=None)
+    rule = {
+        "id": "R4", "type": "RULE", "description": "a rule", "attached_to": "R2",
+        "agent_experience": {"knows": [], "decides": [], "may_do": [], "may_not_do": ["x"], "remembers": [], "observes": []},
+    }
+    errors = validate_norm_plan(_plan(requirements=[action, rule]))
+    assert not any("attached_to" in e for e in errors)

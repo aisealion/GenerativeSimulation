@@ -606,6 +606,38 @@ def validate_norm_plan(plan):
                 f"fisher actually know/decide/may-do/may-not-do/remember/observe because of this?"
             )
 
+    # Cross-reference "actor"/"attached_to" against the OTHER requirements
+    # they name, now that every id's own type is known — a real round's
+    # plan had an ACTION's "actor" pointing at a RULE's id instead of the
+    # actual ROLE requirement (R7 instead of R10 — presumably a copy/paste
+    # or off-by-one during decomposition), which nothing caught before
+    # norm-engineer tried to build against it. Per the schema
+    # (NORM_ARCHITECT_SYSTEM_PROMPT's own JSON example), "actor" always
+    # names a ROLE when it's a requirement reference at all (a plain
+    # concept name that matches no id is fine, e.g. "any_fisher"), and a
+    # RULE's "attached_to" always names the ACTION it's attached to.
+    id_to_type = {req.get("id"): req.get("type") for req in requirements if req.get("id")}
+    for i, req in enumerate(requirements):
+        req_id = req.get("id")
+        if not req_id:
+            continue
+        label = f"requirement {req_id!r}"
+        actor = req.get("actor")
+        if actor and actor in id_to_type and id_to_type[actor] != "ROLE":
+            errors.append(
+                f"{label}: \"actor\" is {actor!r}, which is a {id_to_type[actor]} requirement, "
+                f"not a ROLE — \"actor\" must name the requirement id of the role that acts here, "
+                f"never a rule, action, or object"
+            )
+        attached_to = req.get("attached_to")
+        if req.get("type") == "RULE" and attached_to and attached_to in id_to_type \
+                and id_to_type[attached_to] != "ACTION":
+            errors.append(
+                f"{label}: \"attached_to\" is {attached_to!r}, which is a "
+                f"{id_to_type[attached_to]} requirement, not an ACTION — a RULE's \"attached_to\" "
+                f"must name the action it governs"
+            )
+
     for i, critique in enumerate(plan.get("open_critiques") or []):
         critique_req = critique.get("requirement")
         if critique_req and critique_req not in seen_ids:

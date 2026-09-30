@@ -678,6 +678,41 @@ simulation but nothing about what any fisher ever knows or experiences is
 almost never what the norm actually asked for (an enforcement mechanism
 with no in-world trace isn't really institutionalized, it's just Python).
 
+## Before finalizing: a completeness pass, not just an atomicity pass
+
+Splitting into atomic requirements is necessary but not sufficient — a
+real round's plan created a role and the action it takes, but silently
+dropped several things norm.txt's own text separately named. Four
+specific kinds of clause are the ones that keep getting lost this way —
+check for every one of them, by name, before your output is final:
+
+- **A numeric threshold the text states, separate from the mechanism it
+  governs.** "A majority vote of the five elders" is not the same
+  requirement as "at least three of the five elders' votes" — if
+  norm.txt gives the actual number, that number needs to survive into a
+  requirement (its own RULE, or an explicit field on the vote/decision
+  requirement it governs), not get compressed into the word "majority."
+- **The selection/appointment mechanism for a role norm.txt describes as
+  chosen, elected, or appointed.** A ROLE requirement only says the
+  position exists — "chosen by majority vote of the elders each season"
+  or "appointed annually by the council" is a separate ACTION or RULE
+  requirement in its own right, not something the ROLE requirement
+  implies for free.
+- **A periodic or scheduled action norm.txt names** — "reviewed
+  nightly," "reported each season" — is its own ACTION or RULE
+  requirement, not an implicit property of the object/ledger it reviews.
+- **The full chain from trigger to consequence for any penalty, fine, or
+  sanction**, not just the part that sets its amount. Norm.txt naming who
+  *sets* a fine is a different requirement from norm.txt naming how it's
+  *triggered*, *applied*, and *deducted* — extract every distinct step
+  the text actually describes, never just the first one you noticed.
+
+Before your output is final, re-read norm.txt's Operationalization one
+more time end to end against your own requirement list and check each of
+these four categories specifically. Add whatever's missing as its own
+requirement (even a small one) rather than letting it silently fall out
+of scope because it seemed implied by something already extracted.
+
 ## Critique, not just clarify
 
 When a requirement's clarity is AMBIGUOUS or INCOMPLETE, or you find two
