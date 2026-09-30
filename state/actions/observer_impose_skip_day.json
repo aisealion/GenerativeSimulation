@@ -1,0 +1,15 @@
+{
+  "name": "observer_impose_skip_day",
+  "description": "Observer imposes skip-day via elder majority vote",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": "observer"},
+  "prompt": {
+    "fields": {},
+    "template": "The elder majority has decided to impose a skip-day for violation patterns.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"skip_day\": true, \"reason\": \"brief explanation\"}}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

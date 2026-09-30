@@ -1,0 +1,15 @@
+{
+  "name": "observer_flag_violation",
+  "description": "Observer flags fisher for violations",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": "observer"},
+  "prompt": {
+    "fields": {},
+    "template": "Flag a fisher for violations committed during their recent fishing trip.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"fisher_id\": \"<agent ID>\", \"violation_type\": \"<type of violation>\", \"count\": <number of violations>}}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

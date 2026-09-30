@@ -1,0 +1,15 @@
+{
+  "name": "lake_keeper_update",
+  "description": "Lake keeper updates lake stock and reserve balance after trip",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": "lake_keeper"},
+  "prompt": {
+    "fields": {},
+    "template": "Update lake stock and reserve balance after the recent fishing trip.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"new_stock_kg\": <new lake stock>, \"new_balance\": <new reserve balance>}}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

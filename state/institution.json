@@ -6,13 +6,31 @@
     "propose": {"spec": "state/actions/propose.json", "protected": true},
     "critique": {"spec": "state/actions/critique.json", "protected": true},
     "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "discuss": {"spec": "state/actions/discuss.json", "protected": true},
+    "observer_check_stock": {"spec": "state/actions/observer_check_stock.json", "protected": false},
+    "observer_flag_violation": {"spec": "state/actions/observer_flag_violation.json", "protected": false},
+    "observer_impose_skip_day": {"spec": "state/actions/observer_impose_skip_day.json", "protected": false},
+    "observer_update_ledger": {"spec": "state/actions/observer_update_ledger.json", "protected": false},
+    "fisher_report_catch": {"spec": "state/actions/fisher_report_catch.json", "protected": false},
+    "lake_keeper_execute_withdrawal": {"spec": "state/actions/lake_keeper_execute_withdrawal.json", "protected": false},
+    "lake_keeper_update": {"spec": "state/actions/lake_keeper_update.json", "protected": false},
+    "community_council_set_fine": {"spec": "state/actions/community_council_set_fine.json", "protected": false}
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "observer": {"exclusive": false, "description": "Observer role which enforces rules", "introduced_round": 3},
+    "lake_keeper": {"exclusive": false, "description": "Lake keeper role which maintains lake stock", "introduced_round": 3},
+    "community_council": {"exclusive": false, "description": "Community council which enforces rules and sets fines", "introduced_round": 3}
   },
-  "rule_types": {},
-  "object_types": {},
+  "rule_types": {
+    "max_catch_limit": {"class": "actions.rules.harvest.max_catch_limit.MaxCatchLimit"},
+    "stock_limit": {"class": "actions.rules.harvest.stock_limit.StockLimit"},
+    "violation_tracker": {"class": "actions.rules.harvest.violation_tracker.ViolationTracker"}
+  },
+  "object_types": {
+    "communal_ledger": {"spec": "state/object_types/communal_ledger.json", "introduced_round": 3},
+    "personal_ledger": {"spec": "state/object_types/personal_ledger.json", "introduced_round": 3}
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

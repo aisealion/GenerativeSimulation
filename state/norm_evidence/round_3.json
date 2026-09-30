@@ -1,0 +1,53 @@
+{
+  "R1": [
+    "acceptance test test_R1_compliant_decision: PASS",
+    "acceptance test test_R1_violation_tracking: PASS"
+  ],
+  "R2": [
+    "acceptance test test_R2_compliant_decision: PASS",
+    "acceptance test test_R2_non_compliant_decision: PASS"
+  ],
+  "R3": [
+    "acceptance test test_R3_personal_ledger_creation: PASS"
+  ],
+  "R4": [
+    "acceptance test test_R4_compliant_report: PASS",
+    "acceptance test test_R4_exceeding_limit: PASS"
+  ],
+  "R5": [
+    "acceptance test test_R5_compliant_ledger_update: PASS"
+  ],
+  "R6": [
+    "acceptance test test_R6_lake_keeper_update: PASS"
+  ],
+  "R7": [
+    "acceptance test test_R7_trip_denied_low_stock: PASS"
+  ],
+  "R8": [
+    "acceptance test test_R8_max_catch_limit: PASS"
+  ],
+  "R9": [
+    "acceptance test test_R9_violation_flagging: PASS"
+  ],
+  "R10": [
+    "acceptance test test_R10_lake_keeper_role: PASS"
+  ],
+  "R11": [
+    "acceptance test test_R11_skip_day_imposed: PASS"
+  ],
+  "R12": [
+    "acceptance test test_R12_violation_threshold: PASS"
+  ],
+  "R13": [
+    "acceptance test test_R13_fine_setting: PASS"
+  ],
+  "R14": [
+    "acceptance test test_R14_community_council_role: PASS"
+  ],
+  "R15": [
+    "acceptance test test_R15_reserve_withdrawal: PASS"
+  ],
+  "R16": [
+    "acceptance test test_R16_communal_ledger: PASS"
+  ]
+}

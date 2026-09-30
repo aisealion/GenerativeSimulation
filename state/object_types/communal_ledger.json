@@ -1,0 +1,31 @@
+{
+  "type_name": "communal_ledger",
+  "description": "Communal ledger records all transactions and violations.",
+  "ownership": "COMMUNAL",
+  "fields": {
+    "total_catch_kg": {
+      "type": "number", 
+      "default": 0.0
+    },
+    "total_contributions_kg": {
+      "type": "number",
+      "default": 0.0
+    },
+    "violation_counts": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "operations": ["deposit", "withdraw", "set", "append", "read"],
+  "permissions": {
+    "READ": {"who": "ALL"},
+    "WRITE": {"who": "ROLE:observer"}
+  },
+  "visibility": {
+    "total_catch_kg": {"who": "ALL"},
+    "total_contributions_kg": {"who": "ALL"},
+    "violation_counts": {"who": "ALL"}
+  },
+  "custom_handler": null,
+  "introduced_round": 3
+}

@@ -1,0 +1,15 @@
+{
+  "name": "fisher_report_catch",
+  "description": "Fisher reports catch and contribution to observer before sunset",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": "fisher"},
+  "prompt": {
+    "fields": {},
+    "template": "Report your catch and contribution for today's fishing trip.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"catch_kg\": <your catch>, \"contributions_kg\": <your contributions>}}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

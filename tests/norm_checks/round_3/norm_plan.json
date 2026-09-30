@@ -1,0 +1,318 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "Observer role responsible for confirming lake stock before trips and tracking violations.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "Lake's remaining stock",
+          "Violation counts"
+        ],
+        "decides": [],
+        "may_do": [
+          "Confirm trips",
+          "Track violations"
+        ],
+        "may_not_do": [],
+        "remembers": [
+          "Violation history"
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ACTION",
+      "description": "Observer checks lake stock before trip.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Deny or allow trip based on stock"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "OBJECT",
+      "description": "Personal ledger for each fisher to record catch and contributions.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R4",
+      "type": "ACTION",
+      "description": "Fisher reports catch and contribution to observer before sunset.",
+      "actor": "fisher",
+      "judgment_required": false,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Report catch and contribution"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "ACTION",
+      "description": "Observer updates communal ledger with total catch and contributions.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Update ledger"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "ACTION",
+      "description": "Lake keeper updates lake stock and reserve balance after trip.",
+      "actor": "R7",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Update stock and balance"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "RULE",
+      "description": "Trip denied if lake stock <1 unit; excess fish returned.",
+      "attached_to": "R2",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Take trip if stock <1"
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R8",
+      "type": "RULE",
+      "description": "Maximum catch per trip is three units.",
+      "attached_to": "R4",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Exceed three units"
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R9",
+      "type": "ACTION",
+      "description": "Observer flags fisher for violations.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Flag violations"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R10",
+      "type": "ROLE",
+      "description": "Lake Keeper manages lake stock and reserve.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "Current stock",
+          "Reserve balance"
+        ],
+        "decides": [],
+        "may_do": [
+          "Update stock",
+          "Manage reserve"
+        ],
+        "may_not_do": [],
+        "remembers": [
+          "Stock history"
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R11",
+      "type": "ACTION",
+      "description": "Observer imposes skip-day via elder majority vote.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Impose skip-day"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R12",
+      "type": "RULE",
+      "description": "Two consecutive or three violations in 30 days trigger skip-day.",
+      "attached_to": "R9",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Violate trip rules"
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R13",
+      "type": "ACTION",
+      "description": "Community Council sets annual fines for violations.",
+      "actor": "R14",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Set fine amount"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R14",
+      "type": "ROLE",
+      "description": "Community Council imposes fines and authorizes reserve withdrawals.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "Violation history",
+          "Reserve status"
+        ],
+        "decides": [],
+        "may_do": [
+          "Impose fines",
+          "Authorize withdrawals"
+        ],
+        "may_not_do": [],
+        "remembers": [
+          "Fine history"
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R15",
+      "type": "ACTION",
+      "description": "Lake Keeper executes reserve withdrawals and updates balance.",
+      "actor": "R7",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Execute withdrawal"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R16",
+      "type": "OBJECT",
+      "description": "Communal ledger records all transactions and violations.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": []
+}

@@ -1,0 +1,26 @@
+{
+  "type_name": "personal_ledger",
+  "description": "Personal ledger for each fisher to record catch and contributions.",
+  "ownership": "INDIVIDUAL",
+  "fields": {
+    "catch_kg": {
+      "type": "number",
+      "default": 0.0
+    },
+    "contributions_kg": {
+      "type": "number",
+      "default": 0.0
+    }
+  },
+  "operations": ["deposit", "withdraw", "set", "append", "read"],
+  "permissions": {
+    "READ": {"who": "ALL"},
+    "WRITE": {"who": "ROLE:fisher"}
+  },
+  "visibility": {
+    "catch_kg": {"who": "ALL"},
+    "contributions_kg": {"who": "ALL"}
+  },
+  "custom_handler": null,
+  "introduced_round": 3
+}

@@ -1,0 +1,15 @@
+{
+  "name": "lake_keeper_execute_withdrawal",
+  "description": "Lake Keeper executes reserve withdrawals and updates balance",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": "lake_keeper"},
+  "prompt": {
+    "fields": {},
+    "template": "Execute a reserve withdrawal for community use.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"withdrawal_amount\": <amount in kg>, \"reason\": \"<reason for withdrawal>\"}}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

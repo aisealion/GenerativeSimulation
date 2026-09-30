@@ -1,0 +1,15 @@
+{
+  "name": "community_council_set_fine",
+  "description": "Community Council sets annual fines for violations",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": "community_council"},
+  "prompt": {
+    "fields": {},
+    "template": "Set annual fines for violations in the community.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"fine_amount\": <amount in kg>, \"type\": \"<type of violation>\"}}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

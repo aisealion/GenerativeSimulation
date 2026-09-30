@@ -1,0 +1,15 @@
+{
+  "name": "observer_update_ledger",
+  "description": "Observer updates communal ledger with total catch and contributions",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": "observer"},
+  "prompt": {
+    "fields": {},
+    "template": "Update the communal ledger with today's catch and contributions.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"total_catch_kg\": <total catch>, \"total_contributions_kg\": <total contributions>}}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

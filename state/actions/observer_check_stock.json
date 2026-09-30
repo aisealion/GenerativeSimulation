@@ -1,0 +1,17 @@
+{
+  "name": "observer_check_stock",
+  "description": "Observer checks lake stock before trip",
+  "protected": false,
+  "scheduling": {"gate": "true", "after": null, "before": null},
+  "participation": {"policy": "all_alive_fishers"},
+  "roles": {"actor_role": "observer"},
+  "prompt": {
+    "fields": {
+      "stock_kg": {"from": "state", "path": "runtime.stock_kg"}
+    },
+    "template": "The lake currently holds about {stock_kg}kg. You must determine if a fishing trip can proceed based on stock levels.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"allow_trip\": true or false, \"reason\": \"brief explanation\"}}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}
