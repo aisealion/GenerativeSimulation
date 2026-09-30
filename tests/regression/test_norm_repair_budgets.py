@@ -129,6 +129,12 @@ def test_repair_preamble_mentions_the_attempt_log_path_for_this_round():
         assert "tests/norm_checks/round_7/attempt_log.json" in message
         assert "Read" in message and "if it exists" in message
         assert "append" in message.lower()
+        # The actual read-modify-write mechanics, not just the word
+        # "append" — a real round used a single bare `write` each attempt
+        # and silently erased its own prior entries every time.
+        assert "read-modify-write" in message
+        assert "parse it as a JSON array" in message
+        assert "WHOLE updated array" in message or "WHOLE array" in message
         assert "never overwrite" in message.lower() or "never repeat" in message.lower()
 
 

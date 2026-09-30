@@ -116,12 +116,14 @@ effect) rather than guessing again. When you don't, the message's own
 history of earlier attempts is your only continuity — read it, and also
 read `tests/norm_checks/round_{N}/attempt_log.json` if it exists: your
 own (or an earlier session's) real account of what was actually tried,
-richer than the orchestrator's own one-line summary. Append one new
-entry there yourself once you've made a fix this attempt — never
-overwrite what's already recorded — so a later attempt, possibly a fresh
-session with no memory of this one, doesn't have to re-derive or repeat
-what you already tried. Either way, the check that found this problem
-only reports the *first* category
+richer than the orchestrator's own one-line summary. Appending to it is
+a read-modify-write, not a single write: `read` the file first (an empty
+list `[]` if it doesn't exist), parse it as a JSON array, add ONE new
+object for this attempt, then `write` the WHOLE array — every earlier
+entry plus your new one — back to the same path. Writing only your own
+new object as the file's entire content silently erases every prior
+entry and defeats the entire point of keeping it. Either way, the check
+that found this problem only reports the *first* category
 of problem it hits — don't assume fixing that one thing means you're
 done. Proactively re-check every other file you touched this round for
 the same class of mistake (the same wrong import guessed twice into two
