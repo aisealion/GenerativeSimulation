@@ -103,6 +103,12 @@ decide *how* to build something the plan itself never asked for.
 
 You may be re-invoked for the same round with a specific compile error, a
 failing-test stack trace, or the `norm-auditor`'s `NEEDS_REPAIR` report.
+A repair message may also include a "Current requirement status" block
+listing which requirements the harness already found satisfied,
+unevidenced, or still failing — see "This naming convention is your
+checkpoint, not just bookkeeping" below for what drives it and what to
+do with it.
+
 **Repair re-invocations are paired (2026-09-25): this one and the very
 next one share a session, then the pair after that starts fresh.** Your
 repair message tells you explicitly which case this is — a FRESH session
@@ -230,6 +236,25 @@ some mechanism fires. Write each as a pytest test function named exactly
 convention is how the harness later maps a passing/failing test back to
 the requirement it covers, so don't rename or merge tests across
 requirements even when it'd be more convenient.
+
+**This naming convention is your checkpoint, not just bookkeeping.** A
+round needing many requirements (a real one needed 11) can run out of
+repair attempts before every one is built — if you're re-invoked for
+another attempt on this round (see "You may be re-invoked for the same
+round" above), the harness re-runs this test file itself and hands you
+back a "Satisfied — preserve these" / "No test evidence" / "Still
+failing" breakdown built directly from which `test_{id}_{scenario}`
+functions currently exist and pass. That's how a later attempt knows
+"9 of 11 done, finish the last 2" instead of re-deriving everything
+from scratch or re-verifying work that was already correct. It only
+works if you actually keep this naming discipline from your very first
+attempt on every requirement you finish, not just retroactively during
+finalization — a requirement with no correctly-named test, or one
+whose test was left red, reads to the harness (and to your own next
+attempt) as "no evidence" or "still failing" even if the real code is
+fine. If a later attempt shows you a requirement marked "Satisfied":
+trust it, and do not rebuild or re-verify its implementation or tests —
+spend that attempt only on what's still missing.
 
 **You are the only one grading this homework — take that seriously.**
 Nothing upstream of you proposed these scenarios or their pass/fail
