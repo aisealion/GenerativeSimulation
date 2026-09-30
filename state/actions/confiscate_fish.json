@@ -1,0 +1,30 @@
+{
+  "name": "confiscate_fish",
+  "description": "Steward confiscates fish from a fisher for serious violations",
+  "actor": ["steward"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "steward"}
+  ],
+  "fields": [
+    {
+      "name": "violation_details",
+      "type": "string",
+      "required": true,
+      "description": "Details of the violation that led to confiscation"
+    },
+    {
+      "name": "confiscated_amount",
+      "type": "number",
+      "required": true,
+      "description": "Amount of fish confiscated"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "required": true,
+      "description": "Timestamp of confiscation"
+    }
+  ],
+  "handler": "actions/handlers/confiscate_fish.py"
+}

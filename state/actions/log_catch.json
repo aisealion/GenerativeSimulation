@@ -1,0 +1,24 @@
+{
+  "name": "log_catch",
+  "description": "Fisher logs the total catch on the shared ledger with timestamp.",
+  "actor": ["cook"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "cook"}
+  ],
+  "fields": [
+    {
+      "name": "catch_amount",
+      "type": "number",
+      "required": true,
+      "description": "Amount of fish caught"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "required": true,
+      "description": "Timestamp of catch"
+    }
+  ],
+  "handler": "actions/handlers/log_catch.py"
+}

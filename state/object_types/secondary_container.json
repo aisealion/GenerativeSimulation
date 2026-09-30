@@ -1,0 +1,31 @@
+{
+    "type_name": "secondary_container",
+    "description": "The secondary container for storing fish after the iron barrel (capacity 60 units).",
+    "ownership": "system",
+    "fields": {
+        "capacity": {
+            "type": "number",
+            "description": "Maximum capacity of the container (60 units)",
+            "default": 60
+        },
+        "current_level": {
+            "type": "number",
+            "description": "Current fish level in the container",
+            "default": 0
+        },
+        "is_full": {
+            "type": "boolean",
+            "description": "Whether the container is full",
+            "default": false
+        }
+    },
+    "operations": [
+        {"name": "deposit", "parameters": {"amount": "number"}},
+        {"name": "withdraw", "parameters": {"amount": "number"}}
+    ],
+    "permissions": {
+        "read": ["all_villagers"],
+        "write": ["steward"]
+    },
+    "visibility": "all_villagers"
+}

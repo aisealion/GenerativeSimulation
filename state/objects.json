@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "shared_ledger_0",
+    "type": "shared_ledger"
+  },
+  {
+    "id": "iron_barrel_0",
+    "type": "iron_barrel"
+  },
+  {
+    "id": "secondary_container_0",
+    "type": "secondary_container"
+  },
+  {
+    "id": "temporary_bin_0",
+    "type": "temporary_bin"
+  }
+]

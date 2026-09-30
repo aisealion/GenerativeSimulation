@@ -1,0 +1,467 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "The cook role exists, elected by a simple majority of fishers at the start of each fishing cycle.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "They are designated as cook for the current fishing cycle"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R2",
+      "type": "ROLE",
+      "description": "The steward role exists, elected by a simple majority of fishers at the start of each fishing cycle.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "exclusive": true,
+      "agent_experience": {
+        "knows": [
+          "They are designated as steward for the current fishing cycle"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Fisher decides whether to re-appoint or rotate the cook and steward by community vote.",
+      "actor": "R1,R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Current cook and steward roles exist"
+        ],
+        "decides": [
+          "Whether to re-appoint or rotate the cook and steward"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "OBJECT",
+      "description": "Shared ledger for logging catches, deposits, withdrawals, penalties, and other transactions.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R5",
+      "type": "RULE",
+      "description": "The fisher keeps up to 2 units of fish per day; surplus must be deposited into the iron barrel (120 units capacity), then the secondary container (60 units capacity), and finally a temporary bin if both are full.",
+      "clarity": "CLEAR",
+      "clarity_critique": "The rule about depositing surplus fish into the iron barrel, secondary container, and temporary bin is clear, but how exactly is the 'space' in each container determined? Is it based on fixed capacities or some other metric?",
+      "clarity_resolution": "The iron barrel can hold 120 units; once that\u2019s full the next 60 units go to the secondary; if both are full the rest goes to the temporary bin until space frees.",
+      "attached_to": "R3",
+      "deterministic": true,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [
+          "Keep up to 2 units of fish per day"
+        ],
+        "may_not_do": [
+          "Keep more than 2 units of fish per day without depositing surplus"
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "VISIBILITY",
+      "description": "All deposits, withdrawals, consumptions, violations, penalties, suspensions, and restoration decisions are visible to all villagers.",
+      "target": "R4",
+      "audience": "all_villagers",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "All transactions and decisions are visible on the shared ledger"
+        ]
+      }
+    },
+    {
+      "id": "R7",
+      "type": "LIFECYCLE",
+      "description": "One whole day of fishing, from dawn to night when the cook signs the final ledger entry.",
+      "duration_rounds": 1,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R8",
+      "type": "ACTION",
+      "description": "Fisher logs the total catch on the shared ledger with timestamp.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must log their catch on the shared ledger"
+        ],
+        "decides": [
+          "The exact timestamp and amount of catch to log"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R9",
+      "type": "RULE",
+      "description": "Surplus is deposited into the iron barrel first, then secondary container, then temporary bin if both are full.",
+      "attached_to": "R8",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [
+          "Deposit surplus into the appropriate container based on availability"
+        ],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R10",
+      "type": "ACTION",
+      "description": "Steward logs each transfer and imposes a penalty of 0.2 units per unit of fish not deposited.",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must log transfers and impose penalties for non-deposited fish"
+        ],
+        "decides": [
+          "The exact penalty amount based on non-deposited fish"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R11",
+      "type": "RULE",
+      "description": "Penalty of 0.2 units per unit of fish not deposited into the barrel or secondary container.",
+      "attached_to": "R10",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Fail to deposit surplus fish without incurring a penalty"
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R12",
+      "type": "ACTION",
+      "description": "Cook signs the final ledger entry at the end of the day.",
+      "actor": "R1",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must sign the final ledger entry at the end of the day"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R13",
+      "type": "ACTION",
+      "description": "Steward seals the iron barrel and secondary container (and temporary bin if used).",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must seal the containers at the end of the day"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R14",
+      "type": "ACTION",
+      "description": "Fisher records daily consumption on the ledger; cook signs to certify.",
+      "actor": "R1,R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must record consumption and have it certified"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R15",
+      "type": "ACTION",
+      "description": "Fisher submits a shortfall request on the ledger if consumption falls below 1 unit.",
+      "actor": "R1,R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must submit a shortfall request if consumption is below 1 unit"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R16",
+      "type": "ACTION",
+      "description": "Steward authorizes a withdrawal from the communal reserve up to the shortfall.",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must authorize withdrawals for shortfalls"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R17",
+      "type": "ACTION",
+      "description": "Non-fisher villagers may withdraw up to 1 unit per day if reserves are available.",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Non-fisher villagers may withdraw up to 1 unit per day"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R18",
+      "type": "ACTION",
+      "description": "Steward confiscates missing fish, deposits into reserve, records penalty, increments violation counter.",
+      "actor": "R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must confiscate and record missing fish"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R19",
+      "type": "RULE",
+      "description": "Three violations result in suspension of fishing rights for two days or until penalties are paid and compliance is demonstrated. Restoration requires proof of penalty payment, a corrected deposit log, steward audit, cook verification, and council vote.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": "The rule now explicitly includes both suspension conditions and restoration requirements.",
+      "attached_to": "R18",
+      "deterministic": true,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Accumulate three violations without facing suspension"
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R20",
+      "type": "ACTION",
+      "description": "Council votes to restore fishing rights after suspension.",
+      "actor": "R1,R2",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "They must vote to restore fishing rights after suspension"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R21",
+      "type": "OBJECT",
+      "description": "Temporary communal bin on the lakebank for overflow when both barrel and secondary container are full.",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": [
+    {
+      "requirement": "R5",
+      "critique_question": "The rule about depositing surplus fish into the iron barrel, secondary container, and temporary bin is clear, but how exactly is the 'space' in each container determined? Is it based on fixed capacities or some other metric?"
+    },
+    {
+      "requirement": "R19",
+      "critique_question": "The rule about suspension after three violations is clear, but what specific conditions must be met for restoration of rights beyond paying penalties?"
+    }
+  ],
+  "clarifications": [
+    {
+      "clarification_for": "R5",
+      "affected_requirements": [
+        "R5"
+      ],
+      "unchanged_requirements": [
+        "R1",
+        "R10",
+        "R11",
+        "R12",
+        "R13",
+        "R14",
+        "R15",
+        "R16",
+        "R17",
+        "R18",
+        "R19",
+        "R2",
+        "R20",
+        "R21",
+        "R3",
+        "R4",
+        "R6",
+        "R7",
+        "R8",
+        "R9"
+      ],
+      "note": "critique on R5: The rule about depositing surplus fish into the iron barrel, secondary container, and temporary bin is clear, but how exactly is the 'space' in each container determined? Is it based on fixed capacities or some other metric?"
+    },
+    {
+      "clarification_for": "R19",
+      "affected_requirements": [
+        "R19"
+      ],
+      "unchanged_requirements": [
+        "R1",
+        "R10",
+        "R11",
+        "R12",
+        "R13",
+        "R14",
+        "R15",
+        "R16",
+        "R17",
+        "R18",
+        "R2",
+        "R20",
+        "R21",
+        "R3",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R8",
+        "R9"
+      ],
+      "note": "critique on R19: The rule about suspension after three violations is clear, but what specific conditions must be met for restoration of rights beyond paying penalties?"
+    }
+  ]
+}

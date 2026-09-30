@@ -1,0 +1,31 @@
+{
+    "type_name": "iron_barrel",
+    "description": "The iron barrel container that holds up to 120 units of fish.",
+    "ownership": "system",
+    "fields": {
+        "capacity": {
+            "type": "number",
+            "description": "Maximum capacity of the container (120 units)",
+            "default": 120
+        },
+        "current_level": {
+            "type": "number",
+            "description": "Current fish level in the barrel",
+            "default": 0
+        },
+        "is_full": {
+            "type": "boolean",
+            "description": "Whether the barrel is full",
+            "default": false
+        }
+    },
+    "operations": [
+        {"name": "deposit", "parameters": {"amount": "number"}},
+        {"name": "withdraw", "parameters": {"amount": "number"}}
+    ],
+    "permissions": {
+        "read": ["all_villagers"],
+        "write": ["steward"]
+    },
+    "visibility": "all_villagers"
+}

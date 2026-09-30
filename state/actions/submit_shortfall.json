@@ -1,0 +1,30 @@
+{
+  "name": "submit_shortfall",
+  "description": "Fisher submits shortfall report for catch not deposited",
+  "actor": ["fisher"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "fisher"}
+  ],
+  "fields": [
+    {
+      "name": "shortfall_amount",
+      "type": "number",
+      "required": true,
+      "description": "Amount of fish not deposited"
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "required": true,
+      "description": "Reason for the shortfall"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "required": true,
+      "description": "Timestamp of shortfall reporting"
+    }
+  ],
+  "handler": "actions/handlers/submit_shortfall.py"
+}

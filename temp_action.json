@@ -1,0 +1,13 @@
+
+{
+  'name': 'test_depot',
+  'description': 'test',
+  'protected': false,
+  'prompt': {
+    'fields': ['iron_barrel_current']
+  },
+  'execution': {
+    'handler': 'generic_agent_decision'
+  }
+}
+

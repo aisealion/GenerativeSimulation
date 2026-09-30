@@ -1,0 +1,31 @@
+{
+  "name": "authorize_withdrawal",
+  "description": "Fisher or steward authorizes withdrawal from containers",
+  "actor": ["fisher", "steward"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "fisher"},
+    {"role": "steward"}
+  ],
+  "fields": [
+    {
+      "name": "withdrawal_amount",
+      "type": "number",
+      "required": true,
+      "description": "Amount of fish to withdraw"
+    },
+    {
+      "name": "container_type",
+      "type": "string",
+      "required": true,
+      "description": "Type of container to withdraw from"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "required": true,
+      "description": "Timestamp of withdrawal"
+    }
+  ],
+  "handler": "actions/handlers/authorize_withdrawal.py"
+}

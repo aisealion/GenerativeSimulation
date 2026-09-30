@@ -1,0 +1,21 @@
+{
+    "type_name": "temporary_bin",
+    "description": "Temporary communal bin on the lakebank for overflow when both barrel and secondary container are full.",
+    "ownership": "system",
+    "fields": {
+        "current_level": {
+            "type": "number",
+            "description": "Current fish level in the bin",
+            "default": 0
+        }
+    },
+    "operations": [
+        {"name": "deposit", "parameters": {"amount": "number"}},
+        {"name": "withdraw", "parameters": {"amount": "number"}}
+    ],
+    "permissions": {
+        "read": ["all_villagers"],
+        "write": ["steward"]
+    },
+    "visibility": "all_villagers"
+}

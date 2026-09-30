@@ -6,13 +6,94 @@
     "propose": {"spec": "state/actions/propose.json", "protected": true},
     "critique": {"spec": "state/actions/critique.json", "protected": true},
     "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "discuss": {"spec": "state/actions/discuss.json", "protected": true},
+    "log_catch": {"spec": "state/actions/log_catch.json", "protected": false},
+    "sign_final_ledger": {"spec": "state/actions/sign_final_ledger.json", "protected": false},
+    "deposit_catch": {"spec": "state/actions/deposit_catch.json", "protected": false},
+    "impose_penalty": {"spec": "state/actions/impose_penalty.json", "protected": false},
+    "seal_containers": {"spec": "state/actions/seal_containers.json", "protected": false},
+    "record_consumption": {"spec": "state/actions/record_consumption.json", "protected": false},
+    "submit_shortfall": {"spec": "state/actions/submit_shortfall.json", "protected": false},
+    "authorize_withdrawal": {"spec": "state/actions/authorize_withdrawal.json", "protected": false},
+    "non_fisher_withdrawal": {"spec": "state/actions/non_fisher_withdrawal.json", "protected": false},
+    "confiscate_fish": {"spec": "state/actions/confiscate_fish.json", "protected": false},
+    "vote_restoration": {"spec": "state/actions/vote_restoration.json", "protected": false}
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "cook": {"exclusive": true, "description": "Cook role for the fishing cycle", "introduced_round": 4},
+    "steward": {"exclusive": true, "description": "Steward role for the fishing cycle", "introduced_round": 4}
   },
-  "rule_types": {},
-  "object_types": {},
+  "rule_types": {
+    "fisher_catch_limit": {
+      "description": "Rule determining how many units of fish can be kept per day by a fisher",
+      "parameters": {
+        "max_daily_catch": {
+          "type": "number",
+          "default": 2,
+          "description": "Maximum units of fish per day that a fisher can keep"
+        }
+      }
+    },
+    "deposit_priority": {
+      "description": "Rule determining the order of deposits to containers",
+      "parameters": {
+        "barrel_capacity": {
+          "type": "number",
+          "default": 120,
+          "description": "Capacity of the iron barrel"
+        },
+        "secondary_capacity": {
+          "type": "number",
+          "default": 60,
+          "description": "Capacity of the secondary container"
+        }
+      }
+    },
+    "penalty_imposition": {
+      "description": "Rule determining penalty amounts for not depositing fish",
+      "parameters": {
+        "penalty_per_unit": {
+          "type": "number",
+          "default": 0.2,
+          "description": "Penalty per unit not deposited"
+        }
+      }
+    },
+    "violation_suspension": {
+      "description": "Rule determining suspension after violations",
+      "parameters": {
+        "max_violations_before_suspension": {
+          "type": "number",
+          "default": 3,
+          "description": "Number of violations before suspension"
+        },
+        "suspension_days": {
+          "type": "number", 
+          "default": 2,
+          "description": "Days of suspension when violations accumulate"
+        }
+      }
+    }
+  },
+  "object_types": {
+    "shared_ledger": {
+      "description": "Shared ledger for logging catches, deposits, withdrawals, penalties, and other transactions.",
+      "owner": "state/object_types/shared_ledger.json"
+    },
+    "iron_barrel": {
+      "description": "The iron barrel container that holds up to 120 units of fish.",
+      "owner": "state/object_types/iron_barrel.json"
+    },
+    "secondary_container": {
+      "description": "The secondary container for storing fish after the iron barrel (capacity 60 units).",
+      "owner": "state/object_types/secondary_container.json"
+    },
+    "temporary_bin": {
+      "description": "Temporary communal bin on the lakebank for overflow when both barrel and secondary container are full.",
+      "owner": "state/object_types/temporary_bin.json"
+    }
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

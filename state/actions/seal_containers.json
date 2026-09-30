@@ -1,0 +1,11 @@
+{
+  "name": "seal_containers",
+  "description": "Steward seals the iron barrel and secondary container (and temporary bin if used).",
+  "actor": ["steward"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "steward"}
+  ],
+  "fields": [],
+  "handler": "actions/handlers/seal_containers.py"
+}

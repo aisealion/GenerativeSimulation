@@ -1,0 +1,24 @@
+{
+  "name": "deposit_catch",
+  "description": "Fisher deposits their catch into the shared ledger and containers",
+  "actor": ["fisher"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "fisher"}
+  ],
+  "fields": [
+    {
+      "name": "catch_amount",
+      "type": "number",
+      "required": true,
+      "description": "Amount of fish caught and to be deposited"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "required": true,
+      "description": "Timestamp of deposit"
+    }
+  ],
+  "handler": "actions/handlers/deposit_catch.py"
+}

@@ -1,0 +1,30 @@
+{
+  "name": "non_fisher_withdrawal",
+  "description": "Non-fisher (steward or community leader) withdraws fish from containers",
+  "actor": ["steward"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "steward"}
+  ],
+  "fields": [
+    {
+      "name": "withdrawal_amount",
+      "type": "number",
+      "required": true,
+      "description": "Amount of fish to withdraw"
+    },
+    {
+      "name": "withdrawal_purpose",
+      "type": "string",
+      "required": true,
+      "description": "Purpose for the withdrawal"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "required": true,
+      "description": "Timestamp of withdrawal"
+    }
+  ],
+  "handler": "actions/handlers/non_fisher_withdrawal.py"
+}

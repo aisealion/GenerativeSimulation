@@ -1,0 +1,27 @@
+{
+  "type_name": "shared_ledger",
+  "description": "Shared ledger for logging catches, deposits, withdrawals, penalties, and other transactions.",
+  "ownership": "system",
+  "fields": {
+    "entries": {
+      "type": "array",
+      "description": "All entries in the ledger",
+      "default": []
+    },
+    "balance": {
+      "type": "number",
+      "description": "Current balance of fish in the system",
+      "default": 0
+    }
+  },
+  "operations": [
+    {"name": "deposit", "parameters": {"amount": "number", "description": "Description of deposit"}},
+    {"name": "withdraw", "parameters": {"amount": "number", "description": "Description of withdrawal"}},
+    {"name": "log_entry", "parameters": {"content": "string", "timestamp": "string"}}
+  ],
+  "permissions": {
+    "read": ["all_villagers"],
+    "write": ["cook", "steward"]
+  },
+  "visibility": "all_villagers"
+}

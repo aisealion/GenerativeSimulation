@@ -1,0 +1,30 @@
+{
+  "name": "record_consumption",
+  "description": "Community records consumption of fish by non-fishers",
+  "actor": ["steward"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "steward"}
+  ],
+  "fields": [
+    {
+      "name": "consumed_amount",
+      "type": "number",
+      "required": true,
+      "description": "Amount of fish consumed"
+    },
+    {
+      "name": "consumer_type",
+      "type": "string",
+      "required": true,
+      "description": "Type of consumer (steward, community member, etc.)"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "required": true,
+      "description": "Timestamp of consumption"
+    }
+  ],
+  "handler": "actions/handlers/record_consumption.py"
+}

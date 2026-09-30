@@ -1,0 +1,36 @@
+{
+  "name": "vote_restoration",
+  "description": "Community votes on whether a suspended fisher can be restored",
+  "actor": ["fisher"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "fisher"}
+  ],
+  "fields": [
+    {
+      "name": "candidate_fisher",
+      "type": "string",
+      "required": true,
+      "description": "ID of fisher to be considered for restoration"
+    },
+    {
+      "name": "restoration_reason",
+      "type": "string",
+      "required": true,
+      "description": "Reason for considering restoration"
+    },
+    {
+      "name": "vote",
+      "type": "boolean",
+      "required": true,
+      "description": "Vote for restoration (true = yes, false = no)"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "required": true,
+      "description": "Timestamp of vote"
+    }
+  ],
+  "handler": "actions/handlers/vote_restoration.py"
+}

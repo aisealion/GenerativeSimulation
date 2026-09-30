@@ -1,0 +1,30 @@
+{
+  "name": "impose_penalty",
+  "description": "Steward imposes penalty on fisher for violations",
+  "actor": ["steward"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "steward"}
+  ],
+  "fields": [
+    {
+      "name": "violation_type",
+      "type": "string",
+      "required": true,
+      "description": "Type of violation committed"
+    },
+    {
+      "name": "penalty_amount",
+      "type": "number",
+      "required": true,
+      "description": "Amount of penalty to impose"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "required": true,
+      "description": "Timestamp of penalty imposition"
+    }
+  ],
+  "handler": "actions/handlers/impose_penalty.py"
+}

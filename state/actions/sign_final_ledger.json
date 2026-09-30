@@ -1,0 +1,11 @@
+{
+  "name": "sign_final_ledger",
+  "description": "Cook signs the final ledger entry at the end of the day.",
+  "actor": ["cook"],
+  "requires_judgment": true,
+  "preconditions": [
+    {"role": "cook"}
+  ],
+  "fields": [],
+  "handler": "actions/handlers/sign_final_ledger.py"
+}
