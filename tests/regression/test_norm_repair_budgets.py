@@ -29,6 +29,13 @@ def _neutralize_checks(monkeypatch, compile_errors=None):
     monkeypatch.setattr(simulate_module, "norm_implementation_no_code_changes_errors", lambda: [])
     monkeypatch.setattr(simulate_module, "norm_implementation_failing_tests_errors", lambda round_number: [])
     monkeypatch.setattr(simulate_module, "norm_implementation_runtime_errors", lambda: None)
+    # Compile-repair now also gathers requirement evidence (see
+    # test_compile_repair_message_lists_satisfied_and_unresolved_requirements
+    # below) -- _gather_norm_evidence() runs a real pytest subprocess and
+    # writes state/norm_evidence/round_{N}.json against the real ROOT
+    # unless a test overrides this, so every other test here (which
+    # doesn't care about evidence) must not touch the real filesystem.
+    monkeypatch.setattr(simulate_module, "_gather_norm_evidence", lambda round_number, plan: {})
 
 
 def test_compile_repair_exhausts_its_own_budget_without_ever_reaching_the_auditor(monkeypatch):
@@ -77,6 +84,49 @@ def test_audit_repair_exhausts_its_own_smaller_budget_after_compile_passes_immed
     # its own separate counter regardless of what MAX_NORM_COMPILE_REPAIR_
     # ATTEMPTS happens to be, since compile never failed once here.
     assert engineer_calls["n"] == 1 + simulate_module.MAX_NORM_AUDIT_REPAIR_ATTEMPTS
+
+
+def test_compile_repair_message_lists_satisfied_and_unresolved_requirements(monkeypatch):
+    # A real round needing 11 new actions was measuring its own progress
+    # purely by attempt count -- nothing told a fresh compile-repair
+    # attempt that most of them already existed and passed their own
+    # tests, so it had no way to tell "9 of 11 done" from "nothing
+    # works yet". This asserts the same requirement-status mechanism
+    # audit-repair already gets (see the test below) is now also folded
+    # into the compile-repair message.
+    _neutralize_checks(monkeypatch, compile_errors=["persistent compile error"])
+    monkeypatch.setattr(simulate_module, "run_norm_architect_with_retry",
+                         lambda round_number: (True, {"requirements": [{"id": "R1"}, {"id": "R2"}]}))
+    monkeypatch.setattr(simulate_module, "_gather_norm_evidence", lambda round_number, plan: {
+        "R1": ["acceptance test test_R1_x: PASS"],
+        "R2": [],
+    })
+
+    captured_messages = []
+
+    def _fake_engineer(round_number, extra_message=None, session_id=None):
+        captured_messages.append(extra_message)
+        return True, "ses1"
+
+    monkeypatch.setattr(simulate_module, "run_norm_engineer_with_retry", _fake_engineer)
+
+    discards = []
+    monkeypatch.setattr(simulate_module, "discard_norm_implementation",
+                         lambda round_number, errors: discards.append((round_number, errors)))
+
+    result = simulate_module.implement_and_evaluate_norm(1, {})
+
+    assert result is False
+    assert len(discards) == 1
+    # captured_messages[0] is the kickoff call; [1] is the first
+    # compile-repair message -- the one this test actually checks.
+    assert len(captured_messages) >= 2
+    message = captured_messages[1]
+    assert "Satisfied — preserve these" in message
+    assert "R1" in message
+    assert "No test evidence at all" in message
+    assert "R2" in message
+    assert "do not rebuild or re-verify" in message
 
 
 def test_audit_repair_message_lists_satisfied_and_unresolved_requirements(monkeypatch, tmp_path):

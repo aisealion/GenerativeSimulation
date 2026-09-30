@@ -2595,11 +2595,38 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                   f"{compile_attempt}/{MAX_NORM_COMPILE_REPAIR_ATTEMPTS}), instead of discarding "
                   f"on the first occurrence.")
             session_is_fresh = total_attempt % 2 == 1
+            # Same requirement-status mechanism audit-repair already uses
+            # below (_gather_norm_evidence()/_render_requirement_status_
+            # block()), now also surfaced here — a round needing many
+            # actions (a real round needed 11) was measuring its own
+            # progress purely by attempt count, with nothing telling a
+            # fresh attempt which requirements' files already exist and
+            # pass their own tests vs which are still unbuilt, so a new
+            # attempt had no way to tell "9 of 11 done, finish the last
+            # 2" from "nothing works yet" — both looked like just another
+            # compile error. state/norm_evidence/round_{N}.json (written
+            # here) IS the persistent, resumable checkpoint: per-
+            # requirement, survives a crash/restart, read back by
+            # _read_norm_evidence() on the very next attempt regardless
+            # of what happened to this process.
+            what_was_found = (
+                f"Round {round_number}'s implementation has compile/validation errors that "
+                f"must be fixed before it can even be audited:\n\n{chr(10).join(compile_errors)}"
+            )
+            compile_requirement_status_block = _render_requirement_status_block(
+                _gather_norm_evidence(round_number, norm_plan)
+            )
+            if compile_requirement_status_block:
+                what_was_found += (
+                    f"\n\n{compile_requirement_status_block}\n\nThis is progress, not just "
+                    f"another failed attempt — do not rebuild or re-verify anything listed "
+                    f"'Satisfied' above; spend this attempt only on what's still missing or "
+                    f"failing."
+                )
             repair_message = (
                 _render_engineer_repair_preamble(
                     round_number, "compile", compile_attempt, MAX_NORM_COMPILE_REPAIR_ATTEMPTS,
-                    f"Round {round_number}'s implementation has compile/validation errors that "
-                    f"must be fixed before it can even be audited:\n\n{chr(10).join(compile_errors)}",
+                    what_was_found,
                     session_is_fresh, repair_history,
                 )
                 + "\n\nDon't change anything else about your implementation beyond what's needed "
