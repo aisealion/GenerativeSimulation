@@ -32,18 +32,7 @@ def _neutralize_checks(monkeypatch, compile_errors=None):
 
 
 def test_compile_repair_exhausts_its_own_budget_without_ever_reaching_the_auditor(monkeypatch):
-    # A genuinely different error each attempt — MAX_CONSECUTIVE_NO_PROGRESS_
-    # ATTEMPTS must never trigger here, so this still exercises the real
-    # budget cap end to end, not the no-progress short-circuit (that has
-    # its own dedicated tests below).
-    _neutralize_checks(monkeypatch)
-    call_count = {"n": 0}
-
-    def _changing_compile_errors():
-        call_count["n"] += 1
-        return [f"compile error #{call_count['n']}"]
-
-    monkeypatch.setattr(simulate_module, "norm_implementation_compile_errors", _changing_compile_errors)
+    _neutralize_checks(monkeypatch, compile_errors=["persistent compile error"])
     monkeypatch.setattr(simulate_module, "run_norm_engineer_with_retry",
                          lambda round_number, extra_message=None, session_id=None: (True, "ses1"))
 
@@ -59,54 +48,7 @@ def test_compile_repair_exhausts_its_own_budget_without_ever_reaching_the_audito
     assert result is False
     assert audit_calls == []  # never reached — compile errors never cleared
     assert len(discards) == 1
-    assert discards[0][1] == [f"compile error #{simulate_module.MAX_NORM_COMPILE_REPAIR_ATTEMPTS + 1}"]
-
-
-def test_compile_repair_stops_early_on_a_repeated_identical_error(monkeypatch):
-    _neutralize_checks(monkeypatch, compile_errors=["the exact same error, every time"])
-    monkeypatch.setattr(simulate_module, "run_norm_engineer_with_retry",
-                         lambda round_number, extra_message=None, session_id=None: (True, "ses1"))
-    monkeypatch.setattr(simulate_module, "run_norm_auditor", lambda round_number: (_ for _ in ()).throw(
-        AssertionError("must never reach the auditor — compile never clears")
-    ))
-
-    discards = []
-    monkeypatch.setattr(simulate_module, "discard_norm_implementation",
-                         lambda round_number, errors: discards.append((round_number, errors)))
-
-    result = simulate_module.implement_and_evaluate_norm(1, {})
-
-    assert result is False
-    assert len(discards) == 1
-    # Well under the real 10-attempt budget — the whole point of this check.
-    assert discards[0][1][0].startswith("no progress across")
-    assert "the exact same error, every time" in discards[0][1][0]
-
-
-def test_compile_repair_keeps_going_when_the_error_actually_changes(monkeypatch):
-    """A different error each attempt must never trip the no-progress
-    short-circuit — only a genuinely unchanged signature should."""
-    _neutralize_checks(monkeypatch)
-    call_count = {"n": 0}
-
-    def _changing_compile_errors():
-        call_count["n"] += 1
-        return [f"error variant {call_count['n']}"]
-
-    monkeypatch.setattr(simulate_module, "norm_implementation_compile_errors", _changing_compile_errors)
-    monkeypatch.setattr(simulate_module, "run_norm_engineer_with_retry",
-                         lambda round_number, extra_message=None, session_id=None: (True, "ses1"))
-
-    discards = []
-    monkeypatch.setattr(simulate_module, "discard_norm_implementation",
-                         lambda round_number, errors: discards.append((round_number, errors)))
-
-    result = simulate_module.implement_and_evaluate_norm(1, {})
-
-    assert result is False
-    # Reached the real budget cap, not an early no-progress discard.
-    assert not discards[0][1][0].startswith("no progress across")
-    assert call_count["n"] == simulate_module.MAX_NORM_COMPILE_REPAIR_ATTEMPTS + 1
+    assert discards[0][1] == ["persistent compile error"]
 
 
 def test_audit_repair_exhausts_its_own_smaller_budget_after_compile_passes_immediately(monkeypatch):
@@ -135,42 +77,6 @@ def test_audit_repair_exhausts_its_own_smaller_budget_after_compile_passes_immed
     # its own separate counter regardless of what MAX_NORM_COMPILE_REPAIR_
     # ATTEMPTS happens to be, since compile never failed once here.
     assert engineer_calls["n"] == 1 + simulate_module.MAX_NORM_AUDIT_REPAIR_ATTEMPTS
-
-
-def test_audit_repair_stops_early_when_the_same_requirement_ids_keep_recurring(monkeypatch, tmp_path):
-    _neutralize_checks(monkeypatch, compile_errors=None)  # always clean
-    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
-    monkeypatch.setattr(simulate_module, "run_norm_engineer_with_retry",
-                         lambda round_number, extra_message=None, session_id=None: (True, "ses1"))
-
-    # DeepSeek-R1 paraphrases every attempt — same requirement (R7),
-    # different wording each time. The signature must still catch this.
-    reports = [
-        "AUDIT_FAILED: R7 lacks evidence of proportional redistribution.",
-        "The redistribution mechanism for R7 remains unverified in the evidence.",
-        "R7's proportionality claim is still not demonstrated by any test.",
-    ]
-    call_count = {"n": 0}
-
-    def _fake_auditor(round_number):
-        text = reports[min(call_count["n"], len(reports) - 1)]
-        call_count["n"] += 1
-        return {"result": "NEEDS_REPAIR", "text": text}
-
-    monkeypatch.setattr(simulate_module, "run_norm_auditor", _fake_auditor)
-
-    discards = []
-    monkeypatch.setattr(simulate_module, "discard_norm_implementation",
-                         lambda round_number, errors: discards.append((round_number, errors)))
-
-    result = simulate_module.implement_and_evaluate_norm(1, {})
-
-    assert result is False
-    assert len(discards) == 1
-    assert discards[0][1][0].startswith("no progress across")
-    assert "R7" in discards[0][1][0]
-    # Well under the real 10-attempt budget.
-    assert call_count["n"] < simulate_module.MAX_NORM_AUDIT_REPAIR_ATTEMPTS
 
 
 def test_audit_repair_message_lists_satisfied_and_unresolved_requirements(monkeypatch, tmp_path):
@@ -212,6 +118,28 @@ def test_audit_repair_message_lists_satisfied_and_unresolved_requirements(monkey
     assert "No test evidence at all" in message
     assert "R3" in message
     assert "Still failing or unproven: R2" in message
+
+
+def test_repair_preamble_mentions_the_attempt_log_path_for_this_round():
+    for repair_kind in ("compile", "audit"):
+        message = simulate_module._render_engineer_repair_preamble(
+            round_number=7, repair_kind=repair_kind, attempt=2, max_attempts=10,
+            what_was_found="some problem", session_is_fresh=True, repair_history=[],
+        )
+        assert "tests/norm_checks/round_7/attempt_log.json" in message
+        assert "Read" in message and "if it exists" in message
+        assert "append" in message.lower()
+        assert "never overwrite" in message.lower() or "never repeat" in message.lower()
+
+
+def test_repair_preamble_always_tells_the_agent_to_review_the_whole_implementation():
+    for repair_kind in ("compile", "audit"):
+        message = simulate_module._render_engineer_repair_preamble(
+            round_number=1, repair_kind=repair_kind, attempt=1, max_attempts=10,
+            what_was_found="some problem", session_is_fresh=True, repair_history=[],
+        )
+        assert "ENTIRE implementation" in message
+        assert "agent_experience" in message
 
 
 def test_compliant_audit_stages_the_round_without_touching_either_repair_budget(monkeypatch):

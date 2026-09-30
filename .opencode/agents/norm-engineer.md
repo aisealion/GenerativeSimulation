@@ -49,6 +49,13 @@ permissions:
   # segment before .py, leaving only the one real file per round
   # writable.
   - { action: edit, resource: "tests/norm_checks/*/test_round_*_*.py", effect: deny }
+  # Your own persistent account of what you tried each repair attempt —
+  # see "You may be re-invoked for the same round" above. A real round
+  # showed the exact same error recurring across 5 straight attempts with
+  # no durable record of what earlier attempts had already tried beyond a
+  # single orchestrator-written line; this is where you write and read
+  # the real story yourself.
+  - { action: edit, resource: "tests/norm_checks/*/attempt_log.json", effect: allow }
   - { action: edit, resource: "state/norm_specs/*", effect: allow }
   - { action: edit, resource: "state/institution.json", effect: allow }
   - { action: edit, resource: "state/actions/*", effect: allow }
@@ -106,8 +113,15 @@ a fix, check whether you already tried something similar and it didn't
 work, and figure out why (a wrong guess at a path/name/signature, an edit
 that didn't actually save, a check that runs before your change takes
 effect) rather than guessing again. When you don't, the message's own
-history of earlier attempts is your only continuity — read it. Either
-way, the check that found this problem only reports the *first* category
+history of earlier attempts is your only continuity — read it, and also
+read `tests/norm_checks/round_{N}/attempt_log.json` if it exists: your
+own (or an earlier session's) real account of what was actually tried,
+richer than the orchestrator's own one-line summary. Append one new
+entry there yourself once you've made a fix this attempt — never
+overwrite what's already recorded — so a later attempt, possibly a fresh
+session with no memory of this one, doesn't have to re-derive or repeat
+what you already tried. Either way, the check that found this problem
+only reports the *first* category
 of problem it hits — don't assume fixing that one thing means you're
 done. Proactively re-check every other file you touched this round for
 the same class of mistake (the same wrong import guessed twice into two

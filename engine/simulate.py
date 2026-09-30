@@ -2063,21 +2063,6 @@ MAX_NORM_COMPILE_REPAIR_ATTEMPTS = 10
 # first one found.
 MAX_NORM_AUDIT_REPAIR_ATTEMPTS = 10
 
-# Neither budget above has ever detected a STUCK repair, only a LONG one —
-# a real round's compile-repair loop hit the exact same error, verbatim,
-# on 5 straight attempts (an unregistered rule type) before finally
-# changing; a separate round's audit-repair loop got the same substantive
-# complaint about one requirement (worded differently by DeepSeek-R1 each
-# time, but always about the same gap) across all 10 of its attempts and
-# was discarded having never moved past it. Both burned most or all of
-# their budget without ever being told "this isn't working, try something
-# actually different." Compile and audit each get their OWN streak,
-# tracked independently — same reasoning as the budget split itself: a
-# genuine switch from one problem class to the other (e.g. finally
-# clearing a compile error and reaching audit) is real progress, so it
-# shouldn't reset or share a counter with the other kind.
-MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS = 3
-
 # norm-auditor no longer has its own process-retry budget here (2026-09-23)
 # — since it stopped running through opencode (see call_norm_auditor_agent()
 # in engine/llm_agents.py for why), its own bounded retry loop
@@ -2307,7 +2292,19 @@ def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_att
     pair starting) have zero real session memory, so `repair_history` —
     a plain list of one-line summaries the orchestrator itself recorded,
     not the model's own claims — is what carries continuity across a
-    pair boundary instead."""
+    pair boundary instead.
+
+    2026-09-30: also points at `tests/norm_checks/round_{N}/attempt_log.json`
+    — a file norm-engineer itself reads and appends to, entirely outside
+    this function's/the orchestrator's own involvement (no parsing, no
+    injection) — for a richer, self-authored account of what was actually
+    tried each attempt than repair_history's own one-liners can carry,
+    plus a standing instruction to review the whole implementation for the
+    requirement(s) involved, not just the narrow line an error names.
+    Replaces an earlier same-day attempt at solving "attempts don't seem
+    to be making progress" by counting repeated error signatures and
+    discarding early — that made a stuck loop fail faster, not succeed
+    more often, which wasn't actually the goal."""
     session_note = (
         "This is a FRESH session — you have no memory of any earlier attempt on this round. "
         "The history below is the orchestrator's own record of what happened; it's the only "
@@ -2354,12 +2351,30 @@ def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_att
         "in this round's own tests, tends to just surface a different requirement next audit "
         "cycle instead of actually finishing. "
     )
+    attempt_log_path = f"tests/norm_checks/round_{round_number}/attempt_log.json"
+    attempt_log_note = (
+        f"Read `{attempt_log_path}` first, if it exists — your own (or an earlier session's) "
+        f"account of exactly what's already been tried on this round, in more detail than the "
+        f"one-line history above. Never repeat an approach already recorded there; if the same "
+        f"problem shows up again across more than one entry, treat that as a sign your diagnosis "
+        f"of the root cause was wrong, not just its execution — don't retry a similar edit, "
+        f"re-derive the cause from scratch. This also isn't only about the exact line the error "
+        f"or audit report names above — re-read the ENTIRE implementation for the requirement(s) "
+        f"involved (the full rule/handler file, its action spec, anything it reads or writes) "
+        f"against that requirement's own agent_experience block and norm.txt directly, before "
+        f"considering your fix complete. Once you've made your fix this attempt, append (never "
+        f"overwrite the entries already there) one new entry to `{attempt_log_path}` describing "
+        f"what you changed and why, in whatever shape its existing entries already use (or, if "
+        f"the file doesn't exist yet, a JSON array with one object: attempt/requirement_ids/"
+        f"approach/reasoning/files_changed/verified)."
+    )
     return (
         f"This is {kind_label} repair attempt {attempt} of {max_attempts} for round "
         f"{round_number}. {session_note}\n\n"
         f"{history_block}"
         f"{what_was_found}\n\n"
         f"{first_steps}\n\n"
+        f"{attempt_log_note}\n\n"
         f"{order_note}Fix exactly what's named above, then "
         f"proactively re-check every OTHER file you touched this round for the same class of "
         f"mistake (e.g. if this was a wrong import path or a missing field, grep every other "
@@ -2477,14 +2492,6 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     total_attempt = 0
     compile_attempt = 0
     audit_attempt = 0
-    # See MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS's own comment — a signature
-    # of "what's still wrong" per repair kind, compared attempt to attempt;
-    # an unchanged signature increments its own streak, a changed one
-    # resets it to 0.
-    last_compile_signature = None
-    compile_no_progress_streak = 0
-    last_audit_signature = None
-    audit_no_progress_streak = 0
     while True:
         total_attempt += 1
         # Protected-path violations are a hard, non-retryable discard —
@@ -2517,21 +2524,6 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             compile_attempt += 1
             if compile_attempt > MAX_NORM_COMPILE_REPAIR_ATTEMPTS:
                 discard_norm_implementation(round_number, compile_errors)
-                return False
-
-            compile_signature = tuple(compile_errors)
-            if compile_signature == last_compile_signature:
-                compile_no_progress_streak += 1
-            else:
-                compile_no_progress_streak = 0
-                last_compile_signature = compile_signature
-            if compile_no_progress_streak >= MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS:
-                discard_norm_implementation(
-                    round_number,
-                    [f"no progress across {compile_no_progress_streak + 1} consecutive "
-                     f"compile-repair attempts — the exact same error recurred unchanged "
-                     f"every time:\n\n{compile_errors[0]}"],
-                )
                 return False
 
             print(f"\nRound {round_number}: norm-engineer's changes have compile/validation "
@@ -2599,29 +2591,6 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 round_number,
                 [f"norm-auditor returned NEEDS_REPAIR after {MAX_NORM_AUDIT_REPAIR_ATTEMPTS} "
                  f"audit-repair attempt(s). Auditor's final report:\n\n{audit['text']}"],
-            )
-            return False
-
-        # DeepSeek-R1 paraphrases its own report differently every attempt
-        # even when it's the same underlying complaint (confirmed on a real
-        # round — R7 stayed the requirement in question across all 10
-        # attempts, worded differently each time) — comparing raw text
-        # would never detect that as "no progress". Which requirement ids
-        # keep coming up is a stable, mechanical proxy for the same
-        # unresolved gap instead.
-        audit_signature = frozenset(re.findall(r"\bR\d+\b", audit["text"]))
-        if audit_signature and audit_signature == last_audit_signature:
-            audit_no_progress_streak += 1
-        else:
-            audit_no_progress_streak = 0
-            last_audit_signature = audit_signature
-        if audit_no_progress_streak >= MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS:
-            discard_norm_implementation(
-                round_number,
-                [f"no progress across {audit_no_progress_streak + 1} consecutive audit-repair "
-                 f"attempts — norm-auditor kept flagging the same requirement(s) "
-                 f"({', '.join(sorted(audit_signature))}) unresolved every time. Auditor's "
-                 f"final report:\n\n{audit['text']}"],
             )
             return False
 
