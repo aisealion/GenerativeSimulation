@@ -1,0 +1,3 @@
+Policy: Each fisherman may fish for up to 4 hours and take up to 3 kg per trip; if the community total exceeds 20 kg, every fisher must discard 1 kg from their haul, or whatever they have if less than 1 kg.
+
+Operationalization: Each day, fishermen set out with gear, fish for a maximum of 4 h and record the weight of their catch; upon return, all fishers bring their hauls to the dock, the elected village leader sums the total, and if it exceeds 20 kg the leader announces the 1 kg reduction, after which every fisher visibly discards 1 kg (or their entire catch if less) in front of the group; the remaining fish are counted and kept. The leader verifies the totals and, if a fisher refuses to discard, the community can impose a fine or extra communal work until compliance.
