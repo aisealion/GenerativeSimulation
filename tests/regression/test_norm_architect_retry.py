@@ -468,10 +468,14 @@ def test_mas_summary_lists_actions_in_round_order_with_participants(tmp_path, mo
     summary = simulate_module._mas_summary()
 
     assert [step["action"] for step in summary["round_sequence"]] == ["harvest", "inspect"]
-    assert summary["round_sequence"][1]["participants"] == {"policy": "role_holders", "role": "guard"}
+    assert summary["round_sequence"][1]["who_decides"] == "whoever currently holds the 'guard' role, each deciding separately"
+    assert summary["round_sequence"][0]["who_decides"] == "every living fisherman, each deciding separately"
     assert summary["roles"] == {"fisher": {"exclusive": False, "description": "a fisher"}}
-    assert summary["active_rules"] == {"harvest": ["cap"]}
+    assert "cap" in summary["rules_fishermen_are_automatically_bound_by"]["harvest"][0]
+    assert "not something they choose" in summary["rules_fishermen_are_automatically_bound_by"]["harvest"][0]
     assert summary["agents"]["count"] == 5
+    assert "multi-agent system" in summary["multi_agent_note"]
+    assert "5" in summary["multi_agent_note"]
     assert summary["capabilities"]
 
 

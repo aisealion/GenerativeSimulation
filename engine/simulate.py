@@ -576,6 +576,20 @@ MAS_CAPABILITIES = [
 ]
 
 
+def _describe_participants(participation):
+    """Turns a raw {"policy": ...} participation dict into a plain-English
+    description of WHO separately decides this action -- every ACTION in
+    this MAS is one decision per participating agent, never a single
+    collective choice, and this is the one place in the reference bundle
+    that states that fact right next to the action it's about, not just
+    once in the system prompt (a real plan's own ACTION had "actor":
+    "community" -- a group this engine has no way to prompt as one)."""
+    policy = participation.get("policy", "all_alive_fishers")
+    if policy == "role_holders":
+        return f"whoever currently holds the {participation.get('role')!r} role, each deciding separately"
+    return "every living fisherman, each deciding separately"
+
+
 def _mas_summary():
     """Compact, machine-readable picture of the current simulation for
     norm-architect: agents, roles, actions in their actual per-round
@@ -596,6 +610,13 @@ def _mas_summary():
 
     config = _read_json(ROOT / "state" / "config.json", {})
     institution = _read_json(ROOT / "state" / "institution.json", {})
+    summary["multi_agent_note"] = (
+        f"This is a multi-agent system: {config.get('agent_count') or 'several'} separate "
+        f"fisherman agents, each independently prompted and deciding for themselves. "
+        f"There is no single collective decision-maker -- \"who_decides\" below, for every "
+        f"action, is always the set of individual agents who EACH separately make that one "
+        f"decision, never a group acting as one."
+    )
     summary["agents"] = {
         "count": config.get("agent_count"),
         "kind": "fishers (every agent is a fisher; roles are held on top of that)",
@@ -619,14 +640,20 @@ def _mas_summary():
     summary["round_sequence"] = [
         {
             "action": name,
-            "description": action_specs[name].get("description"),
-            "participants": action_specs[name].get("participation", {"policy": "all_alive_fishers"}),
+            "fishermen_are_asked_to": action_specs[name].get("description"),
+            "who_decides": _describe_participants(
+                action_specs[name].get("participation", {"policy": "all_alive_fishers"})
+            ),
             "runs_only_while": (action_specs[name].get("scheduling") or {}).get("gate", "true"),
         }
         for name in ordered if name in action_specs
     ]
-    summary["active_rules"] = {
-        action: [rule.get("type") for rule in rules]
+    summary["rules_fishermen_are_automatically_bound_by"] = {
+        action: [
+            f"{rule.get('type')} (enforced automatically whenever a fisherman does this -- "
+            f"not something they choose or can refuse)"
+            for rule in rules
+        ]
         for action, rules in (config.get("rules") or {}).items()
     }
     summary["object_types"] = sorted(institution.get("object_types") or {})
