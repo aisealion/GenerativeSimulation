@@ -6,13 +6,40 @@
     "propose": {"spec": "state/actions/propose.json", "protected": true},
     "critique": {"spec": "state/actions/critique.json", "protected": true},
     "vote": {"spec": "state/actions/vote.json", "protected": true},
-    "discuss": {"spec": "state/actions/discuss.json", "protected": true}
+    "discuss": {"spec": "state/actions/discuss.json", "protected": true},
+    "record_catch": {"spec": "state/actions/record_catch.json", "protected": false},
+    "verify_deposit": {"spec": "state/actions/verify_deposit.json", "protected": false},
+    "withdraw_from_pool": {"spec": "state/actions/withdraw_from_pool.json", "protected": false},
+    "repay_pool": {"spec": "state/actions/repay_pool.json", "protected": false},
+    "assign_helper_task": {"spec": "state/actions/assign_helper_task.json", "protected": false},
+    "verify_task_completion": {"spec": "state/actions/verify_task_completion.json", "protected": false}
   },
   "roles": {
-    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
+    "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0},
+    "village_elder": {"exclusive": true, "description": "Village Elder: verifies weights and updates communal records. Elected by majority vote each season.", "introduced_round": 2}
   },
-  "rule_types": {},
-  "object_types": {},
+  "rule_types": {
+    "automatic_ban": {
+      "description": "Automatically ban fisher until repayment or task completion",
+      "owner": "actions/rules/repay_pool/automatic_ban.py"
+    }
+  },
+  "object_types": {
+    "communal_pool": {
+      "description": "Communal Pool: tracks fish held for redistribution.",
+      "persistent": true,
+      "purpose": "Hold excess catch for redistribution",
+      "read_by": ["village_elder", "fisher"],
+      "written_by": ["village_elder", "fisher"]
+    },
+    "communal_ledger": {
+      "description": "Communal Ledger: records all transactions and compliance history.",
+      "persistent": true,
+      "purpose": "Track fisher deposits, withdrawals, and repayments",
+      "read_by": ["village_elder", "fisher"],
+      "written_by": ["village_elder", "fisher"]
+    }
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

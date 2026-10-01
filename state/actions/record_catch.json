@@ -1,0 +1,27 @@
+{
+  "name": "record_catch",
+  "description": "Fisher records daily catch and cumulative total",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "prompt": {
+    "fields": {
+      "current_catch": {"from": "state", "path": "runtime.current_catch"},
+      "cumulative_kept": {"from": "state", "path": "runtime.cumulative_kept"},
+      "pool_balance": {"from": "object", "object_id": "communal_pool", "field": "balance"}
+    },
+    "template": "Today you've caught {current_catch} units of fish. Your cumulative total is {cumulative_kept} units. The communal pool currently contains {pool_balance} units.\n\nBased on today's catch, you must decide whether to record your catch and update your total, or request verification from the Village Elder.\n\nRespond with ONLY this JSON object, nothing else:\n{\"catch_recorded\": true/false, \"cumulative_updated\": true/false}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

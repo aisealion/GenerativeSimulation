@@ -1,0 +1,7 @@
+{
+  "description": "Communal Ledger: records all transactions and compliance history.",
+  "persistent": true,
+  "purpose": "Track fisher deposits, withdrawals, and repayments",
+  "read_by": ["village_elder", "fisher"],
+  "written_by": ["village_elder", "fisher"]
+}

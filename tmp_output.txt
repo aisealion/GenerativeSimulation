@@ -1,0 +1,3 @@
+Requirement R7 now properly implements both required behaviors:
+1. Temporary bans last only until replenishment occurs, and
+2. After three consecutive failures, helper tasks are assigned to help refill the pool

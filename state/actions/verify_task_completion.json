@@ -1,0 +1,26 @@
+{
+  "name": "verify_task_completion",
+  "description": "Helper task completion is verified and recorded",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": "assign_helper_task",
+    "before": null
+  },
+  "participation": {
+    "policy": "current_village_elder"
+  },
+  "roles": {
+    "actor_role": "village_elder"
+  },
+  "prompt": {
+    "fields": {
+      "reported_completion": {"from": "state", "path": "runtime.reported_completion"},
+      "verification_status": {"from": "state", "path": "runtime.verification_status"}
+    },
+    "template": "You are verifying task completion.\n\nThe reported completion status is: {reported_completion}.\n\nBased on this information, decide whether to confirm or reject the completion.\n\nRespond with ONLY this JSON object, nothing else:\n{\"completion_confirmed\": true/false}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

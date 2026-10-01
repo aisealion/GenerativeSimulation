@@ -1,0 +1,26 @@
+{
+  "name": "verify_deposit",
+  "description": "Village Elder verifies deposits and updates records",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": "record_catch",
+    "before": null
+  },
+  "participation": {
+    "policy": "current_village_elder"
+  },
+  "roles": {
+    "actor_role": "village_elder"
+  },
+  "prompt": {
+    "fields": {
+      "recorded_catch": {"from": "state", "path": "runtime.recorded_catch"},
+      "cumulative_totals": {"from": "state", "path": "runtime.cumulative_totals"}
+    },
+    "template": "You are verifying a fisher's deposit. The recorded catch was {recorded_catch} units. The cumulative totals are {cumulative_totals} units.\n\nBased on the records, you must decide whether to confirm the deposit or reject it.\n\nRespond with ONLY this JSON object, nothing else:\n{\"deposit_confirmed\": true/false, \"reasoning\": \"a brief explanation\"}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

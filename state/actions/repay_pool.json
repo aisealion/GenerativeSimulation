@@ -1,0 +1,26 @@
+{
+  "name": "repay_pool",
+  "description": "Fisher repays communal pool from next catch",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": "withdraw_from_pool",
+    "before": null
+  },
+  "participation": {
+    "policy": "fishers_with_outstanding_debt"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "prompt": {
+    "fields": {
+      "current_catch": {"from": "state", "path": "runtime.current_catch"}, 
+      "outstanding_repayment": {"from": "state", "path": "runtime.outstanding_repayment"}
+    },
+    "template": "You have an outstanding repayment of {outstanding_repayment} units from previous withdrawals.\n\nYour current catch is {current_catch} units.\n\nYou can choose to repay the amount from your catch or request an extension.\n\nRespond with ONLY this JSON object, nothing else:\n{\"repayment_amount\": number}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

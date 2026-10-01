@@ -1,0 +1,25 @@
+{
+  "name": "assign_helper_task",
+  "description": "Village Elder assigns helper task for non-compliance",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "current_village_elder"
+  },
+  "roles": {
+    "actor_role": "village_elder"
+  },
+  "prompt": {
+    "fields": {
+      "compliance_history": {"from": "object", "object_id": "communal_ledger", "field": "compliance_history"}
+    },
+    "template": "You are assigning a helper task due to non-compliance.\n\nThe fisher's compliance history is: {compliance_history}.\n\nChoose a specific helper task to assign.\n\nRespond with ONLY this JSON object, nothing else:\n{\"task_assigned\": \"task_name\"}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

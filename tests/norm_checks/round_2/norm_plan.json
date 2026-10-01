@@ -1,0 +1,581 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "Village Elder: verifies weights and updates communal records. Elected by majority vote each season.",
+      "exclusive": true,
+      "depends_on": [],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "duties include verifying catches and managing communal pool"
+        ],
+        "decides": [
+          "whether to verify deposits",
+          "whether to assign helper tasks"
+        ],
+        "may_do": [
+          "update communal board",
+          "assign tasks"
+        ],
+        "may_not_do": [],
+        "remembers": [
+          "current ban statuses",
+          "compliance history"
+        ],
+        "observes": [
+          "communal pool transactions",
+          "fisher catches"
+        ]
+      }
+    },
+    {
+      "id": "R2",
+      "type": "OBJECT",
+      "description": "Communal Pool: tracks fish held for redistribution.",
+      "persistent": true,
+      "purpose": "Hold excess catch for redistribution",
+      "read_by": [
+        "R1",
+        "R3"
+      ],
+      "written_by": [
+        "R4",
+        "R5"
+      ],
+      "depends_on": [],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R3",
+      "type": "OBJECT",
+      "description": "Communal Ledger: records all transactions and compliance history.",
+      "persistent": true,
+      "purpose": "Track fisher deposits, withdrawals, and repayments",
+      "read_by": [
+        "R1",
+        "R3"
+      ],
+      "written_by": [
+        "R4",
+        "R5",
+        "R6"
+      ],
+      "depends_on": [],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R4",
+      "type": "ACTION",
+      "description": "Fisher records daily catch and cumulative total.",
+      "actor": "all_fishers",
+      "judgment_required": true,
+      "depends_on": [
+        "R2"
+      ],
+      "trigger": {
+        "event": "start of fishing trip",
+        "condition": "new day"
+      },
+      "decision_context": {
+        "prompt_to": "every living fisher",
+        "visible_state": [
+          "current catch",
+          "cumulative kept fish"
+        ],
+        "visible_objects": [
+          "communal pool balance"
+        ],
+        "visible_institutional_information": [
+          "daily limit rules",
+          "deposit procedures"
+        ],
+        "choices": [
+          "record catch and update total",
+          "request verification"
+        ],
+        "output": [
+          "catch_recorded: true/false",
+          "cumulative_updated: true/false"
+        ]
+      },
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "whether to record catch"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "ACTION",
+      "description": "Village Elder verifies deposits and updates records.",
+      "actor": "R1",
+      "judgment_required": true,
+      "depends_on": [
+        "R2",
+        "R3"
+      ],
+      "trigger": {
+        "event": "deposit recorded",
+        "condition": "verification needed"
+      },
+      "decision_context": {
+        "prompt_to": "current village elder",
+        "visible_state": [
+          "recorded catch",
+          "cumulative totals"
+        ],
+        "visible_objects": [
+          "communal pool balance"
+        ],
+        "visible_institutional_information": [
+          "verification procedures",
+          "update rules"
+        ],
+        "choices": [
+          "confirm deposit",
+          "reject deposit"
+        ],
+        "output": [
+          "deposit_confirmed: true/false",
+          "reasoning"
+        ]
+      },
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "whether to confirm deposit"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "ACTION",
+      "description": "Fisher withdraws fish from communal pool.",
+      "actor": "all_fishers",
+      "judgment_required": true,
+      "depends_on": [
+        "R2",
+        "R3"
+      ],
+      "trigger": {
+        "event": "withdrawal requested",
+        "condition": "pool balance sufficient"
+      },
+      "decision_context": {
+        "prompt_to": "every living fisher",
+        "visible_state": [
+          "current pool balance"
+        ],
+        "visible_objects": [
+          "communal pool balance"
+        ],
+        "visible_institutional_information": [
+          "withdrawal rules",
+          "repayment terms"
+        ],
+        "choices": [
+          "withdraw specified amount",
+          "cancel withdrawal"
+        ],
+        "output": [
+          "amount_withdrawn: number"
+        ]
+      },
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "whether to withdraw fish"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "ACTION",
+      "description": "Fisher repays communal pool from next catch.",
+      "actor": "all_fishers",
+      "judgment_required": true,
+      "depends_on": [
+        "R2",
+        "R3"
+      ],
+      "trigger": {
+        "event": "next fishing trip",
+        "condition": "outstanding repayment"
+      },
+      "decision_context": {
+        "prompt_to": "every living fisher with outstanding debt",
+        "visible_state": [
+          "current catch",
+          "outstanding repayment amount"
+        ],
+        "visible_objects": [
+          "communal pool balance"
+        ],
+        "visible_institutional_information": [
+          "repayment rules",
+          "ban procedures"
+        ],
+        "choices": [
+          "repay amount from catch",
+          "request extension"
+        ],
+        "output": [
+          "repayment_amount: number"
+        ]
+      },
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "whether to repay from catch"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R8",
+      "type": "ACTION",
+      "description": "Village Elder assigns helper task for non-compliance.",
+      "actor": "R1",
+      "judgment_required": true,
+      "depends_on": [
+        "R3"
+      ],
+      "trigger": {
+        "event": "third consecutive failure",
+        "condition": "non-compliance"
+      },
+      "decision_context": {
+        "prompt_to": "current village elder",
+        "visible_state": [
+          "compliance history"
+        ],
+        "visible_objects": [
+          "communal ledger"
+        ],
+        "visible_institutional_information": [
+          "task assignment rules",
+          "completion criteria"
+        ],
+        "choices": [
+          "assign specific task",
+          "choose different task"
+        ],
+        "output": [
+          "task_assigned: task_name"
+        ]
+      },
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "which helper task to assign"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R9",
+      "type": "ACTION",
+      "description": "Helper task completion is verified and recorded.",
+      "actor": "all_fishers",
+      "judgment_required": true,
+      "depends_on": [
+        "R3"
+      ],
+      "trigger": {
+        "event": "task completion reported",
+        "condition": "task verification needed"
+      },
+      "decision_context": {
+        "prompt_to": "current village elder",
+        "visible_state": [
+          "reported task completion",
+          "verification status"
+        ],
+        "visible_objects": [
+          "communal ledger"
+        ],
+        "visible_institutional_information": [
+          "completion verification rules",
+          "record update procedures"
+        ],
+        "choices": [
+          "confirm completion",
+          "reject completion"
+        ],
+        "output": [
+          "completion_confirmed: true/false"
+        ]
+      },
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "whether to confirm task completion"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R10",
+      "type": "RULE",
+      "description": "Automatically ban fisher until repayment or task completion.",
+      "attached_to": "R7",
+      "deterministic": true,
+      "depends_on": [
+        "R3",
+        "R9"
+      ],
+      "condition": "repayment not made and no tasks completed",
+      "effect": "apply ban until condition met",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "whether they are currently banned",
+          "the amount still owed to the pool"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "fish while banned"
+        ],
+        "remembers": [
+          "their own repayment status"
+        ],
+        "observes": [
+          "when their ban ends"
+        ]
+      }
+    },
+    {
+      "id": "R11",
+      "type": "VISIBILITY",
+      "description": "Communal board and ledger are visible to all villagers.",
+      "target": [
+        "R2",
+        "R3"
+      ],
+      "audience": "all_fishers",
+      "depends_on": [
+        "R1"
+      ],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "how to read the communal board and ledger",
+          "their own transaction history"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "current pool balance",
+          "all transactions"
+        ]
+      }
+    },
+    {
+      "id": "R12",
+      "type": "LIFECYCLE",
+      "description": "Village Elder serves for one season (7 rounds).",
+      "duration_rounds": 7,
+      "depends_on": [
+        "R1"
+      ],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "flows": [
+    {
+      "id": "F1",
+      "name": "Daily Catch and Deposit Process",
+      "trigger": "start of fishing trip",
+      "participants": [
+        "all_fishers"
+      ],
+      "steps": [
+        {
+          "requirement": "R4",
+          "after": [],
+          "condition": null,
+          "next": [
+            "R5"
+          ]
+        },
+        {
+          "requirement": "R5",
+          "after": [
+            "R4"
+          ],
+          "condition": null,
+          "next": []
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "name": "Withdrawal and Repayment Process",
+      "trigger": "withdrawal requested",
+      "participants": [
+        "all_fishers"
+      ],
+      "steps": [
+        {
+          "requirement": "R6",
+          "after": [],
+          "condition": null,
+          "next": [
+            "R7"
+          ]
+        },
+        {
+          "requirement": "R7",
+          "after": [
+            "R6"
+          ],
+          "condition": null,
+          "next": []
+        }
+      ]
+    },
+    {
+      "id": "F3",
+      "name": "Non-Compliance and Task Assignment",
+      "trigger": "third consecutive failure",
+      "participants": [
+        "all_fishers"
+      ],
+      "steps": [
+        {
+          "requirement": "R8",
+          "after": [],
+          "condition": null,
+          "next": [
+            "R9"
+          ]
+        },
+        {
+          "requirement": "R9",
+          "after": [
+            "R8"
+          ],
+          "condition": null,
+          "next": []
+        }
+      ]
+    }
+  ],
+  "source_coverage": [
+    {
+      "source_clause": "Each fisher may keep at most one unit of fish per calendar day.",
+      "requirements": [
+        "R4"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    },
+    {
+      "source_clause": "Any catch beyond that must be deposited into the communal pool.",
+      "requirements": [
+        "R2",
+        "R5"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    },
+    {
+      "source_clause": "The village elder verifies all weights and confirms deposits.",
+      "requirements": [
+        "R1",
+        "R5"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    },
+    {
+      "source_clause": "If a fisher takes fish from the communal pool, they must deposit an equivalent amount from the next catch before the next trip begins.",
+      "requirements": [
+        "R6",
+        "R7"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    }
+  ],
+  "open_critiques": [],
+  "clarifications": [
+    {
+      "clarification_for": null,
+      "affected_requirements": [
+        "R10",
+        "R11"
+      ],
+      "unchanged_requirements": [
+        "R1",
+        "R12",
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R8",
+        "R9"
+      ],
+      "note": "structural fixes: requirement 'R10': type RULE needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R11': type VISIBILITY needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?"
+    }
+  ]
+}

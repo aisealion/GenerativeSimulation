@@ -1,0 +1,25 @@
+{
+  "name": "withdraw_from_pool",
+  "description": "Fisher withdraws fish from communal pool",
+  "protected": false,
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "prompt": {
+    "fields": {
+      "pool_balance": {"from": "object", "object_id": "communal_pool", "field": "balance"}
+    },
+    "template": "The communal pool currently contains {pool_balance} units of fish.\n\nYou have requested to withdraw fish. You can choose to withdraw a specified amount or cancel the withdrawal.\n\nRespond with ONLY this JSON object, nothing else:\n{\"amount_withdrawn\": number}\n"
+  },
+  "execution": {
+    "handler": "generic_agent_decision"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "description": "Communal Pool: tracks fish held for redistribution.",
+  "persistent": true,
+  "purpose": "Hold excess catch for redistribution",
+  "read_by": ["village_elder", "fisher"],
+  "written_by": ["village_elder", "fisher"]
+}

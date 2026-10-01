@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "type": "communal_pool",
+    "id": "communal_pool",
+    "properties": {
+      "balance": 0
+    }
+  },
+  {
+    "type": "communal_ledger",
+    "id": "communal_ledger",
+    "properties": {
+      "transactions": [],
+      "compliance_history": []
+    }
+  }
+]
