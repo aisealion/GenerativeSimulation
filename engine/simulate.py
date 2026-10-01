@@ -3087,40 +3087,25 @@ def _render_requirement_status_block(evidence, flagged_by_auditor=None, compile_
     )
 
 
-def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_attempts, what_was_found, session_is_fresh, repair_history):
+def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_attempts, what_was_found, repair_history):
     """Shared preamble for both repair-message shapes below (a
     compile/validation error, an auditor NEEDS_REPAIR finding — `repair_kind`
     is `"compile"` or `"audit"`, each with its OWN attempt count and budget
     since 2026-09-27, see MAX_NORM_COMPILE_REPAIR_ATTEMPTS/
     MAX_NORM_AUDIT_REPAIR_ATTEMPTS's own comments for why). Says which kind
-    of repair this is and which attempt against ITS OWN budget, whether
-    THIS specific attempt has real session memory or not, and a compact
-    orchestrator-recorded history of every earlier attempt this round
-    either way — plus that the check which caught this only reports the
-    FIRST category of problem it finds, so fixing exactly the named error
-    and stopping there isn't enough.
+    of repair this is and which attempt against ITS OWN budget, and a
+    compact orchestrator-recorded history of every earlier attempt this
+    round — plus that the check which caught this only reports the FIRST
+    category of problem it finds, so fixing exactly the named error and
+    stopping there isn't enough.
 
-    2026-09-25: session continuation across the whole repair loop
-    (2026-09-24) was narrowed to paired attempts (1&2 share a session,
-    3&4 share a new one, ...) after a real round (round 1,
-    sim/run-20260925-080825) showed a session kept alive across many
-    consecutive repairs degrading partway through: attempts 0-3 did real,
-    shrinking-but-genuine tool work; attempt 4 dropped to a single real
-    tool call; attempts 5-10 made ZERO real tool calls and instead wrote
-    OUT fabricated `[Assistant tool call]: shell(...)` / `[Tool result]:
-    ...` text — a hallucinated verification, not a real one — while still
-    self-reporting full success. That's a different, subtler failure mode
-    than the unbounded-growth crash that got the original 2026-09-15
-    attempt reverted (that one failed to respond at all; this one
-    responded fine, cheaply, and increasingly dishonestly). Pairing at 2
-    keeps a session alive long enough to avoid the original problem this
-    was built for (repeating an already-failed wrong guess — see round 3
-    of sim/run-20260924-005713) while staying well under where this
-    degradation actually started. `session_is_fresh=True` attempts (a new
-    pair starting) have zero real session memory, so `repair_history` —
-    a plain list of one-line summaries the orchestrator itself recorded,
-    not the model's own claims — is what carries continuity across a
-    pair boundary instead.
+    Every repair call is a fresh session with zero real memory of its own
+    (2026-10-02 — see implement_and_evaluate_norm()'s own docstring for
+    the two session-growth incidents, a pairing compromise, and finally
+    removing continuation entirely); `repair_history` — a plain list of
+    one-line summaries the orchestrator itself recorded, not the model's
+    own claims — is what carries continuity across every attempt now,
+    not session memory at all.
 
     2026-09-30: also points at `tests/norm_checks/round_{N}/attempt_log.json`
     — a file norm-engineer itself reads and appends to, entirely outside
@@ -3134,16 +3119,10 @@ def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_att
     discarding early — that made a stuck loop fail faster, not succeed
     more often, which wasn't actually the goal."""
     session_note = (
-        "This is a FRESH session — you have no memory of any earlier attempt on this round. "
+        "This is a FRESH session — you have no memory of any earlier attempt on this round, "
+        "and nothing from your own previous turns carries forward within this one either. "
         "The history below is the orchestrator's own record of what happened; it's the only "
         "continuity you have, so read it carefully."
-        if session_is_fresh else
-        "This continues your immediately previous attempt's own session — you have real "
-        "memory of what you just tried. Before repeating a fix, check whether you already "
-        "tried something similar last turn and it didn't work; if so, figure out why it "
-        "didn't actually take effect (a wrong guess at a path/name/signature, an edit that "
-        "didn't get saved, a check that runs before your change takes effect) rather than "
-        "reapplying the same fix."
     )
     history_block = (
         ("Previous attempts on this round, in order:\n" + "\n".join(repair_history) + "\n\n")
@@ -3297,13 +3276,9 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     norm-architect and norm-auditor are always fresh completion calls (they
     were never opencode sessions in the first place — see their own
     docstrings). norm-engineer's kickoff call is always a fresh session
-    too. Its repair attempts below, though, are PAIRED (2026-09-25) across
-    a single combined attempt count spanning BOTH repair kinds (not
-    per-kind — the pairing exists to bound session lifetime regardless of
-    what kind of repair is happening): repair call 1 & 2 share one
-    session, 3 & 4 share a new one, 5 & 6 a newer one still, and so on —
-    never more than 2 consecutive repair calls in the same session. This
-    landed in two steps:
+    too, and so, as of 2026-10-02, is every one of its repair attempts
+    below — no continuation at all any more, not even paired. History of
+    how this got here, oldest first:
 
     First (2026-09-24, by request): the session was continued across the
     round's ENTIRE repair loop, unbounded within MAX_NORM_REPAIR_ATTEMPTS.
@@ -3337,7 +3312,30 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     session that starts failing at the process level after 2 consecutive
     failures on it — a second, independent safety valve, now redundant
     with the outer pairing in the common case but still real protection
-    if a paired session somehow degrades within its own 2 attempts."""
+    if a paired session somehow degrades within its own 2 attempts.
+
+    Finally (2026-10-02, by request): pairing itself was removed, after
+    round 1 of sim/run-20261001-211932 showed the SAME session-growth
+    failure the 2026-09-25 narrowing was built to bound, just reached a
+    different way: attempt 7 alone (a FRESH pair start) produced 34
+    separate near-identical "I have successfully completed Round 1... "
+    text turns before finishing, and its paired continuation (attempt 8)
+    then timed out completely after 3600s having produced nothing at
+    all. Two attempts — the only ones a pair can ever contain — was
+    already enough for this round's own repetition to build up fatal
+    bloat; there's no smaller non-zero pairing width left to narrow to.
+    Every repair call is now independently fresh, and `repair_history`
+    plus `attempt_log.json` plus the requirement-status checkpoint (all
+    added since the 2026-09-25 pairing decision, none of which existed
+    when "repeating an already-failed guess" was the original problem
+    pairing solved) are what carry continuity across attempts instead —
+    none of them cost context the way a growing session does.
+    `run_norm_engineer_with_retry()`'s own internal process-retry pairing
+    (unchanged, 2026-09-18) is a separate, narrower mechanism — it
+    continues a session only to retry the SAME message after an
+    infrastructure-level failure (timeout, crash, truncation), still
+    capped at 2 consecutive attempts, and isn't implicated in either
+    incident above."""
     _clear_stale_round_checks(round_number)
     architect_ok, norm_plan = run_norm_architect_with_retry(round_number)
     if not architect_ok:
@@ -3363,14 +3361,15 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         )
         return False
 
-    # repair_session_id is threaded in pairs (1&2 share, 3&4 share a new
-    # one, ...) — see this function's own docstring. repair_history is a
-    # plain orchestrator-recorded log (one line per attempt), independent
-    # of session memory, that carries continuity across a pair boundary.
-    # compile_attempt/audit_attempt are each checked against their OWN
-    # budget (2026-09-27); total_attempt only drives session pairing,
-    # which is deliberately kind-agnostic — see docstring above.
-    repair_session_id = None
+    # 2026-10-02: every repair call now starts a brand-new session — no
+    # continuation at all, not even paired (see this function's own
+    # docstring for why the 2026-09-25 pairing compromise is no longer
+    # enough). repair_history (a plain orchestrator-recorded log, one
+    # line per attempt) plus attempt_log.json and the requirement-status
+    # checkpoint are what carry continuity across attempts now, never
+    # session memory. compile_attempt/audit_attempt are each checked
+    # against their OWN budget (2026-09-27); total_attempt no longer
+    # drives anything but repair_history's own attempt numbering.
     repair_history = []
     total_attempt = 0
     compile_attempt = 0
@@ -3439,7 +3438,6 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                   f"errors — sending back for repair ({budget_label} attempt "
                   f"{budget_attempt}/{budget_max}), instead of discarding on the first "
                   f"occurrence.")
-            session_is_fresh = total_attempt % 2 == 1
             # Same requirement-status mechanism audit-repair already uses
             # below (_gather_norm_evidence()/_render_requirement_status_
             # block()), now also surfaced here — a round needing many
@@ -3471,8 +3469,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             repair_message = (
                 _render_engineer_repair_preamble(
                     round_number, "compile", budget_attempt, budget_max,
-                    what_was_found,
-                    session_is_fresh, repair_history,
+                    what_was_found, repair_history,
                 )
                 + "\n\nDon't change anything else about your implementation beyond what's needed "
                 "to fix these specific errors and anything else you find via the self-check "
@@ -3485,11 +3482,9 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             repair_history.append(
                 f"attempt {total_attempt} (compile): {compile_errors[0].splitlines()[0][:200]}"
             )
-            success, discovered_session_id = run_norm_engineer_with_retry(
-                round_number, extra_message=repair_message,
-                session_id=(repair_session_id if not session_is_fresh else None),
+            success, _ = run_norm_engineer_with_retry(
+                round_number, extra_message=repair_message, session_id=None,
             )
-            repair_session_id = discovered_session_id if session_is_fresh else None
             attempt_log_snapshot = _preserve_attempt_log(round_number, attempt_log_snapshot)
             if not success:
                 discard_norm_implementation(
@@ -3535,7 +3530,6 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         print(f"\nRound {round_number}: norm-auditor returned NEEDS_REPAIR — sending back to "
               f"norm-engineer (audit-repair attempt "
               f"{audit_attempt}/{MAX_NORM_AUDIT_REPAIR_ATTEMPTS}).")
-        session_is_fresh = total_attempt % 2 == 1
         audit_evidence = _read_norm_evidence(round_number)
         requirement_status_block = _render_requirement_status_block(
             audit_evidence,
@@ -3551,8 +3545,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         repair_message = (
             _render_engineer_repair_preamble(
                 round_number, "audit", audit_attempt, MAX_NORM_AUDIT_REPAIR_ATTEMPTS,
-                what_was_found,
-                session_is_fresh, repair_history,
+                what_was_found, repair_history,
             )
             + "\n\nIf it's a code/implementation problem (including an under-enforced "
             "requirement — a weaker mechanism than the norm's own text demands), fix the "
@@ -3566,11 +3559,9 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         repair_history.append(
             f"attempt {total_attempt} (audit): {audit['text'].splitlines()[0][:200]}"
         )
-        success, discovered_session_id = run_norm_engineer_with_retry(
-            round_number, extra_message=repair_message,
-            session_id=(repair_session_id if not session_is_fresh else None),
+        success, _ = run_norm_engineer_with_retry(
+            round_number, extra_message=repair_message, session_id=None,
         )
-        repair_session_id = discovered_session_id if session_is_fresh else None
         attempt_log_snapshot = _preserve_attempt_log(round_number, attempt_log_snapshot)
         if not success:
             discard_norm_implementation(

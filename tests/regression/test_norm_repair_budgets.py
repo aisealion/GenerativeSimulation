@@ -184,7 +184,7 @@ def test_repair_preamble_mentions_the_attempt_log_path_for_this_round():
     for repair_kind in ("compile", "audit"):
         message = simulate_module._render_engineer_repair_preamble(
             round_number=7, repair_kind=repair_kind, attempt=2, max_attempts=10,
-            what_was_found="some problem", session_is_fresh=True, repair_history=[],
+            what_was_found="some problem", repair_history=[],
         )
         assert "tests/norm_checks/round_7/attempt_log.json" in message
         assert "Read" in message and "if it exists" in message
@@ -202,7 +202,7 @@ def test_repair_preamble_always_tells_the_agent_to_review_the_whole_implementati
     for repair_kind in ("compile", "audit"):
         message = simulate_module._render_engineer_repair_preamble(
             round_number=1, repair_kind=repair_kind, attempt=1, max_attempts=10,
-            what_was_found="some problem", session_is_fresh=True, repair_history=[],
+            what_was_found="some problem", repair_history=[],
         )
         assert "ENTIRE implementation" in message
         assert "agent_experience" in message
@@ -252,3 +252,31 @@ def test_a_compile_regression_after_the_audit_started_draws_on_the_audit_budget(
     # kickoff, compile repair 1, audit repair 1, then the regression's repair
     assert len(messages) == 4
     assert "regression from audit repair" in messages[3]
+
+
+def test_no_repair_call_ever_reuses_a_previous_repair_calls_session(monkeypatch):
+    # 2026-10-02: sim/run-20261001-211932 round 1 showed pairing (1&2
+    # share a session, 3&4 a new one, ...) wasn't enough — one fresh
+    # attempt alone produced 34 near-identical self-congratulatory text
+    # turns, and its paired continuation then timed out after 3600s
+    # having produced nothing. Every repair call must now be independently
+    # fresh: session_id=None every time, regardless of attempt number or
+    # repair kind, and nothing from one call's own discovered session_id
+    # is ever threaded into the next.
+    _neutralize_checks(monkeypatch, compile_errors=["persistent compile error"])
+    session_ids_passed_in = []
+
+    def _fake_engineer(round_number, extra_message=None, session_id=None):
+        session_ids_passed_in.append(session_id)
+        return True, f"discovered-session-{len(session_ids_passed_in)}"
+
+    monkeypatch.setattr(simulate_module, "run_norm_engineer_with_retry", _fake_engineer)
+    monkeypatch.setattr(simulate_module, "discard_norm_implementation", lambda round_number, errors: None)
+
+    simulate_module.implement_and_evaluate_norm(1, {})
+
+    # kickoff + 10 compile-repair attempts, every one of them session_id=None,
+    # even though each _fake_engineer call "discovers" a new, real session id
+    # that a pairing/threading bug would otherwise carry into the next call.
+    assert len(session_ids_passed_in) == 1 + simulate_module.MAX_NORM_COMPILE_REPAIR_ATTEMPTS
+    assert session_ids_passed_in == [None] * len(session_ids_passed_in)
