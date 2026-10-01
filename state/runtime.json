@@ -1,6 +1,6 @@
 {
-  "round": 2,
-  "stock_kg": 220.80457211904002,
+  "round": 3,
+  "stock_kg": 191.1704013649782,
   "rounds": [
     {
       "agents": {
@@ -871,15 +871,95 @@
       "winning_proposer": "agent_0",
       "round": 2,
       "action": "vote"
+    },
+    {
+      "agents": {
+        "agent_0": {
+          "effort": 0.5,
+          "harvested_kg": 5.520114302976001,
+          "reasoning": "I\u2019ll aim for one unit today, staying within the 2\u2011unit limit and leaving enough fish for the community and future generations.",
+          "note": null,
+          "participated": true
+        },
+        "agent_1": {
+          "effort": 1.0,
+          "harvested_kg": 11.040228605952002,
+          "reasoning": "I\u2019ll go all out this round, taking the single trip and hauling the full two units allowed.  That gives me the extra fish I need to survive while staying within the policy and keeping the ledger clean.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.5,
+          "harvested_kg": 5.520114302976001,
+          "reasoning": "I\u2019ll aim for one unit today \u2013 just enough for my family, staying within the two\u2011unit limit and returning any excess. A moderate effort keeps the lake healthy and avoids a ban.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 1.0,
+          "harvested_kg": 11.040228605952002,
+          "reasoning": "I will go full effort and catch the maximum allowed, taking three units and depositing one to the communal reserve to stay compliant while feeding my family.",
+          "note": null,
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 1.0,
+          "harvested_kg": 11.040228605952002,
+          "reasoning": "I will go full effort today to catch the maximum 2 units permitted; that satisfies my daily need and leaves a surplus for profit.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_before": 220.80457211904002,
+      "stock_kg_after_harvest": 176.643657695232,
+      "stock_kg_after_regrowth": 191.1704013649782,
+      "round": 3,
+      "action": "harvest"
+    },
+    {
+      "proposals": {
+        "agent_0": {
+          "policy": "Each fisher may make one trip per day, catch no more than one unit of fish, and any surplus must be returned to a communal reserve. The daily catch limit should be adjusted quarterly based on the lake\u2019s total stock so that the reserve can maintain a buffer of at least 25% of the lake\u2019s capacity.",
+          "operationalization": "The eldest fisher reviews the ledger at 6\u202fpm, verifies each fisher\u2019s sign\u2011in/out and catch count, and checks that no one exceeds the one\u2011unit limit. Any surplus reported is recorded in the Return column and added to the reserve basket, whose inventory is counted daily. Violations are logged and trigger bans as per the existing schedule, with keys returned after the ban period. The ledger and reserve inventory are displayed on the communal board for transparency.",
+          "reasoning": "The one\u2011unit limit aligns with our community\u2019s goal of sustainability and guarantees each fisher can meet the daily survival need. By adjusting the limit quarterly based on lake stock, we prevent over\u2011exploitation and protect future generations while still allowing each villager to fish responsibly.",
+          "participated": true
+        },
+        "agent_1": {
+          "policy": "Each fisher may take only one trip per day and may catch no more than one unit of fish; any excess caught must be returned to the communal reserve immediately.",
+          "operationalization": "Fisheries will use a net with a built\u2011in counter or numbered slots to record catch. Each fisher signs in at departure and out at return, noting trip count and catch count. The volunteer reviewer checks the ledger at 6\u202fpm, verifies each fisher\u2019s recorded catch against the physical counter, and ensures no fisher logs more than one departure per day or more than one unit. If an over\u2011catch or mismatch is found, the fisher must correct the ledger immediately; a second discrepancy triggers a violation. Violations increase a fisher\u2019s ban period as per the established schedule, keys are withheld, and bans are lifted once the period ends. All ledger entries, violations, and bans are displayed on the communal board, and the reserve basket is counted daily at 6\u202fpm to keep inventory accurate.",
+          "reasoning": "I propose this stricter limit because every villager needs one unit of fish daily to survive, and the lake\u2019s stock is already low after our previous trips. By capping each fisher to one unit, we prevent over\u2011exploitation, ensure a fair share for everyone, and maintain the lake\u2019s long\u2011term sustainability. The existing ledger and ban system will enforce this rule without creating new bureaucracy, keeping the community\u2019s fishing practices transparent and accountable.",
+          "participated": true
+        },
+        "agent_2": {
+          "policy": "All fishers must adhere to the communal policy: one trip per day, no more than two units of fish per trip; any surplus fish must be returned to the communal reserve, all catch must be recorded accurately in the ledger, and violations trigger bans as scheduled.",
+          "operationalization": "Before each departure, fishers sign in with time, trip count, and catch count, using a net or basket with a built\u2011in counter. Upon return, they sign out and leave the physical counter for the volunteer reviewer. At 6\u202fpm, the volunteer reviews the ledger, verifies catch numbers, checks for over\u2011trip or over\u2011catch, and updates the communal board. Violations are recorded and bans enforced by withholding keys; bans end after the stipulated period and the violations counter resets.",
+          "reasoning": "I only need enough fish to feed my family, but I must also protect the lake for everyone. The rules keep the resource sustainable, prevent hoarding, and ensure fairness. By following the policy, I avoid bans, keep my livelihood stable, and help maintain the lake\u2019s health for the whole community.",
+          "participated": true
+        },
+        "agent_3": {
+          "policy": "Each fisher may take no more than two units of fish per trip. Families with more than two members may be granted a one\u2011off exemption for an additional unit if they provide a written note from the community council, and must immediately deposit that unit into the communal reserve.",
+          "operationalization": "At departure, each fisher signs in and records the intended catch. Upon return, the fisher logs the catch in the ledger. The volunteer reviewer checks the ledger and physical counter at 6\u202fpm. If a fisher reports a third unit, the reviewer verifies the returned unit in the communal basket and updates the ledger. Family exemption notes are verified by the council before the trip. Any mismatch triggers a violation per the existing penalty schedule.",
+          "reasoning": "This lets larger families meet their needs while keeping overall catch low, protecting the lake\u2019s stock. The written exemption and immediate return reduce temptation to overfish, and the clear ledger and enforcement keep the system fair and transparent for everyone.",
+          "participated": true
+        },
+        "agent_4": {
+          "policy": "Each fisher may keep up to one unit of fish per day; any fish beyond that must be returned to the communal reserve and shared equally among all villagers for communal use.",
+          "operationalization": "Fisheries sign in at departure and out at return, recording catch. Net counters confirm the amount. If a fisher reports more than one unit, the excess is placed in the reserve basket. The reserve is counted daily at 6pm and its contents are divided equally among the community for meals, trade, or storage.",
+          "reasoning": "Limiting personal catch keeps the lake\u2019s stock higher, ensuring that each of us can meet our daily 1\u2011unit need for many more days. The reserve gives the village a buffer for bad weather or low catch, and the shared equity builds trust so no one is tempted to overfish. This plan protects our immediate income while safeguarding our long\u2011term survival.",
+          "participated": true
+        }
+      },
+      "round": 3,
+      "action": "propose"
     }
   ],
   "objects": {},
   "payoff": {
-    "agent_0": 15.0016,
-    "agent_1": 18.5032,
-    "agent_2": 20.0032,
-    "agent_3": 20.0032,
-    "agent_4": 16.5016
+    "agent_0": 19.521714302976,
+    "agent_1": 28.543428605952002,
+    "agent_2": 24.523314302976,
+    "agent_3": 30.043428605952002,
+    "agent_4": 26.541828605952002
   },
   "dead_agents": []
 }
