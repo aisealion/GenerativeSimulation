@@ -167,7 +167,10 @@ def test_audit_repair_message_lists_satisfied_and_unresolved_requirements(monkey
     assert "R1" in message
     assert "No test evidence at all" in message
     assert "R3" in message
-    assert "Still failing or unproven: R2" in message
+    # R2 is the one the auditor's report names, so it's reported as
+    # auditor-flagged (outranking its own failing test), never "Satisfied".
+    assert "Flagged by the auditor this round" in message
+    assert "R2" in message.split("Flagged by the auditor this round")[1].split("\n")[0]
 
 
 def test_repair_preamble_mentions_the_attempt_log_path_for_this_round():
@@ -210,3 +213,35 @@ def test_compliant_audit_stages_the_round_without_touching_either_repair_budget(
     result = simulate_module.implement_and_evaluate_norm(1, {})
 
     assert result is True
+
+
+def test_a_compile_regression_after_the_audit_started_draws_on_the_audit_budget(monkeypatch):
+    # The exact shape of sim/run-20261001-160838 round 1: the compile
+    # budget is fully spent reaching the auditor, then the audit repair
+    # introduces one compile error. Before, that discarded the round on
+    # the spot; now it's charged to the audit budget and gets fixed.
+    _neutralize_checks(monkeypatch)
+    monkeypatch.setattr(simulate_module, "MAX_NORM_COMPILE_REPAIR_ATTEMPTS", 1)
+    compile_results = iter([["broken before audit"], [], ["regression from audit repair"], []])
+    monkeypatch.setattr(simulate_module, "norm_implementation_compile_errors", lambda: next(compile_results))
+    verdicts = iter([
+        {"result": "NEEDS_REPAIR", "text": "AUDIT_FAILED: R1 is under-enforced."},
+        {"result": "COMPLIANT", "text": "AUDIT_PASSED"},
+    ])
+    monkeypatch.setattr(simulate_module, "run_norm_auditor", lambda round_number: next(verdicts))
+    messages = []
+    monkeypatch.setattr(simulate_module, "run_norm_engineer_with_retry",
+                         lambda round_number, extra_message=None, session_id=None: (messages.append(extra_message) or True, "ses1"))
+    monkeypatch.setattr(simulate_module, "record_institution_changes", lambda round_number: None)
+    monkeypatch.setattr(simulate_module, "stage_norm_implementation", lambda round_number: True)
+    discards = []
+    monkeypatch.setattr(simulate_module, "discard_norm_implementation",
+                         lambda round_number, errors: discards.append(errors))
+
+    result = simulate_module.implement_and_evaluate_norm(1, {})
+
+    assert result is True
+    assert discards == []
+    # kickoff, compile repair 1, audit repair 1, then the regression's repair
+    assert len(messages) == 4
+    assert "regression from audit repair" in messages[3]

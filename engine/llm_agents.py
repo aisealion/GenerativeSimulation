@@ -671,6 +671,12 @@ Two facts about this MAS matter for every requirement:
   agent — no "community", "council", or "elders" that decides as one.
 - A role is held by specific agents, granted at some round and possibly
   ended later. A role existing is not the same as anyone holding it.
+- A fishing trip IS the existing `harvest` action — the one point each
+  round where every fisher decides how hard to fish and the catch comes in.
+  Anything about fishing itself ("barred from fishing", "before the next
+  trip", "deposit from their catch", "exceeds the catch limit") governs
+  `harvest`: attach that RULE to "harvest" (or order an ACTION relative to
+  it), never to some other action that merely happens to be nearby.
 
 Do not invent a new object, action, role, lifecycle event, state
 variable, voting mechanism, or communication mechanism merely because it
@@ -764,7 +770,11 @@ References must have the right type:
   every living fisher. Never a RULE/ACTION/OBJECT id, and never a group
   name like "community" — if a group decides, its members each decide
   individually (a per-agent ACTION) and a RULE combines their decisions.
-- A RULE's `attached_to` is the id of the ACTION it governs.
+- A RULE's `attached_to` is the ACTION it governs: an ACTION requirement
+  id in this plan, or the name of an existing action from the MAS summary
+  (e.g. "harvest"). Attach it where the thing it constrains actually
+  happens — a ban on fishing attaches to "harvest", not to a deposit or
+  withdrawal action.
 
 # 8. Required objects and state
 
@@ -826,6 +836,13 @@ volunteers." Represent separately, whenever the norm specifies them:
 eligibility, volunteering, nomination, selection, assignment, activation,
 duration, replacement/rotation — and only those it specifies.
 
+Every exclusive ROLE carries `assigned_by`: the id(s) of the ACTION/RULE
+that actually grants it to a specific agent. If the norm names who holds
+it ("the village elder is the sole verifier") the assignment is a simple
+RULE granting it to that agent; don't raise a critique asking how the
+holder is chosen when the norm already says. Only when the norm truly
+never says who holds a role is that an AMBIGUOUS clause worth a critique.
+
 # 13. Role-dependent actions
 
 An action available only to a role's current holder has that ROLE as its
@@ -851,11 +868,14 @@ them separately auditable, and connect them through `attached_to`,
 
 # 16. Coverage check
 
-Before finalizing, compare your plan against norm.txt sentence by
-sentence. Every normative clause maps to one or more requirements in
-`source_coverage`: the clause, the requirement ids implementing it, a
-coverage status (COVERED, PARTIAL, AMBIGUOUS), and a note on any missing
-part. Clauses that most often silently disappear:
+Before finalizing, compare your plan against norm.txt clause by clause.
+`source_coverage` has ONE entry per numbered clause of the
+Operationalization (or per sentence, when it isn't numbered) — never one
+entry summarizing several clauses: the clause's own text, the requirement
+ids implementing it, a coverage status (COVERED, PARTIAL, AMBIGUOUS), and a
+note on any missing part. The harness counts the clauses and rejects a
+plan with fewer entries. Mark a clause COVERED only if every distinct step
+it describes has a requirement. Clauses that most often silently disappear:
 - a stated number separate from the mechanism it governs ("at least three
   of the five elders" is not the same as "a majority");
 - how a role's holder is chosen/elected/appointed, separate from the role;
@@ -896,7 +916,7 @@ then.
   "requirements": [
     {
       "id": "R1", "type": "ROLE", "description": "Lake guard: watches the lake for one week at a time.",
-      "exclusive": true, "depends_on": [],
+      "exclusive": true, "assigned_by": ["R4"], "depends_on": [],
       "clarity": "CLEAR", "clarity_critique": null, "clarity_resolution": null,
       "agent_experience": {"knows": ["..."], "decides": [], "may_do": [], "may_not_do": [], "remembers": [], "observes": []}
     },
@@ -1008,7 +1028,8 @@ either key to leave it as it is.
 
 Each requirement object in your output uses the exact same shape as the
 main plan (id/type/description/depends_on/clarity/clarity_critique/
-clarity_resolution plus whichever type-specific fields — exclusive/actor/
+clarity_resolution plus whichever type-specific fields — exclusive/
+assigned_by/actor/
 judgment_required/trigger/decision_context/persistent/purpose/read_by/
 written_by/attached_to/deterministic/condition/effect/target/audience/
 duration_rounds — and an agent_experience block for ROLE/ACTION/RULE/

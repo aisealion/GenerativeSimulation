@@ -274,3 +274,51 @@ def test_the_architect_prompts_own_example_plan_passes_the_validator():
     plan = json.loads(example)
     plan["open_critiques"] = [{"requirement": "R4", "critique_question": "which rotation order?"}]
     assert validate_norm_plan(plan, known_roles={"fisher"}) == []
+
+
+def test_an_exclusive_role_must_say_what_assigns_it():
+    errors = validate_norm_plan(_plan(requirements=[_role("R1", exclusive=True)]))
+    assert any("R1" in e and "assigned_by" in e for e in errors)
+
+    grant = {"id": "R2", "type": "RULE", "description": "grant the role to the elder", "attached_to": "harvest",
+             "agent_experience": {"knows": ["x"], "decides": [], "may_do": [], "may_not_do": [], "remembers": [], "observes": []}}
+    ok = validate_norm_plan(_plan(requirements=[_role("R1", exclusive=True, assigned_by=["R2"]), grant]))
+    assert not any("assigned_by" in e for e in ok)
+
+    bad = validate_norm_plan(_plan(requirements=[_role("R1", exclusive=True, assigned_by=["R1"])]))
+    assert any("assigned_by" in e and "ROLE" in e for e in bad)
+
+
+def test_a_non_exclusive_role_needs_no_assigned_by():
+    assert not any("assigned_by" in e for e in validate_norm_plan(_plan(requirements=[_role("R1", exclusive=False)])))
+
+
+def test_a_rule_may_attach_to_an_existing_action_but_not_an_unknown_one():
+    def rule(attached_to):
+        return {"id": "R2", "type": "RULE", "description": "ban", "attached_to": attached_to,
+                "agent_experience": {"knows": [], "decides": [], "may_do": [], "may_not_do": ["fish"], "remembers": [], "observes": []}}
+    known_actions = {"harvest", "vote"}
+    ok = validate_norm_plan(_plan(requirements=[_role(), rule("harvest")]), known_actions=known_actions)
+    assert not any("attached_to" in e for e in ok)
+    bad = validate_norm_plan(_plan(requirements=[_role(), rule("fishing_trip")]), known_actions=known_actions)
+    assert any("fishing_trip" in e and "harvest" in e for e in bad)
+
+
+def test_source_coverage_needs_an_entry_per_numbered_clause():
+    norm = ("Policy: keep one unit.\n\nOperationalization: 1. Count the catch. 2. Deposit the "
+            "surplus. 3. The elder verifies counts.")
+    errors = validate_norm_plan(_plan(), norm_text=norm)
+    assert any("1 entries" in e and "3 numbered clauses" in e for e in errors)
+
+    plan = _plan()
+    plan["source_coverage"] = [
+        {"source_clause": c, "requirements": ["R1"], "coverage": "COVERED"} for c in ("1", "2", "3")
+    ]
+    assert validate_norm_plan(plan, norm_text=norm) == []
+
+
+def test_source_coverage_falls_back_to_sentences_when_clauses_are_not_numbered():
+    norm = ("Policy: x.\n\nOperationalization: Each fisher counts their own catch. "
+            "Any surplus goes into the communal pool. The elder checks the board nightly.")
+    errors = validate_norm_plan(_plan(), norm_text=norm)
+    assert any("3 sentences" in e for e in errors)

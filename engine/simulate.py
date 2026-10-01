@@ -668,7 +668,7 @@ def _mas_summary():
 VALID_NORM_PLAN_REQUIREMENT_TYPES = {"ROLE", "ACTION", "OBJECT", "RULE", "VISIBILITY", "LIFECYCLE", "UNRESOLVED"}
 
 
-def validate_norm_plan(plan, known_roles=None):
+def validate_norm_plan(plan, known_roles=None, known_actions=None, norm_text=None):
     """The deterministic Harness Validator — pure Python, no LLM call,
     sitting between norm-architect and norm-engineer. Catches structural
     incompleteness (a missing field, a dangling reference) before an
@@ -727,7 +727,8 @@ def validate_norm_plan(plan, known_roles=None):
                 f"fisher actually know/decide/may-do/may-not-do/remember/observe because of this?"
             )
 
-    errors += _norm_plan_reference_errors(plan, requirements, known_roles)
+    errors += _norm_plan_reference_errors(plan, requirements, known_roles, known_actions)
+    errors += _norm_plan_clause_coverage_errors(plan, norm_text)
 
     for i, critique in enumerate(plan.get("open_critiques") or []):
         critique_req = critique.get("requirement")
@@ -752,7 +753,7 @@ NORM_PLAN_BUILTIN_ACTORS = {"all_fishers"}
 NORM_PLAN_COVERAGE_VALUES = {"COVERED", "PARTIAL", "AMBIGUOUS"}
 
 
-def _norm_plan_reference_errors(plan, requirements, known_roles=None):
+def _norm_plan_reference_errors(plan, requirements, known_roles=None, known_actions=None):
     """The cross-reference half of validate_norm_plan(): every place one
     part of the plan names another (actor, attached_to, depends_on, flow
     steps, source_coverage) must point at something real and of the right
@@ -794,13 +795,41 @@ def _norm_plan_reference_errors(plan, requirements, known_roles=None):
                 )
 
         attached_to = req.get("attached_to")
-        if req_type == "RULE" and attached_to and attached_to in id_to_type \
-                and id_to_type[attached_to] != "ACTION":
-            errors.append(
-                f"{label}: \"attached_to\" is {attached_to!r}, which is a "
-                f"{id_to_type[attached_to]} requirement, not an ACTION — a RULE's "
-                f"\"attached_to\" must name the action it governs"
-            )
+        if req_type == "RULE" and attached_to:
+            if attached_to in id_to_type:
+                if id_to_type[attached_to] != "ACTION":
+                    errors.append(
+                        f"{label}: \"attached_to\" is {attached_to!r}, which is a "
+                        f"{id_to_type[attached_to]} requirement, not an ACTION — a RULE's "
+                        f"\"attached_to\" must name the action it governs"
+                    )
+            elif known_actions is not None and attached_to not in known_actions:
+                errors.append(
+                    f"{label}: \"attached_to\" is {attached_to!r}, which is neither an ACTION "
+                    f"requirement id in this plan nor an existing action "
+                    f"({sorted(known_actions)}) — a RULE attaches to the action it governs; "
+                    f"anything about fishing itself (a ban, \"before the next trip\", \"from "
+                    f"their catch\") governs the existing \"harvest\" action"
+                )
+
+        if req_type == "ROLE" and req.get("exclusive"):
+            assigned_by = req.get("assigned_by")
+            if not isinstance(assigned_by, list) or not assigned_by:
+                errors.append(
+                    f"{label}: an exclusive ROLE needs \"assigned_by\" — the requirement id(s) of "
+                    f"the ACTION/RULE that actually grants this role to a specific agent. A role "
+                    f"existing doesn't put anyone in it: without an assignment step, every action "
+                    f"only its holder may take has no participants at all"
+                )
+            else:
+                for ref in assigned_by:
+                    if ref not in id_to_type:
+                        errors.append(f"{label}: \"assigned_by\" names {ref!r}, which isn't a requirement id")
+                    elif id_to_type[ref] not in ("ACTION", "RULE", "LIFECYCLE"):
+                        errors.append(
+                            f"{label}: \"assigned_by\" names {ref!r}, a {id_to_type[ref]} requirement — "
+                            f"only an ACTION, RULE, or LIFECYCLE can grant a role"
+                        )
 
         depends_on = req.get("depends_on", [])
         if not isinstance(depends_on, list):
@@ -872,6 +901,35 @@ def _norm_plan_reference_errors(plan, requirements, known_roles=None):
     return errors
 
 
+def _norm_clause_count(norm_text):
+    """How many separately-coverable clauses norm.txt's Operationalization
+    has: its numbered items when it numbers them (e.g. "1. ... 2. ..."),
+    otherwise its sentences. Returns (count, unit) or (0, None)."""
+    if not norm_text:
+        return 0, None
+    marker = norm_text.find("Operationalization:")
+    body = norm_text[marker + len("Operationalization:"):] if marker >= 0 else norm_text
+    numbered = set(re.findall(r"(?:^|\s)(\d{1,2})[.)]\s", body))
+    if len(numbered) >= 2:
+        return len(numbered), "numbered clauses"
+    sentences = [x for x in re.split(r"(?<=[.!?])\s+", body.strip()) if len(x.split()) >= 4]
+    return len(sentences), "sentences"
+
+
+def _norm_plan_clause_coverage_errors(plan, norm_text):
+    count, unit = _norm_clause_count(norm_text)
+    coverage = plan.get("source_coverage")
+    if not count or not isinstance(coverage, list) or not coverage:
+        return []  # missing/empty coverage is already reported by _norm_plan_reference_errors()
+    if len(coverage) < count:
+        return [
+            f"\"source_coverage\" has {len(coverage)} entries, but norm.txt's Operationalization "
+            f"has {count} {unit} — give each one its own entry (source_clause = that clause's own "
+            f"text), so no clause can be silently folded into a broader one and marked COVERED"
+        ]
+    return []
+
+
 def _norm_plan_dependency_cycle_errors(requirements, id_to_type):
     graph = {
         req.get("id"): [d for d in (req.get("depends_on") or []) if d in id_to_type and d != req.get("id")]
@@ -895,6 +953,14 @@ def _norm_plan_dependency_cycle_errors(requirements, id_to_type):
     for node in graph:
         visit(node, [])
     return errors
+
+
+def _known_institution_actions():
+    institution_path = ROOT / "state" / "institution.json"
+    try:
+        return set(json.loads(institution_path.read_text()).get("actions", {}))
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 def _known_institution_roles():
@@ -1168,7 +1234,8 @@ def run_norm_architect(round_number):
               f"{requirement_id!r}.")
 
     known_roles = _known_institution_roles()
-    validator_errors = validate_norm_plan(plan, known_roles)
+    known_actions = _known_institution_actions()
+    validator_errors = validate_norm_plan(plan, known_roles, known_actions, norm_text)
     # Up to MAX_NORM_STRUCTURAL_FIX_PASSES scoped patch calls, each told
     # exactly what's still wrong. The validator checks reference integrity
     # across depends_on/flows/source_coverage/decision_context now, not
@@ -1200,7 +1267,7 @@ def run_norm_architect(round_number):
                   f"rejected ({reason}) — plan stays as it was.", file=sys.stderr)
             continue
         plan = merged_plan
-        validator_errors = validate_norm_plan(plan, known_roles)
+        validator_errors = validate_norm_plan(plan, known_roles, known_actions, norm_text)
 
     if validator_errors:
         print(f"Round {round_number}: norm-architect's plan is still structurally invalid after "
@@ -1279,8 +1346,11 @@ def render_engineer_kickoff(norm_plan, round_number):
         f"exactly its choices, and the agent's response must carry exactly its output fields.\n"
         f"   - judgment_required: false, or a RULE with deterministic: true, is code — never an "
         f"LLM call. A count, threshold, rotation, tally, or deduction is computed, not asked.\n"
-        f"   - A ROLE is not granted by existing: whichever requirement the flows say assigns "
-        f"it must actually grant it to the selected agent(s), with the round recorded.\n"
+        f"   - A ROLE is not granted by existing: the requirement(s) in its \"assigned_by\" "
+        f"must actually grant it to the selected agent(s) (roles.roles.assign_role), with the "
+        f"round recorded.\n"
+        f"   - A RULE attached to \"harvest\" (or any existing action) goes under that "
+        f"action's own actions/rules/{{action}}/ directory and its config.json rules list.\n"
         f"   - \"source_coverage\" tells you which clause of norm.txt each requirement "
         f"implements — use it when a requirement's own description leaves a detail unclear, "
         f"but never add a mechanism the plan itself doesn't contain.\n\n"
@@ -1769,6 +1839,25 @@ def norm_implementation_runtime_errors():
         "        except Exception as exc:\n"
         "            errors.append(f'actions/rules/{action_name}/ ({type_name}): {type(exc).__name__}: {exc}')\n"
         "\n"
+        "# The real object types and declared instances, not an empty list: an\n"
+        "# action reading a declared object (e.g. a communal pool) must be checked\n"
+        "# against what's actually declared on disk, or it can never pass however\n"
+        "# correct it is.\n"
+        "smoke_object_types = {}\n"
+        "if os.path.isdir('state/object_types'):\n"
+        "    for _type_file in sorted(os.listdir('state/object_types')):\n"
+        "        if not _type_file.endswith('.json'):\n"
+        "            continue\n"
+        "        try:\n"
+        "            _type_spec = json.loads(open(os.path.join('state/object_types', _type_file)).read())\n"
+        "            smoke_object_types[_type_spec['type_name']] = _type_spec\n"
+        "        except Exception:\n"
+        "            pass  # a malformed type file is reported by the object-type check below\n"
+        "try:\n"
+        "    smoke_objects = json.loads(open('state/objects.json').read())\n"
+        "except Exception:\n"
+        "    smoke_objects = []\n"
+        "\n"
         "protected_action_names = {'harvest', 'propose', 'critique', 'vote', 'discuss'}\n"
         "institution = json.loads(open('state/institution.json').read())\n"
         "for json_file in sorted(os.listdir('state/actions')):\n"
@@ -1834,15 +1923,33 @@ def norm_implementation_runtime_errors():
         "            'config': {}, 'fluents': smoke_fluents,\n"
         "            'runtime': {'stock_kg': 200.0, 'rounds': [], 'objects': {}, 'payoff': {}},\n"
         "            'agents': {'agent_0': {'name': 'Smoke0', 'personality_traits': ''}},\n"
-        "            'object_types': {}, 'objects': [], 'round_number': 1,\n"
+        "            'object_types': smoke_object_types, 'objects': smoke_objects, 'round_number': 1,\n"
         "        }\n"
         "        try:\n"
         "            handler_ctx = ActionContext.build(spec, handler_smoke_state, 1)\n"
         "            handler_fn(handler_ctx)\n"
         "        except Exception as handler_exc:\n"
+        "            per_agent_hint = ''\n"
+        "            _fields_spec = (spec.get('prompt') or {}).get('fields')\n"
+        "            if spec['execution']['handler'] == 'generic_agent_decision' and isinstance(handler_exc, KeyError) \\\n"
+        "                    and isinstance(_fields_spec, dict):\n"
+        "                _state_fields = sorted(name for name, f in _fields_spec.items()\n"
+        "                                       if isinstance(f, dict) and f.get('from') == 'state')\n"
+        "                if _state_fields:\n"
+        "                    per_agent_hint = (\n"
+        "                        f\" Most likely cause: prompt field(s) {_state_fields} use \"\n"
+        "                        f\"{{'from': 'state', 'path': ...}}, which reads ONE GLOBAL path in the \"\n"
+        "                        f\"round state (top-level keys: config, fluents, events, runtime, agents, \"\n"
+        "                        f\"object_types, objects, round_number -- e.g. 'runtime.stock_kg'). It can \"\n"
+        "                        f\"never reach a per-agent value such as this fisher's own catch, debt, or \"\n"
+        "                        f\"ban status, and no path spelling will fix that. For a per-agent value, \"\n"
+        "                        f\"write a custom actions/handlers/{stem}.py whose build_fields(agent_id) \"\n"
+        "                        f\"computes it (see per_agent_decision), and point execution.handler at it -- \"\n"
+        "                        f\"never delete the field from the prompt to make this check pass.\"\n"
+        "                    )\n"
         "            raise ValueError(\n"
         "                f\"actually running {spec['execution']['handler']!r} for {stem!r} failed — \"\n"
-        "                f\"{type(handler_exc).__name__}: {handler_exc}. If this is a custom \"\n"
+        "                f\"{type(handler_exc).__name__}: {handler_exc}.{per_agent_hint} If this is a custom \"\n"
         "                f\"actions/handlers/{stem}.py, check it only uses ActionContext's real \"\n"
         "                f\"attributes (.spec, .state, .round_number, .participants, .agents, \"\n"
         "                f\".events, .objects, .rules) — never invented ones like .action_spec or \"\n"
@@ -1978,6 +2085,121 @@ def norm_implementation_protected_path_violations():
     if not touched:
         return []
     return [f"norm-engineer touched protected path(s), never allowed:\n{touched}"]
+
+
+# Pyright diagnostics that mean the code cannot work as written — a module
+# that doesn't exist, a name imported from a module that doesn't define it,
+# an attribute a class/module doesn't have, an undefined name. Deliberately
+# NOT the type-strictness rules (Optional member access, argument types...):
+# those are judgment calls on LLM-written code and would block rounds over
+# style, the same false-positive cost every other check here is built to avoid.
+PYRIGHT_BLOCKING_RULES = {
+    "reportMissingImports",
+    "reportAttributeAccessIssue",
+    "reportUndefinedVariable",
+}
+
+
+def _changed_norm_python_files():
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all", "--", "actions", "objects"],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    files = []
+    for line in result.stdout.splitlines():
+        path = line[3:].split(" -> ")[-1].strip().strip('"')
+        if path.endswith(".py") and (ROOT / path).is_file():
+            files.append(path)
+    return sorted(files)
+
+
+def _pyright_blocking_errors(py_files):
+    if not py_files or shutil.which("pyright") is None:
+        return []
+    try:
+        result = subprocess.run(
+            ["pyright", "--outputjson", *py_files],
+            cwd=ROOT, capture_output=True, text=True, timeout=300,
+        )
+        report = json.loads(result.stdout)
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
+        return []  # pyright itself misbehaving is never worth failing a round over
+    errors = []
+    for diag in report.get("generalDiagnostics", []):
+        if diag.get("severity") != "error" or diag.get("rule") not in PYRIGHT_BLOCKING_RULES:
+            continue
+        try:
+            rel = Path(diag["file"]).resolve().relative_to(ROOT.resolve())
+        except (KeyError, ValueError):
+            rel = diag.get("file")
+        line = (diag.get("range") or {}).get("start", {}).get("line", -1) + 1
+        errors.append(f"{rel}:{line}: {diag.get('message', '').strip()} ({diag.get('rule')})")
+    return errors
+
+
+def norm_implementation_type_errors():
+    """Pyright over every .py file this round changed under actions/ and
+    objects/, failing only on PYRIGHT_BLOCKING_RULES. A real round's final
+    repair imported set_fact/get_fact from engine.institution (they live in
+    roles.roles; get_fact doesn't exist at all); norm-engineer ran pyright
+    itself, got exactly those errors back, then ran py_compile (which can't
+    see imports), saw it pass, and finished — and the round was discarded.
+    Running it here makes the result binding instead of advisory. Degrades
+    to no check at all if pyright isn't installed."""
+    errors = _pyright_blocking_errors(_changed_norm_python_files())
+    if not errors:
+        return []
+    return [
+        "pyright (static check of the files you changed — py_compile cannot catch these; "
+        "each one fails the moment the module is imported or the line runs):\n"
+        + "\n".join(errors)
+        + "\nLook up the real module/name before fixing — e.g. role and fact primitives "
+        "(assign_role, set_fact, end_fact) live in roles.roles, not engine.institution."
+    ]
+
+
+def norm_implementation_schedule_errors():
+    """Every new action's own scheduling block must be something the live
+    round loop can actually run: "gate" must be "true", "false", or
+    "holdsAt(<fluent>)" (evaluate_gate()'s whole grammar), and
+    "after"/"before" must name an existing action or be null. A real
+    round wrote ordering into the gate ("gate": "after harvest") — nothing
+    before commit evaluates a gate, so that would have passed every check
+    and then crashed the whole simulation with a ValueError the first
+    time run_cycle() reached it next round."""
+    actions_dir = ROOT / "state" / "actions"
+    if not actions_dir.is_dir():
+        return []
+    action_names = {p.stem for p in actions_dir.glob("*.json")}
+    protected_action_names = {"harvest", "propose", "critique", "vote", "discuss"}
+    errors = []
+    for spec_path in sorted(actions_dir.glob("*.json")):
+        if spec_path.stem in protected_action_names:
+            continue
+        try:
+            scheduling = json.loads(spec_path.read_text()).get("scheduling") or {}
+        except json.JSONDecodeError:
+            continue  # reported by norm_implementation_compile_errors()
+        label = f"state/actions/{spec_path.name}"
+        gate = scheduling.get("gate", "true")
+        try:
+            evaluate_gate(str(gate), [], 1)
+        except ValueError:
+            errors.append(
+                f"{label}: scheduling.gate is {gate!r} — a gate only says WHETHER the action "
+                f"runs this round, and must be exactly \"true\", \"false\", or "
+                f"\"holdsAt(<fluent_name>)\". Ordering (\"after harvest\", \"before the next "
+                f"trip\") goes in scheduling.after / scheduling.before as an action name, never "
+                f"in the gate — the live round loop raises on any other gate string."
+            )
+        for key in ("after", "before"):
+            ref = scheduling.get(key)
+            if ref is not None and ref not in action_names:
+                errors.append(
+                    f"{label}: scheduling.{key} is {ref!r}, which isn't an existing action — it "
+                    f"must be the name of an action in state/actions/ (e.g. \"harvest\") or null"
+                )
+    return errors
 
 
 def norm_implementation_institution_errors():
@@ -2619,7 +2841,21 @@ def _read_norm_evidence(round_number):
         return {}
 
 
-def _render_requirement_status_block(evidence):
+def _audit_flagged_requirement_ids(audit_text, known_ids):
+    """Requirement ids the auditor actually ruled against: those named on
+    its closing AUDIT_FAILED verdict line when there is one (the body often
+    mentions passing requirements too, in passing), else every known id the
+    report names anywhere."""
+    known_ids = set(known_ids)
+    verdict_at = audit_text.rfind("AUDIT_FAILED")
+    scope = audit_text[verdict_at:] if verdict_at >= 0 else audit_text
+    flagged = set(re.findall(r"\bR\d+\b", scope)) & known_ids
+    if not flagged and verdict_at >= 0:
+        flagged = set(re.findall(r"\bR\d+\b", audit_text)) & known_ids
+    return flagged
+
+
+def _render_requirement_status_block(evidence, flagged_by_auditor=None):
     """Classifies each requirement id in `evidence` (see _read_norm_evidence()
     above) into satisfied / no-evidence / unresolved, and renders a short
     block naming each — folded into the audit-repair message so
@@ -2630,8 +2866,11 @@ def _render_requirement_status_block(evidence):
     and what's still actually open, instead of re-deriving all of this
     itself from scratch on every attempt. Returns "" if there's nothing
     to say (no evidence at all, e.g. before the very first audit)."""
+    flagged_by_auditor = set(flagged_by_auditor or ())
     satisfied, no_evidence, unresolved = [], [], []
     for req_id, claims in evidence.items():
+        if req_id in flagged_by_auditor:
+            continue
         if not claims:
             no_evidence.append(req_id)
         elif all("file was ever written" in claim for claim in claims):
@@ -2642,6 +2881,12 @@ def _render_requirement_status_block(evidence):
             satisfied.append(req_id)
 
     lines = []
+    if flagged_by_auditor:
+        lines.append(
+            f"Flagged by the auditor this round — NOT satisfied, even though their own tests "
+            f"pass (the tests evidently don't cover what the auditor found missing): "
+            f"{', '.join(sorted(flagged_by_auditor))}"
+        )
     if satisfied:
         lines.append(
             f"Satisfied — preserve these, do not touch their implementation or tests: "
@@ -2900,6 +3145,15 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     total_attempt = 0
     compile_attempt = 0
     audit_attempt = 0
+    # Once norm-auditor has run, the implementation already passed every
+    # compile-class check once; a compile error after that is a regression
+    # introduced while fixing an audit finding, so it's charged to the audit
+    # budget (it's part of that repair), not to the compile budget. A real
+    # round spent all 10 compile attempts reaching the auditor, then its
+    # first audit repair introduced one bad import — and with the compile
+    # budget already at 10/10 the round was discarded on the spot, with no
+    # chance to fix a one-line mistake.
+    audit_started = False
     while True:
         total_attempt += 1
         # Silently undo any drift to a protected path before checking —
@@ -2914,7 +3168,9 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             return False
 
         compile_errors = norm_implementation_compile_errors()
+        compile_errors += norm_implementation_type_errors()
         compile_errors += norm_implementation_institution_errors()
+        compile_errors += norm_implementation_schedule_errors()
         compile_errors += norm_implementation_orphaned_norm_errors()
         compile_errors += norm_implementation_missing_spec_errors(round_number)
         if not compile_errors:
@@ -2933,15 +3189,22 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             if runtime_error:
                 compile_errors = [runtime_error]
         if compile_errors:
-            compile_attempt += 1
-            if compile_attempt > MAX_NORM_COMPILE_REPAIR_ATTEMPTS:
+            if audit_started:
+                audit_attempt += 1
+                budget_attempt, budget_max = audit_attempt, MAX_NORM_AUDIT_REPAIR_ATTEMPTS
+                budget_label = "audit-repair (a regression introduced while fixing an audit finding)"
+            else:
+                compile_attempt += 1
+                budget_attempt, budget_max = compile_attempt, MAX_NORM_COMPILE_REPAIR_ATTEMPTS
+                budget_label = "compile-repair"
+            if budget_attempt > budget_max:
                 discard_norm_implementation(round_number, compile_errors)
                 return False
 
             print(f"\nRound {round_number}: norm-engineer's changes have compile/validation "
-                  f"errors — sending back for repair (compile-repair attempt "
-                  f"{compile_attempt}/{MAX_NORM_COMPILE_REPAIR_ATTEMPTS}), instead of discarding "
-                  f"on the first occurrence.")
+                  f"errors — sending back for repair ({budget_label} attempt "
+                  f"{budget_attempt}/{budget_max}), instead of discarding on the first "
+                  f"occurrence.")
             session_is_fresh = total_attempt % 2 == 1
             # Same requirement-status mechanism audit-repair already uses
             # below (_gather_norm_evidence()/_render_requirement_status_
@@ -2973,7 +3236,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 )
             repair_message = (
                 _render_engineer_repair_preamble(
-                    round_number, "compile", compile_attempt, MAX_NORM_COMPILE_REPAIR_ATTEMPTS,
+                    round_number, "compile", budget_attempt, budget_max,
                     what_was_found,
                     session_is_fresh, repair_history,
                 )
@@ -3009,6 +3272,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         # the same place call_fisher_agent's/call_critique_agent's retry
         # loops already live, since it's a plain completion call now, not
         # an opencode subprocess this function drove its own retries around.
+        audit_started = True
         audit = run_norm_auditor(round_number)
         if audit is None:
             discard_norm_implementation(
@@ -3037,8 +3301,10 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
               f"norm-engineer (audit-repair attempt "
               f"{audit_attempt}/{MAX_NORM_AUDIT_REPAIR_ATTEMPTS}).")
         session_is_fresh = total_attempt % 2 == 1
+        audit_evidence = _read_norm_evidence(round_number)
         requirement_status_block = _render_requirement_status_block(
-            _read_norm_evidence(round_number)
+            audit_evidence,
+            flagged_by_auditor=_audit_flagged_requirement_ids(audit["text"], audit_evidence),
         )
         what_was_found = (
             f"Round {round_number}'s auditor found problems — read its full report below "
