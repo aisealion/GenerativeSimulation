@@ -1,4 +1,8 @@
 def role_holder(role_name, agent_id, fluents, round_number):
+    """Does agent_id itself currently hold role_name? The record if so,
+    else None — what a fisher's own persona check needs ("do I hold
+    this role right now"), as opposed to current_holder() below, which
+    answers "who holds it" without already knowing who to ask."""
     for record in fluents:
         if (
             record["fluent"] == role_name

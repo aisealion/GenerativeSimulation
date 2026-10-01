@@ -113,12 +113,18 @@ class ObjectRuntime:
         self, object_id: str, field: str, amount: float, by_agent_id: Optional[str] = None,
         narration: Optional[str] = None,
     ) -> Any:
+        """Adds `amount` to `field` (must be WRITE-permitted for
+        by_agent_id). Returns the field's new value."""
         return self._add(object_id, field, amount, "deposit", by_agent_id, narration)
 
     def withdraw(
         self, object_id: str, field: str, amount: float, by_agent_id: Optional[str] = None,
         narration: Optional[str] = None,
     ) -> Any:
+        """deposit()'s own mirror — subtracts `amount` instead. Nothing
+        stops this from taking a field negative; a rule/handler that
+        needs a floor (never withdraw more than the balance) checks that
+        itself before calling this."""
         return self._add(object_id, field, -amount, "withdraw", by_agent_id, narration)
 
     def _add(
@@ -137,6 +143,9 @@ class ObjectRuntime:
         self, object_id: str, field: str, value: Any, by_agent_id: Optional[str] = None,
         narration: Optional[str] = None,
     ) -> Any:
+        """Overwrites `field` outright (WRITE-permitted) — for a value
+        that isn't a running total (a status, a flag), where deposit()/
+        withdraw()'s add-a-delta shape doesn't fit."""
         declaration = self._declaration(object_id)
         spec = self._spec(declaration)
         self._check_permission(object_id, spec, OPERATION_PERMISSION["set"], by_agent_id)
@@ -149,6 +158,9 @@ class ObjectRuntime:
         self, object_id: str, field: str, value: Any, by_agent_id: Optional[str] = None,
         narration: Optional[str] = None,
     ) -> Any:
+        """Appends `value` to `field` (APPEND-permitted) — for a log/
+        ledger field that's a growing list, not a single number.
+        Creates the list on first use if the field has no default."""
         declaration = self._declaration(object_id)
         spec = self._spec(declaration)
         self._check_permission(object_id, spec, OPERATION_PERMISSION["append"], by_agent_id)

@@ -24,6 +24,12 @@ from engine.institution.context import ActionContext
 
 
 def generic_agent_decision(ctx: ActionContext) -> dict:
+    """The Level-2 handler itself — `execution.handler:
+    "generic_agent_decision"` in a spec routes here. Builds each agent's
+    prompt fields from `spec["prompt"]["fields"]` (_resolve_field()
+    below), records their raw response (optionally renamed via
+    `spec["outputs"]["fields"]`), and lets per_agent_decision() apply
+    eligibility/rule hooks the same as any hand-written handler."""
     spec = ctx.spec
     outputs = spec.get("outputs", {})
     per_agent_key = outputs.get("per_agent_key", "agents")
@@ -44,6 +50,12 @@ def generic_agent_decision(ctx: ActionContext) -> dict:
 
 
 def _resolve_field(field_spec: dict, ctx: ActionContext, agent_id: str) -> Any:
+    """One entry of spec["prompt"]["fields"] — exactly the three shapes
+    action-contract.md documents: {"literal": v}, {"from": "state",
+    "path": "a.b.c"}, or {"from": "object", "object_id": ..., "field":
+    ...}. No per-agent state lookup exists here (a "from": "state" path
+    is one global value every agent gets the same answer to) — a
+    genuinely per-agent value needs a custom handler instead."""
     if "literal" in field_spec:
         return field_spec["literal"]
     source = field_spec.get("from")
