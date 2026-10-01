@@ -673,8 +673,8 @@ Two facts about this MAS matter for every requirement:
   ended later. A role existing is not the same as anyone holding it.
 - A fishing trip IS the existing `harvest` action — the one point each
   round where every fisher decides how hard to fish and the catch comes in.
-  Anything about fishing itself ("barred from fishing", "before the next
-  trip", "deposit from their catch", "exceeds the catch limit") governs
+  Anything about fishing itself (being barred from fishing, something due
+  before the next trip, something taken out of a catch) governs
   `harvest`: attach that RULE to "harvest" (or order an ACTION relative to
   it), never to some other action that merely happens to be nearby.
 
@@ -773,8 +773,8 @@ References must have the right type:
 - A RULE's `attached_to` is the ACTION it governs: an ACTION requirement
   id in this plan, or the name of an existing action from the MAS summary
   (e.g. "harvest"). Attach it where the thing it constrains actually
-  happens — a ban on fishing attaches to "harvest", not to a deposit or
-  withdrawal action.
+  happens — a ban on fishing attaches to "harvest", not to whichever other
+  action the norm happens to mention in the same sentence.
 
 # 8. Required objects and state
 
@@ -838,7 +838,7 @@ duration, replacement/rotation — and only those it specifies.
 
 Every exclusive ROLE carries `assigned_by`: the id(s) of the ACTION/RULE
 that actually grants it to a specific agent. If the norm names who holds
-it ("the village elder is the sole verifier") the assignment is a simple
+it (a named office or person the norm says holds the role) the assignment is a simple
 RULE granting it to that agent; don't raise a critique asking how the
 holder is chosen when the norm already says. Only when the norm truly
 never says who holds a role is that an AMBIGUOUS clause worth a critique.

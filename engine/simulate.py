@@ -1840,7 +1840,7 @@ def norm_implementation_runtime_errors():
         "            errors.append(f'actions/rules/{action_name}/ ({type_name}): {type(exc).__name__}: {exc}')\n"
         "\n"
         "# The real object types and declared instances, not an empty list: an\n"
-        "# action reading a declared object (e.g. a communal pool) must be checked\n"
+        "# action reading a declared object must be checked\n"
         "# against what's actually declared on disk, or it can never pass however\n"
         "# correct it is.\n"
         "smoke_object_types = {}\n"
