@@ -17,14 +17,41 @@ import engine.simulate as simulate_module
 REPO = simulate_module.ROOT
 
 
+PROTECTED_ACTION_NAMES = {"harvest", "propose", "critique", "vote", "discuss"}
+
+
 def _repo_copy(tmp_path):
     """The runtime smoke test runs a subprocess with cwd=ROOT that imports
     the real engine/actions/roles packages, so it can only be exercised
-    against a full copy of them — never by monkeypatching ROOT alone."""
+    against a full copy of them — never by monkeypatching ROOT alone.
+    Whatever branch happens to be checked out may have its own committed
+    rounds' custom actions/objects sitting in state/ — this strips those
+    back to the 5 protected actions so each test starts from the same
+    baseline regardless, then adds only what it declares itself."""
     for name in ("engine", "actions", "roles", "objects", "state", "constants", "prompts"):
         src = REPO / name
         if src.is_dir():
             shutil.copytree(src, tmp_path / name, ignore=shutil.ignore_patterns("__pycache__"))
+    for extra in (tmp_path / "state" / "actions").glob("*.json"):
+        if extra.stem not in PROTECTED_ACTION_NAMES:
+            extra.unlink()
+    for extra_dir in ("object_types",):
+        for extra in (tmp_path / "state" / extra_dir).glob("*.json"):
+            extra.unlink()
+    objects_json = tmp_path / "state" / "objects.json"
+    if objects_json.is_file():
+        objects_json.write_text("[]")
+    institution_path = tmp_path / "state" / "institution.json"
+    institution = json.loads(institution_path.read_text())
+    institution["actions"] = {
+        name: entry for name, entry in institution.get("actions", {}).items()
+        if name in PROTECTED_ACTION_NAMES
+    }
+    institution["object_types"] = {}
+    institution_path.write_text(json.dumps(institution))
+    for extra in (tmp_path / "actions" / "rules").glob("*"):
+        if extra.is_dir() and extra.name not in PROTECTED_ACTION_NAMES:
+            shutil.rmtree(extra)
     return tmp_path
 
 

@@ -881,8 +881,18 @@ it describes has a requirement. Clauses that most often silently disappear:
 - how a role's holder is chosen/elected/appointed, separate from the role;
 - a periodic or scheduled duty;
 - a penalty's full chain — trigger, application, deduction — not only who
-  sets its amount.
-Never return a plan in which a normative clause has silently vanished.
+  sets its amount. If the norm leaves the amount or the choice of penalty
+  itself to a decision (an elder decides, the community decides) rather
+  than stating it, the requirement for THAT decision is what's missing —
+  never invent a specific number or outcome to stand in for it. An
+  ACTION if whoever decides is exercising real judgment, otherwise mark
+  it AMBIGUOUS with a critique asking what the decision actually turns
+  on; see section 19's own R7 for the shape this takes.
+Never return a plan in which a normative clause has silently vanished,
+and never fabricate a number, duration, or outcome the norm itself never
+stated just so every field looks filled in — an unspecified mechanism is
+a requirement with "clarity": "AMBIGUOUS" and null type-specific fields,
+not a guess.
 
 # 17. Validate before returning
 
@@ -952,8 +962,19 @@ then.
       "agent_experience": {"knows": [], "decides": [], "may_do": [], "may_not_do": [], "remembers": [], "observes": ["..."]}
     },
     {
-      "id": "R6", "type": "LIFECYCLE", "description": "...", "duration_rounds": 7, "depends_on": ["R1"],
+      "id": "R6", "type": "LIFECYCLE", "description": "...",
+      "duration_rounds": "<N — the exact number norm.txt states for this; never copy this placeholder>",
+      "depends_on": ["R1"],
       "clarity": "CLEAR", "clarity_critique": null, "clarity_resolution": null
+    },
+    {
+      "id": "R7", "type": "RULE", "description": "Apply whatever sanction the community decides on for refusing R3.",
+      "attached_to": "R3", "deterministic": true, "depends_on": ["R3"],
+      "condition": null, "effect": null,
+      "clarity": "AMBIGUOUS",
+      "clarity_critique": "norm.txt says the community may impose a fine or extra work, without saying which, by how much, or who decides between them for a given case — any specific amount or choice here would be invented, not extracted.",
+      "clarity_resolution": null,
+      "agent_experience": {"knows": [], "decides": [], "may_do": [], "may_not_do": [], "remembers": [], "observes": []}
     }
   ],
   "flows": [
@@ -971,10 +992,16 @@ then.
      "requirements": ["R1", "R2", "R3", "R4", "R6"], "coverage": "COVERED", "note": null}
   ],
   "open_critiques": [
-    {"requirement": "R4", "critique_question": "..."}
+    {"requirement": "R4", "critique_question": "..."},
+    {"requirement": "R7", "critique_question": "The norm allows a fine or extra work for refusing to deposit surplus, but doesn't say which applies when, or who chooses — which governs, and on what basis?"}
   ]
 }
 ```
+R7 above is deliberately left with no condition/effect and AMBIGUOUS clarity — a RULE (or
+ACTION, if whoever decides is exercising real judgment) you can't yet specify is still a
+requirement in your output, not something to skip or to fill with a plausible-sounding
+number so every field looks populated. `condition`/`effect` (or any other type-specific
+field) are `null` until an answered critique actually settles them.
 
 The block must be strict JSON: no // or /* */ comments, no trailing
 commas, every key and string in double quotes. Put any remark in a

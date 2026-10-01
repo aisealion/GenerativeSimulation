@@ -1,9 +1,9 @@
 {
   "name": "critique",
-  "description": "each proposal is refined through a bounded critique-and-revise dialogue before the vote",
+  "description": "would refine each proposal through a bounded critique-and-revise dialogue before the vote — disabled by default (2026-10-02, by request): norm-architect's own targeted critique of the winning proposal (ask_norm_proposer(), gated by NORM_ARCHITECT_CRITIQUES_ENABLED in engine/simulate.py) replaces this, asking only about whatever it actually finds ambiguous or missing, instead of running every proposal through a full fisher-to-fisher dialogue regardless of whether it needs one. vote.py's proposals_for_round() already falls back to propose's own record when this is gated off, so re-enabling it needs no other change.",
   "protected": true,
   "scheduling": {
-    "gate": "true",
+    "gate": "false",
     "after": "propose",
     "before": null
   },
