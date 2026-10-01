@@ -1,0 +1,22 @@
+{
+  "name": "verify_community_service",
+  "description": "Guard signs off on community service completion",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "lake_guard"
+  },
+  "roles": {
+    "actor_role": "lake_guard"
+  },
+  "execution": {
+    "handler": "verify_community_service"
+  },
+  "prompt": {
+    "template": "You are acting as the lake guard. Please sign off on the completion of community service by the assigned fisher.\n\nVerify that community service has been completed properly.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"service_completed\": true, \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}

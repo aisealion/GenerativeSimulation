@@ -1,0 +1,65 @@
+{
+  "R1": [
+    "acceptance test test_R1_compliant_decision: PASS",
+    "acceptance test test_R1_non_compliant_record: PASS"
+  ],
+  "R2": [
+    "acceptance test test_R2_clerk_eligibility_criteria: PASS",
+    "acceptance test test_R2_clerk_selection_from_qualified_pool: PASS",
+    "acceptance test test_R2_guard_selection_with_volunteers: PASS"
+  ],
+  "R3": [
+    "acceptance test test_R3_clerk_draws_guard: PASS"
+  ],
+  "R4": [
+    "acceptance test test_R4_guard_cooldown_enforcement: PASS"
+  ],
+  "R5": [
+    "acceptance test test_R5_guard_daily_check: PASS"
+  ],
+  "R6": [
+    "acceptance test test_R6_guard_confiscates_violations: PASS"
+  ],
+  "R7": [
+    "acceptance test test_R7_guard_weekly_review: PASS"
+  ],
+  "R8": [
+    "acceptance test test_R8_community_service: PASS"
+  ],
+  "R9": [
+    "acceptance test test_R9_guard_identifies_lowest: PASS"
+  ],
+  "R10": [
+    "acceptance test test_R10_tie_breaking: PASS"
+  ],
+  "R11": [
+    "acceptance test test_R11_guard_records_ban: PASS"
+  ],
+  "R12": [
+    "acceptance test test_R12_ban_duration: PASS"
+  ],
+  "R13": [
+    "acceptance test test_R13_fisher_community_service: PASS"
+  ],
+  "R14": [
+    "acceptance test test_R14_guard_signs_off: PASS"
+  ],
+  "R15": [
+    "acceptance test test_R15_ban_clearance: PASS"
+  ],
+  "R16": [
+    "acceptance test test_R16_guard_enforces_march: PASS"
+  ],
+  "R17": [
+    "acceptance test test_R17_fisher_signs_pledge: PASS"
+  ],
+  "R18": [
+    "acceptance test test_R18_visibility: PASS"
+  ],
+  "R19": [
+    "acceptance test test_R19_ban_duration_lifecycle: PASS"
+  ],
+  "R20": [
+    "acceptance test test_R20_ban_object: PASS"
+  ]
+}

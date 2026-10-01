@@ -3,5 +3,9 @@
   "propose": "true",
   "critique": "true",
   "vote": "true",
-  "discuss": "false"
+  "discuss": "false",
+  "register_catch": "true",
+  "sign_logbook": "true",
+  "choose_guard": "true",
+  "check_compliance": "true"
 }

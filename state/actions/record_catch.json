@@ -1,0 +1,21 @@
+{
+  "name": "record_catch",
+  "description": "Fishers record their catches in the ledger",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "record_catch"
+  },
+  "prompt": {
+    "template": "Please record your catch in the ledger.\n\nRecord the amount of fish you caught.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"catch\": <number>, \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}

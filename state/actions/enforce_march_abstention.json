@@ -1,0 +1,22 @@
+{
+  "name": "enforce_march_abstention",
+  "description": "Guard enforces March abstention via ledger checks",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "lake_guard"
+  },
+  "roles": {
+    "actor_role": "lake_guard"
+  },
+  "execution": {
+    "handler": "enforce_march_abstention"
+  },
+  "prompt": {
+    "template": "You are acting as the lake guard. Please enforce the March fishing ban by checking the ledger.\n\nCheck logs to ensure no fishers are caught fishing in March.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"arch_abstention_enforced\": true, \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}

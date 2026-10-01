@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "updated_at_round": 1,
+  "version": 3,
+  "updated_at_round": 2,
   "actions": {
     "harvest": {
       "spec": "state/actions/harvest.json",
@@ -37,6 +37,38 @@
     "check_compliance": {
       "spec": "state/actions/check_compliance.json",
       "protected": false
+    },
+    "confiscate_excess": {
+      "spec": "state/actions/confiscate_excess.json",
+      "protected": false
+    },
+    "weekly_review": {
+      "spec": "state/actions/weekly_review.json",
+      "protected": false
+    },
+    "assign_community_service": {
+      "spec": "state/actions/assign_community_service.json",
+      "protected": false
+    },
+    "record_ban": {
+      "spec": "state/actions/record_ban.json",
+      "protected": false
+    },
+    "verify_community_service": {
+      "spec": "state/actions/verify_community_service.json",
+      "protected": false
+    },
+    "enforce_march_abstention": {
+      "spec": "state/actions/enforce_march_abstention.json",
+      "protected": false
+    },
+    "sign_pledge": {
+      "spec": "state/actions/sign_pledge.json",
+      "protected": false
+    },
+    "record_catch": {
+      "spec": "state/actions/record_catch.json",
+      "protected": false
     }
   },
   "roles": {
@@ -49,13 +81,47 @@
       "exclusive": true,
       "description": "Lake guard role",
       "introduced_round": 1
+    },
+    "clerk": {
+      "exclusive": true,
+      "description": "Community clerk responsible for guard selection",
+      "introduced_round": 2
     }
   },
-  "rule_types": {},
+  "rule_types": {
+    "guard_eligibility": {
+      "description": "Guard cannot serve if they served in the last 7 days",
+      "owner": "actions/rules/guard_eligibility/main.py"
+    },
+    "community_service_assignment": {
+      "description": "Fisher with lowest weekly catch does community service",
+      "owner": "actions/rules/community_service_assignment/main.py"
+    },
+    "tie_breaking": {
+      "description": "Tie in lowest catch resolved by random draw",
+      "owner": "actions/rules/tie_breaking/main.py"
+    },
+    "ban_duration": {
+      "description": "Fisher banned for one week from fishing",
+      "owner": "actions/rules/ban_duration/main.py"
+    },
+    "ban_clearance": {
+      "description": "Ban status cleared after one week",
+      "owner": "actions/rules/ban_clearance/main.py"
+    },
+    "march_abstention_enforcement": {
+      "description": "Enforces March fishing abstention rule",
+      "owner": "actions/rules/march_abstention_enforcement/main.py"
+    }
+  },
   "object_types": {
     "shared_ledger": {
       "description": "Shared ledger for recording fish catches",
       "owner": "state/object_types/shared_ledger.json"
+    },
+    "ban_status": {
+      "description": "Object to track fisher ban status",
+      "owner": "state/object_types/ban_status.json"
     }
   },
   "state": {
@@ -69,6 +135,9 @@
     ],
     "lake_guard": [
       "guard_id"
+    ],
+    "clerk": [
+      "clerk_id"
     ]
   }
 }

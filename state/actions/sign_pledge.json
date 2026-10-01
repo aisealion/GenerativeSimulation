@@ -1,0 +1,21 @@
+{
+  "name": "sign_pledge",
+  "description": "Fishers sign pledge to abstain from fishing in March",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "all_alive_fishers"
+  },
+  "roles": {
+    "actor_role": "fisher"
+  },
+  "execution": {
+    "handler": "sign_pledge"
+  },
+  "prompt": {
+    "template": "You must sign the March pledge to abstain from fishing in March.\n\nSign the pledge as required by the community.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"pledge_signed\": true, \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}

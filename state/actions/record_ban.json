@@ -1,0 +1,22 @@
+{
+  "name": "record_ban",
+  "description": "Guard records ban status and start date in ledger",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "lake_guard"
+  },
+  "roles": {
+    "actor_role": "lake_guard"
+  },
+  "execution": {
+    "handler": "record_ban"
+  },
+  "prompt": {
+    "template": "You are acting as the lake guard. Please record the ban status and start date in the ledger.\n\nRecord the fisher who is banned and when the ban started.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"banned_fisher\": {{\"agent_id\": \"<agent_id>\", \"ban_start\": <number>, \"reasoning\": \"<one or two sentences, in character>\"}}}}\n"
+  }
+}

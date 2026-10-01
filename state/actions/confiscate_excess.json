@@ -1,0 +1,22 @@
+{
+  "name": "confiscate_excess",
+  "description": "Guard confiscates excess fish and records violations",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "lake_guard"
+  },
+  "roles": {
+    "actor_role": "lake_guard"
+  },
+  "execution": {
+    "handler": "confiscate_excess"
+  },
+  "prompt": {
+    "template": "You are acting as the lake guard. Please confiscate any excess fish from violations and record the violation.\n\nExcess catches must be confiscated and recorded in the ledger.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"confiscated_catches\": [{{\"fisher\": {{\"agent_id\": \"<agent_id>\", \"amount\": <number>}}}}], \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}

@@ -1,0 +1,31 @@
+{
+    "type_name": "ban_status",
+    "name": "ban_status",
+    "description": "Object to track fisher ban status",
+    "fields": {
+        "fisher": {
+            "type": "string",
+            "description": "The agent ID of the fisher who is banned"
+        },
+        "start_date": {
+            "type": "integer",
+            "description": "The round number when the ban started"
+        },
+        "end_date": {
+            "type": "integer",
+            "description": "The round number when the ban ends"
+        },
+        "active": {
+            "type": "boolean",
+            "description": "Whether the ban is currently active"
+        },
+        "reason": {
+            "type": "string",
+            "description": "Reason for the ban"
+        }
+    },
+    "persistence": {
+        "type": "persistent",
+        "retention": "until_cleared"
+    }
+}

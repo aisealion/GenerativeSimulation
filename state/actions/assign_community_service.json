@@ -1,0 +1,22 @@
+{
+  "name": "assign_community_service",
+  "description": "Guard identifies fisher with lowest catch for community service",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "lake_guard"
+  },
+  "roles": {
+    "actor_role": "lake_guard"
+  },
+  "execution": {
+    "handler": "assign_community_service"
+  },
+  "prompt": {
+    "template": "You are acting as the lake guard. Please identify the fisher(s) with the lowest weekly catch to assign community service.\n\nIf there is a tie, resolve it by random draw.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"assigned_fisher\": {{\"agent_id\": \"<agent_id>\", \"reasoning\": \"<one or two sentences, in character>\"}}}}\n"
+  }
+}

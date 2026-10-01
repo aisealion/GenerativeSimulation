@@ -1,0 +1,22 @@
+{
+  "name": "weekly_review",
+  "description": "Guard reads logs at weekly meetings and confirms excess catches",
+  "scheduling": {
+    "gate": "true",
+    "after": null,
+    "before": null
+  },
+  "participation": {
+    "policy": "role_holders",
+    "role": "lake_guard"
+  },
+  "roles": {
+    "actor_role": "lake_guard"
+  },
+  "execution": {
+    "handler": "weekly_review"
+  },
+  "prompt": {
+    "template": "You are acting as the lake guard. Please review the weekly logs and confirm any excess catches.\n\nReport the fishers with lowest catches to be assigned community service.\n\nRespond with ONLY this JSON object, nothing else:\n{{\"low_catch_fishers\": [\"<agent_id>\"], \"reasoning\": \"<one or two sentences, in character>\"}}\n"
+  }
+}
