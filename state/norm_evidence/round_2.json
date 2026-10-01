@@ -1,0 +1,20 @@
+{
+  "R1": [
+    "acceptance test test_R1_object_created: PASS"
+  ],
+  "R2": [
+    "acceptance test test_R2_object_created: PASS",
+    "acceptance test test_R2_verification_process: PASS"
+  ],
+  "R3": [
+    "acceptance test test_R3_limit_enforcement_comprehensive: PASS",
+    "acceptance test test_R3_rule_has_required_methods: PASS"
+  ],
+  "R4": [
+    "acceptance test test_R4_excess_handling_comprehensive: PASS",
+    "acceptance test test_R4_rule_has_required_methods: PASS"
+  ],
+  "R5": [
+    "acceptance test test_R5_visibility_comprehensive: PASS"
+  ]
+}

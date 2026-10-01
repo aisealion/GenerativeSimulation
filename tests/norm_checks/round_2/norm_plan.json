@@ -1,0 +1,193 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "OBJECT",
+      "description": "Communal fish reserve for excess catch.",
+      "persistent": true,
+      "purpose": "Hold excess fish returned by fishers who exceeded their limits.",
+      "read_by": [
+        "R3",
+        "R4"
+      ],
+      "written_by": [
+        "R4"
+      ],
+      "depends_on": [],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R2",
+      "type": "OBJECT",
+      "description": "Daily catch tally records.",
+      "persistent": true,
+      "purpose": "Record each fisher's harvest and total catch for verification.",
+      "read_by": [
+        "R3"
+      ],
+      "written_by": [
+        "R4"
+      ],
+      "depends_on": [],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R3",
+      "type": "RULE",
+      "description": "Enforce 1.5 unit and 10% catch limits during harvest.",
+      "attached_to": "harvest",
+      "deterministic": true,
+      "depends_on": [
+        "R1",
+        "R2"
+      ],
+      "condition": "fisher's harvested_kg > 1.5 OR (fisher's harvested_kg / community's stock_kg) > 0.10",
+      "effect": "Reduce harvest to 1.5 units or 10% of total catch, whichever is lower.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "Their own harvest count and total catch to verify limits"
+        ]
+      }
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "Handle excess fish by returning to lake or placing in reserve.",
+      "attached_to": "harvest",
+      "deterministic": true,
+      "depends_on": [
+        "R1",
+        "R2",
+        "R3"
+      ],
+      "condition": "fishers whose harvest exceeded limits have their harvest reduced.",
+      "effect": "Add excess fish to communal reserve and update tally records.",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "Amount of fish returned to lake or added to communal reserve"
+        ]
+      }
+    },
+    {
+      "id": "R5",
+      "type": "VISIBILITY",
+      "description": "Each fisher can see their own harvest limits and total catch.",
+      "target": "harvested_kg",
+      "audience": "all_fishers",
+      "depends_on": [],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their own harvest count and total catch"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "F1",
+      "name": "Daily Harvest Limits Enforcement",
+      "trigger": "harvest action starts each round",
+      "participants": [
+        "all_fishers"
+      ],
+      "steps": [
+        {
+          "requirement": "R3",
+          "after": [],
+          "condition": null,
+          "next": [
+            "R4"
+          ]
+        },
+        {
+          "requirement": "R4",
+          "after": [
+            "R3"
+          ],
+          "condition": null,
+          "next": []
+        }
+      ]
+    }
+  ],
+  "source_coverage": [
+    {
+      "source_clause": "Each fisher may take at most 1.5 units of fish per day, and may not take more than 10% of the total catch that day.",
+      "requirements": [
+        "R3",
+        "R4"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    },
+    {
+      "source_clause": "On each trip, each fisher counts their catch by hand. At the daily gathering, the community tallies the total catch.",
+      "requirements": [
+        "R2",
+        "R3",
+        "R4"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    },
+    {
+      "source_clause": "If a fisher exceeds the 1.5-unit or 10% limit, the excess fish are returned to the lake or placed in a communal reserve.",
+      "requirements": [
+        "R3",
+        "R4"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    },
+    {
+      "source_clause": "All counts are verified by verbal confirmation and simple tally sheets\u2014no special equipment is needed.",
+      "requirements": [],
+      "coverage": "PARTIAL",
+      "note": "Verification mechanism not explicitly implemented as a new action."
+    }
+  ],
+  "open_critiques": [],
+  "clarifications": [
+    {
+      "clarification_for": null,
+      "affected_requirements": [
+        "R3",
+        "R4",
+        "R5"
+      ],
+      "unchanged_requirements": [
+        "R1",
+        "R2"
+      ],
+      "note": "structural fixes: requirement 'R3': type RULE needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R4': type RULE needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R5': type VISIBILITY needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?"
+    }
+  ]
+}

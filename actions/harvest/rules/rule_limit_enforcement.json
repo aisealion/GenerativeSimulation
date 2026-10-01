@@ -1,0 +1,11 @@
+{
+    "id": "rule_limit_enforcement",
+    "type": "limit_enforcement",
+    "description": "Enforce 1.5 unit and 10% catch limits during harvest",
+    "attached_to": "harvest",
+    "deterministic": true,
+    "required_objects": [
+        "communal_fish_reserve_1",
+        "daily_catch_tally_1"
+    ]
+}

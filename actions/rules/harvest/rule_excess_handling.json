@@ -1,0 +1,8 @@
+{
+    "id": "rule_excess_handling",
+    "type": "excess_handling",
+    "description": "Handle excess fish by returning to lake or placing in reserve",
+    "attached_to": "harvest",
+    "deterministic": true,
+    "required_objects": ["communal_fish_reserve_1", "daily_catch_tally_1"]
+}

@@ -1,6 +1,6 @@
 {
-  "round": 1,
-  "stock_kg": 256.1625,
+  "round": 2,
+  "stock_kg": 209.55583381760158,
   "rounds": [
     {
       "agents": {
@@ -121,15 +121,135 @@
       "winning_proposer": "agent_0",
       "round": 1,
       "action": "vote"
+    },
+    {
+      "agents": {
+        "agent_0": {
+          "effort": 0.9,
+          "harvested_kg": 11.5273125,
+          "reasoning": "I\u2019ll fish hard enough to secure roughly 1.3 kg \u2013 enough for my daily need but below the 1.5 kg cap, keeping the lake healthy for everyone.",
+          "note": null,
+          "participated": true
+        },
+        "agent_1": {
+          "effort": 1.0,
+          "harvested_kg": 12.808125000000002,
+          "reasoning": "I\u2019ll give my full effort\u20141.5 units\u2014to meet my daily need while staying within the 1.5\u2011unit and 10% limits set by the community policy.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 1.0,
+          "harvested_kg": 12.808125000000002,
+          "reasoning": "I\u2019ll put in full effort to catch 1.5 units\u20141 for me and 0.5 for the communal reserve\u2014so I stay within the 1.5\u2011unit limit and the 10% rule.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 0.8,
+          "harvested_kg": 10.246500000000003,
+          "reasoning": "I need enough for my family but stay under the 1.5 quota and try to stay under 10% of the total.",
+          "note": null,
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 1.0,
+          "harvested_kg": 12.808125000000002,
+          "reasoning": "I\u2019ll pull the full 1.5\u202fkg allowed; it covers my daily 1\u202fkg need and leaves me 0.5\u202fkg for sale or sharing.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_before": 256.1625,
+      "stock_kg_after_harvest": 195.9643125,
+      "stock_kg_after_regrowth": 209.55583381760158,
+      "round": 2,
+      "action": "harvest"
+    },
+    {
+      "proposals": {
+        "agent_0": {
+          "policy": "Each fisher may take at most 1.5 units of fish per day, and may not take more than 10% of the total catch that day.",
+          "operationalization": "On each trip, each fisher counts their catch by hand. At the daily gathering, the community tallies the total catch. If a fisher exceeds the 1.5\u2011unit or 10% limit, the excess fish are returned to the lake or placed in a communal reserve. All counts are verified by verbal confirmation and simple tally sheets\u2014no special equipment is needed.",
+          "reasoning": "I propose this rule to keep the lake\u2019s fish healthy for us and for future generations. By capping individual take and sharing the burden of the 10% limit, we avoid over\u2011fishing, ensure everyone has enough to survive, and leave enough stock for the next season.",
+          "participated": true
+        },
+        "agent_1": {
+          "policy": "All fishers may keep a maximum of 1.0 unit of fish per day, and 20% of each fisher\u2019s catch must be set aside into a communal reserve chest for times of scarcity.",
+          "operationalization": "At the daily gathering each fisher counts and declares their haul by hand; if a fisher exceeds 1.0 unit, the excess is returned to the lake. 20% of the accepted catch is measured by hand and placed into the communal chest. All counts are verified by mutual verbal confirmation; no special equipment is needed.",
+          "reasoning": "Lowering the personal quota protects the lake\u2019s stock and balances the high total catch of the community.  Setting aside a larger reserve gives us a safety net when the lake\u2019s abundance falls, ensuring everyone can meet the 1 unit daily need without risking negative payoffs.",
+          "participated": true
+        },
+        "agent_2": {
+          "policy": "Each fisher may keep at most 1.2 units of fish for personal consumption, and any fish beyond that must be added to the communal reserve. No fisher may take more than 12% of the total daily catch.",
+          "operationalization": "During each trip, the fisher counts fish taken using a simple tally stick. After all trips, the community gathers to hand count the total catch. Any fish exceeding the 12% share or the 1.2\u2011unit personal limit is returned to the lake or stored in the communal reserve. Two witnesses confirm the counts at the gathering.",
+          "reasoning": "The lake is thin, and some fishers appear to be taking more than the allowed share. Lowering the personal limit to 1.2 units and the communal share to 12% will make the rules tighter, ensuring we all survive and the lake remains healthy. The hand\u2011count and witness system keeps the process simple and honest.",
+          "participated": true
+        },
+        "agent_3": {
+          "policy": "Each fisher may take a maximum of 1.5 units of fish per day, and no individual may exceed 10% of the community\u2019s total catch for that day. Any fish taken beyond these limits is returned to the lake or placed in a communal shed for later use or for community meals during scarcity.",
+          "operationalization": "At the end of each day, every fisher writes down the number of units they took on a shared ledger at the dock. The group then tallies the totals; anyone who is over the 1.5\u2011unit limit or over 10% of the total must hand\u2011return the excess to the lake or deposit it in the communal shed. All records are kept on paper and confirmed verbally by the community leader, no equipment needed.",
+          "reasoning": "I want my family to have at least one unit to survive, so I keep the 1.5\u2011unit cap. The 10% rule protects the lake so we don\u2019t run out of fish. Storing excess in a communal shed lets us share during bad years without breaking the quota. This way we all get a fair share while keeping the lake healthy for future trips.",
+          "participated": true
+        },
+        "agent_4": {
+          "policy": "Each fisher may take up to 2 units of fish per day, and no fisher may exceed 12% of the total catch that day.",
+          "operationalization": "At each gathering, fishers report the amount they caught on each trip. The community tallies the total catch. If any fisher\u2019s cumulative catch is above 2 units or above 12% of the total, the excess fish are returned to the lake or set aside for communal use by hand count and verbal confirmation.",
+          "reasoning": "This allows me to increase my daily haul from 1.5 to 2 units, giving me more food and profit while still keeping the lake healthy with a slightly higher communal share. It keeps the rule simple and enforceable by the same counting and verbal confirmation method we already use.",
+          "participated": true
+        }
+      },
+      "round": 2,
+      "action": "propose"
+    },
+    {
+      "votes": {
+        "agent_0": {
+          "vote": 1,
+          "reasoning": "I need to keep enough fish for my family and for future seasons. Limiting each of us to 1.5 units and 10% of the total keeps the lake healthy and fair. This is the safest rule for my catch and the community.",
+          "participated": true
+        },
+        "agent_1": {
+          "vote": 1,
+          "reasoning": "I need to keep enough fish to survive each day, and 1.0 unit isn't enough for me because 20% of that would have to go to the communal reserve, leaving me only 0.8 units. Policy 1 lets me keep 1.5 units and only requires me to return any excess over 10% of the total catch, which is a small and manageable limit. It also keeps the counting simple\u2014just hand counts and a verbal check\u2014so we can all follow it without extra paperwork. This way I can meet my daily requirement and still respect the lake\u2019s limits.",
+          "participated": true
+        },
+        "agent_2": {
+          "vote": 1,
+          "reasoning": "I need to keep about 1 unit of fish each day for my family to survive. Policy 1 allows a fisherman to take up to 1.5 units and no more than 10\u202f% of the daily total, which gives me enough room to keep my portion without forcing me to give up extra for a reserve. It also matches the current practice we used in Round\u202f1, so it\u2019s simple and fair for everyone.",
+          "participated": true
+        },
+        "agent_3": {
+          "vote": 5,
+          "reasoning": "My family needs a steady supply of fish, and the more I can keep each day, the safer we are. The 2\u2011unit limit lets me keep enough for my people while still staying within the 12% cap, so we don\u2019t overtake the lake. The higher personal allowance means I can fish more aggressively without risking the lake\u2019s health. I\u2019ll still share if I want, but I don\u2019t have to give up extra fish that I could use for my family.",
+          "participated": true
+        },
+        "agent_4": {
+          "vote": 5,
+          "reasoning": "I want to keep as much fish as possible; policy 5 lets me keep up to 2 units, higher than any other rule, and the 12% cap is generous enough that I won't have to give up much more than the others. The others cap me at 1.5 or 1.2 or 1.0 units, so 5 is best for my daily survival.",
+          "participated": true
+        }
+      },
+      "tally": {
+        "1": 3,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 2
+      },
+      "winner_index": 1,
+      "winning_proposer": "agent_0",
+      "round": 2,
+      "action": "vote"
     }
   ],
   "objects": {},
   "payoff": {
-    "agent_0": 8.0,
-    "agent_1": 8.0,
-    "agent_2": 11.0,
-    "agent_3": 14.0,
-    "agent_4": 6.5
+    "agent_0": 18.5273125,
+    "agent_1": 19.808125000000004,
+    "agent_2": 22.808125000000004,
+    "agent_3": 23.246500000000005,
+    "agent_4": 18.308125000000004
   },
   "dead_agents": []
 }

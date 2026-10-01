@@ -12,7 +12,16 @@
     "fisher": {"exclusive": false, "description": "eligibility to act as a fisher", "introduced_round": 0}
   },
   "rule_types": {},
-  "object_types": {},
+  "object_types": {
+    "communal_fish_reserve": {
+      "description": "Communal fish reserve for excess catch.",
+      "owner": "state/object_types/communal_fish_reserve.json"
+    },
+    "daily_catch_tally": {
+      "description": "Daily catch tally records.",
+      "owner": "state/object_types/daily_catch_tally.json"
+    }
+  },
   "state": {
     "fisher": ["effort", "harvested_kg", "payoff"],
     "community": ["stock_kg"]

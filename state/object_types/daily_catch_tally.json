@@ -1,0 +1,27 @@
+{
+  "type_name": "daily_catch_tally",
+  "name": "daily_catch_tally",
+  "description": "Daily catch tally records.",
+  "ownership": "community",
+  "fields": {
+    "total_catch_kg": {
+      "type": "number",
+      "default": 0,
+      "description": "Total catch for the day"
+    },
+    "fisher_catch": {
+      "type": "object",
+      "default": {},
+      "description": "Record of individual fisher catches"
+    }
+  },
+  "operations": ["set", "read"],
+  "permissions": {
+    "set": ["all_fishers"],
+    "read": ["all_fishers"]
+  },
+  "visibility": {
+    "total_catch_kg": "all_fishers",
+    "fisher_catch": "all_fishers"
+  }
+}

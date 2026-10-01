@@ -1,0 +1,22 @@
+{
+  "type_name": "communal_fish_reserve",
+  "name": "communal_fish_reserve",
+  "description": "Communal fish reserve for excess catch.",
+  "ownership": "community",
+  "fields": {
+    "reserve_kg": {
+      "type": "number",
+      "default": 0,
+      "description": "Amount of fish in the communal reserve"
+    }
+  },
+  "operations": ["deposit", "withdraw", "read"],
+  "permissions": {
+    "deposit": ["all_fishers"],
+    "withdraw": ["all_fishers"],
+    "read": ["all_fishers"]
+  },
+  "visibility": {
+    "reserve_kg": "all_fishers"
+  }
+}

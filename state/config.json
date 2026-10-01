@@ -2,5 +2,30 @@
   "agent_count": 5,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "rules": {}
+  "rules": {
+    "harvest": [
+      {
+        "id": "rule_limit_enforcement",
+        "type": "limit_enforcement",
+        "description": "Enforce 1.5 unit and 10% catch limits during harvest",
+        "attached_to": "harvest",
+        "deterministic": true,
+        "required_objects": [
+          "communal_fish_reserve_1",
+          "daily_catch_tally_1"
+        ]
+      },
+      {
+        "id": "rule_excess_handling",
+        "type": "excess_handling",
+        "description": "Handle excess fish by returning to lake or placing in reserve",
+        "attached_to": "harvest",
+        "deterministic": true,
+        "required_objects": [
+          "communal_fish_reserve_1",
+          "daily_catch_tally_1"
+        ]
+      }
+    ]
+  }
 }

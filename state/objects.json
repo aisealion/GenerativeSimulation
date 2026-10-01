@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "id": "communal_fish_reserve_1",
+    "type": "communal_fish_reserve",
+    "fields": {
+      "reserve_kg": 0
+    }
+  },
+  {
+    "id": "daily_catch_tally_1",
+    "type": "daily_catch_tally",
+    "fields": {
+      "total_catch_kg": 0,
+      "fisher_catch": {}
+    }
+  }
+]

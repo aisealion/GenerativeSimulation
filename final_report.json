@@ -1,0 +1,16 @@
+{
+  "spec_path": "state/norm_specs/round_2.md",
+  "requirements_built": ["R1", "R2", "R3", "R4", "R5"],
+  "files_touched": [
+    "actions/rules/harvest/rule_limit_enforcement.py",
+    "actions/rules/harvest/rule_excess_handling.py",
+    "state/config.json",
+    "tests/norm_checks/round_2/test_round_2.py",
+    "state/norm_specs/round_2.md"
+  ],
+  "regression_pass": true,
+  "norm_check_tests_pass": true,
+  "denied_permission_needed": false,
+  "ran_out_of_budget": false,
+  "finalization_failed": false
+}
