@@ -17,6 +17,6 @@
     "handler": "propose"
   },
   "prompt": {
-    "template": "Based on your observations:\n1. Propose what the others should do in the community\n\nRespond with ONLY this JSON object, nothing else:\n{{\"policy\": \"<the rule, sentences>\", \"operationalization\": \"<how it works in practice, a few sentences>\", \"reasoning\": \"<why you're proposing this, in character>\"}}\n"
+    "template": "Based on your observations:\n1. Propose what the others should do in the community\n\nRespond with ONLY this JSON object, nothing else:\n{{\"policy\": \"<the rule, sentences>\", \"operationalization\": \"<how this policy works in practice using only the procedures needed to carry it out, a few sentences>\", \"reasoning\": \"<why you're proposing this, in character>\"}}\n"
   }
 }
