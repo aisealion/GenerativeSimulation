@@ -980,6 +980,73 @@ def _extract_fenced_block(text, lang):
     return matches[-1].strip() if matches else None
 
 
+def _strip_json_comments_and_trailing_commas(text):
+    """Removes // and /* */ comments and trailing commas before a closing
+    ] or }, skipping anything inside a JSON string (so a URL's "//" or a
+    "," inside a value is left alone)."""
+    out, i, n, in_string = [], 0, len(text), False
+    while i < n:
+        c = text[i]
+        if in_string:
+            out.append(c)
+            if c == "\\" and i + 1 < n:
+                out.append(text[i + 1])
+                i += 2
+                continue
+            if c == '"':
+                in_string = False
+            i += 1
+            continue
+        if c == '"':
+            in_string = True
+        elif text.startswith("//", i):
+            end = text.find("\n", i)
+            i = n if end < 0 else end
+            continue
+        elif text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        elif c == ",":
+            j = i + 1
+            while j < n and text[j] in " \t\r\n":
+                j += 1
+            if j < n and text[j] in "]}":
+                i += 1
+                continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def _loads_llm_json(text):
+    """json.loads(), falling back to a copy with comments and trailing
+    commas removed. A model writing JSON by hand routinely annotates it
+    ("attached_to": "harvest",  // attach to the existing action) — a real
+    round's otherwise-valid plan (zero validator errors once three such
+    comments were removed) was discarded outright because strict parsing
+    failed. Strictly valid JSON never reaches the fallback. Raises
+    json.JSONDecodeError if even the cleaned text doesn't parse."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return json.loads(_strip_json_comments_and_trailing_commas(text))
+
+
+def _parse_architect_plan(raw_text):
+    """(plan, None) for a usable plan, else (None, reason)."""
+    plan_raw = _extract_fenced_block(raw_text, "json")
+    if not plan_raw:
+        return None, "the response contained no ```json block"
+    try:
+        plan = _loads_llm_json(plan_raw)
+    except json.JSONDecodeError as exc:
+        return None, f"the ```json block isn't valid JSON ({exc})"
+    if not isinstance(plan, dict) or "requirements" not in plan:
+        return None, "the ```json block has no top-level \"requirements\" key"
+    return plan, None
+
+
 def _apply_clarification_patch(plan, patch_text, note):
     """Parses and validates one scoped clarification-patch response (see
     NORM_ARCHITECT_CLARIFICATION_SYSTEM_PROMPT in engine/llm_agents.py for
@@ -1006,7 +1073,7 @@ def _apply_clarification_patch(plan, patch_text, note):
     touched, never read back by anything in this pipeline."""
     patch_raw = _extract_fenced_block(patch_text, "json")
     try:
-        patch = json.loads(patch_raw) if patch_raw else None
+        patch = _loads_llm_json(patch_raw) if patch_raw else None
     except json.JSONDecodeError:
         return None, "clarification response had no parseable ```json block"
     if not isinstance(patch, dict):
@@ -1161,16 +1228,29 @@ def run_norm_architect(round_number):
     if raw_text is None:
         return False, None
 
-    plan_raw = _extract_fenced_block(raw_text, "json")
-    try:
-        plan = json.loads(plan_raw) if plan_raw else None
-    except json.JSONDecodeError:
-        plan = None
+    plan, parse_problem = _parse_architect_plan(raw_text)
+    if plan is None:
+        # A formatting failure isn't a design failure: ask once more,
+        # quoting exactly what was wrong, rather than discarding the round
+        # over e.g. one stray character the lenient parser couldn't fix.
+        print(f"Round {round_number}: norm-architect's plan couldn't be used ({parse_problem}) — "
+              f"asking it once more for a strictly valid plan.", file=sys.stderr)
+        raw_text = call_norm_architect_agent(
+            round_number, norm_text, context_bundle,
+            validator_errors=[
+                f"Your previous response couldn't be used: {parse_problem}. Return the complete "
+                f"plan as ONE fenced ```json block of strict JSON — no // or /* */ comments, no "
+                f"trailing commas, every key and string in double quotes. Put any remark in a "
+                f"\"note\" field instead of a comment."
+            ],
+        )
+        if raw_text is None:
+            return False, None
+        plan, parse_problem = _parse_architect_plan(raw_text)
 
-    if plan is None or "requirements" not in plan:
-        print(f"Round {round_number}: norm-architect's response never contained a parseable "
-              f"```json block with a \"requirements\" key — treating this round's design as "
-              f"failed.", file=sys.stderr)
+    if plan is None:
+        print(f"Round {round_number}: norm-architect's plan still couldn't be used after a retry "
+              f"({parse_problem}) — treating this round's design as failed.", file=sys.stderr)
         return False, None
 
     open_critiques = plan.get("open_critiques") or []

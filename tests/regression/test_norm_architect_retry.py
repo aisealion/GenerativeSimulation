@@ -504,3 +504,80 @@ def test_a_second_structural_fix_pass_gets_a_chance_when_the_first_fails(tmp_pat
 
     assert success is True
     assert plan["source_coverage"][0]["requirements"] == ["R1"]
+
+
+# --- tolerant JSON parsing + one retry on an unusable plan -------------------
+# sim/run-20261001-202621 round 1 was discarded before norm-engineer ever ran:
+# the architect annotated its plan with three `// ...` comments, strict
+# json.loads() failed, and the round ended. With the comments removed the plan
+# had zero validator errors.
+
+def test_lenient_json_drops_comments_and_trailing_commas_but_not_string_content():
+    text = '''{
+      "attached_to": "harvest",  // Attach to existing harvest action
+      /* a block comment */
+      "url": "https://example.org/a//b",
+      "quote": "he said \\"// not a comment\\" and left, ]",
+      "list": [1, 2, 3,],
+      "nested": {"x": true,},
+    }'''
+    parsed = simulate_module._loads_llm_json(text)
+    assert parsed == {
+        "attached_to": "harvest",
+        "url": "https://example.org/a//b",
+        "quote": 'he said "// not a comment" and left, ]',
+        "list": [1, 2, 3],
+        "nested": {"x": True},
+    }
+
+
+def test_strict_json_is_parsed_unchanged_and_hopeless_text_still_raises():
+    assert simulate_module._loads_llm_json('{"a": "x // y"}') == {"a": "x // y"}
+    try:
+        simulate_module._loads_llm_json("{requirements: [}")
+        raise AssertionError("expected a JSONDecodeError")
+    except json.JSONDecodeError:
+        pass
+
+
+def test_a_plan_with_comments_is_used_without_any_retry(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+    # Multi-line, as the model actually writes it — a "//" comment runs to
+    # the end of its own line only.
+    commented = "```json\n" + json.dumps(_valid_plan(), indent=2).replace(
+        '"type": "ROLE",', '"type": "ROLE",  // the role itself'
+    ) + "\n```\n"
+    assert "// the role itself" in commented
+    calls = []
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: (
+            calls.append(validator_errors) or commented
+        ),
+    )
+
+    success, plan = simulate_module.run_norm_architect(1)
+
+    assert success is True
+    assert calls == [None]
+    assert plan["requirements"][0]["type"] == "ROLE"
+
+
+def test_an_unusable_plan_gets_one_retry_quoting_the_problem(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+    responses = iter(["```json\n{requirements: [oops}\n```", _response(_valid_plan())])
+    calls = []
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: (
+            calls.append(validator_errors) or next(responses)
+        ),
+    )
+
+    success, plan = simulate_module.run_norm_architect(1)
+
+    assert success is True
+    assert len(calls) == 2 and calls[0] is None
+    assert "isn't valid JSON" in calls[1][0] and "no // or /* */ comments" in calls[1][0]

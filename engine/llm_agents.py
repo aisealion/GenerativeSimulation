@@ -976,6 +976,10 @@ then.
 }
 ```
 
+The block must be strict JSON: no // or /* */ comments, no trailing
+commas, every key and string in double quotes. Put any remark in a
+"note" field instead of a comment.
+
 Include type-specific fields only where the norm and the MAS support
 them; never populate a field just to fill the schema. `target`/`audience`
 on VISIBILITY follow the same reference rules as `actor`.
@@ -1060,7 +1064,8 @@ plan you were shown — together with "affected_requirements" it must
 account for every single existing id, none dropped, none invented.
 "added_requirements" (omit, or [], if none) lists only genuinely new ids. "clarification_for"
 names the requirement id the original critique was about, if this is a
-critique response; omit it for a structural-fix response. Never include
+critique response; omit it for a structural-fix response. The block must
+be strict JSON — no // or /* */ comments, no trailing commas. Never include
 any other fenced ```json block anywhere else in your response."""
 
 
