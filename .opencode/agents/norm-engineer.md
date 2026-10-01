@@ -115,41 +115,43 @@ unevidenced, or still failing — see "This naming convention is your
 checkpoint, not just bookkeeping" below for what drives it and what to
 do with it.
 
-**Repair re-invocations are paired (2026-09-25): this one and the very
-next one share a session, then the pair after that starts fresh.** Your
-repair message tells you explicitly which case this is — a FRESH session
-(no real memory at all, only the orchestrator's own one-line-per-attempt
-history in the message) or a continued one (real memory of what you just
-tried last turn). When you do have real memory, use it: before repeating
-a fix, check whether you already tried something similar and it didn't
-work, and figure out why (a wrong guess at a path/name/signature, an edit
-that didn't actually save, a check that runs before your change takes
-effect) rather than guessing again. When you don't, the message's own
-history of earlier attempts is your only continuity — read it, and also
-read `tests/norm_checks/round_{N}/attempt_log.json` if it exists: your
-own (or an earlier session's) real account of what was actually tried,
+**Every repair re-invocation is a FRESH session (2026-10-02) — none of
+them share a session, not even the one right after another, and you have
+no real memory of any earlier attempt at all, ever.** (This replaced an
+earlier paired scheme — 1&2 sharing a session, 3&4 a new one — after a
+round showed 2 attempts in one session was already enough for the
+model's own self-repetition to build fatal context bloat; pairing never
+came back narrower than that, because there's no smaller non-zero width
+to narrow to.) Your repair message's own history of earlier attempts —
+plus `tests/norm_checks/round_{N}/attempt_log.json` — is your *only*
+continuity, every single time, not something that only matters on an
+occasional fresh start. Read both before changing anything: before
+repeating a fix, check whether something similar was already tried and
+didn't work, and figure out why (a wrong guess at a path/name/signature,
+an edit that didn't actually save, a check that runs before your change
+takes effect) rather than guessing again. `attempt_log.json` is your own
+(or an earlier attempt's) real account of what was actually tried,
 richer than the orchestrator's own one-line summary. Appending to it is
 a read-modify-write, not a single write: `read` the file first (an empty
 list `[]` if it doesn't exist), parse it as a JSON array, add ONE new
 object for this attempt, then `write` the WHOLE array — every earlier
 entry plus your new one — back to the same path. Writing only your own
 new object as the file's entire content silently erases every prior
-entry and defeats the entire point of keeping it. Either way, the check
-that found this problem only reports the *first* category
-of problem it hits — don't assume fixing that one thing means you're
-done. Proactively re-check every other file you touched this round for
+entry and defeats the entire point of keeping it. The check that found
+this problem only reports the *first* category of problem it hits —
+don't assume fixing that one thing means you're done. Proactively re-check every other file you touched this round for
 the same class of mistake (the same wrong import guessed twice into two
-different files is exactly the failure session memory exists to prevent)
-— self-test and self-repair anything else you find before finishing, not
-just the one thing named, **using your real tools to do it.** Never write
-out what a tool call or its output would look like as plain text instead
-of actually invoking the tool — a fabricated `[Assistant tool call]:
-...` / `[Tool result]: ...` transcript is not a substitute for a real one
-and will be treated as zero verification, not as evidence of anything.
-Don't restart from scratch — fix exactly what's named plus anything else
-you find this way, re-run your own verification, and only redo the
-finalization step (below) if what you built or its design actually
-changed.
+different files is exactly the failure a durable record like this exists
+to prevent) — self-test and self-repair anything else you find before
+finishing, not just the one thing named, **using your real tools to do
+it.** Never write out what a tool call or its output would look like as
+plain text instead of actually invoking the tool — a fabricated
+`[Assistant tool call]: ...` / `[Tool result]: ...` transcript is not a
+substitute for a real one and will be treated as zero verification, not
+as evidence of anything. Don't restart from scratch — fix exactly what's
+named plus anything else you find this way, re-run your own
+verification, and only redo the finalization step (below) if what you
+built or its design actually changed.
 
 ## Read only what your plan actually needs
 
@@ -253,19 +255,44 @@ round needing many requirements (a real one needed 11) can run out of
 repair attempts before every one is built — if you're re-invoked for
 another attempt on this round (see "You may be re-invoked for the same
 round" above), the harness re-runs this test file itself and hands you
-back a "Satisfied — preserve these" / "No test evidence" / "Still
-failing" breakdown built directly from which `test_{id}_{scenario}`
-functions currently exist and pass. That's how a later attempt knows
-"9 of 11 done, finish the last 2" instead of re-deriving everything
-from scratch or re-verifying work that was already correct. It only
-works if you actually keep this naming discipline from your very first
-attempt on every requirement you finish, not just retroactively during
-finalization — a requirement with no correctly-named test, or one
-whose test was left red, reads to the harness (and to your own next
-attempt) as "no evidence" or "still failing" even if the real code is
-fine. If a later attempt shows you a requirement marked "Satisfied":
-trust it, and do not rebuild or re-verify its implementation or tests —
-spend that attempt only on what's still missing.
+back a "Current requirement status" block built directly from which
+`test_{id}_{scenario}` functions currently exist and pass. That's how a
+later attempt knows "9 of 11 done, finish the last 2" instead of
+re-deriving everything from scratch or re-verifying work that was
+already correct. It only works if you actually keep this naming
+discipline from your very first attempt on every requirement you
+finish, not just retroactively during finalization — a requirement with
+no correctly-named test, or one whose test was left red, reads to the
+harness (and to your own next attempt) as "no evidence" or "still
+failing" even if the real code is fine.
+
+The block can show up to six lines, each naming requirement ids — every
+id appears in exactly one of them, never more than one:
+
+1. **Flagged by the auditor this round** — NOT satisfied, even though
+   its own tests pass (they evidently don't cover what the auditor
+   found missing). Fix what the auditor's own report names, not the
+   test.
+2. **Named in an error above** — NOT done, even if its tests pass, when
+   one of its own files is named in a compile/runtime error right now.
+3. **Tests pass for** — shown instead of "Satisfied" specifically while
+   compile errors are still open elsewhere in the round, so this line
+   never contradicts an error above it. Keep these tests passing, but
+   fix the errors above first even if doing so touches one of these
+   files.
+4. **Satisfied — preserve these, do not touch their implementation or
+   tests** — real credit, no compile errors open anywhere this round.
+   Trust it.
+5. **No test evidence at all** — a missing test, or only `EMPTY`
+   (assertion-free) ones; write or fix the test, don't assume the code
+   is wrong.
+6. **Still failing or unproven** — a real test exists and fails. This is
+   where to spend the attempt.
+
+1 and 2 both mean a requirement still needs work even though its own
+tests currently pass — the opposite of 4/"Satisfied". 3/"Tests pass
+for" sits between them: leave it alone *unless* fixing one of the
+errors above happens to require touching one of its files too.
 
 A test only counts if it actually checks something. The harness reads
 your test file: a `test_*` function with no assertion (just `pass`, a
