@@ -72,7 +72,13 @@ permissions:
   - { action: edit, resource: "actions/handlers/critique.py", effect: deny }
   - { action: edit, resource: "actions/handlers/vote.py", effect: deny }
   - { action: edit, resource: "actions/handlers/discuss.py", effect: deny }
-  - { action: edit, resource: "engine/simulate.py", effect: allow }
+  # 2026-10-02: was "allow, last resort only" — denied outright now. The
+  # harness that runs this whole pipeline (the repair loop, every
+  # compile/runtime check, the checkpoint) lives here; editing the thing
+  # judging your own round was never a safe escape hatch. If a norm
+  # genuinely needs something the declarative layer can't express, that's
+  # a real gap to raise, not something to patch around mid-round.
+  - { action: edit, resource: "engine/simulate.py", effect: deny }
   - { action: shell, resource: "*", effect: allow }
   - { action: webfetch, resource: "*", effect: deny }
   - { action: websearch, resource: "*", effect: deny }
@@ -315,12 +321,15 @@ pre-commit error.
 Integrate what you build with everything it touches — a spec that's never
 reachable, an action with no agent prompt, a ledger that's declared but
 never updated, a sanction applied but never surfaced to the affected
-agent, are none of them real implementations. `engine/simulate.py` is
-allowed but last resort only. Never edit `engine/*` otherwise,
-`roles/roles.py`, any protected action/handler pair, `state/schedule.json`,
-`state/runtime.json`, `constants/agents.json`, `tests/regression/*`,
-`tests/norm_checks/*` (you cannot anyway — see `permission.edit`), or
-this file.
+agent, are none of them real implementations. Never edit `engine/*`
+(including `engine/simulate.py` — denied outright, not just
+discouraged), `roles/roles.py`, any protected action/handler pair,
+`state/schedule.json`, `state/runtime.json`, `constants/agents.json`,
+`tests/regression/*`, `tests/norm_checks/*` (you cannot anyway — see
+`permission.edit`), or this file. If what you're building genuinely
+needs something the declarative contracts don't support, that's a real
+gap in the norm plan or the contracts themselves — say so in your
+closing report rather than reaching for the harness that's running you.
 
 ## Verify actual behavior, not file existence
 

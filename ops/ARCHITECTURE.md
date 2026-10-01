@@ -702,7 +702,9 @@ assertion.
   `attempt_log.json` read-modify-write procedure (section 11) and the
   test-naming convention (`test_{id}_{scenario}`) the requirement-status
   checkpoint depends on.
-- `engine/simulate.py`'s `validate_norm_plan()`, `_apply_clarification_patch()`,
-  `_gather_norm_evidence()`, `_render_requirement_status_block()`, and
-  `_preserve_attempt_log()` — sections 10 and 11's own code, each with a
-  docstring citing the real round that motivated it.
+- `engine/norm_plan.py`'s `validate_norm_plan()`/`_apply_clarification_patch()`
+  (section 10, re-exported from `engine/simulate.py` for existing call
+  sites) and `engine/simulate.py`'s `_gather_norm_evidence()`/
+  `_render_requirement_status_block()`/`_preserve_attempt_log()`
+  (section 11) — each with a docstring citing the real round that
+  motivated it.

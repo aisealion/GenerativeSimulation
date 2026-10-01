@@ -22,6 +22,7 @@ pass already used for critique resolution, rather than a separate retry
 loop."""
 import json
 
+import engine.norm_plan as norm_plan_module
 import engine.simulate as simulate_module
 
 
@@ -521,7 +522,7 @@ def test_lenient_json_drops_comments_and_trailing_commas_but_not_string_content(
       "list": [1, 2, 3,],
       "nested": {"x": true,},
     }'''
-    parsed = simulate_module._loads_llm_json(text)
+    parsed = norm_plan_module._loads_llm_json(text)
     assert parsed == {
         "attached_to": "harvest",
         "url": "https://example.org/a//b",
@@ -532,9 +533,9 @@ def test_lenient_json_drops_comments_and_trailing_commas_but_not_string_content(
 
 
 def test_strict_json_is_parsed_unchanged_and_hopeless_text_still_raises():
-    assert simulate_module._loads_llm_json('{"a": "x // y"}') == {"a": "x // y"}
+    assert norm_plan_module._loads_llm_json('{"a": "x // y"}') == {"a": "x // y"}
     try:
-        simulate_module._loads_llm_json("{requirements: [}")
+        norm_plan_module._loads_llm_json("{requirements: [}")
         raise AssertionError("expected a JSONDecodeError")
     except json.JSONDecodeError:
         pass
