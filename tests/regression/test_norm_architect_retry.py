@@ -581,3 +581,55 @@ def test_an_unusable_plan_gets_one_retry_quoting_the_problem(tmp_path, monkeypat
     assert success is True
     assert len(calls) == 2 and calls[0] is None
     assert "isn't valid JSON" in calls[1][0] and "no // or /* */ comments" in calls[1][0]
+
+
+def test_apply_clarification_patch_accepts_an_omitted_requirements_key_when_nothing_is_affected():
+    # sim/run-20261002-105239 round 1: a patch that only needed to replace
+    # source_coverage correctly set affected_requirements to [] and every
+    # existing id into unchanged_requirements, but omitted "requirements"
+    # entirely (nothing of any requirement's own content was changing) --
+    # the strict isinstance(..., list) check rejected the whole,
+    # otherwise-correct patch over that one missing key.
+    r1, r2 = _requirement("R1"), _requirement("R2", "ROLE")
+    plan = _valid_plan(requirements=[r1, r2])
+    new_coverage = [{"source_clause": "x", "requirements": ["R1"], "coverage": "COVERED", "note": None}]
+    patch_text = _response({
+        "affected_requirements": [],
+        "unchanged_requirements": ["R1", "R2"],
+        "source_coverage": new_coverage,
+        # no "requirements" key at all
+    })
+
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test")
+
+    assert reason is None
+    assert merged["requirements"] == [r1, r2]  # untouched, same objects
+    assert merged["source_coverage"] == new_coverage
+
+
+def test_apply_clarification_patch_still_rejects_a_genuinely_malformed_key():
+    # A key that's PRESENT but the wrong type is still a real error --
+    # only an ABSENT key defaults to empty.
+    plan = _valid_plan(requirements=[_requirement("R1")])
+    patch_text = _response({
+        "affected_requirements": "R1",  # should be a list, not a bare string
+        "unchanged_requirements": [],
+        "requirements": [_requirement("R1", description="patched")],
+    })
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test")
+    assert merged is None
+    assert "must be lists" in reason
+
+
+def test_apply_clarification_patch_accepts_a_missing_unchanged_requirements_key_too():
+    r1 = _requirement("R1")
+    plan = _valid_plan(requirements=[r1])
+    patched_r1 = _requirement("R1", description="patched")
+    patch_text = _response({
+        "affected_requirements": ["R1"],
+        "requirements": [patched_r1],
+        # no "unchanged_requirements" key -- fine, there's nothing left unchanged
+    })
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test")
+    assert reason is None
+    assert merged["requirements"][0]["description"] == "patched"

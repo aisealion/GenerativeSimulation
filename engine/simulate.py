@@ -1079,13 +1079,27 @@ def _apply_clarification_patch(plan, patch_text, note):
     if not isinstance(patch, dict):
         return None, "clarification response's json block wasn't an object"
 
+    # A patch that touches nothing about any individual requirement's own
+    # content (only a replacement source_coverage/flows) has nothing to put
+    # in "affected_requirements"/"requirements" — a real patch omitted both
+    # entirely rather than writing "requirements": [], and the strict
+    # isinstance check below used to reject the whole, otherwise-correct
+    # patch over that one missing key. A key that's PRESENT but the wrong
+    # type (a string, a dict) is still a real error; only an absent key
+    # defaults to empty here.
     affected = patch.get("affected_requirements")
+    if affected is None:
+        affected = []
     unchanged = patch.get("unchanged_requirements")
+    if unchanged is None:
+        unchanged = []
     new_requirements = patch.get("requirements")
+    if new_requirements is None:
+        new_requirements = []
     if not isinstance(affected, list) or not isinstance(unchanged, list) or not isinstance(new_requirements, list):
         return None, (
-            "clarification response is missing affected_requirements/"
-            "unchanged_requirements/requirements as lists"
+            "clarification response's affected_requirements/unchanged_requirements/"
+            "requirements, when present, must be lists"
         )
 
     original_ids = {req.get("id") for req in plan.get("requirements", []) if req.get("id")}

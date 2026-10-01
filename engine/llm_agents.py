@@ -1057,6 +1057,18 @@ which requirements implement which clause, include a full replacement
 one wholesale, so include every entry, not just the changed ones); omit
 either key to leave it as it is.
 
+"affected_requirements" means only: this id's own requirement object, as
+stored in the plan, is being replaced by an entry you put in
+"requirements". Naming an id inside a replacement "source_coverage" or
+"flows" entry does NOT by itself make it affected — if nothing about that
+id's own fields is changing, it still belongs in
+"unchanged_requirements", and you do not restate its object. A fix that
+touches ONLY "source_coverage" and/or "flows" (no requirement's own
+content changes) needs no entries in "requirements" at all — omit
+"requirements" entirely, or give it an empty list; do not put every id a
+new coverage entry happens to mention into "affected_requirements" just
+to make the output feel complete.
+
 Each requirement object in your output uses the exact same shape as the
 main plan (id/type/description/depends_on/clarity/clarity_critique/
 clarity_resolution plus whichever type-specific fields — exclusive/
@@ -1093,7 +1105,23 @@ account for every single existing id, none dropped, none invented.
 names the requirement id the original critique was about, if this is a
 critique response; omit it for a structural-fix response. The block must
 be strict JSON — no // or /* */ comments, no trailing commas. Never include
-any other fenced ```json block anywhere else in your response."""
+any other fenced ```json block anywhere else in your response.
+
+A fix that's ONLY about "source_coverage" (e.g. "give each clause its own
+entry" — no requirement's own content needs to change) looks like this
+instead — "affected_requirements" empty, "requirements" omitted entirely,
+every existing id in "unchanged_requirements":
+
+```json
+{
+  "affected_requirements": [],
+  "unchanged_requirements": ["R1", "R2", "R3", "R4", "R5", "R6"],
+  "source_coverage": [
+    {"source_clause": "...", "requirements": ["R1"], "coverage": "COVERED", "note": null},
+    {"source_clause": "...", "requirements": ["R2", "R3"], "coverage": "COVERED", "note": null}
+  ]
+}
+```"""
 
 
 def _build_norm_architect_clarification_prompt(round_number, norm_text, context_bundle, plan, trigger_text):
