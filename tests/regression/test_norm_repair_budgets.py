@@ -36,6 +36,10 @@ def _neutralize_checks(monkeypatch, compile_errors=None):
     # unless a test overrides this, so every other test here (which
     # doesn't care about evidence) must not touch the real filesystem.
     monkeypatch.setattr(simulate_module, "_gather_norm_evidence", lambda round_number, plan: {})
+    # The round-start cleanup and the attempt-log restore both act on the
+    # real ROOT's tests/norm_checks/ unless a test redirects them.
+    monkeypatch.setattr(simulate_module, "_clear_stale_round_checks", lambda round_number: None)
+    monkeypatch.setattr(simulate_module, "_preserve_attempt_log", lambda round_number, snapshot: snapshot)
 
 
 def test_compile_repair_exhausts_its_own_budget_without_ever_reaching_the_auditor(monkeypatch):
@@ -122,11 +126,14 @@ def test_compile_repair_message_lists_satisfied_and_unresolved_requirements(monk
     # compile-repair message -- the one this test actually checks.
     assert len(captured_messages) >= 2
     message = captured_messages[1]
-    assert "Satisfied — preserve these" in message
-    assert "R1" in message
+    # While compile errors are open, passing tests are reported as "tests
+    # pass for", outranked by the errors — never "do not touch".
+    assert "Tests pass for: R1" in message
+    assert "errors above take priority" in message
+    assert "Satisfied — preserve these" not in message
     assert "No test evidence at all" in message
     assert "R2" in message
-    assert "do not rebuild or re-verify" in message
+    assert "don't rebuild a requirement whose tests already pass" in message
 
 
 def test_audit_repair_message_lists_satisfied_and_unresolved_requirements(monkeypatch, tmp_path):

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import ast
 import importlib
 import json
 import os
@@ -1573,6 +1574,7 @@ def _gather_norm_evidence(round_number, plan):
         (evidence_dir / f"round_{round_number}.json").write_text(json.dumps(evidence, indent=2) + "\n")
         return evidence
 
+    empty_tests = _tests_without_assertions(test_path)
     with tempfile.TemporaryDirectory() as tmp_dir:
         junit_path = Path(tmp_dir) / "results.xml"
         subprocess.run(
@@ -1598,6 +1600,11 @@ def _gather_norm_evidence(round_number, plan):
                 elif error is not None:
                     evidence[req_id].append(
                         f"acceptance test {test_name}: ERROR — {(error.get('message') or '').strip()}"
+                    )
+                elif test_name in empty_tests:
+                    evidence[req_id].append(
+                        f"acceptance test {test_name}: EMPTY — passes without checking anything "
+                        f"(no assertion), so it is not evidence"
                     )
                 else:
                     evidence[req_id].append(f"acceptance test {test_name}: PASS")
@@ -2795,6 +2802,76 @@ def run_norm_engineer_with_retry(round_number, extra_message=None, session_id=No
     return False, session_id
 
 
+def _checks_something(func_node, checking_helpers):
+    """True if this function body verifies anything: an assert, a
+    pytest.raises/warns block, an assert*-named call (unittest/mock style),
+    or a call to a helper in the same module that itself checks something."""
+    for node in ast.walk(func_node):
+        if isinstance(node, ast.Assert):
+            return True
+        if isinstance(node, ast.Call):
+            func = node.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+            if name.startswith("assert") or name in ("raises", "warns") or name in checking_helpers:
+                return True
+    return False
+
+
+def _tests_without_assertions(test_path):
+    """Names of test_* functions in `test_path` that verify nothing at all —
+    `pass`, a docstring, or code that runs without ever checking a result.
+    Such a test always passes, so it proves nothing. Returns an empty set if
+    the file can't be read or parsed (a syntax error is reported by the
+    test run itself)."""
+    try:
+        tree = ast.parse(Path(test_path).read_text())
+    except (OSError, SyntaxError, ValueError):
+        return set()
+    functions = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    helpers = {f.name: f for f in functions if not f.name.startswith("test_")}
+    checking = set()
+    changed = True
+    while changed:  # a helper counts if it asserts, or calls a helper that does
+        changed = False
+        for name, func in helpers.items():
+            if name not in checking and _checks_something(func, checking):
+                checking.add(name)
+                changed = True
+    return {f.name for f in functions if f.name.startswith("test_") and not _checks_something(f, checking)}
+
+
+def norm_implementation_empty_tests_errors(round_number):
+    """A test suite in which no test checks anything is a compile-class
+    problem: every test passes regardless of what was built, so the
+    failing-tests gate, the per-requirement progress checkpoint, and the
+    "write tests that fail red first" instruction are all silently void. A
+    real round's norm-engineer wrote ten `def test_R{n}_...: pass` stubs in
+    its first call and kept them for all 14 attempts — every requirement
+    read as "Satisfied" from the first repair onward."""
+    test_path = ROOT / "tests" / "norm_checks" / f"round_{round_number}" / f"test_round_{round_number}.py"
+    if not test_path.is_file():
+        return []
+    try:
+        tree = ast.parse(test_path.read_text())
+    except (OSError, SyntaxError, ValueError):
+        return []
+    test_names = {n.name for n in ast.walk(tree)
+                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name.startswith("test_")}
+    if not test_names:
+        return []
+    empty = _tests_without_assertions(test_path)
+    if empty != test_names:
+        return []
+    return [
+        f"{test_path.relative_to(ROOT)}: none of your {len(test_names)} tests checks anything — "
+        f"each is `pass`, a docstring, or code that never asserts on a result, so every one "
+        f"passes no matter what you build ({', '.join(sorted(test_names))}). A test only counts as "
+        f"evidence if it builds a realistic state, runs the real action/rule, and asserts on the "
+        f"outcome the requirement's agent_experience describes. Write real assertions — tests "
+        f"that fail until the requirement actually works."
+    ]
+
+
 def norm_implementation_failing_tests_errors(round_number):
     """Self-Correction Gate: runs this round's test suite — norm-engineer's
     own tests (2026-09-24: norm-architect no longer proposes tests or
@@ -2855,7 +2932,7 @@ def _audit_flagged_requirement_ids(audit_text, known_ids):
     return flagged
 
 
-def _render_requirement_status_block(evidence, flagged_by_auditor=None):
+def _render_requirement_status_block(evidence, flagged_by_auditor=None, compile_errors=None):
     """Classifies each requirement id in `evidence` (see _read_norm_evidence()
     above) into satisfied / no-evidence / unresolved, and renders a short
     block naming each — folded into the audit-repair message so
@@ -2867,18 +2944,29 @@ def _render_requirement_status_block(evidence, flagged_by_auditor=None):
     itself from scratch on every attempt. Returns "" if there's nothing
     to say (no evidence at all, e.g. before the very first audit)."""
     flagged_by_auditor = set(flagged_by_auditor or ())
+    # A requirement whose own recorded evidence names a file that a compile
+    # error also names is broken right now, whatever its tests say — a real
+    # round was told "R3 satisfied, do not touch" while the error was inside
+    # R3's own action spec.
+    error_paths = set(re.findall(r"[\w./-]+\.(?:json|py)\b", "\n".join(compile_errors or [])))
+    named_in_errors = {
+        req_id for req_id, claims in evidence.items()
+        if req_id not in flagged_by_auditor
+        and any(path in claim for claim in claims for path in error_paths)
+    }
     satisfied, no_evidence, unresolved = [], [], []
     for req_id, claims in evidence.items():
-        if req_id in flagged_by_auditor:
+        if req_id in flagged_by_auditor or req_id in named_in_errors:
             continue
-        if not claims:
-            no_evidence.append(req_id)
-        elif all("file was ever written" in claim for claim in claims):
-            no_evidence.append(req_id)
-        elif any("FAIL" in claim or "ERROR" in claim for claim in claims):
+        if any("FAIL" in claim or "ERROR" in claim for claim in claims):
             unresolved.append(req_id)
-        else:
+        elif any(claim.startswith("acceptance test ") and claim.endswith(": PASS") for claim in claims):
             satisfied.append(req_id)
+        else:
+            # Nothing, a missing test file, only EMPTY (assertion-free)
+            # tests, or only norm-engineer's own self-reported claims — none
+            # of which is a test that actually checked the requirement.
+            no_evidence.append(req_id)
 
     lines = []
     if flagged_by_auditor:
@@ -2887,7 +2975,18 @@ def _render_requirement_status_block(evidence, flagged_by_auditor=None):
             f"pass (the tests evidently don't cover what the auditor found missing): "
             f"{', '.join(sorted(flagged_by_auditor))}"
         )
-    if satisfied:
+    if named_in_errors:
+        lines.append(
+            f"Named in an error above — NOT done, even if their tests pass: "
+            f"{', '.join(sorted(named_in_errors))}"
+        )
+    if satisfied and compile_errors:
+        lines.append(
+            f"Tests pass for: {', '.join(sorted(satisfied))} — keep those tests passing, but "
+            f"the errors above take priority over this list: if an error names a file that "
+            f"belongs to one of these requirements, fix that file anyway"
+        )
+    elif satisfied:
         lines.append(
             f"Satisfied — preserve these, do not touch their implementation or tests: "
             f"{', '.join(sorted(satisfied))}"
@@ -3039,6 +3138,55 @@ def _render_engineer_repair_preamble(round_number, repair_kind, attempt, max_att
     )
 
 
+def _clear_stale_round_checks(round_number):
+    """Empties tests/norm_checks/round_{N}/ before this round's pipeline
+    starts. The path is keyed only by round number, so anything already
+    there belongs to some OTHER run (or an abandoned earlier attempt at this
+    round) that used the same working directory. A real round's
+    norm-engineer read such a leftover attempt_log.json — another run's
+    history about a different norm entirely — as its own record of what it
+    had already tried. Nothing legitimately writes here before
+    norm-architect does, a moment later."""
+    round_dir = ROOT / "tests" / "norm_checks" / f"round_{round_number}"
+    if round_dir.is_dir() and any(round_dir.iterdir()):
+        print(f"Round {round_number}: clearing leftover files in "
+              f"{round_dir.relative_to(ROOT)} from an earlier run before starting.")
+        shutil.rmtree(round_dir, ignore_errors=True)
+
+
+def _preserve_attempt_log(round_number, snapshot):
+    """Keeps norm-engineer's tests/norm_checks/round_{N}/attempt_log.json
+    from losing history. Called after every norm-engineer call with the
+    entries the harness last saw; returns the new snapshot. If the file was
+    deleted, emptied, corrupted, or had earlier entries removed, it's
+    rewritten as the saved entries plus whatever new ones this call added.
+    Edit permissions can't stop this — a real round's norm-engineer ran
+    `rm -f` on the file mid-round while "reverting" its own changes, and
+    every attempt after that had no record of what had already failed —
+    but the harness can always undo it."""
+    log_path = ROOT / "tests" / "norm_checks" / f"round_{round_number}" / "attempt_log.json"
+    try:
+        current = json.loads(log_path.read_text())
+        if not isinstance(current, list):
+            current = None
+    except (OSError, json.JSONDecodeError):
+        current = None
+
+    if current is not None and current[:len(snapshot)] == snapshot:
+        return current
+    if not snapshot and current is None:
+        return []
+
+    restored = snapshot + [entry for entry in (current or []) if entry not in snapshot]
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text(json.dumps(restored, indent=2) + "\n")
+    print(f"Round {round_number}: {log_path.relative_to(ROOT)} lost earlier entries during the "
+          f"last norm-engineer call — restored {len(snapshot)} saved entr"
+          f"{'y' if len(snapshot) == 1 else 'ies'} plus "
+          f"{len(restored) - len(snapshot)} new.")
+    return restored
+
+
 def implement_and_evaluate_norm(round_number, winning_proposal):
     """The per-round pipeline: design (norm-architect, semantic
     compilation only — a norm_plan.json of classified requirements, each
@@ -3110,6 +3258,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     failures on it — a second, independent safety valve, now redundant
     with the outer pairing in the common case but still real protection
     if a paired session somehow degrades within its own 2 attempts."""
+    _clear_stale_round_checks(round_number)
     architect_ok, norm_plan = run_norm_architect_with_retry(round_number)
     if not architect_ok:
         discard_norm_implementation(
@@ -3125,6 +3274,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
     success, _ = run_norm_engineer_with_retry(
         round_number, extra_message=render_engineer_kickoff(norm_plan, round_number),
     )
+    attempt_log_snapshot = _preserve_attempt_log(round_number, [])
     if not success:
         discard_norm_implementation(
             round_number,
@@ -3178,6 +3328,10 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
         if not compile_errors:
             compile_errors += norm_implementation_no_code_changes_errors()
         if not compile_errors:
+            # A suite where no test asserts anything passes regardless of
+            # what was built — see norm_implementation_empty_tests_errors().
+            compile_errors += norm_implementation_empty_tests_errors(round_number)
+        if not compile_errors:
             # Self-Correction Gate: norm-engineer's own translated
             # acceptance-test suite must actually pass before an
             # LLM-driven audit is even attempted —
@@ -3225,14 +3379,14 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 f"must be fixed before it can even be audited:\n\n{chr(10).join(compile_errors)}"
             )
             compile_requirement_status_block = _render_requirement_status_block(
-                _gather_norm_evidence(round_number, norm_plan)
+                _gather_norm_evidence(round_number, norm_plan), compile_errors=compile_errors,
             )
             if compile_requirement_status_block:
                 what_was_found += (
                     f"\n\n{compile_requirement_status_block}\n\nThis is progress, not just "
-                    f"another failed attempt — do not rebuild or re-verify anything listed "
-                    f"'Satisfied' above; spend this attempt only on what's still missing or "
-                    f"failing."
+                    f"another failed attempt — don't rebuild a requirement whose tests already "
+                    f"pass unless an error above names one of its files; spend this attempt on "
+                    f"the errors and on whatever has no real test evidence yet."
                 )
             repair_message = (
                 _render_engineer_repair_preamble(
@@ -3256,6 +3410,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
                 session_id=(repair_session_id if not session_is_fresh else None),
             )
             repair_session_id = discovered_session_id if session_is_fresh else None
+            attempt_log_snapshot = _preserve_attempt_log(round_number, attempt_log_snapshot)
             if not success:
                 discard_norm_implementation(
                     round_number,
@@ -3336,6 +3491,7 @@ def implement_and_evaluate_norm(round_number, winning_proposal):
             session_id=(repair_session_id if not session_is_fresh else None),
         )
         repair_session_id = discovered_session_id if session_is_fresh else None
+        attempt_log_snapshot = _preserve_attempt_log(round_number, attempt_log_snapshot)
         if not success:
             discard_norm_implementation(
                 round_number,

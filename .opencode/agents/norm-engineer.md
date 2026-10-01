@@ -261,6 +261,17 @@ fine. If a later attempt shows you a requirement marked "Satisfied":
 trust it, and do not rebuild or re-verify its implementation or tests —
 spend that attempt only on what's still missing.
 
+A test only counts if it actually checks something. The harness reads
+your test file: a `test_*` function with no assertion (just `pass`, a
+docstring, or code that never asserts on a result) is recorded as EMPTY
+and gives its requirement no evidence at all, and a suite in which no test
+asserts anything is rejected outright as a compile-class error. Never
+write placeholder tests to fill in later.
+
+`attempt_log.json` belongs to the whole round, not to one attempt — never
+delete, empty, or "revert" it. If it loses entries, the harness restores
+them from its own copy before your next attempt.
+
 **You are the only one grading this homework — take that seriously.**
 Nothing upstream of you proposed these scenarios or their pass/fail
 values; a test that's technically green but checks something weaker than
