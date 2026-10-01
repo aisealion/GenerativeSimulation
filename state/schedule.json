@@ -1,7 +1,7 @@
 {
   "harvest": "true",
   "propose": "true",
-  "critique": "true",
+  "critique": "false",
   "vote": "true",
   "discuss": "false"
 }

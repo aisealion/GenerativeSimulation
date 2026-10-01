@@ -1,5 +1,135 @@
 {
-  "round": 0,
-  "stock_kg": 300,
-  "rounds": []
+  "round": 1,
+  "stock_kg": 256.1625,
+  "rounds": [
+    {
+      "agents": {
+        "agent_0": {
+          "effort": 0.6,
+          "harvested_kg": 9.0,
+          "reasoning": "I need enough to survive but I don't want to deplete the lake for future fishers.",
+          "note": null,
+          "participated": true
+        },
+        "agent_1": {
+          "effort": 0.6,
+          "harvested_kg": 9.0,
+          "reasoning": "I\u2019ll put in moderate effort today to secure enough fish for my daily 1\u2011unit need, while not over\u2011exerting in case tomorrow\u2019s catch is uncertain.",
+          "note": null,
+          "participated": true
+        },
+        "agent_2": {
+          "effort": 0.8,
+          "harvested_kg": 12.0,
+          "reasoning": "I\u2019ll fish hard enough to feed my family, but I keep some fish for future days.",
+          "note": null,
+          "participated": true
+        },
+        "agent_3": {
+          "effort": 1.0,
+          "harvested_kg": 15.0,
+          "reasoning": "I need to bring enough fish for my family, so I\u2019ll put in all my effort today.",
+          "note": null,
+          "participated": true
+        },
+        "agent_4": {
+          "effort": 0.5,
+          "harvested_kg": 7.5,
+          "reasoning": "First time out, no rules yet, so I\u2019ll cast a moderate net to test the lake and ensure I get enough fish for the day.",
+          "note": null,
+          "participated": true
+        }
+      },
+      "stock_kg_before": 300,
+      "stock_kg_after_harvest": 247.5,
+      "stock_kg_after_regrowth": 256.1625,
+      "round": 1,
+      "action": "harvest"
+    },
+    {
+      "proposals": {
+        "agent_0": {
+          "policy": "Each fisher may take at most 1.5 units of fish per day, and no more than 10% of the total catch that day.",
+          "operationalization": "On each trip, the fisher counts fish taken. After all trips, the community tallies the total catch. If a fisher exceeds the 1.5 unit or 10% limit, the excess fish are returned to the lake or stored for community use. This is done by hand count and verbal confirmation at the gathering place; no special equipment is needed.",
+          "reasoning": "I need to leave enough fish for others and for tomorrow, so limiting each person keeps the lake healthy and ensures everyone can survive. The rule is simple, fair, and easy to enforce, protecting future generations.",
+          "participated": true
+        },
+        "agent_1": {
+          "policy": "Each villager should fish no more than 3 units of fish per day and should not fish during the lake's spawning season (June 1 \u2013 July 15).",
+          "operationalization": "On each day, count the units caught. If you have more than 3 units, release the excess back into the lake. Mark a calendar to skip fishing from June 1 to July 15.",
+          "reasoning": "This keeps the fish population healthy so everyone can survive. By limiting daily catch and protecting the spawning season, we avoid overfishing and keep the lake\u2019s fish supply for all villagers.",
+          "participated": true
+        },
+        "agent_2": {
+          "policy": "Each villager may fish no more than 1.5 units per day: 1 unit for personal consumption and 0.5 units to a communal reserve for future needs.",
+          "operationalization": "Villagers log each day's catch on a shared ledger. Any catch over 1.5 units must be split, with the excess added to the reserve. The reserve is drawn from only when the last 30 days\u2019 average catch falls below 80% of the estimated lake capacity, signaling a potential decline in fish stock.",
+          "reasoning": "Limiting daily catch protects the lake\u2019s population while guaranteeing everyone enough to survive. The small reserve creates a buffer for times when the stock is low, and the public ledger promotes transparency and discourages overfishing.",
+          "participated": true
+        },
+        "agent_3": {
+          "policy": "Each villager should fish only to secure at least 1 unit of fish per day for their own family; surplus fish may be kept or shared at will, but no communal limits or quotas are imposed.",
+          "operationalization": "On each trip, a fisher takes fish until they have 1 unit per person in their household. If they catch more, they can leave the extras on the shore, store them, or trade with neighbors. The lake is treated as an open resource; no restrictions are placed on who can fish where or how many fish can be taken beyond personal needs.",
+          "reasoning": "We all need to survive, so the minimum that keeps each family alive is 1 unit a day. By limiting our effort to that, we avoid depleting the lake and reduce conflict. Surplus can still be used to help neighbors or keep for future needs, but there\u2019s no need to enforce strict community rules when everyone\u2019s priority is to secure their own harvest.",
+          "participated": true
+        },
+        "agent_4": {
+          "policy": "All villagers agree to limit each fishing trip to a maximum of 3 fish. No fishing is allowed during the first two hours of dawn to protect spawning fish.",
+          "operationalization": "Before each trip, a villager counts the fish in their net; when they reach 3 fish they stop. Fishing is only started after 7 AM. If someone wants to exceed the quota, they must obtain unanimous community approval, which is recorded by a simple tally on the village ledger.",
+          "reasoning": "Capping the catch keeps the fish population healthy so each villager can meet the daily 1\u2011unit requirement. The dawn protection preserves breeding stock, ensuring long\u2011term sustainability. The rule is simple, observable, and easy to enforce, which helps keep the community safe.",
+          "participated": true
+        }
+      },
+      "round": 1,
+      "action": "propose"
+    },
+    {
+      "votes": {
+        "agent_0": {
+          "vote": 1,
+          "reasoning": "I support my own proposal because it sets a clear, enforceable limit that protects the lake for future generations while still allowing each of us to sustain our families.",
+          "participated": true
+        },
+        "agent_1": {
+          "vote": 2,
+          "reasoning": "I need at least one unit a day to survive, and I can get a little extra if I want. Policy\u00a02 gives me up to three units, which is plenty, but it still protects the spawning season, so the lake can replenish. It\u2019s simple to follow\u2014just count what I catch and stop at three, and skip the lake from June\u202f1 to July\u202f15. That balances my livelihood with the community\u2019s long\u2011term health.",
+          "participated": true
+        },
+        "agent_2": {
+          "vote": 3,
+          "reasoning": "I only need 1 unit for my family and I want to help keep the lake healthy. Policy 3 gives that 1 unit for me and 0.5 to a reserve, and it limits total catch to 1.5. That matches my personal strategy of fishing just enough for my family and protecting the stock for future.",
+          "participated": true
+        },
+        "agent_3": {
+          "vote": 4,
+          "reasoning": "My family needs to eat and I want to keep as many fish as I can to survive. Policy 4 only guarantees me one unit per day for my household, but it imposes no limits beyond that. I can catch more, store it, trade it, or keep it all for myself. This gives me the freedom to fish as much as I need to feed my family and protect our livelihood.",
+          "participated": true
+        },
+        "agent_4": {
+          "vote": 5,
+          "reasoning": "I submitted this rule because it keeps the lake healthy by protecting spawning fish in the first two hours of dawn, and limits each trip to 3 fish so I can manage my effort and still get enough for my family. The rule is simple to enforce\u2014just count to three and start after 7\u202fAM\u2014so I can focus on pulling in a steady catch without worrying about complex quotas or community enforcement. This helps me keep my daily 1\u2011unit survival need and still leave room for a few extra fish if I catch them, all while preserving the lake for future trips.",
+          "participated": true
+        }
+      },
+      "tally": {
+        "1": 1,
+        "2": 1,
+        "3": 1,
+        "4": 1,
+        "5": 1
+      },
+      "winner_index": 1,
+      "winning_proposer": "agent_0",
+      "round": 1,
+      "action": "vote"
+    }
+  ],
+  "objects": {},
+  "payoff": {
+    "agent_0": 8.0,
+    "agent_1": 8.0,
+    "agent_2": 11.0,
+    "agent_3": 14.0,
+    "agent_4": 6.5
+  },
+  "dead_agents": []
 }
