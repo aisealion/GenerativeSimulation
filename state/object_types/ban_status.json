@@ -1,31 +1,34 @@
 {
-    "type_name": "ban_status",
-    "name": "ban_status",
-    "description": "Object to track fisher ban status",
-    "fields": {
-        "fisher": {
-            "type": "string",
-            "description": "The agent ID of the fisher who is banned"
-        },
-        "start_date": {
-            "type": "integer",
-            "description": "The round number when the ban started"
-        },
-        "end_date": {
-            "type": "integer",
-            "description": "The round number when the ban ends"
-        },
-        "active": {
-            "type": "boolean",
-            "description": "Whether the ban is currently active"
-        },
-        "reason": {
-            "type": "string",
-            "description": "Reason for the ban"
-        }
+  "type_name": "ban_status",
+  "description": "Object to track fisher ban status",
+  "ownership": "COMMUNAL",
+  "fields": {
+    "ban_status": {
+      "type": "string",
+      "default": "ACTIVE",
+      "description": "Ban status of fisher - 'BANNED' or 'ACTIVE'"
     },
-    "persistence": {
-        "type": "persistent",
-        "retention": "until_cleared"
+    "ban_start_date": {
+      "type": "string",
+      "default": "",
+      "description": "Date when ban started"
+    },
+    "ban_duration_rounds": {
+      "type": "integer",
+      "default": 7,
+      "description": "Duration of ban in rounds"
     }
+  },
+  "operations": ["set_ban_status", "check_ban_status", "clear_ban_status"],
+  "permissions": {
+    "READ": {"who": "ALL"},
+    "WRITE": {"who": "ROLE:lake_guard"}
+  },
+  "visibility": {
+    "ban_status": {"who": "ALL"},
+    "ban_start_date": {"who": "ALL"},
+    "ban_duration_rounds": {"who": "ALL"}
+  },
+  "custom_handler": null,
+  "introduced_round": 3
 }

@@ -1,0 +1,559 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "OBJECT",
+      "description": "Shared Fishing Rights Ledger with columns for date, fisher name, units caught, weights, 'Ban_Status', 'Ban_Start_Date', 'Community_Service_Required', and 'Hours_Completed'",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R2",
+      "type": "ACTION",
+      "description": "Daily fishing: record units caught and weights in ledger",
+      "actor": "fisher",
+      "judgment_required": false,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their own catch records"
+        ],
+        "decides": [],
+        "may_do": [
+          "Record catches in ledger"
+        ],
+        "may_not_do": [],
+        "remembers": [
+          "Past catch records for compliance checks"
+        ],
+        "observes": [
+          "Ledger entries"
+        ]
+      }
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Daily fishing: sign logbook",
+      "actor": "fisher",
+      "judgment_required": false,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Logbook signing requirement"
+        ],
+        "decides": [],
+        "may_do": [
+          "Sign logbook"
+        ],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "ROLE",
+      "description": "Clerk selected daily via transparent rotating draw from volunteers",
+      "exclusive": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Clerk selection process"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "ACTION",
+      "description": "Verify clerk has no fishing rights that day by checking ledger",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Clerk eligibility criteria"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "ACTION",
+      "description": "Repeat draw until clerk with no fishing rights is chosen",
+      "actor": "elder",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Clerk selection process"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R7",
+      "type": "ROLE",
+      "description": "Guard chosen by daily draw to enforce fishing limits",
+      "exclusive": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Guard duties and selection process"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R8",
+      "type": "ACTION",
+      "description": "Check ledger for compliance with 3-unit limit and confiscate excess fish",
+      "actor": "guard",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Fishing limits"
+        ],
+        "decides": [],
+        "may_do": [
+          "Confiscate excess fish"
+        ],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R9",
+      "type": "RULE",
+      "description": "3-unit daily fishing limit per villager",
+      "attached_to": "R8",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Catch more than 3 units"
+        ],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R10",
+      "type": "ACTION",
+      "description": "Record violation by setting 'Ban_Status' and 'Ban_Start_Date'",
+      "actor": "guard",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Ban status of fishers"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R11",
+      "type": "LIFECYCLE",
+      "description": "7-day fishing ban for violations",
+      "duration_rounds": 7,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R12",
+      "type": "RULE",
+      "description": "Ban lasts exactly 7 days from 'Ban_Start_Date'",
+      "attached_to": "R20",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their own ban status and start date"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [
+          "Fish during ban period"
+        ],
+        "remembers": [],
+        "observes": [
+          "Others being banned or cleared"
+        ]
+      }
+    },
+    {
+      "id": "R13",
+      "type": "ACTION",
+      "description": "Weekly backup audit: guard reads all logbooks to confirm catches and ensure no excess fish were hidden after daily checks",
+      "actor": "guard",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": "The weekly meeting's role in confirming catches and returning excess fish needs clearer definition. Does it serve as a second check or is it redundant with the guard's daily checks?",
+      "clarity_resolution": "The weekly meeting serves as a backup audit\u2014a final sweep to ensure no one hid fish after the guard\u2019s daily review.",
+      "agent_experience": {
+        "knows": [
+          "Weekly catch totals"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R14",
+      "type": "RULE",
+      "description": "Fisher with lowest weekly catch does community service",
+      "attached_to": "R15",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Potential community service requirement"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R15",
+      "type": "ACTION",
+      "description": "Identify fisher with lowest weekly catch and assign community service if no tie",
+      "actor": "guard",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Community service assignments"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R16",
+      "type": "RULE",
+      "description": "Random draw to resolve ties for community service",
+      "attached_to": "R15",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Tie-breaking mechanism"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "Random draw outcomes"
+        ]
+      }
+    },
+    {
+      "id": "R17",
+      "type": "ACTION",
+      "description": "Record ban and set 'Community_Service_Required' = 8 hours for failure to return excess fish",
+      "actor": "guard",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Community service requirements"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R18",
+      "type": "RULE",
+      "description": "8-hour community service requirement for ban violations",
+      "attached_to": "R17",
+      "deterministic": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Community service duration"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R19",
+      "type": "ACTION",
+      "description": "Verify community service completion and record 'Hours_Completed'",
+      "actor": "community_service_supervisor",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Community service completion status"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R20",
+      "type": "ACTION",
+      "description": "Clear 'Ban_Status' and 'Ban_Start_Date' after 7 days",
+      "actor": "guard",
+      "judgment_required": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Ban clearance process"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R21",
+      "type": "OBJECT",
+      "description": "Ban status tracking object with 'Ban_Status' and 'Ban_Start_Date'",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R22",
+      "type": "OBJECT",
+      "description": "Community service tracking object with 'Community_Service_Required' and 'Hours_Completed'",
+      "persistent": true,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R23",
+      "type": "VISIBILITY",
+      "description": "Ledger entries visible to all fishers",
+      "target": "R1",
+      "audience": "all_fishers",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "Ledger entries"
+        ]
+      }
+    },
+    {
+      "id": "R24",
+      "type": "VISIBILITY",
+      "description": "Guard schedule and enforcement protocol published monthly",
+      "target": "guard_schedule",
+      "audience": "all_fishers",
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": [
+          "Guard schedule"
+        ]
+      }
+    },
+    {
+      "id": "R25",
+      "type": "ACTION",
+      "description": "Voluntary fishing abstention pledge in March",
+      "actor": "fisher",
+      "judgment_required": false,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "March abstention pledge"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R26",
+      "type": "LIFECYCLE",
+      "description": "2-week fishing abstention period in March",
+      "duration_rounds": 2,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    }
+  ],
+  "open_critiques": [
+    {
+      "requirement": "R13",
+      "critique_question": "The weekly meeting's role in confirming catches and returning excess fish needs clearer definition. Does it serve as a second check or is it redundant with the guard's daily checks?"
+    }
+  ],
+  "clarifications": [
+    {
+      "clarification_for": "R13",
+      "affected_requirements": [
+        "R13"
+      ],
+      "unchanged_requirements": [
+        "R1",
+        "R10",
+        "R11",
+        "R12",
+        "R14",
+        "R15",
+        "R16",
+        "R17",
+        "R18",
+        "R19",
+        "R2",
+        "R20",
+        "R21",
+        "R22",
+        "R23",
+        "R24",
+        "R25",
+        "R26",
+        "R3",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R8",
+        "R9"
+      ],
+      "note": "critique on R13: The weekly meeting's role in confirming catches and returning excess fish needs clearer definition. Does it serve as a second check or is it redundant with the guard's daily checks?"
+    },
+    {
+      "clarification_for": null,
+      "affected_requirements": [
+        "R12",
+        "R14",
+        "R16",
+        "R18"
+      ],
+      "unchanged_requirements": [
+        "R1",
+        "R10",
+        "R11",
+        "R13",
+        "R15",
+        "R17",
+        "R19",
+        "R2",
+        "R20",
+        "R21",
+        "R22",
+        "R23",
+        "R24",
+        "R25",
+        "R26",
+        "R3",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R8",
+        "R9"
+      ],
+      "note": "structural fixes: requirement 'R12': type RULE needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R14': type RULE needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R16': type RULE needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R18': type RULE needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R12': \"attached_to\" is 'R11', which is a LIFECYCLE requirement, not an ACTION \u2014 a RULE's \"attached_to\" must name the action it governs"
+    }
+  ]
+}

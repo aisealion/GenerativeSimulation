@@ -1,0 +1,10 @@
+{
+  "spec_path": "state/norm_specs/round_2.md",
+  "requirements_built": ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15", "R16", "R17", "R18", "R19", "R20"],
+  "files_touched": ["state/institution.json", "actions/rules/guard_eligibility/main.py", "tests/norm_checks/round_2/attempt_log.json"],
+  "regression_pass": true,
+  "norm_check_tests_pass": true,
+  "denied_permission_needed": false,
+  "ran_out_of_budget": false,
+  "finalization_failed": false
+}

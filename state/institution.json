@@ -86,6 +86,11 @@
       "exclusive": true,
       "description": "Community clerk responsible for guard selection",
       "introduced_round": 2
+    },
+    "community_service_supervisor": {
+      "exclusive": true,
+      "description": "Supervises community service completion",
+      "introduced_round": 3
     }
   },
   "rule_types": {
@@ -116,12 +121,16 @@
   },
   "object_types": {
     "shared_ledger": {
-      "description": "Shared ledger for recording fish catches",
+      "description": "Shared ledger for recording fish catches with Ban_Status, Ban_Start_Date, Community_Service_Required, and Hours_Completed",
       "owner": "state/object_types/shared_ledger.json"
     },
     "ban_status": {
       "description": "Object to track fisher ban status",
       "owner": "state/object_types/ban_status.json"
+    },
+    "community_service_status": {
+      "description": "Object to track fisher community service requirements and completion",
+      "owner": "state/object_types/community_service_status.json"
     }
   },
   "state": {

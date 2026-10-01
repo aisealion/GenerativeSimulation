@@ -7,5 +7,13 @@
   "register_catch": "true",
   "sign_logbook": "true",
   "choose_guard": "true",
-  "check_compliance": "true"
+  "check_compliance": "true",
+  "confiscate_excess": "true",
+  "weekly_review": "true",
+  "assign_community_service": "true",
+  "record_ban": "true",
+  "verify_community_service": "true",
+  "enforce_march_abstention": "true",
+  "sign_pledge": "true",
+  "record_catch": "true"
 }

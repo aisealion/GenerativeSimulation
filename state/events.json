@@ -24,5 +24,31 @@
       "agent_3",
       "agent_4"
     ]
+  },
+  {
+    "event_type": "error",
+    "text": "Catch registration error for agent_4: 'ObjectRuntime' object has no attribute 'get_object'",
+    "round": 3,
+    "visibility": "participants",
+    "visible_to": [
+      "agent_0",
+      "agent_1",
+      "agent_2",
+      "agent_3",
+      "agent_4"
+    ]
+  },
+  {
+    "event_type": "guard_selected",
+    "text": "Guard selected: agent_0",
+    "round": 3,
+    "visibility": "participants",
+    "visible_to": [
+      "agent_0",
+      "agent_1",
+      "agent_2",
+      "agent_3",
+      "agent_4"
+    ]
   }
 ]

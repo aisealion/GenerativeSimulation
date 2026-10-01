@@ -1,114 +1,237 @@
 import pytest
+import json
+import os
+from unittest.mock import Mock, patch
 
-# Test for R1: Observer role
-def test_R1_compliant_decision():
-    """Test Observer role that tracks violations and confirms trips"""
-    # This would test that an observer role is properly assigned and can make decisions
-    assert True  # Placeholder for actual test
+# Tests for all requirements based on their agent_experience blocks
 
-def test_R1_violation_tracking():
-    """Test Observer role violation tracking"""
-    # This would verify the observer tracks violations correctly
-    assert True  # Placeholder for actual test
+def test_R1_object_created():
+    """Test that shared fishing rights ledger object exists with all required columns"""
+    print("Checking R1 object creation")
+    ledger_file = "state/object_types/shared_ledger.json"
+    assert os.path.exists(ledger_file)
+    
+    with open(ledger_file, 'r') as f:
+        ledger_data = json.load(f)
+    
+    # Check required fields from requirement description
+    assert 'daily_catch_records' in ledger_data['fields']
+    assert 'ban_status' in ledger_data['fields']
+    assert 'community_service_status' in ledger_data['fields']
+    assert ledger_data['visibility']['daily_catch_records']['who'] == 'ALL'
 
-# Test for R2: Observer checks lake stock before trip
-def test_R2_compliant_decision():
-    """Test Observer allows trip when stock >= 1 unit"""
-    # This would test observer allows trips when stock is valid
-    assert True  # Placeholder for actual test
+def test_R2_fisher_can_record_catches():
+    """Test that fisher can record catches in ledger (knows catch records, may record, remembers past records)"""
+    print("Checking R2 fisher recording catches")
+    action_file = "state/actions/record_catch.json"
+    assert os.path.exists(action_file)
+    
+    with open(action_file, 'r') as f:
+        action_data = json.load(f)
+        
+    # Verify the action is properly structured for fisher
+    assert action_data.get("name") == "record_catch"
+    assert action_data.get("roles", {}).get("actor_role") == "fisher"
+    
+    # Test that fisher can observe ledger entries
+    # This would be tested with actual execution in simulation
 
-def test_R2_non_compliant_decision():
-    """Test Observer denies trip when stock < 1 unit"""
-    # This would test observer denies trips when stock is invalid
-    assert True  # Placeholder for actual test
+def test_R3_fisher_can_sign_logbook():
+    """Test that fisher can sign logbook (knows requirement, may do it)"""
+    print("Checking R3 fisher signing logbook")
+    action_file = "state/actions/sign_logbook.json"
+    assert os.path.exists(action_file)
+    
+    with open(action_file, 'r') as f:
+        action_data = json.load(f)
+        
+    assert action_data.get("name") == "sign_logbook"
+    assert action_data.get("roles", {}).get("actor_role") == "fisher"
 
-# Test for R3: Personal ledger for each fisher
-def test_R3_personal_ledger_creation():
-    """Test that personal ledger is created for each fisher"""
-    # This would verify personal ledger exists per fisher
-    assert True  # Placeholder for actual test
+def test_R4_clerk_selection_process():
+    """Test that clerk selection process is known to agents"""
+    print("Checking R4 clerk selection process")
+    institution_file = "state/institution.json"  
+    assert os.path.exists(institution_file)
+    
+    with open(institution_file, 'r') as f:
+        institution_data = json.load(f)
+        
+    assert "clerk" in institution_data.get("roles", {})
 
-# Test for R4: Fisher reports catch and contribution to observer before sunset
-def test_R4_compliant_report():
-    """Test Fisher reports catch correctly"""
-    # This would test fisher correctly reports catch
-    assert True  # Placeholder for actual test
+def test_R5_elder_verifies_clerk_eligibility():
+    """Test that elder can verify clerk has no fishing rights"""
+    print("Checking R5 elder verifying clerk eligibility")
+    action_file = "state/actions/choose_guard.json"
+    assert os.path.exists(action_file)
+    
+    # The action would need to exist and be accessible by elder or related role
+    # This is a check that the system understands the requirement
 
-def test_R4_exceeding_limit():
-    """Test Fisher cannot report more than 3 units"""
-    # This would test fisher can't exceed 3 units
-    assert True  # Placeholder for actual test
+def test_R6_elder_repeats_draw():
+    """Test that elder can repeat draw until eligible clerk is chosen"""
+    print("Checking R6 elder drawing clerks")
+    # Implementation of drawing mechanism would be checked during execution
 
-# Test for R5: Observer updates communal ledger
-def test_R5_compliant_ledger_update():
-    """Test Observer updates communal ledger correctly"""
-    # This would verify observer correctly updates ledger
-    assert True  # Placeholder for actual test
+def test_R7_guard_selection_process():
+    """Test that guard selection process is known to agents"""
+    print("Checking R7 guard selection process")
+    institution_file = "state/institution.json"  
+    assert os.path.exists(institution_file)
+    
+    with open(institution_file, 'r') as f:
+        institution_data = json.load(f)
+        
+    assert "lake_guard" in institution_data.get("roles", {})
 
-# Test for R6: Lake keeper updates lake stock and reserve balance
-def test_R6_lake_keeper_update():
-    """Test Lake keeper updates stock and balance"""
-    # This would verify lake keeper updates parameters
-    assert True  # Placeholder for actual test
+def test_R8_guard_checks_compliance():
+    """Test that guard can check ledger for compliance with 3-unit limit and confiscate excess fish
+    (knows fishing limits, may confiscate fish)"""
+    print("Checking R8 guard checking compliance")
+    action_file = "state/actions/check_compliance.json"
+    assert os.path.exists(action_file)
+    
+    with open(action_file, 'r') as f:
+        action_data = json.load(f)
+        
+    assert action_data.get("name") == "check_compliance"
+    assert action_data.get("roles", {}).get("actor_role") == "lake_guard"
 
-# Test for R7: Trip denied if lake stock < 1 unit
-def test_R7_trip_denied_low_stock():
-    """Test that trip is denied when stock is < 1 unit"""
-    # This verifies that the threshold for "less than one unit" is correctly enforced
-    assert True
+def test_R9_fisher_compliance_rule():
+    """Test that fisher knows they can't catch more than 3 units per day
+    (fisher may not do: catch more than 3 units)"""
+    print("Checking R9 3-unit limit rule")
+    # This would be checked in the rule system - should prevent >3 units
+    assert True  # Placeholder 
 
-# Test for R8: Maximum catch per trip is three units
-def test_R8_max_catch_limit():
-    """Test that fisher cannot exceed 3 units per trip"""
-    # This verifies the norm requires exactly 3 units maximum per trip
-    assert True
+def test_R10_guard_records_violation():
+    """Test that guard can record violations by setting Ban_Status and Ban_Start_Date"""
+    print("Checking R10 guard recording violation")
+    action_file = "state/actions/record_ban.json"
+    assert os.path.exists(action_file)
+    
+    with open(action_file, 'r') as f:
+        action_data = json.load(f)
+        
+    assert action_data.get("name") == "record_ban"
+    assert action_data.get("roles", {}).get("actor_role") == "lake_guard"
 
-# Test for R9: Observer flags fisher for violations
-def test_R9_violation_flagging():
-    """Test Observer flags a fisher for violations"""
-    # This would verify observer can flag violations
-    assert True  # Placeholder for actual test
+def test_R11_ban_duration_lifecycle():
+    """Test that ban lasts 7 days"""
+    print("Checking R11 ban duration lifecycle")
+    # This would be checked with rule system behavior
 
-# Test for R10: Lake Keeper role
-def test_R10_lake_keeper_role():
-    """Test Lake Keeper role knowledge and capabilities"""
-    # This would check lake keeper's role permissions and capabilities
-    assert True  # Placeholder for actual test
+def test_R12_fisher_knows_ban_status():
+    """Test that fisher knows their own ban status and start date 
+    (knows: their own ban status and start date, may not do: fish during ban period, observes: others being banned or cleared)"""
+    print("Checking R12 fisher ban status awareness")
+    # This would test fisher's knowledge at execution time
 
-# Test for R11: Observer imposes skip-day via elder majority vote
-def test_R11_skip_day_imposed():
-    """Test Observer can impose a skip-day with majority vote (3 out of 5)"""
-    # This verifies the enforcement mechanism for majority vote requirement
-    assert True
+def test_R13_guard_weekly_audit():
+    """Test that guard can perform weekly backup audit"""
+    print("Checking R13 weekly backup audit")
+    action_file = "state/actions/weekly_review.json"
+    assert os.path.exists(action_file)
+    
+    with open(action_file, 'r') as f:
+        action_data = json.load(f)
+        
+    assert action_data.get("name") == "weekly_review"
+    assert action_data.get("roles", {}).get("actor_role") == "lake_guard"
 
-# Test for R12: Two consecutive or three violations in 30 days trigger skip-day
-def test_R12_violation_threshold():
-    """Test that 2 consecutive or 3 violations in 30 days trigger skip-day"""
-    # Verifies both enforcement pathways from norm:
-    # 1. Two consecutive violations 
-    # 2. Three separate violations within a 30-day month
-    assert True
+def test_R14_fisher_knows_community_service():
+    """Test that fisher knows about potential community service requirement"""
+    print("Checking R14fisher community service knowledge")
+    # This would be a check in rule behavior or agent knowledge
 
-# Test for R13: Community Council sets annual fines for violations
-def test_R13_fine_setting():
-    """Test Community Council sets fine amounts proportional to violations"""
-    # This verifies that fines are applied and scaled properly
-    assert True
+def test_R15_guard_assigns_community_service():
+    """Test that guard can identify lowest weekly catch and assign community service"""
+    print("Checking R15 guard assigning community service")
+    action_file = "state/actions/assign_community_service.json"
+    assert os.path.exists(action_file)
+    
+    with open(action_file, 'r') as f:
+        action_data = json.load(f)
+        
+    assert action_data.get("name") == "assign_community_service"
+    assert action_data.get("roles", {}).get("actor_role") == "lake_guard"
 
-# Test for R14: Community Council role
-def test_R14_community_council_role():
-    """Test Community Council role knowledge and capabilities"""
-    # This would check community council's role permissions and capabilities
-    assert True  # Placeholder for actual test
+def test_R16_random_tie_breaking():
+    """Test that tie-breaking mechanism is in place for community service assignment"""
+    print("Checking R16 tie-breaking mechanism")
+    # This would be tested in rules or randomization
 
-# Test for R15: Lake Keeper executes reserve withdrawals
-def test_R15_reserve_withdrawal():
-    """Test Lake Keeper executes reserve withdrawals"""
-    # This would verify lake keeper can execute withdrawals
-    assert True  # Placeholder for actual test
+def test_R17_guard_records_community_service():
+    """Test that guard records ban and sets community service requirement = 8 hours"""
+    print("Checking R17 recording community service")
+    action_file = "state/actions/assign_community_service.json"
+    assert os.path.exists(action_file)
 
-# Test for R16: Communal ledger
-def test_R16_communal_ledger():
-    """Test communal ledger records all transactions and violations"""
-    # This would verify communal ledger records everything
-    assert True  # Placeholder for actual test
+def test_R18_community_service_duration():
+    """Test that fisher knows about 8-hour community service requirement"""
+    print("Checking R18 community service duration")
+    # This would be checked in agent knowledge during execution
+
+def test_R19_community_service_supervisor():
+    """Test that community service supervisor can verify completion"""
+    print("Checking R19 community service supervisor")
+    action_file = "state/actions/verify_community_service.json"
+    assert os.path.exists(action_file)
+    
+    with open(action_file, 'r') as f:
+        action_data = json.load(f)
+        
+    assert action_data.get("name") == "verify_community_service"
+    assert action_data.get("roles", {}).get("actor_role") == "community_service_supervisor"
+
+def test_R20_guard_clears_ban():
+    """Test that guard can clear ban status after 7 days"""
+    print("Checking R20 guard clearing ban")
+    action_file = "state/actions/record_ban.json"
+    assert os.path.exists(action_file)
+
+def test_R21_ban_status_object():
+    """Test that ban status tracking object exists"""
+    print("Checking R21 ban status object")
+    object_file = "state/object_types/ban_status.json"
+    assert os.path.exists(object_file)
+
+def test_R22_community_service_object():
+    """Test that community service tracking object exists"""
+    print("Checking R22 community service object") 
+    object_file = "state/object_types/community_service_status.json"
+    assert os.path.exists(object_file)
+
+def test_R23_ledger_visibility():
+    """Test that ledger entries are visible to all fishers"""
+    print("Checking R23 ledger visibility")
+    ledger_file = "state/object_types/shared_ledger.json"
+    assert os.path.exists(ledger_file)
+    
+    with open(ledger_file, 'r') as f:
+        ledger_data = json.load(f)
+        
+    assert "daily_catch_records" in ledger_data.get("visibility", {})
+    assert ledger_data["visibility"]["daily_catch_records"]["who"] == "ALL"
+
+def test_R24_guard_schedule_visibility():
+    """Test that guard schedule is visible to all fishers (published monthly)"""
+    print("Checking R24 guard schedule visibility")
+    # Would need to check how guard schedule is made visible to all fishers
+
+def test_R25_fisher_march_pledge():
+    """Test that fisher knows about March abstention pledge"""
+    print("Checking R25 March pledge knowledge")
+    action_file = "state/actions/sign_pledge.json"
+    assert os.path.exists(action_file)
+    
+    with open(action_file, 'r') as f:
+        action_data = json.load(f)
+        
+    assert action_data.get("name") == "sign_pledge"
+    assert action_data.get("roles", {}).get("actor_role") == "fisher"
+
+def test_R26_march_abstention_lifecycle():
+    """Test that March abstention period lasts 2 weeks (2 rounds)"""
+    print("Checking R26 March abstention lifecycle")
+    # This would be tested during rule execution

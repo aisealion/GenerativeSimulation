@@ -1,13 +1,31 @@
 {
   "type_name": "shared_ledger",
-  "description": "Shared ledger for recording fish catches",
+  "description": "Shared ledger for recording fish catches with Ban_Status, Ban_Start_Date, Community_Service_Required, and Hours_Completed",
   "ownership": "COMMUNAL",
   "fields": {
-    "daily_catch_records": {"type": "list", "default": []},
-    "weekly_summary": {"type": "object", "default": {}},
-    "service_assignments": {"type": "object", "default": {}}
+    "daily_catch_records": {
+      "type": "list",
+      "default": [],
+      "description": "Daily catch records with date, fisher name, units caught, weights, Ban_Status, Ban_Start_Date, Community_Service_Required, and Hours_Completed"
+    },
+    "weekly_summary": {
+      "type": "object",
+      "default": {}
+    },
+    "service_assignments": {
+      "type": "object",
+      "default": {}
+    },
+    "ban_status": {
+      "type": "object",
+      "default": {}
+    },
+    "community_service_status": {
+      "type": "object",
+      "default": {}
+    }
   },
-  "operations": ["record_catch", "read_summary", "assign_service"],
+  "operations": ["record_catch", "read_summary", "assign_service", "check_ban_status", "update_community_service"],
   "permissions": {
     "READ": {"who": "ALL"},
     "WRITE": {"who": "ROLE:lake_guard"}
@@ -15,7 +33,9 @@
   "visibility": {
     "daily_catch_records": {"who": "ALL"},
     "weekly_summary": {"who": "ALL"},
-    "service_assignments": {"who": "ALL"}
+    "service_assignments": {"who": "ALL"},
+    "ban_status": {"who": "ALL"},
+    "community_service_status": {"who": "ALL"}
   },
   "custom_handler": null,
   "introduced_round": 1

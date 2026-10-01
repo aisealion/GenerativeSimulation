@@ -2,5 +2,30 @@
   "agent_count": 5,
   "altruism_ratio": 0.5,
   "history_window_rounds": 5,
-  "rules": {}
+  "rules": {
+    "record_catch": [
+      {
+        "type": "ban_duration",
+        "params": {
+          "duration_rounds": 7
+        }
+      }
+    ],
+    "record_ban": [
+      {
+        "type": "ban_duration",
+        "params": {
+          "duration_rounds": 7
+        }
+      }
+    ],
+    "check_compliance": [
+      {
+        "type": "ban_duration",
+        "params": {
+          "duration_rounds": 7
+        }
+      }
+    ]
+  }
 }

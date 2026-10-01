@@ -1,0 +1,34 @@
+{
+  "type_name": "community_service_status",
+  "description": "Object to track fisher community service requirements and completion",
+  "ownership": "COMMUNAL",
+  "fields": {
+    "community_service_required": {
+      "type": "integer",
+      "default": 0,
+      "description": "Hours of community service required (e.g., 8 hours)"
+    },
+    "hours_completed": {
+      "type": "integer",
+      "default": 0,
+      "description": "Hours of community service completed"
+    },
+    "service_start_date": {
+      "type": "string",
+      "default": "",
+      "description": "Date when community service started"
+    }
+  },
+  "operations": ["set_service_required", "update_hours_completed", "check_service_status"],
+  "permissions": {
+    "READ": {"who": "ALL"},
+    "WRITE": {"who": "ROLE:lake_guard"}
+  },
+  "visibility": {
+    "community_service_required": {"who": "ALL"},
+    "hours_completed": {"who": "ALL"},
+    "service_start_date": {"who": "ALL"}
+  },
+  "custom_handler": null,
+  "introduced_round": 3
+}
