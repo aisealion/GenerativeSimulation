@@ -229,7 +229,12 @@ implies a violation, and boundary cases the norm's own numbers imply
 scenario in that requirement's own `agent_experience` block — it tells
 you what actually needs verifying (a fact a fisher now knows, a choice
 they now face, an action newly permitted or forbidden), not just whether
-some mechanism fires. Write each as a pytest test function named exactly
+some mechanism fires. Where the plan's `flows`/`depends_on` order steps,
+or an ACTION carries a `decision_context`, test those too: a step must not
+happen before the steps its flow puts first, a role-holder's action must
+be offered only to that role's current holder, and an agent decision's
+prompt must expose what its `decision_context` says and return its
+`output` fields. Write each as a pytest test function named exactly
 `test_{requirement}_{scenario}` (e.g. requirement `R2`, scenario
 `compliant_decision`, becomes `test_R2_compliant_decision`) in
 `tests/norm_checks/round_{N}/test_round_{N}.py` — this exact naming

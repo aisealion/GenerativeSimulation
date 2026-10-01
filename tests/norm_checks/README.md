@@ -7,7 +7,12 @@ different authors:
   compilation only). Every atomic requirement the round's norm implies,
   classified as ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE, each with an
   `agent_experience` block (what a fisher now knows, decides, may/may not
-  do, remembers, observes). norm-architect has no tools and no repository
+  do, remembers, observes). 2026-10-01: also `depends_on` per requirement,
+  `flows` (the ordered sequence of agent decisions and institutional
+  steps), a `decision_context` (who is asked, what they see, what they
+  decide) for every agent decision, and `source_coverage` mapping each
+  clause of norm.txt to the requirements implementing it — all
+  reference-checked by `validate_norm_plan()`. norm-architect has no tools and no repository
   access beyond one conceptual doc; it cannot write a file path, an
   import, or a test scenario, so it doesn't try to.
 - `test_round_{N}.py` — written by `norm-engineer`, which decides what

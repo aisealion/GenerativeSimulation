@@ -537,6 +537,12 @@ def _norm_architect_context_bundle():
             f"{institution_path.read_text().strip()}\n```"
         )
 
+    parts.append(
+        "### Existing MAS summary (machine-readable — what this simulation can already "
+        "do, in the order it does it each round; extend this, don't reinvent it)\n```json\n"
+        f"{json.dumps(_mas_summary(), indent=2)}\n```"
+    )
+
     doc_path = ROOT / "docs" / "institution-contracts" / "architecture.md"
     if doc_path.is_file():
         parts.append(f"### docs/institution-contracts/architecture.md\n{doc_path.read_text().strip()}")
@@ -544,10 +550,98 @@ def _norm_architect_context_bundle():
     return "\n\n".join(parts)
 
 
+# What the engine can already execute, stated in institutional terms (no
+# file paths or Python names — norm-architect never decides those). Kept
+# static and short on purpose: this is the menu every requirement must be
+# built from, so the architect can tell "reuse an existing capability"
+# from "this needs a genuinely new one" without guessing.
+MAS_CAPABILITIES = [
+    "Every ACTION is run once per participating agent, each making their own separate "
+    "decision from their own prompt — participants are either every living fisher, or "
+    "only the current holders of one named role.",
+    "Actions run in a fixed order each round; a new action can be placed after/before an "
+    "existing one, and can be gated to run only while some institutional fact holds.",
+    "A role can be granted to a specific agent and later ended, with the round it started "
+    "and ended recorded — 'who held this role, and when' is queryable history.",
+    "Institutional facts (a ban, an active rule, a status) can be started and ended, with "
+    "the rounds recorded.",
+    "A deterministic RULE can attach to an action: decide whether an agent is eligible to "
+    "take part this round, adjust an agent's recorded result, and run setup/settlement "
+    "steps before/after the action or the round — no LLM judgment involved.",
+    "Persistent institutional objects (pools, ledgers, permits) hold state across rounds, "
+    "with per-viewer visibility.",
+    "Point-in-time institutional events can be recorded and narrated to agents.",
+    "Each agent keeps memory of past rounds; what an agent is shown in a prompt is exactly "
+    "what the action's prompt contract exposes, nothing implicit.",
+]
+
+
+def _mas_summary():
+    """Compact, machine-readable picture of the current simulation for
+    norm-architect: agents, roles, actions in their actual per-round
+    order (with who participates and when each is gated), active rules,
+    objects, per-agent state, and the engine's capability menu. Built
+    fresh from on-disk state each call, never cached — the same
+    "always reflects the current institution" contract the rest of
+    _norm_architect_context_bundle() already has. Every read is
+    best-effort: a missing or malformed file just omits that section,
+    never fails the architect call."""
+    summary = {"capabilities": MAS_CAPABILITIES}
+
+    def _read_json(path, default):
+        try:
+            return json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError):
+            return default
+
+    config = _read_json(ROOT / "state" / "config.json", {})
+    institution = _read_json(ROOT / "state" / "institution.json", {})
+    summary["agents"] = {
+        "count": config.get("agent_count"),
+        "kind": "fishers (every agent is a fisher; roles are held on top of that)",
+        "per_agent_state": (institution.get("state") or {}).get("fisher", []),
+    }
+    summary["shared_state"] = (institution.get("state") or {}).get("community", [])
+    summary["roles"] = {
+        name: {key: value for key, value in entry.items() if key in ("exclusive", "description")}
+        for name, entry in (institution.get("roles") or {}).items()
+    }
+
+    action_specs = {}
+    for name in (institution.get("actions") or {}):
+        spec = _read_json(ROOT / "state" / "actions" / f"{name}.json", None)
+        if spec is not None:
+            action_specs[name] = spec
+    try:
+        ordered = list(compile_schedule(action_specs)) if action_specs else []
+    except Exception:
+        ordered = sorted(action_specs)
+    summary["round_sequence"] = [
+        {
+            "action": name,
+            "description": action_specs[name].get("description"),
+            "participants": action_specs[name].get("participation", {"policy": "all_alive_fishers"}),
+            "runs_only_while": (action_specs[name].get("scheduling") or {}).get("gate", "true"),
+        }
+        for name in ordered if name in action_specs
+    ]
+    summary["active_rules"] = {
+        action: [rule.get("type") for rule in rules]
+        for action, rules in (config.get("rules") or {}).items()
+    }
+    summary["object_types"] = sorted(institution.get("object_types") or {})
+    objects = _read_json(ROOT / "state" / "objects.json", [])
+    summary["objects"] = [
+        {key: obj.get(key) for key in ("id", "type") if key in obj}
+        for obj in objects if isinstance(obj, dict)
+    ]
+    return summary
+
+
 VALID_NORM_PLAN_REQUIREMENT_TYPES = {"ROLE", "ACTION", "OBJECT", "RULE", "VISIBILITY", "LIFECYCLE", "UNRESOLVED"}
 
 
-def validate_norm_plan(plan):
+def validate_norm_plan(plan, known_roles=None):
     """The deterministic Harness Validator — pure Python, no LLM call,
     sitting between norm-architect and norm-engineer. Catches structural
     incompleteness (a missing field, a dangling reference) before an
@@ -606,37 +700,7 @@ def validate_norm_plan(plan):
                 f"fisher actually know/decide/may-do/may-not-do/remember/observe because of this?"
             )
 
-    # Cross-reference "actor"/"attached_to" against the OTHER requirements
-    # they name, now that every id's own type is known — a real round's
-    # plan had an ACTION's "actor" pointing at a RULE's id instead of the
-    # actual ROLE requirement (R7 instead of R10 — presumably a copy/paste
-    # or off-by-one during decomposition), which nothing caught before
-    # norm-engineer tried to build against it. Per the schema
-    # (NORM_ARCHITECT_SYSTEM_PROMPT's own JSON example), "actor" always
-    # names a ROLE when it's a requirement reference at all (a plain
-    # concept name that matches no id is fine, e.g. "any_fisher"), and a
-    # RULE's "attached_to" always names the ACTION it's attached to.
-    id_to_type = {req.get("id"): req.get("type") for req in requirements if req.get("id")}
-    for i, req in enumerate(requirements):
-        req_id = req.get("id")
-        if not req_id:
-            continue
-        label = f"requirement {req_id!r}"
-        actor = req.get("actor")
-        if actor and actor in id_to_type and id_to_type[actor] != "ROLE":
-            errors.append(
-                f"{label}: \"actor\" is {actor!r}, which is a {id_to_type[actor]} requirement, "
-                f"not a ROLE — \"actor\" must name the requirement id of the role that acts here, "
-                f"never a rule, action, or object"
-            )
-        attached_to = req.get("attached_to")
-        if req.get("type") == "RULE" and attached_to and attached_to in id_to_type \
-                and id_to_type[attached_to] != "ACTION":
-            errors.append(
-                f"{label}: \"attached_to\" is {attached_to!r}, which is a "
-                f"{id_to_type[attached_to]} requirement, not an ACTION — a RULE's \"attached_to\" "
-                f"must name the action it governs"
-            )
+    errors += _norm_plan_reference_errors(plan, requirements, known_roles)
 
     for i, critique in enumerate(plan.get("open_critiques") or []):
         critique_req = critique.get("requirement")
@@ -648,6 +712,170 @@ def validate_norm_plan(plan):
             errors.append(f"open_critiques[{i}]: missing \"critique_question\"")
 
     return errors
+
+
+# Who may appear as an ACTION's "actor" without being a requirement id: the
+# whole living-fisher population (participation policy all_alive_fishers),
+# plus any role already in state/institution.json's own roles catalog
+# (passed in as known_roles). Anything else — "community", "council",
+# "lake_guard" when no such role requirement or catalog role exists — is a
+# collective or an undeclared role this engine can't actually prompt: every
+# ACTION runs once per participating individual agent.
+NORM_PLAN_BUILTIN_ACTORS = {"all_fishers"}
+NORM_PLAN_COVERAGE_VALUES = {"COVERED", "PARTIAL", "AMBIGUOUS"}
+
+
+def _norm_plan_reference_errors(plan, requirements, known_roles=None):
+    """The cross-reference half of validate_norm_plan(): every place one
+    part of the plan names another (actor, attached_to, depends_on, flow
+    steps, source_coverage) must point at something real and of the right
+    kind, and depends_on must not loop. These are exactly the defects a
+    human review of a real round's plan found and nothing upstream caught
+    (an ACTION's actor pointing at a RULE id; a collective "community"
+    actor no single agent can be prompted as; a role's duty action with
+    no recorded dependency on how anyone ever gets that role)."""
+    errors = []
+    known_roles = set(known_roles or ())
+    id_to_type = {req.get("id"): req.get("type") for req in requirements if req.get("id")}
+    valid_actors = NORM_PLAN_BUILTIN_ACTORS | known_roles
+
+    for req in requirements:
+        req_id = req.get("id")
+        if not req_id:
+            continue
+        label = f"requirement {req_id!r}"
+        req_type = req.get("type")
+
+        actor = req.get("actor")
+        if actor:
+            if actor in id_to_type:
+                if id_to_type[actor] != "ROLE":
+                    errors.append(
+                        f"{label}: \"actor\" is {actor!r}, which is a {id_to_type[actor]} "
+                        f"requirement, not a ROLE — \"actor\" must name the requirement id of the "
+                        f"role whose holder acts here, never a rule, action, or object"
+                    )
+            elif actor not in valid_actors:
+                errors.append(
+                    f"{label}: \"actor\" is {actor!r}, which is neither a ROLE requirement id in "
+                    f"this plan, an existing role ({sorted(known_roles) or 'none yet'}), nor "
+                    f"\"all_fishers\" — every ACTION is one decision made separately by each "
+                    f"individual agent who holds a role (or by every living fisher). If a group "
+                    f"(\"community\", \"council\", \"elders\") decides, decompose it: a ROLE for "
+                    f"its members, a per-agent ACTION where each one decides, and a deterministic "
+                    f"RULE that combines their decisions"
+                )
+
+        attached_to = req.get("attached_to")
+        if req_type == "RULE" and attached_to and attached_to in id_to_type \
+                and id_to_type[attached_to] != "ACTION":
+            errors.append(
+                f"{label}: \"attached_to\" is {attached_to!r}, which is a "
+                f"{id_to_type[attached_to]} requirement, not an ACTION — a RULE's "
+                f"\"attached_to\" must name the action it governs"
+            )
+
+        depends_on = req.get("depends_on", [])
+        if not isinstance(depends_on, list):
+            errors.append(f"{label}: \"depends_on\" must be a list of requirement ids")
+            depends_on = []
+        for dep in depends_on:
+            if dep == req_id:
+                errors.append(f"{label}: \"depends_on\" lists itself")
+            elif dep not in id_to_type:
+                errors.append(f"{label}: \"depends_on\" names {dep!r}, which isn't a requirement id")
+
+        if req_type == "ACTION" and req.get("judgment_required"):
+            context = req.get("decision_context")
+            if not isinstance(context, dict) or not context.get("prompt_to") or not context.get("output"):
+                errors.append(
+                    f"{label}: an ACTION with judgment_required needs a \"decision_context\" "
+                    f"with at least \"prompt_to\" (who exactly is asked) and \"output\" (what "
+                    f"structured decision comes back) — plus whatever visible_state/"
+                    f"visible_objects/visible_institutional_information/choices the decision "
+                    f"actually needs"
+                )
+
+    errors += _norm_plan_dependency_cycle_errors(requirements, id_to_type)
+
+    flows = plan.get("flows", [])
+    if not isinstance(flows, list):
+        errors.append("\"flows\" must be a list")
+        flows = []
+    for flow in flows:
+        flow_label = f"flow {flow.get('id') or flow.get('name') or '?'!r}"
+        steps = flow.get("steps")
+        if not isinstance(steps, list) or not steps:
+            errors.append(f"{flow_label}: \"steps\" must be a non-empty list")
+            continue
+        for step in steps:
+            step_req = step.get("requirement")
+            if step_req not in id_to_type:
+                errors.append(f"{flow_label}: step names requirement {step_req!r}, which doesn't exist")
+            for key in ("after", "next"):
+                for ref in step.get(key) or []:
+                    if ref not in id_to_type:
+                        errors.append(
+                            f"{flow_label}: step {step_req!r}'s \"{key}\" names {ref!r}, which isn't a "
+                            f"requirement id"
+                        )
+
+    coverage = plan.get("source_coverage")
+    if not isinstance(coverage, list) or not coverage:
+        errors.append(
+            "\"source_coverage\" must be a non-empty list mapping every normative clause of "
+            "norm.txt to the requirement ids implementing it — the plan's own proof that no "
+            "clause silently disappeared"
+        )
+    else:
+        for i, entry in enumerate(coverage):
+            entry_label = f"source_coverage[{i}]"
+            if not entry.get("source_clause"):
+                errors.append(f"{entry_label}: missing \"source_clause\"")
+            if entry.get("coverage") not in NORM_PLAN_COVERAGE_VALUES:
+                errors.append(
+                    f"{entry_label}: \"coverage\" is {entry.get('coverage')!r}, must be one of "
+                    f"{sorted(NORM_PLAN_COVERAGE_VALUES)}"
+                )
+            for ref in entry.get("requirements") or []:
+                if ref not in id_to_type:
+                    errors.append(f"{entry_label}: names requirement {ref!r}, which doesn't exist")
+            if entry.get("coverage") == "COVERED" and not entry.get("requirements"):
+                errors.append(f"{entry_label}: marked COVERED but names no requirement ids")
+    return errors
+
+
+def _norm_plan_dependency_cycle_errors(requirements, id_to_type):
+    graph = {
+        req.get("id"): [d for d in (req.get("depends_on") or []) if d in id_to_type and d != req.get("id")]
+        for req in requirements if req.get("id") and isinstance(req.get("depends_on", []), list)
+    }
+    visiting, done, errors = set(), set(), []
+
+    def visit(node, path):
+        if node in done:
+            return
+        if node in visiting:
+            cycle = path[path.index(node):] + [node]
+            errors.append(f"\"depends_on\" forms a cycle: {' -> '.join(cycle)}")
+            return
+        visiting.add(node)
+        for dep in graph.get(node, []):
+            visit(dep, path + [node])
+        visiting.discard(node)
+        done.add(node)
+
+    for node in graph:
+        visit(node, [])
+    return errors
+
+
+def _known_institution_roles():
+    institution_path = ROOT / "state" / "institution.json"
+    try:
+        return set(json.loads(institution_path.read_text()).get("roles", {}))
+    except (OSError, json.JSONDecodeError):
+        return set()
 
 
 def _extract_fenced_block(text, lang):
@@ -715,29 +943,61 @@ def _apply_clarification_patch(plan, patch_text, note):
             f"plan's own requirement ids — missing {sorted(missing)}, unexpected {sorted(extra)}"
         )
 
-    new_by_id = {req.get("id"): req for req in new_requirements if req.get("id")}
-    if set(new_by_id) != affected_ids:
+    # A patch may also ADD brand-new requirements — a coverage gap (a
+    # clause no requirement implements) or an undecomposed group decision
+    # can't be fixed by editing existing ones alone. Added ids must be
+    # genuinely new; existing ids still only change via affected_requirements.
+    added = patch.get("added_requirements") or []
+    if not isinstance(added, list):
+        return None, "\"added_requirements\" must be a list"
+    added_ids = set(added)
+    clashing = added_ids & original_ids
+    if clashing:
         return None, (
-            f"\"requirements\" in the patch don't match affected_requirements exactly — "
-            f"patch has {sorted(new_by_id)}, affected_requirements says {sorted(affected_ids)}"
+            f"added_requirements names id(s) already in the plan: {sorted(clashing)} — use "
+            f"affected_requirements to change an existing requirement"
+        )
+
+    new_by_id = {req.get("id"): req for req in new_requirements if req.get("id")}
+    if set(new_by_id) != affected_ids | added_ids:
+        return None, (
+            f"\"requirements\" in the patch don't match affected_requirements + "
+            f"added_requirements exactly — patch has {sorted(new_by_id)}, declared "
+            f"{sorted(affected_ids | added_ids)}"
         )
 
     merged_requirements = [
         new_by_id[req["id"]] if req.get("id") in affected_ids else req
         for req in plan.get("requirements", [])
-    ]
+    ] + [req for req in new_requirements if req.get("id") in added_ids]
     merged_plan = {**plan, "requirements": merged_requirements}
+    # flows/source_coverage are whole-plan views over the requirements,
+    # not per-requirement content, so a patch replaces each list
+    # wholesale when it includes one; the validator re-checks every
+    # reference in them against the merged requirement ids afterward.
+    for key in ("flows", "source_coverage"):
+        if key in patch:
+            if not isinstance(patch[key], list):
+                return None, f"\"{key}\" in the patch must be a list"
+            merged_plan[key] = patch[key]
     merged_plan["clarifications"] = list(plan.get("clarifications") or [])
-    merged_plan["clarifications"].append({
+    clarification = {
         "clarification_for": patch.get("clarification_for"),
         "affected_requirements": sorted(affected_ids),
         "unchanged_requirements": sorted(unchanged_ids),
         "note": note,
-    })
+    }
+    if added_ids:
+        clarification["added_requirements"] = sorted(added_ids)
+    replaced = [key for key in ("flows", "source_coverage") if key in patch]
+    if replaced:
+        clarification["replaced"] = replaced
+    merged_plan["clarifications"].append(clarification)
     return merged_plan, None
 
 
 MAX_NORM_CLARIFICATIONS_PER_ROUND = 5
+MAX_NORM_STRUCTURAL_FIX_PASSES = 2
 
 # 2026-09-29: re-enabled with a redesigned, structurally-scoped mechanism —
 # see _apply_clarification_patch() above. Originally disabled 2026-09-25
@@ -880,10 +1140,20 @@ def run_norm_architect(round_number):
         print(f"Round {round_number}: applied a scoped clarification patch for "
               f"{requirement_id!r}.")
 
-    validator_errors = validate_norm_plan(plan)
-    if validator_errors:
+    known_roles = _known_institution_roles()
+    validator_errors = validate_norm_plan(plan, known_roles)
+    # Up to MAX_NORM_STRUCTURAL_FIX_PASSES scoped patch calls, each told
+    # exactly what's still wrong. The validator checks reference integrity
+    # across depends_on/flows/source_coverage/decision_context now, not
+    # just per-requirement fields, so one pass is likelier to leave a
+    # residue than it used to be — each pass is still a cheap, scoped,
+    # token-capped completion, never a whole-plan regeneration.
+    for fix_pass in range(1, MAX_NORM_STRUCTURAL_FIX_PASSES + 1):
+        if not validator_errors:
+            break
         print(f"Round {round_number}: the harness found {len(validator_errors)} structural "
-              f"problem(s) in norm-architect's plan — asking it to fix them.")
+              f"problem(s) in norm-architect's plan — asking it to fix them (pass "
+              f"{fix_pass}/{MAX_NORM_STRUCTURAL_FIX_PASSES}).")
         trigger_text = (
             "## Structural problems the harness found in your plan — fix these\n\n"
             + "\n".join(f"- {e}" for e in validator_errors)
@@ -894,16 +1164,16 @@ def run_norm_architect(round_number):
         if patch_text is None:
             print(f"Round {round_number}: norm-architect's structural-fix clarification call "
                   f"failed — plan stays as it was.", file=sys.stderr)
-        else:
-            merged_plan, reason = _apply_clarification_patch(
-                plan, patch_text, note=f"structural fixes: {'; '.join(validator_errors)}",
-            )
-            if merged_plan is None:
-                print(f"Round {round_number}: norm-architect's structural-fix patch was "
-                      f"rejected ({reason}) — plan stays as it was.", file=sys.stderr)
-            else:
-                plan = merged_plan
-                validator_errors = validate_norm_plan(plan)
+            continue
+        merged_plan, reason = _apply_clarification_patch(
+            plan, patch_text, note=f"structural fixes: {'; '.join(validator_errors)}",
+        )
+        if merged_plan is None:
+            print(f"Round {round_number}: norm-architect's structural-fix patch was "
+                  f"rejected ({reason}) — plan stays as it was.", file=sys.stderr)
+            continue
+        plan = merged_plan
+        validator_errors = validate_norm_plan(plan, known_roles)
 
     if validator_errors:
         print(f"Round {round_number}: norm-architect's plan is still structurally invalid after "
@@ -967,7 +1237,26 @@ def render_engineer_kickoff(norm_plan, round_number):
         f"until {tests_dir} passes. Every ROLE/ACTION/RULE/VISIBILITY requirement's own "
         f"\"agent_experience\" block is a real requirement, not decoration — a fisher must "
         f"actually come to know/decide/may-do/remember/observe what it says, not just have it "
-        f"computed in Python.\n\n"
+        f"computed in Python.\n"
+        f"3. The plan's structure is binding, not advisory — build it exactly as specified:\n"
+        f"   - \"flows\" and each requirement's \"depends_on\" are the real execution order. "
+        f"Every step that must happen before another becomes that action's "
+        f"scheduling.after (or before), or a gate on the fact the earlier step records — "
+        f"never rely on file order or luck.\n"
+        f"   - An ACTION's \"actor\" is who participates: \"all_fishers\" means every living "
+        f"fisher; a ROLE requirement id (or existing role name) means only that role's "
+        f"current holders (participation policy role_holders). Never let an arbitrary agent "
+        f"take a role-holder's action.\n"
+        f"   - An ACTION's \"decision_context\" is its prompt contract: the prompt must expose "
+        f"exactly its visible_state/visible_objects/visible_institutional_information, offer "
+        f"exactly its choices, and the agent's response must carry exactly its output fields.\n"
+        f"   - judgment_required: false, or a RULE with deterministic: true, is code — never an "
+        f"LLM call. A count, threshold, rotation, tally, or deduction is computed, not asked.\n"
+        f"   - A ROLE is not granted by existing: whichever requirement the flows say assigns "
+        f"it must actually grant it to the selected agent(s), with the round recorded.\n"
+        f"   - \"source_coverage\" tells you which clause of norm.txt each requirement "
+        f"implements — use it when a requirement's own description leaves a detail unclear, "
+        f"but never add a mechanism the plan itself doesn't contain.\n\n"
         f"Once done, finalize the round yourself, following "
         f"docs/institution-contracts/finalization-contract.md exactly. End your response with "
         f"the fenced ```json report block your instructions describe (the one containing a "

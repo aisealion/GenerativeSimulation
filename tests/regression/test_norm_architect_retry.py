@@ -44,6 +44,10 @@ def _valid_plan(requirements=None, open_critiques=None):
         requirements = [_requirement()]
     return {
         "requirements": requirements,
+        "source_coverage": [{
+            "source_clause": "the norm's only clause",
+            "requirements": [requirements[0]["id"]], "coverage": "COVERED",
+        }],
         "open_critiques": open_critiques or [],
     }
 
@@ -259,7 +263,11 @@ def test_harness_validator_triggers_a_clarification_patch_and_fixes_are_applied(
         # agent_experience deliberately omitted
     }
     r1 = _requirement("R1", "ROLE")
-    draft_plan = {"requirements": [r1, broken_requirement], "open_critiques": []}
+    draft_plan = {
+        "requirements": [r1, broken_requirement],
+        "source_coverage": [{"source_clause": "...", "requirements": ["R1", "R2"], "coverage": "COVERED"}],
+        "open_critiques": [],
+    }
     monkeypatch.setattr(
         simulate_module, "call_norm_architect_agent",
         lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: _response(draft_plan),
@@ -391,3 +399,104 @@ def test_apply_clarification_patch_merges_cleanly_on_a_well_formed_patch():
 def test_run_norm_architect_with_retry_is_a_thin_passthrough(monkeypatch):
     monkeypatch.setattr(simulate_module, "run_norm_architect", lambda round_number: (True, {"requirements": []}))
     assert simulate_module.run_norm_architect_with_retry(9) == (True, {"requirements": []})
+
+
+def test_apply_clarification_patch_can_add_a_new_requirement_and_replace_coverage():
+    # A coverage gap (a clause nothing implements) can only be fixed by
+    # ADDING a requirement — existing ids still only change through
+    # affected_requirements, exactly as before.
+    r1 = _requirement("R1")
+    plan = _valid_plan(requirements=[r1])
+    new_r2 = _requirement("R2", "ACTION", actor="R1")
+    new_coverage = [{"source_clause": "clause", "requirements": ["R1", "R2"], "coverage": "COVERED"}]
+    new_flows = [{"id": "F1", "steps": [{"requirement": "R2", "after": [], "next": []}]}]
+    patch_text = _response({
+        "affected_requirements": [], "unchanged_requirements": ["R1"], "added_requirements": ["R2"],
+        "requirements": [new_r2], "source_coverage": new_coverage, "flows": new_flows,
+    })
+
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="coverage gap")
+
+    assert reason is None
+    assert [r["id"] for r in merged["requirements"]] == ["R1", "R2"]
+    assert merged["requirements"][0] is r1
+    assert merged["source_coverage"] == new_coverage
+    assert merged["flows"] == new_flows
+    assert merged["clarifications"][-1]["added_requirements"] == ["R2"]
+    assert merged["clarifications"][-1]["replaced"] == ["flows", "source_coverage"]
+
+
+def test_apply_clarification_patch_rejects_an_added_id_that_already_exists():
+    plan = _valid_plan(requirements=[_requirement("R1")])
+    patch_text = _response({
+        "affected_requirements": [], "unchanged_requirements": ["R1"], "added_requirements": ["R1"],
+        "requirements": [_requirement("R1", description="sneaky overwrite")],
+    })
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test")
+    assert merged is None
+    assert "R1" in reason
+
+
+def test_apply_clarification_patch_rejects_an_undeclared_new_requirement():
+    plan = _valid_plan(requirements=[_requirement("R1")])
+    patch_text = _response({
+        "affected_requirements": [], "unchanged_requirements": ["R1"],
+        "requirements": [_requirement("R2", "ROLE")],  # R2 never declared as added
+    })
+    merged, reason = simulate_module._apply_clarification_patch(plan, patch_text, note="test")
+    assert merged is None
+
+
+def test_mas_summary_lists_actions_in_round_order_with_participants(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "state" / "actions").mkdir(parents=True)
+    (tmp_path / "state" / "config.json").write_text(json.dumps({"agent_count": 5, "rules": {"harvest": [{"type": "cap"}]}}))
+    (tmp_path / "state" / "institution.json").write_text(json.dumps({
+        "actions": {"harvest": {}, "inspect": {}},
+        "roles": {"fisher": {"exclusive": False, "description": "a fisher"}},
+        "state": {"fisher": ["effort"], "community": ["stock_kg"]},
+    }))
+    (tmp_path / "state" / "actions" / "harvest.json").write_text(json.dumps({
+        "name": "harvest", "description": "fish", "scheduling": {"gate": "true", "after": None, "before": None},
+        "participation": {"policy": "all_alive_fishers"},
+    }))
+    (tmp_path / "state" / "actions" / "inspect.json").write_text(json.dumps({
+        "name": "inspect", "description": "guard inspects", "scheduling": {"gate": "true", "after": "harvest", "before": None},
+        "participation": {"policy": "role_holders", "role": "guard"},
+    }))
+
+    summary = simulate_module._mas_summary()
+
+    assert [step["action"] for step in summary["round_sequence"]] == ["harvest", "inspect"]
+    assert summary["round_sequence"][1]["participants"] == {"policy": "role_holders", "role": "guard"}
+    assert summary["roles"] == {"fisher": {"exclusive": False, "description": "a fisher"}}
+    assert summary["active_rules"] == {"harvest": ["cap"]}
+    assert summary["agents"]["count"] == 5
+    assert summary["capabilities"]
+
+
+def test_a_second_structural_fix_pass_gets_a_chance_when_the_first_fails(tmp_path, monkeypatch):
+    monkeypatch.setattr(simulate_module, "ROOT", tmp_path)
+    (tmp_path / "norm.txt").write_text("Policy: ...\n\nOperationalization: ...\n")
+    draft_plan = {"requirements": [_requirement("R1")], "open_critiques": []}  # no source_coverage
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_agent",
+        lambda round_number, norm_text, context_bundle, resolutions=None, validator_errors=None: _response(draft_plan),
+    )
+    responses = iter([
+        None,  # first structural-fix call fails outright
+        _response({
+            "affected_requirements": [], "unchanged_requirements": ["R1"],
+            "requirements": [],
+            "source_coverage": [{"source_clause": "x", "requirements": ["R1"], "coverage": "COVERED"}],
+        }),
+    ])
+    monkeypatch.setattr(
+        simulate_module, "call_norm_architect_clarification_agent",
+        lambda round_number, norm_text, context_bundle, plan, trigger_text: next(responses),
+    )
+
+    success, plan = simulate_module.run_norm_architect(5)
+
+    assert success is True
+    assert plan["source_coverage"][0]["requirements"] == ["R1"]
