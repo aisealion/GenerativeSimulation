@@ -15,16 +15,20 @@ A common-pool-resource fishery simulation: `agent_count` fisher agents
 community norms, and a semantic-compilation pipeline institutionalizes
 whatever norm wins a vote. **norm-architect** reads the norm and performs
 *semantic compilation only* — it classifies every atomic requirement the
-norm's text implies into ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE and
-writes an `agent_experience` block for each (what a fisher now knows,
+norm's text implies into ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE,
+orders them into `flows`, maps every clause of the norm to the
+requirement ids that implement it in `source_coverage`, and writes an
+`agent_experience` block for each requirement (what a fisher now knows,
 decides, may/may not do, remembers, observes) — never a file path, never
-Python, never a test scenario. It genuinely cannot verify any of those: it
-has no tools and no repository access beyond one conceptual doc and the
-institution catalog. A deterministic **Harness Validator**
+Python, never a test scenario (section 10 covers the whole breakdown).
+It genuinely cannot verify any of those: it has no tools and no
+repository access beyond one conceptual doc and a machine-readable
+summary of the current institution. A deterministic **Harness Validator**
 (`validate_norm_plan()`, no LLM call) then checks that plan is
 structurally complete — every id unique, every reference resolved, every
 requirement that changes a fisher's experience has an `agent_experience`
-block — before an expensive engineer session ever starts. (It originally
+block, every clause covered — before an expensive engineer session ever
+starts. (It originally
 also required at least one acceptance-test entry per such requirement,
 back when norm-architect itself proposed given/when/expect scenarios —
 dropped after a real run showed this discarding whole rounds outright,
@@ -303,11 +307,11 @@ sequenceDiagram
     participant Git as commit_round()
 
     Cycle->>Arch: run_norm_architect_with_retry(round)
-    Note over Arch: reads norm.txt + architecture.md only —<br/>classifies every atomic requirement into<br/>ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE,<br/>writes each one's agent_experience block —<br/>no file paths, no Python, no test scenarios
+    Note over Arch: reads norm.txt + architecture.md + a machine-readable<br/>MAS summary only — classifies every atomic requirement into<br/>ROLE/ACTION/OBJECT/RULE/VISIBILITY/LIFECYCLE, orders them in<br/>flows, maps every clause to source_coverage, writes each one's<br/>agent_experience block — no file paths, no Python, no test scenarios<br/>(section 10 has the full breakdown)
     Arch->>Valid: validate_norm_plan(plan)
     alt structurally incomplete
         Valid-->>Arch: validator_errors sent back for one<br/>bounded finalizing pass
-        Note over Arch,Valid: bounded — one extra pass, not an open retry loop.<br/>Architect can still raise open_critiques in its plan, but<br/>critique-RESOLUTION (asking the proposer, a second pass on<br/>that alone) is disabled as of 2026-09-25 — see<br/>NORM_ARCHITECT_CRITIQUES_ENABLED in engine/simulate.py
+        Note over Arch,Valid: bounded — up to MAX_NORM_STRUCTURAL_FIX_PASSES (2)<br/>scoped patches, never a full regeneration. open_critiques ARE<br/>resolved (NORM_ARCHITECT_CRITIQUES_ENABLED=True) by asking the<br/>round's winning proposer, then patching only what the answer<br/>settles — see section 10 for the whole mechanism
     end
     Valid-->>Cycle: norm_plan.json (requirements only)
 
@@ -317,8 +321,8 @@ sequenceDiagram
 
     Cycle->>Checks: compile / institution-drift / orphaned-rule /<br/>tests/norm_checks/round_N/ (Self-Correction Gate) / runtime checks
     alt a check fails
-        Checks-->>Eng: repair message — states which attempt this is,<br/>whether THIS attempt has real session memory, the specific<br/>error found, and asks Eng to check for and self-repair<br/>OTHER similar mistakes too
-        Note over Eng,Checks: loops back — session PAIRED (2026-09-25): 1&amp;2 share,<br/>3&amp;4 share a new one, ... — bounded by its OWN budget,<br/>MAX_NORM_COMPILE_REPAIR_ATTEMPTS (2026-09-27, split from audit-repair)
+        Checks-->>Eng: repair message — states this is a FRESH session,<br/>the specific error found, the requirement-status checkpoint<br/>(section 11), and asks Eng to check for and self-repair<br/>OTHER similar mistakes too
+        Note over Eng,Checks: loops back — every repair call independently<br/>fresh (2026-10-02, no session continuation at all) — bounded by<br/>its OWN budget, MAX_NORM_COMPILE_REPAIR_ATTEMPTS<br/>(2026-09-27, split from audit-repair)
     else clean
         Cycle->>Evid: _gather_norm_evidence(round, plan)
         Note over Evid: per requirement id: norm-engineer's own finalization step's<br/>verified claims + each test's own PASS/FAIL (via --junit-xml)
@@ -327,8 +331,8 @@ sequenceDiagram
         Note over Aud: a separate model instance that never wrote the code —<br/>reads norm.txt + the architect's plan + the evidence package,<br/>asking "does this evidence demonstrate the norm was<br/>actually instantiated?", hunting specifically for under-enforcement
         Aud-->>Cycle: response text, ending with AUDIT_PASSED<br/>iff fully compliant, else a specific critique
         alt NEEDS_REPAIR
-            Cycle->>Eng: repair message with the auditor's report<br/>(same attempt-number + self-repair framing as above)
-            Note over Eng,Aud: loops back — same session pairing, its OWN<br/>separate budget (MAX_NORM_AUDIT_REPAIR_ATTEMPTS)
+            Cycle->>Eng: repair message with the auditor's report<br/>(same fresh-session + self-repair framing as above)
+            Note over Eng,Aud: loops back — independently fresh, its OWN<br/>separate budget (MAX_NORM_AUDIT_REPAIR_ATTEMPTS)
         else COMPLIANT
             Cycle->>Git: stage + commit this round's changes
         end
@@ -365,51 +369,54 @@ compliant, verified result within budget, the round's changes are
 discarded (`discard_norm_implementation()`) and the simulation continues
 under the previous mechanics.
 
-**norm-engineer's opencode session is continued in PAIRS across a round's
-repair loop (2026-09-25)** — repair attempt 1 & 2 share one session, 3 & 4
-share a new one, 5 & 6 a newer one still, and so on; never more than 2
-consecutive repair attempts in the same session. This landed in two
-steps. First (2026-09-24, by request), the session was continued across
-the round's *entire* repair loop, unbounded within the round's shared
-repair budget (since split into two — see below). This targeted a
-confirmed real failure: round
-3 of `sim/run-20260924-005713` needed 11 memoryless attempts to converge,
-and two of them failed on the exact same broken import in the exact same
-file — the model guessed a plausible-but-wrong module path twice
-independently, because the second attempt had no memory the first one
-already tried and failed with a *different* wrong guess.
+**Every one of norm-engineer's repair calls is now an independently fresh
+opencode session (2026-10-02) — no continuation at all, not even
+paired.** This is the end state of a longer history worth knowing, because
+it's the reason continuity across attempts now lives entirely in plain
+data (`repair_history`, `attempt_log.json`, the requirement-status
+checkpoint — see section 11) rather than in model memory:
+
+First (2026-09-24, by request), the session was continued across a
+round's *entire* repair loop, unbounded. This targeted a confirmed real
+failure: round 3 of `sim/run-20260924-005713` needed 11 memoryless
+attempts to converge, and two of them failed on the exact same broken
+import in the exact same file — the model guessed a plausible-but-wrong
+module path twice independently, because the second attempt had no
+memory the first one already tried and failed with a *different* wrong
+guess.
 
 Then (2026-09-25, by request), narrowed from the whole loop down to
-pairs, after round 1 of `sim/run-20260925-080825` showed the whole-loop
-version *degrading* partway through — not the unbounded-growth crash
-described below, but something subtler: attempts 0-3 did real,
-shrinking-but-genuine tool work; attempt 4 dropped to a single real tool
-call; attempts 5-10 made **zero** real tool calls and instead wrote
-fabricated `[Assistant tool call]: ...` / `[Tool result]: ...` text into
-their own response — a hallucinated verification, not a real one — while
-still self-reporting full success. Pairing at 2 keeps a session alive
-long enough to avoid repeating an already-failed guess (the original
-problem) while staying well under where this degradation actually
-started. A pair boundary (attempt 3, 5, 7, ...) starts genuinely fresh —
-no session memory at all — so each repair message's own `repair_history`
-(an orchestrator-recorded, one-line-per-attempt log, not the model's own
-claims) carries continuity across that boundary instead of session
-memory. Each repair message also states which attempt this is, whether
-*this specific* attempt has real session memory or not, quotes the
-specific error found, and explicitly asks norm-engineer to use its real
-tools and check for/self-repair the same class of mistake elsewhere in
-the round's own new files, not just the one instance a mechanical check
-happened to catch first.
+pairs (repair attempt 1 & 2 share a session, 3 & 4 a new one, ...), after
+round 1 of `sim/run-20260925-080825` showed the whole-loop version
+*degrading* partway through — not an unbounded-growth crash, but
+something subtler: attempts 0-3 did real, shrinking-but-genuine tool
+work; attempt 4 dropped to a single real tool call; attempts 5-10 made
+**zero** real tool calls and instead wrote fabricated `[Assistant tool
+call]: ...` / `[Tool result]: ...` text into their own response — a
+hallucinated verification, not a real one — while still self-reporting
+full success. Pairing at 2 kept a session alive long enough to avoid
+repeating an already-failed guess while staying well under where that
+degradation started.
 
-The original, whole-loop version reintroduced something close to what
-was tried unbounded on 2026-09-15 and reverted on 2026-09-17, when a real
-round's session grew across ~15 continued calls over ~6 hours until it
-became too large for the model to even begin responding to within
-opencode's own internal provider-header timeout. Pairing keeps that risk
-far smaller by construction (2 consecutive attempts, not up to 10), and
-`run_norm_engineer_with_retry()`'s own process-retry pairing (unchanged,
-2026-09-18) still drops a session after 2 consecutive process-level
-failures on it — a second, independent safety valve.
+Finally (2026-10-02, by request), pairing itself was removed, after
+round 1 of `sim/run-20261001-211932` showed the *same* session-growth
+failure reached a different way: one fresh pair-starting attempt alone
+produced 34 separate near-identical "I have successfully completed
+Round 1..." text turns before finishing, and its paired continuation
+then timed out completely after 3600s having produced nothing at all.
+Two attempts was already enough for that round's own repetition to build
+fatal context bloat — there was no smaller non-zero pairing width left to
+narrow to. By this point `repair_history`, `attempt_log.json`, and the
+requirement-status checkpoint (none of which existed when the 2026-09-25
+pairing decision was made) could carry continuity across every attempt
+without costing any context, so pairing's own original justification
+(not repeating an already-failed guess) no longer needed session memory
+at all to hold. `run_norm_engineer_with_retry()`'s own internal
+process-retry pairing (unchanged, 2026-09-18) is a separate, narrower
+mechanism — it continues a session only to retry the *same* message
+after an infrastructure failure (timeout/crash/truncation), still capped
+at 2 consecutive attempts, and was never implicated in either incident
+above.
 
 **Compile-repair and audit-repair draw from separate budgets
 (2026-09-27)** — `MAX_NORM_COMPILE_REPAIR_ATTEMPTS` (10) for compile/
@@ -480,7 +487,197 @@ lets a `narration` kwarg on a deposit/withdraw automatically become both
 a visible in-world notice and a memory entry, without the calling code
 having to know how either of those work.
 
-## 10. Where to look next
+## 10. How norm-architect breaks a norm down: requirements, `source_coverage`, and scoped fixes
+
+Section 7 covers where this sits in the pipeline; this is the actual
+data shape and the code that produces and checks it.
+
+```mermaid
+flowchart TB
+    NORM["norm.txt"] --> PROMPT["NORM_ARCHITECT_SYSTEM_PROMPT<br/>(engine/llm_agents.py)"]
+    BUNDLE["_norm_architect_context_bundle()<br/>architecture.md + _mas_summary()"] --> PROMPT
+    PROMPT --> CALL["call_norm_architect_agent()<br/>plain litellm completion, no tools"]
+    CALL --> RAW["raw response text,<br/>one trailing fenced \`\`\`json block"]
+    RAW --> PARSE["_parse_architect_plan()<br/>-> _loads_llm_json()"]
+    PARSE -->|strict JSON failed| LENIENT["_strip_json_comments_and_trailing_commas()<br/>drops // and /* */ comments, trailing commas —<br/>string-aware, never touches real string content"]
+    LENIENT --> PLAN
+    PARSE -->|strict JSON parsed cleanly| PLAN["plan: requirements / flows /<br/>source_coverage / open_critiques"]
+    PLAN --> VALID["validate_norm_plan()<br/>Harness Validator — deterministic, no LLM"]
+    VALID -->|errors| TRIGGER["one combined 'structural problems' trigger"]
+    TRIGGER --> CLARIFY
+    PLAN -->|open_critiques, if enabled| ASKPROP["ask_norm_proposer()<br/>one question per critique, to the round's winning proposer"]
+    ASKPROP --> CLARIFYPROMPT["NORM_ARCHITECT_CLARIFICATION_SYSTEM_PROMPT"]
+    TRIGGER --> CLARIFYPROMPT
+    CLARIFYPROMPT --> CLARIFY["call_norm_architect_clarification_agent()<br/>one scoped patch call"]
+    CLARIFY --> APPLY["_apply_clarification_patch()<br/>merges by id, never regenerates"]
+    APPLY --> PLAN
+    VALID -->|clean| FINAL["tests/norm_checks/round_N/norm_plan.json"]
+```
+
+**The requirement breakdown.** Every entry in `plan["requirements"]` has
+`id`/`type`/`description`/`depends_on`/`clarity`/`clarity_critique`/
+`clarity_resolution`, plus whichever type-specific fields its `type`
+calls for — `actor`/`judgment_required`/`trigger`/`decision_context` on
+an ACTION, `attached_to`/`deterministic`/`condition`/`effect` on a RULE,
+`assigned_by` on an exclusive ROLE, `target`/`audience` on a VISIBILITY,
+`duration_rounds` on a LIFECYCLE — and an `agent_experience` block for
+every ROLE/ACTION/RULE/VISIBILITY requirement. `plan["flows"]` is the
+ordered interaction sequence (which steps happen before/after which,
+under what trigger); `plan["open_critiques"]` is genuinely unresolved
+ambiguity the architect found and couldn't safely guess at.
+
+**`source_coverage` is the architect's own proof that nothing from the
+norm silently disappeared.** Each entry pairs one clause of norm.txt's
+Operationalization — its own text, verbatim — with the requirement ids
+that implement it and a `COVERED`/`PARTIAL`/`AMBIGUOUS` verdict.
+`_norm_clause_count()` counts how many separately-coverable clauses the
+norm actually has (its numbered items when it numbers them, its
+sentences otherwise), and `_norm_plan_clause_coverage_errors()` rejects a
+plan with fewer `source_coverage` entries than that count — a plan can
+no longer fold four clauses into one summarizing entry and call it
+`COVERED`. This exists because a real plan (`sim/run-20260930-224347`,
+Lake Guard) silently dropped the seasonal/annual appointment mechanism
+for two roles, a vote's own numeric threshold, a nightly review action,
+and a fine's own application/deduction step — each one a real clause
+with no requirement at all, invisible until a human read the plan by
+hand.
+
+**`validate_norm_plan()` (the Harness Validator) checks the rest of the
+cross-references mechanically**, via `_norm_plan_reference_errors()`:
+`actor` must be a ROLE requirement id, an existing role's name, or
+`"all_fishers"` — never a collective like `"community"` a single agent
+can't be prompted as; a RULE's `attached_to` must name a real ACTION, not
+an arbitrary nearby one; an exclusive ROLE needs `assigned_by` (the
+id(s) of whatever actually grants it — a role existing is not the same
+as anyone holding it); `depends_on` references must exist and
+`_norm_plan_dependency_cycle_errors()` rejects a cycle among them; every
+`flows` step must name a real requirement; a judgment-requiring ACTION
+needs a `decision_context` with at least `prompt_to` and `output`. None
+of this is model self-report — every check reads the plan's own fields
+directly.
+
+**A fix is always a scoped patch, never a full regeneration.** When
+`validate_norm_plan()` finds structural problems, or an `open_critique`
+gets an answer (via `ask_norm_proposer()`, gated by
+`NORM_ARCHITECT_CRITIQUES_ENABLED`, capped at
+`MAX_NORM_CLARIFICATIONS_PER_ROUND` critiques per round), the harness
+calls `call_norm_architect_clarification_agent()` with
+`NORM_ARCHITECT_CLARIFICATION_SYSTEM_PROMPT` — a response that names only
+`affected_requirements` (ids whose own object is being replaced),
+`unchanged_requirements` (every other existing id — together with
+`affected_requirements` they must account for all of them), optionally
+`added_requirements` (genuinely new ids a coverage gap needs) and a
+`requirements` list with exactly the affected/added objects, and
+optionally a full replacement `flows`/`source_coverage` list.
+`_apply_clarification_patch()` enforces this mechanically: it only ever
+takes an object from the patch's own `requirements` if its id is in
+`affected_requirements`/`added_requirements` — every other id is copied
+*verbatim* from the plan exactly as it already stood, by Python object
+identity, regardless of what else the model's response contains. A key
+that's simply absent (a patch touching only `source_coverage` has
+nothing to put in `requirements`) defaults to empty rather than
+invalidating the whole patch; a key present with the wrong type is still
+rejected. Up to `MAX_NORM_STRUCTURAL_FIX_PASSES` (2) structural-fix
+passes run before the round is discarded as a design failure.
+
+## 11. norm-engineer's attempt log and the requirement-status checkpoint
+
+Section 7's repair loop needs a way for one attempt to know what an
+earlier one already tried, now that no attempt shares a session with
+any other (section 7's closing note). Three separate, complementary
+mechanisms carry that continuity — none of them cost context the way a
+growing session does, and none of them trust the model's own account of
+itself over what the harness can actually verify.
+
+```mermaid
+flowchart TB
+    subgraph Harness["Owned by the harness — plain data, never an LLM call"]
+        RH["repair_history<br/>one orchestrator-written line per attempt"]
+        EVID["_gather_norm_evidence()<br/>-> state/norm_evidence/round_N.json"]
+        STATUS["_render_requirement_status_block()"]
+        PRESERVE["_preserve_attempt_log()<br/>snapshot + restore"]
+        CLEAR["_clear_stale_round_checks()<br/>wipes the round dir before it starts"]
+    end
+    subgraph Engineer["Owned by norm-engineer itself — opencode agent"]
+        LOG["tests/norm_checks/round_N/attempt_log.json<br/>one JSON object appended per attempt"]
+        TESTS["tests/norm_checks/round_N/test_round_N.py<br/>test_{id}_{scenario} functions"]
+        SPEC["state/norm_specs/round_N.md<br/>trailing requirement_evidence json block"]
+    end
+
+    CLEAR -.before round starts.-> LOG
+    LOG -->|"norm-engineer reads this first"| LOG
+    LOG -->|"read-modify-write, never a bare overwrite"| LOG
+    PRESERVE -.after every engineer call.-> LOG
+
+    SPEC --> EVID
+    TESTS -->|pytest --junit-xml| EVID
+    EVID --> STATUS
+    STATUS -->|folded into the next repair message| LOG
+    RH -->|folded into every repair message| LOG
+```
+
+**`attempt_log.json` is norm-engineer's own account, owned entirely by
+norm-engineer — the harness never parses its content**, only mentions
+its path in `_render_engineer_repair_preamble()`'s standing instruction.
+`.opencode/agents/norm-engineer.md` tells it this is a read-modify-write,
+not a single `write` call: read the file first (an empty list if it
+doesn't exist), parse it as a JSON array, append exactly one new object
+for this attempt (`attempt`/`requirement_ids`/`approach`/`reasoning`/
+`files_changed`/`verified`), write the whole array back. This exists
+because a real round's own transcript contained the literal phrase "the
+attempt_log shows my work from attempt 5 which may be lost now" — its
+own `write` calls had been replacing the file's entire content with just
+that attempt's one new object every time. `_preserve_attempt_log()`
+closes the gap a permission denial can't: after every norm-engineer
+call, the harness compares the file against its own saved copy, and if
+entries were deleted, emptied, or corrupted (a real round ran `rm -f` on
+it directly, mid-attempt, through its own shell access), restores the
+saved entries plus whatever new ones were actually added.
+`_clear_stale_round_checks()` empties the whole `tests/norm_checks/round_N/`
+directory before norm-architect even runs — a leftover from an earlier
+run that happened to share the same round number and working directory
+was once read by norm-engineer as its *own* history, for a completely
+different norm.
+
+**The requirement-status checkpoint is the harness's own independent
+measurement of progress, built from real test results, not self-report.**
+`_gather_norm_evidence()` runs `tests/norm_checks/round_N/` once with
+`--junit-xml`, matches each `test_{id}_{scenario}` function's PASS/FAIL
+back to its requirement id, folds in norm-engineer's own
+`requirement_evidence` claims from `state/norm_specs/round_N.md`'s
+trailing block, and writes the result to
+`state/norm_evidence/round_N.json` — a real file, so a crash mid-round
+loses nothing. `_render_requirement_status_block()` then classifies
+every requirement into exactly one bucket and folds that block into the
+*next* repair message: **Flagged by the auditor** (named in the
+auditor's own verdict this round — never reported as done, even if its
+tests pass, since the tests evidently don't cover what the auditor
+found); **Named in an error** (one of its own files appears in a current
+compile error — not done, whatever its tests say); **Satisfied** /
+**Tests pass for** (preserve this, don't rebuild it — "Tests pass for"
+instead of "Satisfied" specifically when compile errors are still open
+elsewhere, so the phrasing itself never contradicts the errors listed
+above it); **No test evidence at all** (a missing test, or only
+`EMPTY` ones — see next paragraph — which is a test-writing gap, not
+proof the code is wrong).
+
+A test only counts as evidence if it actually checks something.
+`_tests_without_assertions()` parses the test file's own syntax tree and
+treats a `test_*` function as empty if it contains no `assert`,
+`pytest.raises`/`warns`, no `assert*`-named call, and no call to a
+same-file helper that itself checks something — a `def test_R3_x():
+pass` always "passes" regardless of what was built. Such a test is
+recorded as `EMPTY` (not `PASS`) in the evidence, so it gives its
+requirement no credit, and `norm_implementation_empty_tests_errors()`
+rejects a whole suite outright as a compile-class error if *every* test
+in it is like this. This exists because a real round's norm-engineer
+wrote ten such stubs in its very first call and kept them for all 17
+compile- and audit-repair attempts that followed — every requirement
+read as done from the start, the compile gate never caught it, and the
+round discarded 5.3 hours later having never written one real
+assertion.
+
+## 12. Where to look next
 
 - `docs/institution-contracts/architecture.md` — the same routing logic
   (rule vs. action vs. object vs. role) from the norm-engineer's own
@@ -494,10 +691,18 @@ having to know how either of those work.
   change, including a worked example composing several of them for one
   norm.
 - `engine/llm_agents.py`'s `NORM_ARCHITECT_SYSTEM_PROMPT` /
-  `NORM_AUDITOR_SYSTEM_PROMPT` — norm-architect's and norm-auditor's
-  actual standing instructions (both are plain completion calls, not
-  opencode agents, so neither has a `.opencode/agents/*.md` file of its
+  `NORM_ARCHITECT_CLARIFICATION_SYSTEM_PROMPT` / `NORM_AUDITOR_SYSTEM_PROMPT`
+  — norm-architect's, its own scoped-patch mode's, and norm-auditor's
+  actual standing instructions (all three are plain completion calls, not
+  opencode agents, so none has a `.opencode/agents/*.md` file of its
   own).
 - `.opencode/agents/norm-engineer.md` — the actual instructions given to
   the one remaining opencode agent in section 7's pipeline (2026-09-26:
-  no more separate norm-finalizer subagent).
+  no more separate norm-finalizer subagent), including its own
+  `attempt_log.json` read-modify-write procedure (section 11) and the
+  test-naming convention (`test_{id}_{scenario}`) the requirement-status
+  checkpoint depends on.
+- `engine/simulate.py`'s `validate_norm_plan()`, `_apply_clarification_patch()`,
+  `_gather_norm_evidence()`, `_render_requirement_status_block()`, and
+  `_preserve_attempt_log()` — sections 10 and 11's own code, each with a
+  docstring citing the real round that motivated it.
