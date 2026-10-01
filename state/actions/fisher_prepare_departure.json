@@ -1,0 +1,9 @@
+{
+  "name": "fisher_prepare_departure",
+  "description": "A fisher prepares to depart for fishing",
+  "actor": "fisher",
+  "triggered_by": [
+    "fisher_prepare_departure"
+  ],
+  "decision_context": null
+}

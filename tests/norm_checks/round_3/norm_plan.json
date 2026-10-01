@@ -1,0 +1,292 @@
+{
+  "requirements": [
+    {
+      "id": "R1",
+      "type": "ROLE",
+      "description": "Daily watchman: responsible for verifying fishing compliance and enforcing penalties.",
+      "exclusive": true,
+      "assigned_by": [
+        "R6"
+      ],
+      "depends_on": [],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Their duties include checking fishers' hours and catch weight.",
+          "They must enforce penalties for non-compliance."
+        ],
+        "decides": [],
+        "may_do": [
+          "Inspect fishing records",
+          "Assign penalties"
+        ],
+        "may_not_do": [],
+        "remembers": [
+          "Previous compliance statuses of fishers"
+        ],
+        "observes": [
+          "Fisher's effort and harvested_kg"
+        ]
+      }
+    },
+    {
+      "id": "R2",
+      "type": "OBJECT",
+      "description": "Communal ledger: records fishing logs, scale readings, penalties, and pit deposits.",
+      "persistent": true,
+      "purpose": "Track compliance and enforcement actions.",
+      "read_by": [
+        "watchman",
+        "village_leader",
+        "fisher_council"
+      ],
+      "written_by": [
+        "R3",
+        "R5"
+      ],
+      "depends_on": [],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R3",
+      "type": "ACTION",
+      "description": "Watchman inspects a fisher's departure/return logs and scale readings.",
+      "actor": "R1",
+      "judgment_required": true,
+      "depends_on": [
+        "R1",
+        "R2"
+      ],
+      "trigger": {
+        "event": "fisher_prepare_departure",
+        "condition": "watchman role is active"
+      },
+      "decision_context": {
+        "prompt_to": "daily_watchman",
+        "visible_state": [
+          "current_fisher_hours",
+          "current_fisher_weight"
+        ],
+        "visible_objects": [
+          "communal_scale_readings"
+        ],
+        "visible_institutional_information": [
+          "Maximum allowed fishing hours: 4h/day",
+          "Maximum allowed catch weight: 3kg/haul"
+        ],
+        "choices": [
+          "Compliant",
+          "Non-compliant with hours >4 or weight >3kg"
+        ],
+        "output": [
+          "compliance_status",
+          "excess_amount"
+        ]
+      },
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Whether the fisher is compliant"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R4",
+      "type": "RULE",
+      "description": "If non-compliant, calculate excess and assign 5-minute penalty.",
+      "attached_to": "harvest",
+      "deterministic": true,
+      "depends_on": [
+        "R3",
+        "R2"
+      ],
+      "condition": "fisher compliance status is Non-compliant",
+      "effect": [
+        "Record excess in communal ledger",
+        "Assign 5-minute community work penalty"
+      ],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Penalty assigned if non-compliant"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Assigned penalties"
+        ],
+        "observes": []
+      }
+    },
+    {
+      "id": "R5",
+      "type": "ACTION",
+      "description": "Watchman enforces penalty consequences if work not completed.",
+      "actor": "R1",
+      "judgment_required": false,
+      "depends_on": [
+        "R1",
+        "R2"
+      ],
+      "trigger": {
+        "event": "penalty_completion_check",
+        "condition": "5-minute penalty not completed"
+      },
+      "decision_context": null,
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [],
+        "decides": [
+          "Type of additional penalty"
+        ],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [],
+        "observes": []
+      }
+    },
+    {
+      "id": "R6",
+      "type": "LIFECYCLE",
+      "description": "Daily watchman role rotates every week.",
+      "duration_rounds": 7,
+      "depends_on": [
+        "R1"
+      ],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null
+    },
+    {
+      "id": "R7",
+      "type": "VISIBILITY",
+      "description": "Communal ledger entries visible to all fishers regarding fishing bans.",
+      "target": "communal_ledger",
+      "audience": "all_fishers",
+      "depends_on": [
+        "R2"
+      ],
+      "clarity": "CLEAR",
+      "clarity_critique": null,
+      "clarity_resolution": null,
+      "agent_experience": {
+        "knows": [
+          "Which fishers are currently banned from fishing"
+        ],
+        "decides": [],
+        "may_do": [],
+        "may_not_do": [],
+        "remembers": [
+          "Past ban statuses of other fishers"
+        ],
+        "observes": [
+          "Current ban statuses through ledger entries"
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "F1",
+      "name": "Compliance Check and Enforcement",
+      "trigger": "fisher_prepare_departure",
+      "participants": [
+        "daily_watchman"
+      ],
+      "steps": [
+        {
+          "requirement": "R3",
+          "after": [],
+          "condition": null,
+          "next": [
+            "R4"
+          ]
+        },
+        {
+          "requirement": "R4",
+          "after": [
+            "R3"
+          ],
+          "condition": "Non-compliant",
+          "next": [
+            "R5"
+          ]
+        },
+        {
+          "requirement": "R5",
+          "after": [
+            "R4"
+          ],
+          "condition": "Penalty not completed",
+          "next": []
+        }
+      ]
+    }
+  ],
+  "source_coverage": [
+    {
+      "source_clause": "Before a fisher leaves the dock, the watchman checks the fisher\u2019s recorded hours and net weight on the communal scale; if hours >4 or weight >3kg, the watchman records the excess, orders the fisher to remove the excess fish to the communal pit, and assigns 5 minutes of net cleaning or fish washing.",
+      "requirements": [
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    },
+    {
+      "source_clause": "The fisher must complete the work within the time limit; if not, the watchman records a 10-minute penalty or imposes a 24-hour ban, locks the fisher\u2019s boat, logs the ban, and notifies the village leader and council.",
+      "requirements": [
+        "R5"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    },
+    {
+      "source_clause": "All logs, scale readings, pit deposits, and penalties are recorded in the communal ledger and verified daily by the watchman.",
+      "requirements": [
+        "R2",
+        "R3",
+        "R4",
+        "R7"
+      ],
+      "coverage": "COVERED",
+      "note": null
+    }
+  ],
+  "open_critiques": [],
+  "clarifications": [
+    {
+      "clarification_for": null,
+      "affected_requirements": [
+        "R3",
+        "R5",
+        "R7"
+      ],
+      "unchanged_requirements": [
+        "R1",
+        "R2",
+        "R4",
+        "R6"
+      ],
+      "note": "structural fixes: requirement 'R7': type VISIBILITY needs an \"agent_experience\" block \u2014 what does a fisher actually know/decide/may-do/may-not-do/remember/observe because of this?; requirement 'R3': \"actor\" is 'daily_watchman', which is neither a ROLE requirement id in this plan, an existing role (['fisher']), nor \"all_fishers\" \u2014 every ACTION is one decision made separately by each individual agent who holds a role (or by every living fisher). If a group (\"community\", \"council\", \"elders\") decides, decompose it: a ROLE for its members, a per-agent ACTION where each one decides, and a deterministic RULE that combines their decisions; requirement 'R5': \"actor\" is 'daily_watchman', which is neither a ROLE requirement id in this plan, an existing role (['fisher']), nor \"all_fishers\" \u2014 every ACTION is one decision made separately by each individual agent who holds a role (or by every living fisher). If a group (\"community\", \"council\", \"elders\") decides, decompose it: a ROLE for its members, a per-agent ACTION where each one decides, and a deterministic RULE that combines their decisions"
+    }
+  ]
+}

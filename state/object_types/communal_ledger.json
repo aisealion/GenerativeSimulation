@@ -1,0 +1,7 @@
+{
+  "type_name": "communal_ledger",
+  "description": "Communal ledger: records fishing logs, scale readings, penalties, and pit deposits.",
+  "persistent": true,
+  "read_by": ["watchman", "village_leader", "fisher_council"],
+  "written_by": ["R3", "R5"]
+}
